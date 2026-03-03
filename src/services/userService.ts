@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { UserProfile } from '../types';
 import { withRetry } from '../utils/resilience';
+import { normalizeHandle } from '../utils/slug';
 
 const profileCache = new Map<string, { data: UserProfile | null; timestamp: number }>();
 
@@ -25,6 +26,21 @@ export const userService = {
       }
 
       const result = data as UserProfile | null;
+
+      // Auto-generate handle if missing and full_name exists
+      if (result && !result.handle && result.full_name) {
+        const generatedHandle = normalizeHandle(result.full_name);
+        if (generatedHandle) {
+          try {
+            const updated = await userService.updateProfile(userId, { handle: generatedHandle });
+            profileCache.set(cacheKey, { data: updated, timestamp: Date.now() });
+            return updated;
+          } catch (e) {
+            console.error("[User Service] Failed to auto-generate handle:", e);
+          }
+        }
+      }
+
       profileCache.set(cacheKey, { data: result, timestamp: Date.now() });
       return result;
     });

@@ -53,110 +53,118 @@ function DataRoomsPage() {
   }, []);
 
   return (
-    <DashboardLayout title="Data Rooms" showFab={false}>
+    <DashboardLayout title="Data Rooms">
       <div className="space-y-12 animate-in fade-in duration-700 relative">
-        <p className="text-slate-500 font-medium -mb-6 md:-mb-4">
-          Bundle documents into shareable folders with access controls
-        </p>
-        {/* Subtle refresh indicator placeholder if needed, or just header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Usage indicator */}
-            {!loading && (
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full">
-                <div className="flex gap-0.5">
+        {rooms.length > 0 && (
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 -mb-6 md:-mb-4">
+            Bundle assets into shareable secure rooms with access controls
+          </p>
+        )}
+
+        {!loading && rooms.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-6">
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              {/* Usage indicator */}
+              <div className="hidden md:flex items-center gap-4 px-5 py-2.5 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md">
+                <div className="flex gap-1">
                   {Array.from({ length: Math.min(maxRooms, 5) }).map((_, i) => (
                     <div
                       key={i}
-                      className={`w-2 h-2 rounded-full transition-colors ${
-                        i < rooms.length ? "bg-deckly-primary" : "bg-slate-200"
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
+                        i < rooms.length
+                          ? "bg-deckly-primary shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                          : "bg-white/10"
                       }`}
                     />
                   ))}
                   {isUnlimited && (
-                    <span className="text-[9px] font-black text-slate-400 ml-1">
+                    <span className="text-[10px] font-bold text-deckly-primary ml-1 animate-pulse">
                       ∞
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-bold text-slate-500">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                   {rooms.length}
-                  {!isUnlimited && `/${maxRooms}`} rooms
+                  {!isUnlimited && ` / ${maxRooms}`} Rooms
                 </span>
               </div>
-            )}
 
-            {/* Create button */}
-            <button
-              onClick={() => !isAtLimit && navigate("/rooms/new")}
-              disabled={isAtLimit}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 font-bold text-sm rounded-xl transition-all active:scale-95 ${
-                isAtLimit
-                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                  : "bg-deckly-primary text-slate-900 hover:bg-deckly-primary/90"
-              }`}
-            >
-              {isAtLimit ? <Lock size={16} /> : <Plus size={16} />}
-              New Room
-            </button>
+              {/* Create button */}
+              <button
+                onClick={() => !isAtLimit && navigate("/rooms/new")}
+                disabled={isAtLimit}
+                className={`hidden sm:flex flex-none items-center justify-center gap-3 px-8 py-3.5 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl transition-all active:scale-[0.98] shadow-2xl ${
+                  isAtLimit
+                    ? "bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed"
+                    : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90 shadow-deckly-primary/20"
+                }`}
+              >
+                {isAtLimit ? <Lock size={16} /> : <Plus size={16} />}
+                {isAtLimit ? "Room Limit Reached" : "New Room"}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Upgrade banner */}
         {isAtLimit && !isUnlimited && (
-          <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl">
-            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-              <Zap size={20} className="text-amber-600" />
+          <div className="flex items-center gap-5 p-6 bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20 rounded-[2rem] relative overflow-hidden group">
+            <div className="absolute inset-0 bg-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="w-12 h-12 bg-amber-500/20 border border-amber-500/20 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/10">
+              <Zap size={24} className="text-amber-500" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-800">
+            <div className="flex-1 min-w-0 relative z-10">
+              <p className="text-sm font-bold text-white uppercase tracking-wider">
                 {tier === "FREE"
-                  ? "Upgrade to Pro for up to 5 data rooms"
-                  : "Upgrade to Pro+ for unlimited data rooms"}
+                  ? "Upgrade to Pro for more rooms"
+                  : "Go Unlimited with Pro+"}
               </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                You've used all {maxRooms} data room{maxRooms > 1 ? "s" : ""} on
-                your {tier === "FREE" ? "Free" : "Pro"} plan.
+              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500/80 mt-1">
+                You've used all {maxRooms} slots on {tier}
               </p>
             </div>
-            <button className="px-4 py-2 bg-amber-500 text-white font-bold text-xs rounded-xl hover:bg-amber-600 transition-colors shrink-0">
-              Upgrade
+            <button className="px-6 py-2.5 bg-amber-500 text-slate-950 font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-amber-400 transition-all shrink-0 shadow-xl shadow-amber-500/10 hover:scale-105 active:scale-95">
+              Upgrade Now
             </button>
           </div>
         )}
 
         {/* Content */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-28 bg-slate-100 rounded-2xl animate-pulse"
+                className="h-40 bg-white/5 border border-white/5 rounded-[2rem] animate-pulse"
               />
             ))}
           </div>
         ) : rooms.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-              <Monitor size={28} className="text-slate-300" />
+          <div className="flex flex-col items-center justify-center py-32 text-center glass-shiny border border-white/5 rounded-[3rem] shadow-2xl">
+            <div className="w-24 h-24 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center mb-8 relative group">
+              <div className="absolute inset-0 bg-deckly-primary/10 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Monitor
+                size={40}
+                className="text-slate-600 group-hover:text-deckly-primary transition-all duration-500"
+              />
             </div>
-            <h3 className="text-lg font-semibold text-slate-700 mb-1">
+            <h3 className="text-2xl font-bold text-white tracking-tight uppercase tracking-widest mb-3">
               No data rooms yet
             </h3>
-            <p className="text-sm text-slate-500 mb-6 max-w-sm">
-              Create a data room to bundle multiple documents into a single
-              shareable link
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-10 max-w-xs leading-relaxed">
+              Bundle multiple assets into a single shareable link with elite
+              security
             </p>
             <button
               onClick={() => navigate("/rooms/new")}
-              className="flex items-center gap-2 px-5 py-2.5 bg-deckly-primary text-slate-900 font-bold text-sm rounded-xl hover:bg-deckly-primary/90 transition-all"
+              className="hidden sm:flex items-center gap-3 px-10 py-4 bg-deckly-primary text-slate-950 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-deckly-primary/90 transition-all shadow-2xl shadow-deckly-primary/20 hover:scale-105 active:scale-95"
             >
-              <Plus size={16} />
-              Create Your First Room
+              <Plus size={18} />
+              Create First Room
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {rooms.map((room) => {
               const meta = roomMeta.get(room.id);
               return (

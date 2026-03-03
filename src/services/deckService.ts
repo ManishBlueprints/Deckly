@@ -27,12 +27,13 @@ export const deckService = {
     });
   },
 
-  // Get single deck by slug (uses public view to hide password)
-  async getDeckBySlug(slug: string): Promise<Deck> {
+  // Get single deck by handle and slug (uses public view to hide password)
+  async getDeckByHandleAndSlug(handle: string, slug: string): Promise<Deck> {
     const { data, error } = await supabase
       .from("decks_public")
       .select("*")
       .eq("slug", slug)
+      .eq("user_handle", handle)
       .single();
 
     if (error) throw error;
@@ -78,7 +79,8 @@ export const deckService = {
     const userId = session.user.id;
 
     const fileExt = file.name.split(".").pop();
-    const fileName = `${userId}/decks/${deckData.slug}-${Date.now()}.${fileExt}`;
+    const normalizedSlug = deckData.slug || file.name.split(".")[0].toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const fileName = `${userId}/decks/${normalizedSlug}-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("decks")
@@ -537,5 +539,24 @@ export const deckService = {
 
       if (error) throw error;
     });
+  },
+
+  // NEW: Check if a slug is available for the current user
+  async checkSlugAvailable(slug: string, excludeId?: string): Promise<boolean> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return true;
+
+    let query = supabase
+      .from("decks")
+      .select("id")
+      .eq("user_id", session.user.id)
+      .eq("slug", slug);
+
+    if (excludeId) {
+      query = query.neq("id", excludeId);
+    }
+
+    const { data } = await query.maybeSingle();
+    return !data;
   },
 };

@@ -99,7 +99,7 @@ function Login() {
                 className="w-full h-full object-contain"
               />
             </div>
-            <h2 className="text-2xl font-black text-white tracking-tight mb-2">
+            <h2 className="text-2xl font-bold text-white tracking-tight mb-2">
               Welcome Back
             </h2>
             <p className="text-slate-500 font-bold mb-8">
@@ -148,7 +148,7 @@ function Login() {
 
             <div className="flex items-center w-full gap-4 mb-8">
               <div className="h-px bg-white/5 flex-1" />
-              <span className="text-[10px] uppercase font-black tracking-widest text-slate-600">
+              <span className="text-[10px] uppercase font-bold tracking-widest text-slate-600">
                 Or Sign in With
               </span>
               <div className="h-px bg-white/5 flex-1" />
@@ -191,7 +191,7 @@ function Login() {
               fullWidth
               size="large"
               loading={loading}
-              className="font-black tracking-widest uppercase py-4"
+              className="font-bold tracking-widest uppercase py-4"
             >
               Sign In
             </Button>

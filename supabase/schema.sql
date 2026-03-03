@@ -5,11 +5,15 @@
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT,
+    handle TEXT UNIQUE,
     avatar_url TEXT,
     tier TEXT DEFAULT 'FREE', -- FREE, PRO, PRO_PLUS
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Index for profile handle
+CREATE INDEX IF NOT EXISTS idx_profiles_handle ON public.profiles(handle);
 
 -- Enable RLS for profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -197,20 +201,24 @@ ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS viewer_email TEXT;
 -- 7. SECURITY HARDENING: SECURE ACCESS GATE
 -- This section implements server-side password validation to prevent leakage.
 
--- Public view for decks (excludes sensitive view_password)
+-- Public view for decks (excludes sensitive view_password, includes user_handle)
 CREATE OR REPLACE VIEW public.decks_public AS
 SELECT 
-    id, user_id, title, slug, description, file_url, pages, status, 
-    file_size, display_order, require_email, require_password, expires_at, 
-    created_at, updated_at, file_type, display_mode
-FROM public.decks;
+    d.id, d.user_id, d.title, d.slug, d.description, d.file_url, d.pages, d.status, 
+    d.file_size, d.display_order, d.require_email, d.require_password, d.expires_at, 
+    d.created_at, d.updated_at, d.file_type, d.display_mode,
+    p.handle as user_handle
+FROM public.decks d
+JOIN public.profiles p ON d.user_id = p.id;
 
--- Public view for data rooms (excludes sensitive view_password)
+-- Public view for data rooms (excludes sensitive view_password, includes user_handle)
 CREATE OR REPLACE VIEW public.data_rooms_public AS
 SELECT 
-    id, user_id, name, slug, description, icon_url, require_email, 
-    require_password, expires_at, created_at, updated_at
-FROM public.data_rooms;
+    dr.id, dr.user_id, dr.name, dr.slug, dr.description, dr.icon_url, dr.require_email, 
+    dr.require_password, dr.expires_at, dr.created_at, dr.updated_at,
+    p.handle as user_handle
+FROM public.data_rooms dr
+JOIN public.profiles p ON dr.user_id = p.id;
 
 -- Secure password validation function for Decks
 CREATE OR REPLACE FUNCTION public.check_deck_password(p_slug TEXT, p_password TEXT)

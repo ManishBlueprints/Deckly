@@ -9,7 +9,7 @@ export function AnalyticsSummary() {
 
   return (
     <div className="p-8 space-y-12">
-      <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+      <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
         Analytics
       </h3>
       <div className="space-y-12">

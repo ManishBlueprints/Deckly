@@ -1,25 +1,32 @@
 /* === 1. General Reset & Design Tokens === */
 :root {
-  --bg-primary: #12121a;
-  --bg-secondary: #1c1c21;
-  --bg-card: rgba(255, 255, 255, 0.03);
+  --bg-primary: #09090b; /* Deeper dark */
+  --bg-secondary: #0f0f12;
+  --bg-card: rgba(255, 255, 255, 0.02);
   --text-primary: #ffffff;
-  --text-secondary: #5d6c81;
-  --accent-primary: #2ad485;
-  --accent-secondary: #a78bfa;
-  --accent-hover: #22b370;
-  --highlight-color: #2ad485;
+  --text-secondary: #71717a;
+  --accent-primary: #22c55e;
+  --accent-secondary: #8b5cf6;
+  --accent-hover: #16a34a;
+  --highlight-color: #4ade80;
 
   /* Central Brand Colors (RGB for Tailwind Opacity Support) */
-  --deckly-primary-rgb: 42, 212, 133;
-  --deckly-secondary-rgb: 167, 139, 250;
-  --deckly-background-rgb: 18, 18, 26;
+  --deckly-primary-rgb: 34, 197, 94;
+  --deckly-secondary-rgb: 139, 92, 246;
+  --deckly-background-rgb: 9, 9, 11;
 
-  --border-color: rgba(255, 255, 255, 0.08);
+  --border-color: rgba(255, 255, 255, 0.06);
   --glass-bg: rgba(255, 255, 255, 0.03);
-  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --shadow-premium: 0 10px 30px rgba(0, 0, 0, 0.3);
+  --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-premium: 0 20px 50px rgba(0, 0, 0, 0.5);
   --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+
+  /* New Premium Tokens */
+  --mesh-gradient:
+    radial-gradient(at 0% 0%, rgba(34, 197, 94, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(34, 197, 94, 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(139, 92, 246, 0.05) 0px, transparent 50%);
 }
 
 * {
@@ -134,8 +141,14 @@ body {
   border: var(--glass-border);
   backdrop-filter: blur(16px);
   border-radius: 20px;
-  padding: 20px;
+  padding: 16px; /* Smaller mobile padding */
   transition: var(--transition-smooth);
+}
+
+@media (min-width: 768px) {
+  .card-modern {
+    padding: 24px;
+  }
 }
 
 .card-modern-glass {
@@ -146,6 +159,49 @@ body {
   transform: translateY(-5px);
   border-color: rgba(255, 255, 255, 0.15);
   box-shadow: var(--shadow-premium);
+}
+
+.glass-shiny {
+  position: relative;
+}
+
+.glass-shiny::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px; /* border thickness */
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 40%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glass-emerald-border::before {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.45) 0%,
+    rgba(34, 197, 94, 0.1) 40%,
+    rgba(255, 255, 255, 0.05) 70%,
+    rgba(255, 255, 255, 0) 100%
+  ) !important;
+}
+
+.dark-shiny-border {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
 }
 
 /* Inputs & Form Fields */

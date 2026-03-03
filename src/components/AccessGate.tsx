@@ -2,27 +2,60 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck } from "lucide-react";
 import { Deck } from "../types";
-import Button from "./common/Button";
-import Input from "./common/Input";
 import { deckService } from "../services/deckService";
 
 interface AccessGateProps {
   deck: Deck;
   onAccessGranted: (email?: string) => void;
   onVerifyPassword?: (password: string) => Promise<boolean>;
+  sessionEmail?: string; // pre-fill from logged-in user or undefined
 }
 
 const AccessGate: React.FC<AccessGateProps> = ({
   deck,
   onAccessGranted,
   onVerifyPassword,
+  sessionEmail,
 }) => {
-  const [email, setEmail] = useState("");
+  const EMAIL_CACHE_KEY = `deckly_email_${deck.id}`;
+  const EMAIL_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+  // Pre-fill email from session; also check 24h localStorage cache
+  const getInitialEmail = () => {
+    if (sessionEmail) return sessionEmail;
+    try {
+      const raw = localStorage.getItem(EMAIL_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.email && Date.now() < parsed.expires) return parsed.email;
+      }
+    } catch {
+      /* ignore */
+    }
+    return "";
+  };
+
+  const [email, setEmail] = useState(() => getInitialEmail());
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Skip the email step if we already have an email (session or cache)
   const [step, setStep] = useState<"email" | "password">(
-    deck.require_email ? "email" : "password",
+    deck.require_email && !getInitialEmail() ? "email" : "password",
   );
+
+  const saveEmailToCache = (resolvedEmail: string) => {
+    try {
+      localStorage.setItem(
+        EMAIL_CACHE_KEY,
+        JSON.stringify({
+          email: resolvedEmail,
+          expires: Date.now() + EMAIL_CACHE_TTL,
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +69,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
       if (deck.require_password) {
         setStep("password");
       } else {
+        saveEmailToCache(email);
         onAccessGranted(email);
       }
     } else {
@@ -45,6 +79,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
           : await deckService.checkDeckPassword(deck.slug, password);
 
         if (isValid) {
+          saveEmailToCache(email);
           onAccessGranted(email);
         } else {
           setError("Incorrect password. Please try again.");
@@ -56,33 +91,41 @@ const AccessGate: React.FC<AccessGateProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-deckly-background flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,rgba(42,212,133,0.05),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(167,139,250,0.05),transparent_40%)]">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full"
-      >
-        <div className="bg-slate-900/50 backdrop-blur-2xl border border-white/5 rounded-[40px] p-8 md:p-12 shadow-2xl relative overflow-hidden group">
-          {/* Decorative glow */}
-          <div className="absolute -top-24 -right-24 w-48 h-48 bg-deckly-primary/10 rounded-full blur-[80px] group-hover:bg-deckly-primary/20 transition-all duration-700" />
+    <div className="min-h-screen bg-[#090b10] flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background elements */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-deckly-primary/5 rounded-full blur-[100px] -mr-64 -mt-64" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-sky-500/5 rounded-full blur-[100px] -ml-64 -mb-64" />
 
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="max-w-md w-full relative z-10"
+      >
+        <div className="glass-shiny border border-white/5 rounded-[3rem] p-10 md:p-14 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] relative overflow-hidden group">
           <div className="relative z-10 flex flex-col items-center text-center">
-            <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center mb-8 border border-white/10 shadow-inner group-hover:scale-110 transition-transform duration-500">
-              <ShieldCheck size={40} className="text-deckly-primary" />
+            <div className="w-24 h-24 bg-white/5 rounded-[2rem] flex items-center justify-center mb-10 border border-white/10 shadow-2xl group-hover:scale-110 transition-transform duration-700 relative">
+              <div className="absolute inset-0 bg-deckly-primary/20 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <ShieldCheck
+                size={48}
+                className="text-deckly-primary relative z-10"
+              />
             </div>
 
-            <h2 className="text-3xl font-black text-white tracking-tight mb-4 leading-tight">
-              Access Restricted
+            <p className="text-[10px] font-bold text-deckly-primary uppercase tracking-[0.3em] mb-4">
+              SECURE ACCESS PROTOCOL
+            </p>
+            <h2 className="text-4xl font-bold text-white tracking-tight mb-6 uppercase tracking-wider">
+              Gatekeeper
             </h2>
-            <p className="text-slate-400 font-medium mb-10 leading-relaxed">
-              This document is protected. Please provide the required
-              information to continue to{" "}
-              <span className="text-white font-bold">"{deck.title}"</span>.
+            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest leading-relaxed mb-12 opacity-80">
+              This terminal is protected. Please verify your credentials to
+              access <span className="text-white">"{deck.title}"</span>.
             </p>
 
             <form
               onSubmit={handleSubmit}
-              className="w-full flex flex-col gap-6 text-left"
+              className="w-full flex flex-col gap-8 text-left"
             >
               <AnimatePresence mode="wait">
                 {step === "email" ? (
@@ -91,16 +134,25 @@ const AccessGate: React.FC<AccessGateProps> = ({
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
+                    className="space-y-3"
                   >
-                    <Input
-                      label="Your Email"
-                      type="email"
-                      placeholder="name@company.com"
-                      icon={Mail}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-4">
+                      AUTHORIZED EMAIL
+                    </label>
+                    <div className="relative group">
+                      <Mail
+                        size={18}
+                        className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-deckly-primary transition-colors"
+                      />
+                      <input
+                        type="email"
+                        placeholder="NAME@RESOURCES.COM"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-16 pr-6 text-xs font-bold uppercase tracking-widest text-white focus:outline-none focus:border-deckly-primary/30 transition-all shadow-inner"
+                      />
+                    </div>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -108,17 +160,26 @@ const AccessGate: React.FC<AccessGateProps> = ({
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
+                    className="space-y-3"
                   >
-                    <Input
-                      label="Viewing Password"
-                      type="password"
-                      placeholder="••••••••"
-                      icon={Lock}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      autoFocus
-                    />
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-4">
+                      ACCESS PERMIT
+                    </label>
+                    <div className="relative group">
+                      <Lock
+                        size={18}
+                        className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-700 group-focus-within:text-deckly-primary transition-colors"
+                      />
+                      <input
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        autoFocus
+                        className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-16 pr-6 text-xs font-bold uppercase tracking-widest text-white focus:outline-none focus:border-deckly-primary/30 transition-all shadow-inner"
+                      />
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -127,30 +188,28 @@ const AccessGate: React.FC<AccessGateProps> = ({
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
-                  className="flex items-center gap-2 text-red-400 bg-red-400/10 p-3 rounded-xl border border-red-400/20 text-xs font-bold"
+                  className="flex items-center gap-3 text-red-500 bg-red-500/5 p-4 rounded-xl border border-red-500/10 text-[9px] font-bold uppercase tracking-widest"
                 >
                   <AlertCircle size={14} />
                   {error}
                 </motion.div>
               )}
 
-              <Button
+              <button
                 type="submit"
-                size="large"
-                fullWidth
-                className="mt-4 shadow-xl shadow-deckly-primary/10 py-4 font-black tracking-widest uppercase flex items-center gap-3"
+                className="w-full py-5 bg-white text-slate-950 font-bold uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-slate-200 transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-3 mt-4"
               >
                 {step === "email" && deck.require_password
-                  ? "Next Step"
-                  : "Unlock Deck"}
-                <ArrowRight size={18} />
-              </Button>
+                  ? "PROCEED TO PASSWORD"
+                  : "EXECUTE UNLOCK"}
+                <ArrowRight size={16} />
+              </button>
             </form>
           </div>
         </div>
 
-        <p className="mt-8 text-center text-slate-600 text-[10px] uppercase font-bold tracking-[0.2em]">
-          Securely delivered by Deckly &copy; 2026
+        <p className="mt-12 text-center text-slate-700 text-[10px] uppercase font-bold tracking-[0.3em] opacity-40">
+          ENCRYPTED VIA DECKLY PROTOCOL &copy; 2026
         </p>
       </motion.div>
     </div>

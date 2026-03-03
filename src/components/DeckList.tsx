@@ -219,7 +219,7 @@ function DeckList({
                     <span>Edit Room Name</span>
                   </div>
                   {!isPro && (
-                    <span className="text-[8px] font-black bg-white/10 px-1.5 py-0.5 rounded text-slate-400">
+                    <span className="text-[8px] font-bold bg-white/10 px-1.5 py-0.5 rounded text-slate-400">
                       PRO
                     </span>
                   )}
@@ -248,7 +248,7 @@ function DeckList({
                     <span>Change Banner</span>
                   </div>
                   {!isPro && (
-                    <span className="text-[8px] font-black bg-white/10 px-1.5 py-0.5 rounded text-slate-400">
+                    <span className="text-[8px] font-bold bg-white/10 px-1.5 py-0.5 rounded text-slate-400">
                       PRO
                     </span>
                   )}
@@ -345,7 +345,7 @@ function DeckList({
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center gap-2"
               >
-                <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter drop-shadow-2xl">
+                <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tighter drop-shadow-2xl">
                   {branding.room_name}
                 </h1>
                 {profile && (
@@ -355,7 +355,7 @@ function DeckList({
                     </span>
                     <div className="w-px h-3 bg-white/10 mx-1" />
                     {isPro ? (
-                      <span className="text-[10px] font-black text-deckly-primary bg-deckly-primary/10 px-2 py-0.5 rounded-md border border-deckly-primary/20 tracking-tighter uppercase">
+                      <span className="text-[10px] font-bold text-deckly-primary bg-deckly-primary/10 px-2 py-0.5 rounded-md border border-deckly-primary/20 tracking-tighter uppercase">
                         PRO
                       </span>
                     ) : (
