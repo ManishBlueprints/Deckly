@@ -204,9 +204,9 @@ function ImageDeckViewer({
         </div>
       </div>
 
-      <footer className="h-16 md:h-20 bg-black/40 backdrop-blur-xl border-t border-white/5 flex items-center justify-center relative z-10 px-6">
-        <div className="px-4 py-1.5 md:px-5 md:py-2 bg-white/5 rounded-full border border-white/5 text-slate-300 text-xs md:text-sm font-black tracking-widest uppercase">
-          {currentPage} <span className="text-slate-600 mx-2">/</span>{" "}
+      <footer className="h-14 md:h-20 bg-black/40 backdrop-blur-xl border-t border-white/5 flex items-center justify-center relative z-10 px-6">
+        <div className="px-3 py-1 md:px-5 md:py-2 bg-white/5 rounded-full border border-white/5 text-slate-300 text-[10px] md:text-sm font-black tracking-widest uppercase">
+          {currentPage} <span className="text-slate-600 mx-1 md:mx-2">/</span>{" "}
           {numPages}
         </div>
       </footer>

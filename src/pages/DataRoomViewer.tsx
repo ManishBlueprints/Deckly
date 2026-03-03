@@ -20,6 +20,21 @@ function DataRoomViewer() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Handle responsive sidebar and screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) setSidebarOpen(false);
+      else setSidebarOpen(true);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const loadRoom = useCallback(async () => {
     if (!slug || !username) return;
@@ -166,11 +181,26 @@ function DataRoomViewer() {
             animate={{ opacity: 1 }}
             className="flex-1 flex items-stretch relative"
           >
+            {/* ── Mobile Backdrop ── */}
+            <AnimatePresence>
+              {isMobile && sidebarOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setSidebarOpen(false)}
+                  className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+                />
+              )}
+            </AnimatePresence>
+
             {/* ── Document Sidebar ── */}
             <div
-              className={`${
-                sidebarOpen ? "w-80" : "w-0"
-              } bg-[#0e1117] border-r border-white/5 flex flex-col transition-all duration-500 overflow-hidden shrink-0 relative z-20 shadow-2xl`}
+              className={`
+                ${sidebarOpen ? (isMobile ? "w-[280px]" : "w-80") : "w-0"} 
+                bg-[#0e1117] border-r border-white/5 flex flex-col transition-all duration-500 overflow-hidden shrink-0 relative z-50 shadow-2xl
+                ${isMobile ? "absolute inset-y-0 left-0" : "relative"}
+              `}
             >
               {/* Room Header */}
               <div className="p-8 border-b border-white/5 bg-white/[0.02]">
@@ -265,28 +295,46 @@ function DataRoomViewer() {
             </div>
 
             {/* Toggle Sidebar Button */}
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="absolute top-1/2 -translate-y-1/2 z-30 w-8 h-12 flex items-center justify-center bg-[#0e1117] border-y border-r border-white/5 rounded-r-xl text-slate-700 hover:text-deckly-primary hover:bg-white/5 transition-all shadow-2xl"
-              style={{ left: sidebarOpen ? "20rem" : "0" }}
-            >
-              <ChevronRight
-                size={18}
-                className={`transition-transform duration-500 ${sidebarOpen ? "rotate-180" : ""}`}
-              />
-            </button>
+            {!isMobile && (
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="absolute top-1/2 -translate-y-1/2 z-30 w-8 h-12 flex items-center justify-center bg-[#0e1117] border-y border-r border-white/5 rounded-r-xl text-slate-700 hover:text-deckly-primary hover:bg-white/5 transition-all shadow-2xl"
+                style={{ left: sidebarOpen ? "20rem" : "0" }}
+              >
+                <ChevronRight
+                  size={18}
+                  className={`transition-transform duration-500 ${sidebarOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+            )}
+
+            {isMobile && !sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="absolute top-8 left-4 z-[100] w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl text-white shadow-2xl active:scale-95"
+              >
+                <ChevronRight size={20} />
+              </button>
+            )}
 
             {/* ── Main Viewer ── */}
             <div className="flex-1 flex flex-col items-stretch relative">
               {/* Back to room */}
-              <Link to="/" className="absolute top-8 right-8 z-[100] group">
-                <div className="flex items-center gap-4 px-8 py-4 bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[1.25rem] text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all group-hover:shadow-[0_0_30px_rgba(255,255,255,0.05)] active:scale-95">
+              <Link
+                to="/"
+                className={`absolute ${isMobile ? "top-8 right-4" : "top-8 right-8"} z-[100] group`}
+              >
+                <div
+                  className={`flex items-center gap-2 md:gap-4 ${isMobile ? "px-4 py-2.5" : "px-8 py-4"} bg-white/5 backdrop-blur-3xl border border-white/10 rounded-xl md:rounded-[1.25rem] text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all group-hover:shadow-[0_0_30px_rgba(255,255,255,0.05)] active:scale-95`}
+                >
                   <ArrowLeft
-                    size={18}
+                    size={isMobile ? 14 : 18}
                     className="group-hover:-translate-x-1 transition-transform"
                   />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">
-                    Exit Room
+                  <span
+                    className={`${isMobile ? "text-[9px]" : "text-[10px]"} font-black uppercase tracking-[0.2em]`}
+                  >
+                    {isMobile ? "Exit" : "Exit Room"}
                   </span>
                 </div>
               </Link>
