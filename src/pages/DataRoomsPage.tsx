@@ -93,7 +93,7 @@ function DataRoomsPage() {
               <button
                 onClick={() => !isAtLimit && navigate("/rooms/new")}
                 disabled={isAtLimit}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-3 px-8 py-3.5 font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all active:scale-[0.98] shadow-2xl ${
+                className={`hidden sm:flex flex-none items-center justify-center gap-3 px-8 py-3.5 font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all active:scale-[0.98] shadow-2xl ${
                   isAtLimit
                     ? "bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed"
                     : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90 shadow-deckly-primary/20"
@@ -157,7 +157,7 @@ function DataRoomsPage() {
             </p>
             <button
               onClick={() => navigate("/rooms/new")}
-              className="flex items-center gap-3 px-10 py-4 bg-deckly-primary text-slate-950 font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-deckly-primary/90 transition-all shadow-2xl shadow-deckly-primary/20 hover:scale-105 active:scale-95"
+              className="hidden sm:flex items-center gap-3 px-10 py-4 bg-deckly-primary text-slate-950 font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-deckly-primary/90 transition-all shadow-2xl shadow-deckly-primary/20 hover:scale-105 active:scale-95"
             >
               <Plus size={18} />
               Create First Room

@@ -119,7 +119,7 @@ export function EmptyStateOverlay() {
             </div>
 
             {/* CTA */}
-            <Link to="/upload" className="block w-full">
+            <Link to="/upload" className="hidden md:block w-full">
               <Button className="w-full h-16 rounded-[20px] bg-deckly-primary hover:bg-deckly-primary/90 text-slate-900 font-black text-xs uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(34,197,94,0.3)] transition-all active:scale-95 group/btn border-none">
                 <Upload
                   size={18}

@@ -157,7 +157,7 @@ export function DashboardLayout({
         {showFab && (
           <Link
             to="/upload"
-            className="fixed bottom-24 md:bottom-10 right-6 md:right-10 w-20 h-20 bg-deckly-primary rounded-full flex items-center justify-center text-white shadow-2xl shadow-deckly-primary/40 hover:scale-110 active:scale-95 transition-all z-[100] group"
+            className="hidden md:flex fixed bottom-10 right-10 w-20 h-20 bg-deckly-primary rounded-full flex items-center justify-center text-white shadow-2xl shadow-deckly-primary/40 hover:scale-110 active:scale-95 transition-all z-[100] group"
           >
             <Plus
               size={36}
