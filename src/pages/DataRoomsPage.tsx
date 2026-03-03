@@ -53,7 +53,7 @@ function DataRoomsPage() {
   }, []);
 
   return (
-    <DashboardLayout title="Data Rooms" showFab={false}>
+    <DashboardLayout title="Data Rooms">
       <div className="space-y-12 animate-in fade-in duration-700 relative">
         {rooms.length > 0 && (
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 -mb-6 md:-mb-4">

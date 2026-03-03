@@ -1,11 +1,12 @@
 import React from "react";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
-import { Plus, Pencil, Check, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Plus, Pencil, Check, X, Upload, Home as RoomIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { deckService } from "../../services/deckService";
 import penguinMascot from "../../assets/penguine.png";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -19,6 +20,13 @@ export function DashboardLayout({
   showFab = true,
 }: DashboardLayoutProps) {
   const { branding } = useAuth();
+  const navigate = useNavigate();
+  const [fabOpen, setFabOpen] = React.useState(false);
+
+  const handleFabAction = (href: string) => {
+    setFabOpen(false);
+    navigate(href);
+  };
   const [roomName, setRoomName] = React.useState<string>(() => {
     try {
       const cached = localStorage.getItem("deckly-room-name");
@@ -155,16 +163,75 @@ export function DashboardLayout({
 
         {/* Floating Action Button */}
         {showFab && (
-          <Link
-            to="/upload"
-            className="hidden md:flex fixed bottom-10 right-10 w-20 h-20 bg-deckly-primary rounded-full flex items-center justify-center text-white shadow-2xl shadow-deckly-primary/40 hover:scale-110 active:scale-95 transition-all z-[100] group"
-          >
-            <Plus
-              size={36}
-              strokeWidth={3}
-              className="group-hover:rotate-90 transition-transform duration-300"
-            />
-          </Link>
+          <div className="hidden md:block fixed bottom-10 right-10 z-[100]">
+            {/* Backdrop */}
+            <AnimatePresence>
+              {fabOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setFabOpen(false)}
+                  className="fixed inset-0 z-[-1]"
+                />
+              )}
+            </AnimatePresence>
+
+            {/* Popout Options */}
+            <AnimatePresence>
+              {fabOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 16, scale: 0.85 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 16, scale: 0.85 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                  className="absolute bottom-full right-0 mb-4 flex flex-col gap-3 w-52"
+                >
+                  <button
+                    onClick={() => handleFabAction("/rooms/new")}
+                    className="w-full flex items-center gap-3 px-5 py-3.5 bg-[#09090b]/95 backdrop-blur-3xl border border-white/10 rounded-2xl text-white shadow-2xl group hover:border-deckly-primary/30 transition-all active:scale-95"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20 group-hover:bg-deckly-primary/20 transition-all text-deckly-primary shrink-0">
+                      <RoomIcon size={16} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
+                      New Room
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => handleFabAction("/upload")}
+                    className="w-full flex items-center gap-3 px-5 py-3.5 bg-[#09090b]/95 backdrop-blur-3xl border border-white/10 rounded-2xl text-white shadow-2xl group hover:border-deckly-primary/30 transition-all active:scale-95"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20 group-hover:bg-deckly-primary/20 transition-all text-deckly-primary shrink-0">
+                      <Upload size={16} />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
+                      New Deck
+                    </span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* FAB Button */}
+            <motion.button
+              onClick={() => setFabOpen(!fabOpen)}
+              whileTap={{ scale: 0.92 }}
+              className={`w-20 h-20 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 ${
+                fabOpen
+                  ? "bg-slate-900 border border-white/10 text-white"
+                  : "bg-deckly-primary text-slate-950 shadow-deckly-primary/40 hover:scale-110"
+              }`}
+            >
+              <motion.div
+                animate={{ rotate: fabOpen ? 45 : 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              >
+                <Plus size={36} strokeWidth={3} />
+              </motion.div>
+            </motion.button>
+          </div>
         )}
       </main>
 
