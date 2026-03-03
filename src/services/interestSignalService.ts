@@ -136,24 +136,22 @@ export async function getVisitorSignals(
       .map(([page, time]) => ({ page, time: Math.round(time) }))
       .sort((a, b) => a.page - b.page);
 
-    // Only include visitors who triggered at least one signal
-    if (signals.length > 0) {
-      results.push({
-        visitorId,
-        viewerEmail,
-        totalVisits,
-        totalTime: Math.round(totalTime),
-        distinctDays,
-        deepSlides,
-        daysBetweenFirstAndLast: daysBetween,
-        signals,
-        slideBreakdown,
-      });
-    }
+    // Include all visitors — even those with no behavioral signals yet
+    results.push({
+      visitorId,
+      viewerEmail,
+      totalVisits,
+      totalTime: Math.round(totalTime),
+      distinctDays,
+      deepSlides,
+      daysBetweenFirstAndLast: daysBetween,
+      signals,
+      slideBreakdown,
+    });
   }
 
-  // Sort by number of signals (strongest interest first)
-  results.sort((a, b) => b.signals.length - a.signals.length);
+  // Sort: visitors with more signals first, then by total time
+  results.sort((a, b) => b.signals.length - a.signals.length || b.totalTime - a.totalTime);
 
   return results;
 }

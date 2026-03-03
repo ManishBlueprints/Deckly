@@ -524,7 +524,8 @@ export default function DeckAnalytics() {
                 </div>
                 {visitorSignals.length > 0 && (
                   <Badge className="ml-auto bg-deckly-primary text-slate-950 font-bold text-[10px] uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg shadow-deckly-primary/20">
-                    {visitorSignals.length} Active Viewers
+                    {visitorSignals.length} Viewer
+                    {visitorSignals.length !== 1 ? "s" : ""}
                   </Badge>
                 )}
               </div>
