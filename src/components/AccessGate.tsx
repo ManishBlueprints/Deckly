@@ -8,19 +8,54 @@ interface AccessGateProps {
   deck: Deck;
   onAccessGranted: (email?: string) => void;
   onVerifyPassword?: (password: string) => Promise<boolean>;
+  sessionEmail?: string; // pre-fill from logged-in user or undefined
 }
 
 const AccessGate: React.FC<AccessGateProps> = ({
   deck,
   onAccessGranted,
   onVerifyPassword,
+  sessionEmail,
 }) => {
-  const [email, setEmail] = useState("");
+  const EMAIL_CACHE_KEY = `deckly_email_${deck.id}`;
+  const EMAIL_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+  // Pre-fill email from session; also check 24h localStorage cache
+  const getInitialEmail = () => {
+    if (sessionEmail) return sessionEmail;
+    try {
+      const raw = localStorage.getItem(EMAIL_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.email && Date.now() < parsed.expires) return parsed.email;
+      }
+    } catch {
+      /* ignore */
+    }
+    return "";
+  };
+
+  const [email, setEmail] = useState(() => getInitialEmail());
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Skip the email step if we already have an email (session or cache)
   const [step, setStep] = useState<"email" | "password">(
-    deck.require_email ? "email" : "password",
+    deck.require_email && !getInitialEmail() ? "email" : "password",
   );
+
+  const saveEmailToCache = (resolvedEmail: string) => {
+    try {
+      localStorage.setItem(
+        EMAIL_CACHE_KEY,
+        JSON.stringify({
+          email: resolvedEmail,
+          expires: Date.now() + EMAIL_CACHE_TTL,
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +69,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
       if (deck.require_password) {
         setStep("password");
       } else {
+        saveEmailToCache(email);
         onAccessGranted(email);
       }
     } else {
@@ -43,6 +79,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
           : await deckService.checkDeckPassword(deck.slug, password);
 
         if (isValid) {
+          saveEmailToCache(email);
           onAccessGranted(email);
         } else {
           setError("Incorrect password. Please try again.");
@@ -75,13 +112,13 @@ const AccessGate: React.FC<AccessGateProps> = ({
               />
             </div>
 
-            <p className="text-[10px] font-black text-deckly-primary uppercase tracking-[0.3em] mb-4">
+            <p className="text-[10px] font-bold text-deckly-primary uppercase tracking-[0.3em] mb-4">
               SECURE ACCESS PROTOCOL
             </p>
-            <h2 className="text-4xl font-black text-white tracking-tight mb-6 uppercase tracking-wider">
+            <h2 className="text-4xl font-bold text-white tracking-tight mb-6 uppercase tracking-wider">
               Gatekeeper
             </h2>
-            <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest leading-relaxed mb-12 opacity-80">
+            <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest leading-relaxed mb-12 opacity-80">
               This terminal is protected. Please verify your credentials to
               access <span className="text-white">"{deck.title}"</span>.
             </p>
@@ -99,7 +136,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
                     exit={{ opacity: 0, x: -20 }}
                     className="space-y-3"
                   >
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-4">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-4">
                       AUTHORIZED EMAIL
                     </label>
                     <div className="relative group">
@@ -113,7 +150,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
-                        className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-16 pr-6 text-xs font-black uppercase tracking-widest text-white focus:outline-none focus:border-deckly-primary/30 transition-all shadow-inner"
+                        className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-16 pr-6 text-xs font-bold uppercase tracking-widest text-white focus:outline-none focus:border-deckly-primary/30 transition-all shadow-inner"
                       />
                     </div>
                   </motion.div>
@@ -125,7 +162,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
                     exit={{ opacity: 0, x: -20 }}
                     className="space-y-3"
                   >
-                    <label className="text-[10px] font-black text-slate-600 uppercase tracking-widest ml-4">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest ml-4">
                       ACCESS PERMIT
                     </label>
                     <div className="relative group">
@@ -140,7 +177,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         autoFocus
-                        className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-16 pr-6 text-xs font-black uppercase tracking-widest text-white focus:outline-none focus:border-deckly-primary/30 transition-all shadow-inner"
+                        className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-16 pr-6 text-xs font-bold uppercase tracking-widest text-white focus:outline-none focus:border-deckly-primary/30 transition-all shadow-inner"
                       />
                     </div>
                   </motion.div>
@@ -151,7 +188,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
-                  className="flex items-center gap-3 text-red-500 bg-red-500/5 p-4 rounded-xl border border-red-500/10 text-[9px] font-black uppercase tracking-widest"
+                  className="flex items-center gap-3 text-red-500 bg-red-500/5 p-4 rounded-xl border border-red-500/10 text-[9px] font-bold uppercase tracking-widest"
                 >
                   <AlertCircle size={14} />
                   {error}
@@ -160,7 +197,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-5 bg-white text-slate-950 font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-slate-200 transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-3 mt-4"
+                className="w-full py-5 bg-white text-slate-950 font-bold uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-slate-200 transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-3 mt-4"
               >
                 {step === "email" && deck.require_password
                   ? "PROCEED TO PASSWORD"
@@ -171,7 +208,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
           </div>
         </div>
 
-        <p className="mt-12 text-center text-slate-700 text-[10px] uppercase font-black tracking-[0.3em] opacity-40">
+        <p className="mt-12 text-center text-slate-700 text-[10px] uppercase font-bold tracking-[0.3em] opacity-40">
           ENCRYPTED VIA DECKLY PROTOCOL &copy; 2026
         </p>
       </motion.div>
