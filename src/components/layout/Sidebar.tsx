@@ -12,6 +12,7 @@ import { cn } from "../../utils/cn";
 import penguinMascot from "../../assets/penguine.png";
 import { useAuth } from "../../contexts/AuthContext";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
 import { Settings } from "lucide-react";
 import { motion } from "framer-motion";
@@ -178,12 +179,16 @@ export function Sidebar() {
         </div>
       </div>
 
-      <MascotSettingsModal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        branding={branding}
-        onUpdate={(newBranding) => setBranding(newBranding)}
-      />
+      {/* Render modal at document root to escape sidebar stacking context */}
+      {createPortal(
+        <MascotSettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          branding={branding}
+          onUpdate={(newBranding) => setBranding(newBranding)}
+        />,
+        document.body,
+      )}
     </aside>
   );
 }
