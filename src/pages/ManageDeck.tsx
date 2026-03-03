@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { userService } from "../services/userService";
 import { TierUpsellModal } from "../components/TierUpsellModal";
 import { TIER_CONFIG } from "../constants/tiers";
+import { normalizeSlug } from "../utils/slug";
 
 // Layout
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -143,14 +144,9 @@ function ManageDeck() {
         }
 
         if (!slug && !editId) {
-          const generatedSlug = `${selectedFile.name
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, "-")
-            .replace(/-+/g, "-")
-            .replace(
-              /^-|-$/g,
-              "",
-            )}-${Math.random().toString(36).substring(2, 6)}`;
+          const generatedSlug = normalizeSlug(
+            `${selectedFile.name.split(".")[0]}-${Math.random().toString(36).substring(2, 6)}`,
+          );
           setSlug(generatedSlug);
         }
         if (!title && !editId) {
@@ -564,18 +560,37 @@ function ManageDeck() {
                   >
                     URL Slug
                   </Label>
-                  <Input
-                    id="slug"
-                    value={slug}
-                    onChange={(e) => !editId && setSlug(e.target.value)}
-                    required
-                    placeholder="e.g. series-a-v2"
-                    disabled={!!editId}
-                    className="h-12 rounded-xl border-white/10 bg-white/5 focus-visible:ring-deckly-primary/30 text-white placeholder:text-slate-600 transition-all focus:bg-white/[0.08] disabled:opacity-40"
-                  />
-                  {editId && (
+                  <div className="relative group/slug">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none z-10">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">
+                        {userProfile?.handle || "username"}/
+                      </span>
+                    </div>
+                    <Input
+                      id="slug"
+                      value={slug}
+                      onChange={(e) => {
+                        if (!editId) {
+                          setSlug(normalizeSlug(e.target.value));
+                        }
+                      }}
+                      required
+                      placeholder="my-pitch"
+                      disabled={!!editId}
+                      className={cn(
+                        "h-12 rounded-xl border-white/10 bg-white/5 focus-visible:ring-deckly-primary/30 text-deckly-primary font-black uppercase tracking-wider transition-all focus:bg-white/[0.08] disabled:opacity-40",
+                        userProfile?.handle ? "pl-28" : "pl-20",
+                      )}
+                    />
+                  </div>
+                  {editId ? (
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-600 px-1 mt-1">
                       Links are permanent to prevent breaks.
+                    </p>
+                  ) : (
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-600 px-1 mt-1">
+                      Your URL: deckly.com/{userProfile?.handle || "..."}/
+                      {slug || "your-slug"}
                     </p>
                   )}
                 </div>

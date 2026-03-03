@@ -22,7 +22,7 @@ import { Deck } from "../types";
 import Button from "../components/common/Button";
 
 function Viewer() {
-  const { slug } = useParams<{ slug: string }>();
+  const { username, slug } = useParams<{ username: string; slug: string }>();
   const { session } = useAuth();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -37,10 +37,10 @@ function Viewer() {
   const [isNotesOpen, setIsNotesOpen] = useState(false);
 
   const loadDeck = useCallback(async () => {
-    if (!slug) return;
+    if (!slug || !username) return;
     try {
       setLoading(true);
-      const data = await deckService.getDeckBySlug(slug);
+      const data = await deckService.getDeckByHandleAndSlug(username, slug);
       setDeck(data);
 
       // Check if current user is the owner

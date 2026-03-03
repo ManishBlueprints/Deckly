@@ -23,6 +23,7 @@ import { DataRoom, DataRoomDocument } from "../types";
 import { cn } from "@/lib/utils";
 import { dataRoomService } from "../services/dataRoomService";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
+import { useAuth } from "../contexts/AuthContext";
 
 /* ───────── helpers ───────── */
 function formatDate(iso: string) {
@@ -37,6 +38,7 @@ function formatDate(iso: string) {
 function DataRoomDetail() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
+  const { profile } = useAuth();
 
   // Data
   const [room, setRoom] = useState<DataRoom | null>(null);
@@ -82,8 +84,8 @@ function DataRoomDetail() {
 
   /* ── actions ── */
   const handleCopyLink = () => {
-    if (!room) return;
-    const url = `${window.location.origin}/room/${room.slug}`;
+    if (!room || !profile?.handle) return;
+    const url = `${window.location.origin}/${profile.handle}/room/${room.slug}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -111,7 +113,10 @@ function DataRoomDetail() {
     navigate("/rooms");
   };
 
-  const shareUrl = room ? `${window.location.origin}/room/${room.slug}` : "";
+  const shareUrl =
+    room && profile?.handle
+      ? `${window.location.origin}/${profile.handle}/room/${room.slug}`
+      : "";
 
   /* ── loading state ── */
   if (loading) {
@@ -262,7 +267,9 @@ function DataRoomDetail() {
                   )
                 }
                 label={copied ? "Copied" : "Public Link"}
-                value={copied ? "Success" : `/room/${room.slug}`}
+                value={
+                  copied ? "Success" : `/${profile?.handle}/room/${room.slug}`
+                }
                 isText
                 onClick={handleCopyLink}
               />

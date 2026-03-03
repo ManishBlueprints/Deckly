@@ -6,7 +6,7 @@ import { ContentStatsCard } from "./dashboard/ContentStatsCard";
 import { DecksTable } from "./dashboard/DecksTable";
 
 export function ContentView() {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
 
   // Initialize from cache if available for "instant" feel
   const getCachedData = () => {
@@ -103,7 +103,12 @@ export function ContentView() {
         loading={loading}
       />
 
-      <DecksTable decks={decks} loading={loading} onDelete={handleDelete} />
+      <DecksTable
+        decks={decks}
+        userHandle={profile?.handle || "username"}
+        loading={loading}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

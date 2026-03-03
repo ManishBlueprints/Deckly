@@ -2,6 +2,7 @@ import { Save, Upload, AlertTriangle, FileText } from "lucide-react";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { cn } from "../../../lib/utils";
+import { normalizeSlug } from "../../../utils/slug";
 
 interface ManagementSectionProps {
   title: string;
@@ -9,6 +10,7 @@ interface ManagementSectionProps {
   slug: string;
   setSlug: (v: string) => void;
   originalSlug: string;
+  userHandle: string;
   onFileClick: () => void;
   newFile: File | null;
 }
@@ -19,6 +21,7 @@ export function ManagementSection({
   slug,
   setSlug,
   originalSlug,
+  userHandle,
   onFileClick,
   newFile,
 }: ManagementSectionProps) {
@@ -56,21 +59,36 @@ export function ManagementSection({
           >
             Access Slug
           </Label>
-          <Input
-            id="slug"
-            placeholder="series-a"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            className="bg-white/[0.03] border-white/5 text-white h-14 rounded-2xl focus-visible:ring-deckly-primary/30 font-bold tracking-tight px-6 placeholder:text-slate-800 focus:bg-white/[0.08] transition-all"
-          />
-          {slug !== originalSlug && (
-            <div className="flex items-center gap-2 px-1 text-red-500 animate-pulse">
-              <AlertTriangle size={12} strokeWidth={3} />
-              <span className="text-[9px] font-black uppercase tracking-widest">
-                Breaking Change! Old links will expire.
+          <div className="relative group/slug">
+            <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none z-10 transition-opacity group-focus-within/slug:opacity-100">
+              <span className="text-[11px] font-black uppercase tracking-widest text-slate-600">
+                {userHandle}/
               </span>
             </div>
-          )}
+            <Input
+              id="slug"
+              placeholder="series-a"
+              value={slug}
+              onChange={(e) => setSlug(normalizeSlug(e.target.value))}
+              className={cn(
+                "bg-white/[0.03] border-white/5 text-deckly-primary h-14 rounded-2xl focus-visible:ring-deckly-primary/30 font-black uppercase tracking-widest transition-all focus:bg-white/[0.08]",
+                userHandle.length > 10 ? "pl-32" : "pl-24",
+              )}
+            />
+          </div>
+          <div className="flex flex-col gap-2 mt-2 px-1">
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-700">
+              Your URL: deckly.com/{userHandle}/{slug || "..."}
+            </p>
+            {slug !== originalSlug && (
+              <div className="flex items-center gap-2 text-red-500 animate-pulse">
+                <AlertTriangle size={12} strokeWidth={3} />
+                <span className="text-[9px] font-black uppercase tracking-widest">
+                  Breaking Change! Old links will expire.
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

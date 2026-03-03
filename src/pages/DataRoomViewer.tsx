@@ -11,7 +11,7 @@ import { supabase } from "../services/supabase";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
 
 function DataRoomViewer() {
-  const { slug } = useParams<{ slug: string }>();
+  const { username, slug } = useParams<{ username: string; slug: string }>();
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
@@ -22,10 +22,13 @@ function DataRoomViewer() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const loadRoom = useCallback(async () => {
-    if (!slug) return;
+    if (!slug || !username) return;
     try {
       setLoading(true);
-      const data = await dataRoomService.getDataRoomBySlug(slug);
+      const data = await dataRoomService.getDataRoomByHandleAndSlug(
+        username,
+        slug,
+      );
       if (!data) {
         setError("Data room not found");
         return;

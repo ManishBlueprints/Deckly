@@ -4,6 +4,8 @@ import * as pdfjsLib from "pdfjs-dist";
 import { deckService } from "../../services/deckService";
 import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
+import { normalizeSlug } from "../../utils/slug";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Sub-components
 import { ManagementSection } from "./form-sections/ManagementSection";
@@ -43,6 +45,7 @@ export function DeckSettingsForm({
   const [uploadProgress, setUploadProgress] = useState("");
   const [newFile, setNewFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { profile } = useAuth();
 
   // PDF Processing Logic
   const processPdfToImages = async (pdfFile: File) => {
@@ -158,8 +161,9 @@ export function DeckSettingsForm({
         title={title}
         setTitle={setTitle}
         slug={slug}
-        setSlug={setSlug}
+        setSlug={(v) => setSlug(normalizeSlug(v))}
         originalSlug={deck.slug}
+        userHandle={profile?.handle || "username"}
         onFileClick={() => fileInputRef.current?.click()}
         newFile={newFile}
       />

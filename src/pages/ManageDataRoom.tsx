@@ -20,6 +20,7 @@ import { DataRoomDocument } from "../types";
 import { dataRoomService } from "../services/dataRoomService";
 import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
+import { normalizeSlug } from "../utils/slug";
 
 function ManageDataRoom() {
   const { roomId } = useParams();
@@ -98,14 +99,7 @@ function ManageDataRoom() {
   // Auto-generate slug from name (only in create mode)
   useEffect(() => {
     if (!isEditMode && name) {
-      setSlug(
-        name
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, "")
-          .replace(/\s+/g, "-")
-          .replace(/-+/g, "-")
-          .trim(),
-      );
+      setSlug(normalizeSlug(name));
     }
   }, [name, isEditMode]);
 
@@ -226,7 +220,10 @@ function ManageDataRoom() {
         navigate(`/rooms/${roomId}`);
       } else {
         // Check slug availability
-        const available = await dataRoomService.checkSlugAvailable(slug);
+        const available = await dataRoomService.checkSlugAvailable(
+          slug,
+          isEditMode ? roomId : undefined,
+        );
         if (!available) {
           setError("This slug is already taken. Please choose another.");
           setSaving(false);
@@ -418,19 +415,12 @@ function ManageDataRoom() {
               <div className="flex items-center gap-3">
                 <div className="flex-1 flex items-center bg-white/5 border border-white/5 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-deckly-primary/20 focus-within:border-deckly-primary/30 transition-all shadow-inner">
                   <span className="pl-6 pr-1 text-[11px] font-black uppercase tracking-widest text-slate-600 select-none whitespace-nowrap">
-                    /room/
+                    /{profile?.handle}/room/
                   </span>
                   <input
                     type="text"
                     value={slug}
-                    onChange={(e) =>
-                      setSlug(
-                        e.target.value
-                          .toLowerCase()
-                          .replace(/[^a-z0-9-]/g, "-")
-                          .replace(/-+/g, "-"),
-                      )
-                    }
+                    onChange={(e) => setSlug(normalizeSlug(e.target.value))}
                     placeholder="alpha-series"
                     className="flex-1 py-4 pr-6 bg-transparent text-sm text-deckly-primary font-black uppercase tracking-wider focus:outline-none placeholder:text-slate-700"
                   />

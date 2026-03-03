@@ -127,8 +127,8 @@ const AppContent = () => {
           path="/"
           element={session ? <Home /> : <Navigate to="/login" />}
         />
-        <Route path="/room/:slug" element={<DataRoomViewer />} />
-        <Route path="/:slug" element={<Viewer />} />
+        <Route path="/:username/room/:slug" element={<DataRoomViewer />} />
+        <Route path="/:username/:slug" element={<Viewer />} />
       </Routes>
     </div>
   );

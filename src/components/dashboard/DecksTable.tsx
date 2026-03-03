@@ -24,16 +24,22 @@ interface Deck {
 
 interface DecksTableProps {
   decks: Deck[];
+  userHandle: string;
   loading?: boolean;
   onDelete?: (deck: Deck) => Promise<void>;
 }
 
-export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
+export function DecksTable({
+  decks,
+  userHandle,
+  loading,
+  onDelete,
+}: DecksTableProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
   const handleCopyLink = (slug: string, id: string) => {
-    const url = `${window.location.origin}/${slug}`;
+    const url = `${window.location.origin}/${userHandle}/${slug}`;
     navigator.clipboard.writeText(url);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -83,7 +89,7 @@ export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <Link
-                  to={`/${deck.slug}`}
+                  to={`/${userHandle}/${deck.slug}`}
                   target="_blank"
                   className="font-black text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
                 >
@@ -217,7 +223,7 @@ export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
                 >
                   <TableCell className="px-12 py-8">
                     <Link
-                      to={`/${deck.slug}`}
+                      to={`/${userHandle}/${deck.slug}`}
                       target="_blank"
                       className="flex items-center gap-4 transition-all group/title"
                     >
