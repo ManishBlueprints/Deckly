@@ -5,6 +5,7 @@ import { Plus, Pencil, Check, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { deckService } from "../../services/deckService";
+import penguinMascot from "../../assets/penguine.png";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -75,8 +76,11 @@ export function DashboardLayout({
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
         {/* Top Header */}
-        <header className="h-14 md:h-20 flex items-center justify-between px-4 md:px-12 bg-transparent border-b border-white/5 shrink-0">
-          <div className="flex items-center gap-4 flex-1">
+        <header className="h-14 md:h-20 flex items-center justify-between px-4 md:px-8 mx-4 md:mx-10 mt-4 md:mt-6 glass-shiny bg-[#09090b]/40 backdrop-blur-2xl border border-white/5 rounded-2xl md:rounded-[2rem] shadow-2xl shrink-0 z-20 overflow-hidden relative group">
+          {/* Subtle Green Glow */}
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-48 h-48 bg-deckly-primary/10 rounded-full blur-[60px] pointer-events-none group-hover:bg-deckly-primary/20 transition-all duration-700" />
+
+          <div className="flex items-center gap-4 flex-1 relative z-10">
             {isEditing ? (
               <div className="flex items-center gap-2 group">
                 <input
@@ -108,11 +112,18 @@ export function DashboardLayout({
                 className="flex items-center gap-4 group cursor-pointer"
                 onClick={() => setIsEditing(true)}
               >
-                <h1 className="text-xl md:text-3xl font-extrabold text-white flex items-center gap-3 tracking-tight">
-                  {loading && !roomName ? "..." : roomName}
-                  {isRefreshing && !loading && (
-                    <div className="w-2 h-2 bg-deckly-primary rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.5)]" />
-                  )}
+                <h1 className="text-lg md:text-3xl font-extrabold text-white flex items-center gap-2 md:gap-3 tracking-tight">
+                  <img
+                    src={branding?.logo_url || penguinMascot}
+                    alt="Logo"
+                    className="w-8 h-8 object-contain md:hidden rounded-xl bg-white/[0.05] p-1 border border-white/10"
+                  />
+                  <span className="truncate flex items-center gap-2">
+                    {loading && !roomName ? "..." : roomName}
+                    {isRefreshing && !loading && (
+                      <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-deckly-primary rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.5)] shrink-0" />
+                    )}
+                  </span>
                 </h1>
                 <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all border border-white/10">
                   <Pencil
@@ -126,7 +137,7 @@ export function DashboardLayout({
 
           <div className="hidden md:flex items-center gap-6">
             {/* Founder Mode Toggle Mockup */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 shadow-xl backdrop-blur-md">
+            <div className="flex items-center gap-3 relative z-10">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                 Founder Mode
               </span>
@@ -138,7 +149,7 @@ export function DashboardLayout({
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-12 relative">
+        <div className="flex-1 overflow-y-auto p-4 md:p-12 md:pt-6 relative">
           <div className="max-w-7xl mx-auto pb-24 md:pb-0">{children}</div>
         </div>
 

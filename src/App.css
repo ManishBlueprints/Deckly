@@ -189,6 +189,16 @@ body {
   z-index: 1;
 }
 
+.glass-emerald-border::before {
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.45) 0%,
+    rgba(34, 197, 94, 0.1) 40%,
+    rgba(255, 255, 255, 0.05) 70%,
+    rgba(255, 255, 255, 0) 100%
+  ) !important;
+}
+
 .dark-shiny-border {
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
