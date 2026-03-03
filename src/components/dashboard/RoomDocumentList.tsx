@@ -89,7 +89,7 @@ export function RoomDocumentList({
               </div>
 
               {/* Order number */}
-              <span className="text-[10px] font-black text-slate-700 w-6 text-center shrink-0 uppercase tracking-widest">
+              <span className="text-[10px] font-bold text-slate-700 w-6 text-center shrink-0 uppercase tracking-widest">
                 {String(index + 1).padStart(2, "0")}
               </span>
 
@@ -110,10 +110,10 @@ export function RoomDocumentList({
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-black text-white uppercase tracking-wider truncate group-hover:text-deckly-primary transition-colors">
+                <p className="text-[11px] font-bold text-white uppercase tracking-wider truncate group-hover:text-deckly-primary transition-colors">
                   {deck?.title || "Untitled Asset"}
                 </p>
-                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-0.5 whitespace-nowrap">
+                <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-0.5 whitespace-nowrap">
                   {deck?.pages?.length || 0} SLIDES IN BUNDLE
                 </p>
               </div>

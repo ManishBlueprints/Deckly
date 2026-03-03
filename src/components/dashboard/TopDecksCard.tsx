@@ -97,7 +97,7 @@ export function TopDecksCard() {
           {isRefreshing && !loading && (
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 bg-deckly-primary rounded-full animate-ping" />
-              <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+              <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">
                 Syncing
               </span>
             </div>
@@ -134,7 +134,7 @@ export function TopDecksCard() {
             <TableRow>
               <TableCell
                 colSpan={2}
-                className="p-16 text-center text-slate-600 text-[10px] font-black uppercase tracking-[0.2em]"
+                className="p-16 text-center text-slate-600 text-[10px] font-bold uppercase tracking-[0.2em]"
               >
                 No statistical data available yet
               </TableCell>
@@ -150,7 +150,7 @@ export function TopDecksCard() {
                     {deck.title}
                   </span>
                   {signalCounts[deck.id] > 0 && (
-                    <p className="text-[10px] font-black text-deckly-primary mt-1 uppercase tracking-widest opacity-80">
+                    <p className="text-[10px] font-bold text-deckly-primary mt-1 uppercase tracking-widest opacity-80">
                       {signalCounts[deck.id]} Interested Viewer
                       {signalCounts[deck.id] > 1 ? "s" : ""}
                     </p>
@@ -159,10 +159,10 @@ export function TopDecksCard() {
                 <TableCell className="px-8 py-8 text-right">
                   <div className="flex gap-10 justify-end items-center">
                     <div className="text-right">
-                      <p className="text-2xl font-black text-white group-hover:text-deckly-primary transition-colors leading-none tracking-tighter">
+                      <p className="text-2xl font-bold text-white group-hover:text-deckly-primary transition-colors leading-none tracking-tighter">
                         {deck.views.toLocaleString()}
                       </p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 mt-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mt-1">
                         Views
                       </p>
                     </div>
@@ -178,14 +178,14 @@ export function TopDecksCard() {
                             }}
                           />
                         </div>
-                        <p className="text-2xl font-black text-white group-hover:text-deckly-primary transition-colors leading-none tracking-tighter">
+                        <p className="text-2xl font-bold text-white group-hover:text-deckly-primary transition-colors leading-none tracking-tighter">
                           {totalUserViews > 0
                             ? Math.round((deck.views / totalUserViews) * 100)
                             : 0}
                           %
                         </p>
                       </div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 mt-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mt-1">
                         Share
                       </p>
 

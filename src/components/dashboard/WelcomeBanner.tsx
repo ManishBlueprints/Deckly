@@ -27,12 +27,12 @@ export function WelcomeBanner() {
         <div className="flex-1 space-y-4 text-center md:text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-deckly-primary/10 border border-deckly-primary/20">
             <Sparkles size={14} className="text-deckly-primary animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-deckly-primary">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-deckly-primary">
               v2.0 Dashboard
             </span>
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
+          <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight leading-tight">
             {getGreeting()},{" "}
             <span className="text-deckly-primary">{firstName}</span>.
           </h1>
@@ -46,13 +46,13 @@ export function WelcomeBanner() {
 
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <Link to="/upload" className="w-full sm:w-auto">
-            <button className="w-full sm:w-auto px-8 py-4 bg-deckly-primary text-slate-950 font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-[0_10px_30px_rgba(34,197,94,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3">
+            <button className="w-full sm:w-auto px-8 py-4 bg-deckly-primary text-slate-950 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl shadow-[0_10px_30px_rgba(34,197,94,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3">
               <Upload size={18} />
               New Deck
             </button>
           </Link>
           <Link to="/rooms" className="w-full sm:w-auto">
-            <button className="w-full sm:w-auto px-8 py-4 bg-white/5 border border-white/10 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 group/btn">
+            <button className="w-full sm:w-auto px-8 py-4 bg-white/5 border border-white/10 text-white font-bold text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 group/btn">
               View Rooms
               <ArrowRight
                 size={16}

@@ -15,13 +15,13 @@ export function DangerZoneSection({ onDelete }: DangerZoneSectionProps) {
             <Trash2 size={32} />
           </div>
           <div className="text-left">
-            <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-2">
+            <p className="text-[10px] font-bold text-red-500 uppercase tracking-[0.2em] mb-2">
               TERMINAL ACTION
             </p>
-            <p className="text-xl font-black text-white uppercase tracking-wider">
+            <p className="text-xl font-bold text-white uppercase tracking-wider">
               Delete Asset
             </p>
-            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1 opacity-60">
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1 opacity-60">
               PERMANENTLY WIPE ALL RECORDS.
             </p>
           </div>
@@ -36,7 +36,7 @@ export function DangerZoneSection({ onDelete }: DangerZoneSectionProps) {
               e.stopPropagation();
               onDelete();
             }}
-            className="w-full sm:w-auto rounded-2xl px-10 py-7 font-black uppercase tracking-[0.2em] text-[10px] bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 shadow-none active:scale-[0.98] transition-all"
+            className="w-full sm:w-auto rounded-2xl px-10 py-7 font-bold uppercase tracking-[0.2em] text-[10px] bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 shadow-none active:scale-[0.98] transition-all"
           >
             <Trash2 size={14} className="mr-2" strokeWidth={3} />
             DELETE ASSET

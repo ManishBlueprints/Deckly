@@ -34,7 +34,7 @@ export function DashboardCard({
           )}
         >
           {title && (
-            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+            <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
               {title}
             </CardTitle>
           )}

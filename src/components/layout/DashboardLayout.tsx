@@ -146,7 +146,7 @@ export function DashboardLayout({
           <div className="hidden md:flex items-center gap-6">
             {/* Founder Mode Toggle Mockup */}
             <div className="flex items-center gap-3 relative z-10">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
                 Founder Mode
               </span>
               <div className="w-10 h-5 bg-deckly-primary rounded-full relative shadow-[0_0_10px_rgba(34,197,94,0.3)]">
@@ -194,7 +194,7 @@ export function DashboardLayout({
                     <div className="w-9 h-9 rounded-xl bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20 group-hover:bg-deckly-primary/20 transition-all text-deckly-primary shrink-0">
                       <RoomIcon size={16} />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
                       New Room
                     </span>
                   </button>
@@ -206,7 +206,7 @@ export function DashboardLayout({
                     <div className="w-9 h-9 rounded-xl bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20 group-hover:bg-deckly-primary/20 transition-all text-deckly-primary shrink-0">
                       <Upload size={16} />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
                       New Deck
                     </span>
                   </button>

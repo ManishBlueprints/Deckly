@@ -312,10 +312,10 @@ function ManageDataRoom() {
             />
           </button>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-deckly-primary mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-deckly-primary mb-1">
               {isEditMode ? "Data Room Configuration" : "Room Initiation"}
             </p>
-            <h1 className="text-3xl font-black text-white tracking-tight uppercase tracking-wider">
+            <h1 className="text-3xl font-bold text-white tracking-tight uppercase tracking-wider">
               {isEditMode ? "Modify Assets" : "Create Data Room"}
             </h1>
           </div>
@@ -333,7 +333,7 @@ function ManageDataRoom() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-deckly-primary/5 rounded-full blur-[80px] -mr-32 -mt-32" />
 
           <div className="px-8 py-6 border-b border-white/5 relative z-10">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
               Room Branding
             </h2>
           </div>
@@ -374,10 +374,10 @@ function ManageDataRoom() {
                 )}
               </div>
               <div className="space-y-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">
                   ROOM IMAGE
                 </p>
-                <label className="inline-flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 hover:border-deckly-primary/30 rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all active:scale-95 shadow-lg">
+                <label className="inline-flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 hover:border-deckly-primary/30 rounded-xl text-xs font-bold uppercase tracking-widest cursor-pointer transition-all active:scale-95 shadow-lg">
                   <Upload size={14} className="text-deckly-primary" />
                   {iconPreview ? "Modify Badge" : "Upload Badge"}
                   <input
@@ -387,7 +387,7 @@ function ManageDataRoom() {
                     onChange={handleIconUpload}
                   />
                 </label>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-700">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-700">
                   Ideal size: 256x256 • Max 1MB
                 </p>
               </div>
@@ -395,7 +395,7 @@ function ManageDataRoom() {
 
             {/* Name */}
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
+              <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
                 Display Name <span className="text-deckly-primary">*</span>
               </label>
               <input
@@ -403,18 +403,18 @@ function ManageDataRoom() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="PROPOSAL: ALPHA SERIES"
-                className="w-full px-6 py-4 bg-white/5 border border-white/5 rounded-2xl text-sm text-white font-black uppercase tracking-wider placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-deckly-primary/20 focus:border-deckly-primary/30 transition-all shadow-inner"
+                className="w-full px-6 py-4 bg-white/5 border border-white/5 rounded-2xl text-sm text-white font-bold uppercase tracking-wider placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-deckly-primary/20 focus:border-deckly-primary/30 transition-all shadow-inner"
               />
             </div>
 
             {/* Slug */}
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
+              <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
                 Internal URL <span className="text-deckly-primary">*</span>
               </label>
               <div className="flex items-center gap-3">
                 <div className="flex-1 flex items-center bg-white/5 border border-white/5 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-deckly-primary/20 focus-within:border-deckly-primary/30 transition-all shadow-inner">
-                  <span className="pl-6 pr-1 text-[11px] font-black uppercase tracking-widest text-slate-600 select-none whitespace-nowrap">
+                  <span className="pl-6 pr-1 text-[11px] font-bold uppercase tracking-widest text-slate-600 select-none whitespace-nowrap">
                     /{profile?.handle}/room/
                   </span>
                   <input
@@ -422,7 +422,7 @@ function ManageDataRoom() {
                     value={slug}
                     onChange={(e) => setSlug(normalizeSlug(e.target.value))}
                     placeholder="alpha-series"
-                    className="flex-1 py-4 pr-6 bg-transparent text-sm text-deckly-primary font-black uppercase tracking-wider focus:outline-none placeholder:text-slate-700"
+                    className="flex-1 py-4 pr-6 bg-transparent text-sm text-deckly-primary font-bold uppercase tracking-wider focus:outline-none placeholder:text-slate-700"
                   />
                 </div>
                 {slug && (
@@ -443,7 +443,7 @@ function ManageDataRoom() {
                 )}
               </div>
               {slug && (
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-700 mt-3 ml-1 flex items-center gap-2">
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-700 mt-3 ml-1 flex items-center gap-2">
                   <LinkIcon size={12} className="text-deckly-primary" />
                   {shareUrl}
                 </p>
@@ -452,7 +452,7 @@ function ManageDataRoom() {
 
             {/* Description */}
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
+              <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
                 Contextual Brief
               </label>
               <textarea
@@ -469,13 +469,13 @@ function ManageDataRoom() {
         {/* ──── Section 2: Documents ──── */}
         <div className="glass-shiny bg-white/[0.03] backdrop-blur-xl rounded-[32px] border border-white/10 overflow-hidden shadow-2xl">
           <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
               Bundle Composition
             </h2>
             {documents.length > 0 && (
               <button
                 onClick={() => setPickerOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95"
               >
                 <Plus size={14} />
                 ADD ASSETS
@@ -495,14 +495,14 @@ function ManageDataRoom() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-black text-white uppercase tracking-wider">
+                  <p className="text-sm font-bold text-white uppercase tracking-wider">
                     Add documents to your room
                   </p>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
                     Existing Assets will be bundled into a secure link
                   </p>
                 </div>
-                <button className="mt-2 px-8 py-3 bg-deckly-primary text-slate-950 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-deckly-primary/90 transition-all shadow-xl shadow-deckly-primary/20 group-hover:scale-105 active:scale-95">
+                <button className="mt-2 px-8 py-3 bg-deckly-primary text-slate-950 font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-deckly-primary/90 transition-all shadow-xl shadow-deckly-primary/20 group-hover:scale-105 active:scale-95">
                   ADD ASSETS
                 </button>
               </div>
@@ -519,7 +519,7 @@ function ManageDataRoom() {
         {/* ──── Section 3: Access Controls ──── */}
         <div className="glass-shiny bg-white/[0.03] backdrop-blur-xl rounded-[32px] border border-white/10 overflow-hidden shadow-2xl">
           <div className="px-8 py-6 border-b border-white/5">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
               Security Protocol
             </h2>
           </div>
@@ -543,7 +543,7 @@ function ManageDataRoom() {
         {isEditMode && (
           <div className="glass-shiny bg-red-500/[0.02] backdrop-blur-xl rounded-[32px] border border-red-500/10 overflow-hidden shadow-2xl">
             <div className="px-8 py-5 border-b border-red-500/10">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-red-500/60">
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-500/60">
                 Danger Zone
               </h2>
             </div>
@@ -558,7 +558,7 @@ function ManageDataRoom() {
           <button
             onClick={handleSave}
             disabled={saving || !name.trim() || !slug.trim()}
-            className="flex items-center gap-3 px-12 py-5 bg-deckly-primary text-slate-950 font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-deckly-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-2xl shadow-deckly-primary/20"
+            className="flex items-center gap-3 px-12 py-5 bg-deckly-primary text-slate-950 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-deckly-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-2xl shadow-deckly-primary/20"
           >
             {saving ? (
               <Loader2 size={18} className="animate-spin" />

@@ -51,7 +51,7 @@ export function AnalyticsChart({
           {[1, 0.75, 0.5, 0.25, 0].map((ratio) => (
             <span
               key={ratio}
-              className="text-[10px] font-black text-slate-700 leading-none h-0 flex items-center justify-end uppercase tracking-tighter"
+              className="text-[10px] font-bold text-slate-700 leading-none h-0 flex items-center justify-end uppercase tracking-tighter"
             >
               {formatYLabel(Math.round(niceMax * ratio))}
             </span>
@@ -91,7 +91,7 @@ export function AnalyticsChart({
                   />
 
                   {/* Tooltip */}
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-[#09090b] text-white text-[10px] font-black px-4 py-2.5 rounded-xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-20 shadow-[0_10px_40px_rgba(0,0,0,0.8)] scale-90 group-hover:scale-100 origin-bottom border border-white/10 uppercase tracking-widest">
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-[#09090b] text-white text-[10px] font-bold px-4 py-2.5 rounded-xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-20 shadow-[0_10px_40px_rgba(0,0,0,0.8)] scale-90 group-hover:scale-100 origin-bottom border border-white/10 uppercase tracking-widest">
                     {isTime
                       ? `${Math.floor(val / 60)}m ${Math.round(val % 60)}s`
                       : `${val} Visits`}
@@ -110,7 +110,7 @@ export function AnalyticsChart({
               key={i}
               className="flex-1 max-w-16 text-center group overflow-hidden"
             >
-              <span className="text-[10px] font-black text-slate-700 group-hover:text-deckly-primary transition-colors block truncate uppercase tracking-tighter">
+              <span className="text-[10px] font-bold text-slate-700 group-hover:text-deckly-primary transition-colors block truncate uppercase tracking-tighter">
                 {label}
               </span>
             </div>

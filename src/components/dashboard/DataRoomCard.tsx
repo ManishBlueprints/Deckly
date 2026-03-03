@@ -39,20 +39,20 @@ export function DataRoomCard({
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-black text-white tracking-tight group-hover:text-deckly-primary transition-colors uppercase tracking-[0.05em]">
+          <h3 className="text-lg font-bold text-white tracking-tight group-hover:text-deckly-primary transition-colors uppercase tracking-[0.05em]">
             {room.name}
           </h3>
           {room.description && (
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 truncate mt-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 truncate mt-1">
               {room.description}
             </p>
           )}
           <div className="flex items-center gap-4 mt-4">
-            <span className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
+            <span className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
               <FileText size={12} className="text-deckly-primary" />
               {documentCount} {documentCount === 1 ? "ASSET" : "ASSETS"}
             </span>
-            <span className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
+            <span className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
               <Eye size={12} className="text-deckly-primary" />
               {totalVisitors} {totalVisitors === 1 ? "VIEWER" : "VIEWERS"}
             </span>

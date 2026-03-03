@@ -72,7 +72,7 @@ export default function EditDeck() {
             {/* Back Button */}
             <button
               onClick={() => navigate("/content")}
-              className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] mb-12 group transition-all"
+              className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-12 group transition-all"
             >
               <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-deckly-primary/10 group-hover:border-deckly-primary/20 transition-all">
                 <ChevronLeft
@@ -101,11 +101,11 @@ export default function EditDeck() {
               </div>
 
               {/* Title */}
-              <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-4 uppercase tracking-[0.05em]">
+              <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-4 uppercase tracking-[0.05em]">
                 Edit {deck?.title}
               </h1>
 
-              <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.15em] max-w-md mb-8 leading-relaxed">
+              <p className="text-slate-500 text-[11px] font-bold uppercase tracking-[0.15em] max-w-md mb-8 leading-relaxed">
                 Refine visibility, security, and asset details.
               </p>
             </div>

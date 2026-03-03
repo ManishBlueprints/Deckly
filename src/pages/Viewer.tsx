@@ -160,7 +160,7 @@ function Viewer() {
               <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto mb-8">
                 <AlertCircle size={40} />
               </div>
-              <h2 className="text-3xl font-black text-white tracking-tight mb-4">
+              <h2 className="text-3xl font-bold text-white tracking-tight mb-4">
                 Access Restricted
               </h2>
               <p className="text-slate-400 font-medium leading-relaxed mb-10">
@@ -249,7 +249,7 @@ function Viewer() {
                 deck.status === "PENDING" ? (
                   <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-[#0d0f14]">
                     <div className="w-16 h-16 border-4 border-deckly-primary/30 border-t-deckly-primary rounded-full animate-spin mb-6" />
-                    <h2 className="text-2xl font-black text-white tracking-tight mb-2">
+                    <h2 className="text-2xl font-bold text-white tracking-tight mb-2">
                       Optimizing for Presentation
                     </h2>
                     <p className="text-slate-400 font-medium">

@@ -56,7 +56,7 @@ function DataRoomsPage() {
     <DashboardLayout title="Data Rooms">
       <div className="space-y-12 animate-in fade-in duration-700 relative">
         {rooms.length > 0 && (
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 -mb-6 md:-mb-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 -mb-6 md:-mb-4">
             Bundle assets into shareable secure rooms with access controls
           </p>
         )}
@@ -78,12 +78,12 @@ function DataRoomsPage() {
                     />
                   ))}
                   {isUnlimited && (
-                    <span className="text-[10px] font-black text-deckly-primary ml-1 animate-pulse">
+                    <span className="text-[10px] font-bold text-deckly-primary ml-1 animate-pulse">
                       ∞
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                   {rooms.length}
                   {!isUnlimited && ` / ${maxRooms}`} Rooms
                 </span>
@@ -93,7 +93,7 @@ function DataRoomsPage() {
               <button
                 onClick={() => !isAtLimit && navigate("/rooms/new")}
                 disabled={isAtLimit}
-                className={`hidden sm:flex flex-none items-center justify-center gap-3 px-8 py-3.5 font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all active:scale-[0.98] shadow-2xl ${
+                className={`hidden sm:flex flex-none items-center justify-center gap-3 px-8 py-3.5 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl transition-all active:scale-[0.98] shadow-2xl ${
                   isAtLimit
                     ? "bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed"
                     : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90 shadow-deckly-primary/20"
@@ -114,16 +114,16 @@ function DataRoomsPage() {
               <Zap size={24} className="text-amber-500" />
             </div>
             <div className="flex-1 min-w-0 relative z-10">
-              <p className="text-sm font-black text-white uppercase tracking-wider">
+              <p className="text-sm font-bold text-white uppercase tracking-wider">
                 {tier === "FREE"
                   ? "Upgrade to Pro for more rooms"
                   : "Go Unlimited with Pro+"}
               </p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-amber-500/80 mt-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500/80 mt-1">
                 You've used all {maxRooms} slots on {tier}
               </p>
             </div>
-            <button className="px-6 py-2.5 bg-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-amber-400 transition-all shrink-0 shadow-xl shadow-amber-500/10 hover:scale-105 active:scale-95">
+            <button className="px-6 py-2.5 bg-amber-500 text-slate-950 font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-amber-400 transition-all shrink-0 shadow-xl shadow-amber-500/10 hover:scale-105 active:scale-95">
               Upgrade Now
             </button>
           </div>
@@ -148,16 +148,16 @@ function DataRoomsPage() {
                 className="text-slate-600 group-hover:text-deckly-primary transition-all duration-500"
               />
             </div>
-            <h3 className="text-2xl font-black text-white tracking-tight uppercase tracking-widest mb-3">
+            <h3 className="text-2xl font-bold text-white tracking-tight uppercase tracking-widest mb-3">
               No data rooms yet
             </h3>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-10 max-w-xs leading-relaxed">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-10 max-w-xs leading-relaxed">
               Bundle multiple assets into a single shareable link with elite
               security
             </p>
             <button
               onClick={() => navigate("/rooms/new")}
-              className="hidden sm:flex items-center gap-3 px-10 py-4 bg-deckly-primary text-slate-950 font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-deckly-primary/90 transition-all shadow-2xl shadow-deckly-primary/20 hover:scale-105 active:scale-95"
+              className="hidden sm:flex items-center gap-3 px-10 py-4 bg-deckly-primary text-slate-950 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-deckly-primary/90 transition-all shadow-2xl shadow-deckly-primary/20 hover:scale-105 active:scale-95"
             >
               <Plus size={18} />
               Create First Room

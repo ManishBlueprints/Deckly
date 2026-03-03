@@ -6,7 +6,7 @@ export function CommentsCard() {
     <DashboardCard
       title="Recent Comments"
       headerAction={
-        <Badge className="bg-white/5 text-[8px] font-black text-slate-500 uppercase tracking-widest border-white/10 px-2 py-0.5">
+        <Badge className="bg-white/5 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-white/10 px-2 py-0.5">
           Coming Soon
         </Badge>
       }

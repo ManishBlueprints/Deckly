@@ -93,7 +93,7 @@ export function BottomNav() {
                   <div className="w-8 h-8 rounded-lg bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20 group-hover:bg-deckly-primary/20 transition-all text-deckly-primary">
                     <RoomIcon size={16} />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
                     New Room
                   </span>
                 </button>
@@ -105,7 +105,7 @@ export function BottomNav() {
                   <div className="w-8 h-8 rounded-lg bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20 group-hover:bg-deckly-primary/20 transition-all text-deckly-primary">
                     <Upload size={16} />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
                     New Deck
                   </span>
                 </button>

@@ -72,7 +72,7 @@ export function EmptyStateOverlay() {
               >
                 <Sparkles size={32} className="text-deckly-primary" />
               </motion.div>
-              <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+              <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
                 Hey {firstName} 👋
               </h2>
               <p className="text-sm md:text-base text-slate-400 max-w-sm mx-auto leading-relaxed font-medium">
@@ -96,7 +96,7 @@ export function EmptyStateOverlay() {
                   >
                     <step.icon size={24} className="text-white opacity-80" />
                   </div>
-                  <p className="text-xs md:text-sm font-black text-white uppercase tracking-widest">
+                  <p className="text-xs md:text-sm font-bold text-white uppercase tracking-widest">
                     {step.title}
                   </p>
                 </motion.div>
@@ -105,22 +105,22 @@ export function EmptyStateOverlay() {
 
             {/* Connecting arrows (desktop only) */}
             <div className="hidden md:flex items-center justify-center gap-2 -mt-4">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
                 Step 1
               </span>
               <ArrowRight size={14} className="text-slate-700" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
                 Step 2
               </span>
               <ArrowRight size={14} className="text-slate-700" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
                 Step 3
               </span>
             </div>
 
             {/* CTA */}
             <Link to="/upload" className="hidden md:block w-full">
-              <Button className="w-full h-16 rounded-[20px] bg-deckly-primary hover:bg-deckly-primary/90 text-slate-900 font-black text-xs uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(34,197,94,0.3)] transition-all active:scale-95 group/btn border-none">
+              <Button className="w-full h-16 rounded-[20px] bg-deckly-primary hover:bg-deckly-primary/90 text-slate-900 font-bold text-xs uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(34,197,94,0.3)] transition-all active:scale-95 group/btn border-none">
                 <Upload
                   size={18}
                   className="mr-3 transition-transform group-hover/btn:-translate-y-1"

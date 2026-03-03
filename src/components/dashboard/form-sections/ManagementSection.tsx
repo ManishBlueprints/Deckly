@@ -29,7 +29,7 @@ export function ManagementSection({
     <section className="space-y-12">
       <div className="flex items-center justify-between px-1">
         <div className="flex flex-col gap-1.5">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-deckly-primary flex items-center gap-2">
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-deckly-primary flex items-center gap-2">
             <FileText size={12} strokeWidth={3} />
             Asset Management
           </h3>
@@ -40,7 +40,7 @@ export function ManagementSection({
         <div className="space-y-4">
           <Label
             htmlFor="title"
-            className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 ml-1"
+            className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ml-1"
           >
             Asset Title
           </Label>
@@ -55,13 +55,13 @@ export function ManagementSection({
         <div className="space-y-4">
           <Label
             htmlFor="slug"
-            className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 ml-1"
+            className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ml-1"
           >
             Access Slug
           </Label>
           <div className="relative group/slug">
             <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none z-10 transition-opacity group-focus-within/slug:opacity-100">
-              <span className="text-[11px] font-black uppercase tracking-widest text-slate-600">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-600">
                 {userHandle}/
               </span>
             </div>
@@ -71,19 +71,19 @@ export function ManagementSection({
               value={slug}
               onChange={(e) => setSlug(normalizeSlug(e.target.value))}
               className={cn(
-                "bg-white/[0.03] border-white/5 text-deckly-primary h-14 rounded-2xl focus-visible:ring-deckly-primary/30 font-black uppercase tracking-widest transition-all focus:bg-white/[0.08]",
+                "bg-white/[0.03] border-white/5 text-deckly-primary h-14 rounded-2xl focus-visible:ring-deckly-primary/30 font-bold uppercase tracking-widest transition-all focus:bg-white/[0.08]",
                 userHandle.length > 10 ? "pl-32" : "pl-24",
               )}
             />
           </div>
           <div className="flex flex-col gap-2 mt-2 px-1">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-700">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-700">
               Your URL: deckly.com/{userHandle}/{slug || "..."}
             </p>
             {slug !== originalSlug && (
               <div className="flex items-center gap-2 text-red-500 animate-pulse">
                 <AlertTriangle size={12} strokeWidth={3} />
-                <span className="text-[9px] font-black uppercase tracking-widest">
+                <span className="text-[9px] font-bold uppercase tracking-widest">
                   Breaking Change! Old links will expire.
                 </span>
               </div>
@@ -93,7 +93,7 @@ export function ManagementSection({
       </div>
 
       <div className="flex flex-col gap-4">
-        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 ml-1">
+        <Label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ml-1">
           Replacement Source
         </Label>
         <div
@@ -109,16 +109,16 @@ export function ManagementSection({
               <Upload size={24} strokeWidth={2.5} />
             </div>
             <div>
-              <span className="text-sm font-black text-white uppercase tracking-wider block">
+              <span className="text-sm font-bold text-white uppercase tracking-wider block">
                 {newFile ? "New file ready" : "Replace PDF document"}
               </span>
-              <span className="text-[9px] text-slate-600 font-black uppercase tracking-[0.2em] mt-1.5 block">
+              <span className="text-[9px] text-slate-600 font-bold uppercase tracking-[0.2em] mt-1.5 block">
                 {newFile ? newFile.name : "High-fidelity optimization"}
               </span>
             </div>
           </div>
           {!newFile && (
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 group-hover:text-deckly-primary transition-colors relative z-10">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 group-hover:text-deckly-primary transition-colors relative z-10">
               Update
             </span>
           )}

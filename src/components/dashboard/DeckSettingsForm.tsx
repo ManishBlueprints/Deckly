@@ -198,7 +198,7 @@ export function DeckSettingsForm({
             handleSave();
           }}
           disabled={isSaving}
-          className="w-full sm:w-auto rounded-2xl px-12 py-7 font-black uppercase tracking-[0.2em] text-[10px] bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90 shadow-2xl shadow-deckly-primary/20 active:scale-[0.98] transition-all disabled:opacity-50"
+          className="w-full sm:w-auto rounded-2xl px-12 py-7 font-bold uppercase tracking-[0.2em] text-[10px] bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90 shadow-2xl shadow-deckly-primary/20 active:scale-[0.98] transition-all disabled:opacity-50"
         >
           {isSaving ? (
             <div className="w-3 h-3 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin mr-2" />
@@ -221,7 +221,7 @@ export function DeckSettingsForm({
             className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-white/10 px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl"
           >
             <div className="w-4 h-4 border-2 border-deckly-primary/30 border-t-deckly-primary rounded-full animate-spin" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-deckly-primary">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-deckly-primary">
               {uploadProgress}
             </span>
           </motion.div>

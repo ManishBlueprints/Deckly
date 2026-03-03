@@ -76,10 +76,10 @@ export function DocumentPicker({
         {/* Header */}
         <div className="flex items-center justify-between p-8 border-b border-white/5 relative z-10">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-deckly-primary mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-deckly-primary mb-1">
               ASSET LIBRARY
             </p>
-            <h2 className="text-2xl font-black text-white uppercase tracking-wider">
+            <h2 className="text-2xl font-bold text-white uppercase tracking-wider">
               Select Assets
             </h2>
           </div>
@@ -103,7 +103,7 @@ export function DocumentPicker({
               placeholder="SEARCH ASSETS..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-12 pr-6 py-4 text-xs font-black uppercase tracking-widest bg-white/5 border border-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-deckly-primary/20 focus:border-deckly-primary/30 text-white placeholder:text-slate-800 transition-all shadow-inner"
+              className="w-full pl-12 pr-6 py-4 text-xs font-bold uppercase tracking-widest bg-white/5 border border-white/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-deckly-primary/20 focus:border-deckly-primary/30 text-white placeholder:text-slate-800 transition-all shadow-inner"
             />
           </div>
         </div>
@@ -113,7 +113,7 @@ export function DocumentPicker({
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 size={32} className="text-deckly-primary animate-spin" />
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-700">
                 Accessing Vault
               </p>
             </div>
@@ -122,7 +122,7 @@ export function DocumentPicker({
               <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center mb-6">
                 <FileText size={32} className="opacity-30" />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em]">
                 {decks.length === 0
                   ? "NO ASSETS AVAILABLE"
                   : "NO MATCHING ASSETS"}
@@ -151,10 +151,7 @@ export function DocumentPicker({
                       }`}
                     >
                       {isSelected && (
-                        <Check
-                          size={14}
-                          className="text-slate-950 font-black"
-                        />
+                        <Check size={14} className="text-slate-950 font-bold" />
                       )}
                     </div>
 
@@ -176,11 +173,11 @@ export function DocumentPicker({
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p
-                        className={`text-[11px] font-black uppercase tracking-wider truncate transition-colors ${isSelected ? "text-deckly-primary" : "text-white"}`}
+                        className={`text-[11px] font-bold uppercase tracking-wider truncate transition-colors ${isSelected ? "text-deckly-primary" : "text-white"}`}
                       >
                         {deck.title}
                       </p>
-                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-0.5">
+                      <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
                         {deck.pages?.length || 0} SLIDES
                       </p>
                     </div>
@@ -194,21 +191,21 @@ export function DocumentPicker({
         {/* Footer */}
         <div className="px-8 py-6 border-t border-white/5 flex items-center justify-between relative z-10 bg-black/20 backdrop-blur-md">
           <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
               {selected.size} SELECTED
             </span>
           </div>
           <div className="flex gap-4">
             <button
               onClick={onClose}
-              className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 hover:text-white transition-all"
+              className="px-6 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 hover:text-white transition-all"
             >
               CANCEL
             </button>
             <button
               onClick={handleAdd}
               disabled={selected.size === 0}
-              className="px-8 py-3 bg-deckly-primary text-slate-950 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-deckly-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-2xl shadow-deckly-primary/20 active:scale-95"
+              className="px-8 py-3 bg-deckly-primary text-slate-950 text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl hover:bg-deckly-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-2xl shadow-deckly-primary/20 active:scale-95"
             >
               CONFIRM {selected.size > 0 ? `(${selected.size})` : ""}
             </button>

@@ -111,7 +111,7 @@ export function AnalyticsDashboard() {
       {isRefreshing && !loading && (
         <div className="absolute top-6 right-10 flex items-center gap-3 z-10 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 backdrop-blur-md">
           <div className="w-2 h-2 bg-deckly-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
             Syncing
           </span>
         </div>
@@ -124,20 +124,20 @@ export function AnalyticsDashboard() {
             <TabsList className="bg-white/5 border border-white/10 p-1.5 h-auto rounded-2xl gap-2 backdrop-blur-md shadow-inner">
               <TabsTrigger
                 value="VISITS"
-                className="rounded-xl text-[10px] font-black uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
+                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
               >
                 Visits
               </TabsTrigger>
               <TabsTrigger
                 value="TIME"
-                className="rounded-xl text-[10px] font-black uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
+                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
               >
                 <span className="md:hidden">Time</span>
                 <span className="hidden md:inline">Duration</span>
               </TabsTrigger>
               <TabsTrigger
                 value="BOOKMARKS"
-                className="rounded-xl text-[10px] font-black uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
+                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
               >
                 <span className="md:hidden">Saved</span>
                 <span className="hidden md:inline">Bookmarks</span>

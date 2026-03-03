@@ -180,7 +180,7 @@ export default function DeckAnalytics() {
             <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto mb-8">
               <AlertCircle size={40} />
             </div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-4">
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-4">
               {error ? "Loading Error" : "Access Restricted"}
             </h2>
             <p className="text-slate-500 font-medium leading-relaxed mb-10">
@@ -220,7 +220,7 @@ export default function DeckAnalytics() {
             {/* Back Button */}
             <button
               onClick={() => navigate("/content")}
-              className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] mb-12 group transition-all"
+              className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-12 group transition-all"
             >
               <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-deckly-primary/10 group-hover:border-deckly-primary/20 transition-all">
                 <ArrowLeft
@@ -250,11 +250,11 @@ export default function DeckAnalytics() {
               </div>
 
               {/* Title */}
-              <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-4 uppercase tracking-[0.05em]">
+              <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-4 uppercase tracking-[0.05em]">
                 {deck?.title}
               </h1>
 
-              <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.15em] max-w-md mb-8 leading-relaxed">
+              <p className="text-slate-500 text-[11px] font-bold uppercase tracking-[0.15em] max-w-md mb-8 leading-relaxed">
                 {deck?.description ||
                   "In-depth performance insights for your asset."}
               </p>
@@ -305,7 +305,7 @@ export default function DeckAnalytics() {
                   <div className="w-10 h-10 rounded-xl bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20">
                     <BarChart3 size={20} className="text-deckly-primary" />
                   </div>
-                  <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white">
+                  <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white">
                     Engagement per Slide
                   </h3>
                 </div>
@@ -325,7 +325,7 @@ export default function DeckAnalytics() {
                           key={tab.id}
                           value={tab.id}
                           className={cn(
-                            "rounded-xl text-[10px] font-black uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95 whitespace-nowrap shrink-0",
+                            "rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95 whitespace-nowrap shrink-0",
                           )}
                         >
                           {tab.shortLabel ? (
@@ -355,7 +355,7 @@ export default function DeckAnalytics() {
                       <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
                         <Bookmark size={32} />
                       </div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
                         No one has bookmarked this deck yet.
                       </p>
                     </div>
@@ -367,14 +367,14 @@ export default function DeckAnalytics() {
                           className="flex items-center justify-between p-6 bg-white/5 border border-white/5 rounded-2xl group/item hover:bg-white/[0.08] hover:border-deckly-primary/20 transition-all duration-300"
                         >
                           <div className="flex items-center gap-5">
-                            <div className="w-12 h-12 rounded-xl bg-deckly-primary/10 border border-deckly-primary/20 flex items-center justify-center text-deckly-primary font-black uppercase text-sm">
+                            <div className="w-12 h-12 rounded-xl bg-deckly-primary/10 border border-deckly-primary/20 flex items-center justify-center text-deckly-primary font-bold uppercase text-sm">
                               {b.profiles?.full_name?.[0] || "?"}
                             </div>
                             <div>
-                              <p className="text-sm font-black text-white uppercase tracking-wider">
+                              <p className="text-sm font-bold text-white uppercase tracking-wider">
                                 {b.profiles?.full_name || "Anonymous Investor"}
                               </p>
-                              <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">
+                              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
                                 Saved on{" "}
                                 {new Date(b.created_at).toLocaleDateString()}
                               </p>
@@ -383,7 +383,7 @@ export default function DeckAnalytics() {
                           <div className="text-right hidden sm:block">
                             <Badge
                               variant="outline"
-                              className="bg-deckly-primary/10 text-deckly-primary border-deckly-primary/20 text-[9px] font-black uppercase tracking-widest px-3 py-1"
+                              className="bg-deckly-primary/10 text-deckly-primary border-deckly-primary/20 text-[9px] font-bold uppercase tracking-widest px-3 py-1"
                             >
                               Live in Library
                             </Badge>
@@ -397,7 +397,7 @@ export default function DeckAnalytics() {
                     <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
                       <BarChart3 size={32} />
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
                       No activity recorded for this deck yet.
                     </p>
                   </div>
@@ -411,16 +411,16 @@ export default function DeckAnalytics() {
                             <AlertCircle size={24} />
                           </div>
                           <div>
-                            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">
+                            <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">
                               Critical Drop-off
                             </p>
                             <p className="text-sm text-slate-400 font-medium">
                               Slide{" "}
-                              <span className="text-white font-black">
+                              <span className="text-white font-bold">
                                 {criticalSlide.page_number}
                               </span>{" "}
                               has a churn rate of{" "}
-                              <span className="text-white font-black">
+                              <span className="text-white font-bold">
                                 {criticalSlide.dropOffPercent.toFixed(0)}%
                               </span>
                               .
@@ -458,7 +458,7 @@ export default function DeckAnalytics() {
                               key={s.page_number}
                               className="flex items-center gap-6 group/row"
                             >
-                              <span className="text-[10px] font-black text-slate-600 w-10 uppercase tracking-widest group-hover/row:text-deckly-primary transition-colors">
+                              <span className="text-[10px] font-bold text-slate-600 w-10 uppercase tracking-widest group-hover/row:text-deckly-primary transition-colors">
                                 Pg {s.page_number}
                               </span>
                               <div className="flex-1 h-12 bg-white/5 rounded-2xl overflow-hidden relative border border-white/5 group-hover/row:border-white/10 transition-all">
@@ -486,7 +486,7 @@ export default function DeckAnalytics() {
                                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12 translate-x-[-100%] group-hover/row:translate-x-[100%] transition-transform duration-1000" />
                                   <span
                                     className={cn(
-                                      "text-[10px] font-black tracking-widest relative z-10",
+                                      "text-[10px] font-bold tracking-widest relative z-10",
                                       activeTab === "VISITS" || percentage > 30
                                         ? "text-slate-950"
                                         : "text-white",
@@ -515,15 +515,15 @@ export default function DeckAnalytics() {
                   <Users size={24} className="text-deckly-primary" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black uppercase tracking-widest text-white">
+                  <h3 className="text-lg font-bold uppercase tracking-widest text-white">
                     Visitor Signals
                   </h3>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-600 mt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mt-1">
                     Behavior-based interest discovery
                   </p>
                 </div>
                 {visitorSignals.length > 0 && (
-                  <Badge className="ml-auto bg-deckly-primary text-slate-950 font-black text-[10px] uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg shadow-deckly-primary/20">
+                  <Badge className="ml-auto bg-deckly-primary text-slate-950 font-bold text-[10px] uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg shadow-deckly-primary/20">
                     {visitorSignals.length} Active Viewers
                   </Badge>
                 )}
@@ -532,7 +532,7 @@ export default function DeckAnalytics() {
               {signalsLoading ? (
                 <div className="py-20 flex flex-col items-center gap-4 text-slate-700">
                   <div className="w-12 h-12 border-4 border-white/5 border-t-deckly-primary rounded-full animate-spin shadow-2xl shadow-deckly-primary/10" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">
+                  <p className="text-[10px] font-bold uppercase tracking-widest">
                     Analyzing deep signals...
                   </p>
                 </div>
@@ -543,10 +543,10 @@ export default function DeckAnalytics() {
                     <Users size={40} className="relative z-10" />
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">
+                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">
                       No signals identified yet
                     </p>
-                    <p className="text-[10px] text-slate-700 max-w-xs mx-auto font-black uppercase tracking-widest leading-loose">
+                    <p className="text-[10px] text-slate-700 max-w-xs mx-auto font-bold uppercase tracking-widest leading-loose">
                       Insights appear when visitors show deep interaction —
                       revisits, extended viewing, or specific bookmarks.
                     </p>
@@ -579,24 +579,24 @@ export default function DeckAnalytics() {
                           <div className="flex items-center gap-5">
                             <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center relative group-hover:border-deckly-primary/30 transition-colors">
                               <div className="absolute inset-0 bg-deckly-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              <span className="text-sm font-black text-deckly-primary relative z-10 uppercase tracking-widest">
+                              <span className="text-sm font-bold text-deckly-primary relative z-10 uppercase tracking-widest">
                                 V{idx + 1}
                               </span>
                             </div>
                             <div>
-                              <p className="text-base font-black text-white uppercase tracking-wider">
+                              <p className="text-base font-bold text-white uppercase tracking-wider">
                                 {visitor.viewerEmail || `Anonymous Viewer`}
                               </p>
                               <div className="flex items-center gap-4 mt-1">
-                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">
+                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
                                   {visitor.totalVisits} Slides
                                 </span>
                                 <span className="w-1 h-1 rounded-full bg-white/10" />
-                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">
+                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
                                   {visitor.totalTime}s Spend
                                 </span>
                                 <span className="w-1 h-1 rounded-full bg-white/10" />
-                                <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest">
+                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
                                   {visitor.distinctDays} Day
                                   {visitor.distinctDays > 1 ? "s" : ""}
                                 </span>
@@ -606,7 +606,7 @@ export default function DeckAnalytics() {
 
                           <div className="flex items-center gap-6">
                             <div className="text-right hidden md:block">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-600">
+                              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">
                                 Intensity
                               </p>
                               <div className="flex gap-0.5 mt-1.5">
@@ -663,7 +663,7 @@ export default function DeckAnalytics() {
                               className="bg-black/20 border-t border-white/5"
                             >
                               <div className="p-8">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-8">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 mb-8">
                                   Deep Interaction Timeline
                                 </p>
                                 <div className="flex items-end gap-1.5 h-[200px] overflow-x-auto pb-8 scrollbar-hide relative group/chart">
@@ -692,7 +692,7 @@ export default function DeckAnalytics() {
                                             className="flex flex-col items-center flex-1 min-w-[32px] group/bar relative h-full justify-end"
                                           >
                                             <div className="absolute -top-6 opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap">
-                                              <span className="text-[9px] font-black text-deckly-primary bg-deckly-primary/10 px-2 py-1 rounded border border-deckly-primary/20">
+                                              <span className="text-[9px] font-bold text-deckly-primary bg-deckly-primary/10 px-2 py-1 rounded border border-deckly-primary/20">
                                                 {tLabel}
                                               </span>
                                             </div>
@@ -716,7 +716,7 @@ export default function DeckAnalytics() {
                                             >
                                               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                                             </motion.div>
-                                            <span className="text-[9px] font-black text-slate-700 mt-2 absolute -bottom-5">
+                                            <span className="text-[9px] font-bold text-slate-700 mt-2 absolute -bottom-5">
                                               P{slide.page}
                                             </span>
                                           </div>
@@ -764,10 +764,10 @@ function StatItem({
       >
         {icon}
       </div>
-      <p className="text-[18px] md:text-2xl font-black text-white group-hover/stat:scale-110 transition-transform tracking-tight">
+      <p className="text-[18px] md:text-2xl font-bold text-white group-hover/stat:scale-110 transition-transform tracking-tight">
         {value}
       </p>
-      <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mt-1">
+      <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] mt-1">
         {label}
       </p>
     </div>

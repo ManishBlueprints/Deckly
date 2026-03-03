@@ -153,7 +153,7 @@ function DataRoomDetail() {
             {/* Back button */}
             <button
               onClick={() => navigate("/rooms")}
-              className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] mb-12 group transition-all"
+              className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-12 group transition-all"
             >
               <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-deckly-primary/10 group-hover:border-deckly-primary/20 transition-all">
                 <ArrowLeft
@@ -183,12 +183,12 @@ function DataRoomDetail() {
               </div>
 
               {/* Name */}
-              <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-4 uppercase tracking-[0.05em]">
+              <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-4 uppercase tracking-[0.05em]">
                 {room.name}
               </h1>
 
               {room.description && (
-                <p className="text-slate-500 text-[11px] font-black uppercase tracking-[0.15em] max-w-md mb-8 leading-relaxed">
+                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-[0.15em] max-w-md mb-8 leading-relaxed">
                   {room.description}
                 </p>
               )}
@@ -197,7 +197,7 @@ function DataRoomDetail() {
               <div className="flex items-center gap-3 flex-wrap justify-center">
                 <button
                   onClick={handleCopyLink}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white/3 hover:bg-white/10 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95 shadow-lg"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/3 hover:bg-white/10 border border-white/5 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95 shadow-lg"
                 >
                   {copied ? (
                     <>
@@ -215,21 +215,21 @@ function DataRoomDetail() {
                   href={shareUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-2 px-5 py-2.5 bg-white/3 hover:bg-white/10 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95 shadow-lg"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/3 hover:bg-white/10 border border-white/5 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95 shadow-lg"
                 >
                   <ExternalLink size={14} />
                   Live Preview
                 </a>
                 <button
                   onClick={() => navigate(`/rooms/${roomId}/edit`)}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-deckly-primary text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-deckly-primary/90 transition-all active:scale-95 shadow-lg shadow-deckly-primary/10"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-deckly-primary text-slate-950 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-deckly-primary/90 transition-all active:scale-95 shadow-lg shadow-deckly-primary/10"
                 >
                   <Pencil size={14} />
                   Manage
                 </button>
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-2xl text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-400 transition-all active:scale-95 shadow-lg"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400 transition-all active:scale-95 shadow-lg"
                 >
                   <Trash2 size={14} />
                   Erase
@@ -284,21 +284,21 @@ function DataRoomDetail() {
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center gap-3">
                 <FileText size={16} className="text-deckly-primary" />
-                <h2 className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
                   Room Assets
                 </h2>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => navigate(`/upload?returnToRoom=${roomId}`)}
-                  className="flex items-center gap-2 px-4 py-2 bg-deckly-primary text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-deckly-primary/90 transition-all active:scale-95 shadow-lg shadow-deckly-primary/10"
+                  className="flex items-center gap-2 px-4 py-2 bg-deckly-primary text-slate-950 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-deckly-primary/90 transition-all active:scale-95 shadow-lg shadow-deckly-primary/10"
                 >
                   <Plus size={14} />
                   Add New
                 </button>
                 <button
                   onClick={() => setPickerOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95"
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95"
                 >
                   <Plus size={14} />
                   Add Existing
@@ -321,7 +321,7 @@ function DataRoomDetail() {
           <div className="space-y-6">
             <div className="flex items-center gap-3 px-2">
               <BarChart3 size={16} className="text-deckly-primary" />
-              <h2 className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
                 Security Protocol
               </h2>
             </div>
@@ -349,7 +349,7 @@ function DataRoomDetail() {
               <div className="mt-8 pt-6 border-t border-white/5 flex justify-end">
                 <button
                   onClick={() => navigate(`/rooms/${roomId}/edit`)}
-                  className="text-[10px] font-black uppercase tracking-[0.2em] text-deckly-primary hover:text-white transition-colors flex items-center gap-2"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-deckly-primary hover:text-white transition-colors flex items-center gap-2"
                 >
                   <Pencil size={12} />
                   Adjust Security
@@ -453,7 +453,7 @@ function StatItem({
         {icon}
       </div>
       <p
-        className={`font-black tracking-tighter transition-all ${
+        className={`font-bold tracking-tighter transition-all ${
           isText
             ? "text-[11px] uppercase tracking-widest text-slate-400 truncate max-w-[140px]"
             : "text-4xl text-white shadow-premium"
@@ -461,7 +461,7 @@ function StatItem({
       >
         {value}
       </p>
-      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500/80">
+      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500/80">
         {label}
       </p>
     </div>
@@ -485,11 +485,11 @@ function SettingPill({
           : "bg-white/[0.02] border-white/10"
       }`}
     >
-      <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">
+      <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
         {label}
       </span>
       <span
-        className={`text-[10px] font-black uppercase tracking-widest ${
+        className={`text-[10px] font-bold uppercase tracking-widest ${
           active ? "text-deckly-primary" : "text-slate-600"
         }`}
       >

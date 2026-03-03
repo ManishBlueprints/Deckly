@@ -47,7 +47,7 @@ export function ContentStatsCard({
             <div className="flex items-start justify-center gap-1 md:gap-2 mb-2">
               <span
                 className={cn(
-                  "text-3xl md:text-7xl font-black tracking-tighter transition-transform group-hover:scale-105 duration-500 text-deckly-primary shadow-premium",
+                  "text-3xl md:text-7xl font-bold tracking-tighter transition-transform group-hover:scale-105 duration-500 text-deckly-primary shadow-premium",
                 )}
               >
                 {loading ? "..." : stat.value}
@@ -55,13 +55,13 @@ export function ContentStatsCard({
               {stat.sub && (
                 <Badge
                   variant="outline"
-                  className="bg-white/5 text-[8px] font-black uppercase text-slate-500 border-white/10 mt-1 md:mt-3 hidden md:inline-flex"
+                  className="bg-white/5 text-[8px] font-bold uppercase text-slate-500 border-white/10 mt-1 md:mt-3 hidden md:inline-flex"
                 >
                   {stat.sub}
                 </Badge>
               )}
             </div>
-            <p className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-[0.2em] leading-tight">
+            <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] leading-tight">
               {stat.label}
             </p>
           </div>

@@ -78,7 +78,7 @@ export function Sidebar() {
                   {item.label}
                 </span>
                 {item.disabled && (
-                  <span className="text-[8px] font-black bg-white/5 text-slate-600 border border-white/5 px-2 py-0.5 rounded-md uppercase tracking-widest">
+                  <span className="text-[8px] font-bold bg-white/5 text-slate-600 border border-white/5 px-2 py-0.5 rounded-md uppercase tracking-widest">
                     SOON
                   </span>
                 )}
@@ -149,7 +149,7 @@ export function Sidebar() {
                 return (
                   <span
                     className={cn(
-                      "text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-md shrink-0 leading-none border shadow-sm",
+                      "text-[8px] font-bold uppercase tracking-[0.2em] px-2 py-0.5 rounded-md shrink-0 leading-none border shadow-sm",
                       t === "PRO_PLUS"
                         ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
                         : t === "PRO"
@@ -162,7 +162,7 @@ export function Sidebar() {
                 );
               })()}
             </div>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black truncate mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold truncate mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
               {session?.user?.email?.split("@")[0] || "Founder"}
             </p>
           </div>

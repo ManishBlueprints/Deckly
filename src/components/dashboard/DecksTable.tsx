@@ -91,11 +91,11 @@ export function DecksTable({
                 <Link
                   to={`/${userHandle}/${deck.slug}`}
                   target="_blank"
-                  className="font-black text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
+                  className="font-bold text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
                 >
                   {deck.title}
                 </Link>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
                   {deck.total_views} views · {deck.save_count} saves
                   {deck.last_viewed_at
                     ? ` · ${new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(deck.last_viewed_at)).replace(/\//g, "-")}`
@@ -116,7 +116,7 @@ export function DecksTable({
                   {copiedId === deck.id ? (
                     <Check size={16} strokeWidth={3} />
                   ) : (
-                    <span className="text-[10px] font-black uppercase tracking-widest px-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest px-1">
                       Copy
                     </span>
                   )}
@@ -151,25 +151,25 @@ export function DecksTable({
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent border-white/5">
-              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 py-8 px-12">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 px-12">
                 Name
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 py-8">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8">
                 Upload Date
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
                 Link
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
                 Views
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
                 Saves
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
                 Last Viewed
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 py-8 text-right px-12">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-right px-12">
                 Actions
               </TableHead>
             </TableRow>
@@ -207,7 +207,7 @@ export function DecksTable({
               <TableRow className="border-transparent">
                 <TableCell
                   colSpan={7}
-                  className="p-32 text-center text-slate-500 font-black uppercase tracking-widest text-xs"
+                  className="p-32 text-center text-slate-500 font-bold uppercase tracking-widest text-xs"
                 >
                   No decks uploaded yet
                 </TableCell>
@@ -230,7 +230,7 @@ export function DecksTable({
                       <div className="p-3 bg-white/5 rounded-2xl text-slate-400 group-hover:text-deckly-primary transition-colors group-hover/title:bg-deckly-primary/10 border border-white/5 shadow-lg">
                         <FileText size={20} />
                       </div>
-                      <span className="font-black text-slate-200 group-hover/title:text-deckly-primary transition-colors tracking-tight">
+                      <span className="font-bold text-slate-200 group-hover/title:text-deckly-primary transition-colors tracking-tight">
                         {deck.title}
                       </span>
                     </Link>
@@ -248,7 +248,7 @@ export function DecksTable({
                     <button
                       onClick={() => handleCopyLink(deck.slug, deck.id)}
                       className={clsx(
-                        "text-[10px] font-black uppercase tracking-[0.2em] px-5 py-3 rounded-xl transition-all flex items-center gap-2 mx-auto border",
+                        "text-[10px] font-bold uppercase tracking-[0.2em] px-5 py-3 rounded-xl transition-all flex items-center gap-2 mx-auto border",
                         copiedId === deck.id
                           ? "bg-deckly-primary border-deckly-primary text-slate-950 shadow-[0_0_15px_rgba(34,197,94,0.4)]"
                           : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20",
@@ -263,10 +263,10 @@ export function DecksTable({
                       )}
                     </button>
                   </TableCell>
-                  <TableCell className="py-8 text-center font-black text-white text-lg">
+                  <TableCell className="py-8 text-center font-bold text-white text-lg">
                     {deck.total_views}
                   </TableCell>
-                  <TableCell className="py-8 text-center font-black text-white text-lg">
+                  <TableCell className="py-8 text-center font-bold text-white text-lg">
                     {deck.save_count}
                   </TableCell>
                   <TableCell className="py-8 text-center text-slate-500 font-bold text-xs">

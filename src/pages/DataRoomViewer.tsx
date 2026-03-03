@@ -126,10 +126,10 @@ function DataRoomViewer() {
               <div className="absolute inset-4 rounded-full bg-deckly-primary/10 blur-[15px] animate-pulse" />
             </div>
             <div className="text-center">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-deckly-primary mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-deckly-primary mb-2">
                 SYNCHRONIZING SECURE BUNDLE
               </p>
-              <h2 className="text-xl font-black text-white uppercase tracking-wider animate-pulse">
+              <h2 className="text-xl font-bold text-white uppercase tracking-wider animate-pulse">
                 Accessing Vault
               </h2>
             </div>
@@ -146,18 +146,18 @@ function DataRoomViewer() {
               <div className="w-24 h-24 bg-red-500/10 rounded-[2rem] flex items-center justify-center text-red-500 mx-auto mb-10 border border-red-500/20 shadow-2xl shadow-red-500/10">
                 <AlertCircle size={48} />
               </div>
-              <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-4">
+              <p className="text-[10px] font-bold text-red-500 uppercase tracking-[0.2em] mb-4">
                 ACCESS SYSTEM ALERT
               </p>
-              <h2 className="text-3xl font-black text-white tracking-tight uppercase tracking-wider mb-6">
+              <h2 className="text-3xl font-bold text-white tracking-tight uppercase tracking-wider mb-6">
                 Entry Terminated
               </h2>
-              <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest leading-relaxed mb-12 opacity-80">
+              <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest leading-relaxed mb-12 opacity-80">
                 {error ||
                   "The data room you're looking for might have been moved or the link has expired."}
               </p>
               <Link to="/">
-                <button className="w-full py-5 bg-white text-slate-950 font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-slate-200 transition-all active:scale-95 shadow-2xl">
+                <button className="w-full py-5 bg-white text-slate-950 font-bold uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-slate-200 transition-all active:scale-95 shadow-2xl">
                   RETURN TO BASE
                 </button>
               </Link>
@@ -220,10 +220,10 @@ function DataRoomViewer() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-[11px] font-black text-white uppercase tracking-wider truncate">
+                    <h2 className="text-[11px] font-bold text-white uppercase tracking-wider truncate">
                       {room.name}
                     </h2>
-                    <p className="text-[9px] text-slate-600 uppercase tracking-widest font-black mt-1">
+                    <p className="text-[9px] text-slate-600 uppercase tracking-widest font-bold mt-1">
                       {documents.length}{" "}
                       {documents.length === 1 ? "RESOURCE" : "RESOURCES"}
                     </p>
@@ -267,7 +267,7 @@ function DataRoomViewer() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <p
-                          className={`text-[11px] font-black uppercase tracking-wider truncate transition-colors ${
+                          className={`text-[11px] font-bold uppercase tracking-wider truncate transition-colors ${
                             isActive
                               ? "text-deckly-primary"
                               : "text-white group-hover:text-deckly-primary"
@@ -276,7 +276,7 @@ function DataRoomViewer() {
                           {deck?.title || "Untitled RESOURCE"}
                         </p>
                         <p
-                          className={`text-[9px] font-black uppercase tracking-widest mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-700"}`}
+                          className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-700"}`}
                         >
                           {deck?.pages?.length || 0} SLIDES
                         </p>
@@ -332,7 +332,7 @@ function DataRoomViewer() {
                     className="group-hover:-translate-x-1 transition-transform"
                   />
                   <span
-                    className={`${isMobile ? "text-[9px]" : "text-[10px]"} font-black uppercase tracking-[0.2em]`}
+                    className={`${isMobile ? "text-[9px]" : "text-[10px]"} font-bold uppercase tracking-[0.2em]`}
                   >
                     {isMobile ? "Exit" : "Exit Room"}
                   </span>

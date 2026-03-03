@@ -37,7 +37,7 @@ export function AccessProtectionSection({
     <section className="space-y-5">
       <div className="flex items-center gap-3 px-1 mb-6">
         <Lock size={16} className="text-deckly-primary" />
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
           SECURITY OVERRIDE
         </h3>
       </div>
@@ -66,10 +66,10 @@ export function AccessProtectionSection({
                 <Mail size={18} />
               </div>
               <div>
-                <p className="text-[11px] font-black text-white uppercase tracking-wider leading-tight">
+                <p className="text-[11px] font-bold text-white uppercase tracking-wider leading-tight">
                   EMAIL REQUIRED
                 </p>
-                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1">
+                <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">
                   ID AUTHENTICATION
                 </p>
               </div>
@@ -105,10 +105,10 @@ export function AccessProtectionSection({
                 <Lock size={18} />
               </div>
               <div>
-                <p className="text-[11px] font-black text-white uppercase tracking-wider leading-tight">
+                <p className="text-[11px] font-bold text-white uppercase tracking-wider leading-tight">
                   GATE ACCESS
                 </p>
-                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1">
+                <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">
                   PASSWORD LOCK
                 </p>
               </div>
@@ -135,7 +135,7 @@ export function AccessProtectionSection({
               <div className="space-y-3 mt-1 pb-2">
                 <Label
                   htmlFor="view-password"
-                  className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 ml-1"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ml-1"
                 >
                   Set Security Key
                 </Label>
@@ -149,7 +149,7 @@ export function AccessProtectionSection({
                     value={viewPassword}
                     onChange={(e) => setViewPassword(e.target.value)}
                     placeholder="ENTER STRONG PASSWORD..."
-                    className="h-12 pl-14 pr-12 rounded-xl border-white/5 bg-white/[0.03] focus-visible:ring-deckly-primary/30 text-white font-black uppercase tracking-widest placeholder:text-slate-800 transition-all shadow-inner focus:bg-white/[0.08]"
+                    className="h-12 pl-14 pr-12 rounded-xl border-white/5 bg-white/[0.03] focus-visible:ring-deckly-primary/30 text-white font-bold uppercase tracking-widest placeholder:text-slate-800 transition-all shadow-inner focus:bg-white/[0.08]"
                   />
                   <button
                     type="button"
@@ -194,10 +194,10 @@ export function AccessProtectionSection({
               <CalendarDays size={18} />
             </div>
             <div>
-              <p className="text-[11px] font-black text-white uppercase tracking-wider leading-tight">
+              <p className="text-[11px] font-bold text-white uppercase tracking-wider leading-tight">
                 EXPIRATION
               </p>
-              <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1">
+              <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">
                 DURATION CONTROL
               </p>
             </div>
@@ -226,7 +226,7 @@ export function AccessProtectionSection({
               <div className="space-y-3 mt-1">
                 <Label
                   htmlFor="expiry-date"
-                  className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 ml-1"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ml-1"
                 >
                   Select Deadline
                 </Label>
@@ -240,7 +240,7 @@ export function AccessProtectionSection({
                     value={expiryDate}
                     onChange={(e) => setExpiryDate(e.target.value)}
                     min={new Date().toISOString().split("T")[0]}
-                    className="h-12 pl-14 rounded-xl border-white/5 bg-white/[0.03] focus-visible:ring-deckly-primary/30 text-white font-black uppercase tracking-widest placeholder:text-slate-800 transition-all shadow-inner focus:bg-white/[0.08] [color-scheme:dark]"
+                    className="h-12 pl-14 rounded-xl border-white/5 bg-white/[0.03] focus-visible:ring-deckly-primary/30 text-white font-bold uppercase tracking-widest placeholder:text-slate-800 transition-all shadow-inner focus:bg-white/[0.08] [color-scheme:dark]"
                   />
                 </div>
               </div>
