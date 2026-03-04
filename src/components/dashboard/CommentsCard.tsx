@@ -6,18 +6,15 @@ export function CommentsCard() {
     <DashboardCard
       title="Recent Comments"
       headerAction={
-        <Badge
-          variant="outline"
-          className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase"
-        >
+        <Badge className="bg-white/5 text-[8px] font-bold text-slate-500 uppercase tracking-widest border-white/10 px-2 py-0.5">
           Coming Soon
         </Badge>
       }
-      contentClassName="p-12 flex flex-col items-center justify-center text-center"
+      contentClassName="p-16 flex flex-col items-center justify-center text-center bg-white/[0.01]"
     >
-      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+      <div className="w-20 h-20 bg-white/[0.02] rounded-3xl flex items-center justify-center mb-8 border border-white/5 shadow-xl transition-all hover:scale-110 hover:border-deckly-primary/30 group">
         <svg
-          className="w-8 h-8 text-slate-300"
+          className="w-10 h-10 text-slate-700 transition-colors group-hover:text-deckly-primary"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -30,7 +27,7 @@ export function CommentsCard() {
           />
         </svg>
       </div>
-      <p className="text-sm font-medium text-slate-500 max-w-[200px] leading-relaxed">
+      <p className="text-xs font-bold text-slate-500 max-w-[220px] leading-relaxed uppercase tracking-widest opacity-60">
         Investor comments and reactions will appear here.
       </p>
     </DashboardCard>

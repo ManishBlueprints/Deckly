@@ -152,7 +152,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                 <h3 className="text-xl font-bold text-white tracking-tight">
                   Deck Insights
                 </h3>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
                   <History size={10} className="text-deckly-primary" />
                   {tier.label}
                 </div>
@@ -218,7 +218,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                       Total Views
                     </span>
                   </div>
-                  <div className="text-3xl font-black text-white leading-none">
+                  <div className="text-3xl font-bold text-white leading-none">
                     {totalViews}
                   </div>
                 </Card>
@@ -236,7 +236,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                       Avg. Session
                     </span>
                   </div>
-                  <div className="text-3xl font-black text-white leading-none">
+                  <div className="text-3xl font-bold text-white leading-none">
                     {avgTimePerView}s
                   </div>
                 </Card>
@@ -291,7 +291,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                             <AlertCircle size={20} />
                           </div>
                           <div>
-                            <p className="text-xs font-black text-red-400 uppercase tracking-widest mb-0.5">
+                            <p className="text-xs font-bold text-red-400 uppercase tracking-widest mb-0.5">
                               Churn Alert
                             </p>
                             <p className="text-sm text-slate-300 font-medium leading-tight">
@@ -326,7 +326,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                             key={s.page_number}
                             className="flex items-center gap-4"
                           >
-                            <span className="text-[10px] font-black text-slate-600 w-8">
+                            <span className="text-[10px] font-bold text-slate-600 w-8">
                               Pg {s.page_number}
                             </span>
                             <div className="flex-1 h-7 bg-white/5 rounded-lg overflow-hidden relative">

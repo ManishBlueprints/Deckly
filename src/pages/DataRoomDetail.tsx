@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -16,12 +16,20 @@ import {
   Users,
   Loader2,
   Monitor,
-  X,
 } from "lucide-react";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DocumentPicker } from "../components/dashboard/DocumentPicker";
 import { DataRoom, DataRoomDocument } from "../types";
+import { cn } from "@/lib/utils";
 import { dataRoomService } from "../services/dataRoomService";
+import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  getRoomVisitorSignals,
+  VisitorSignal,
+} from "../services/interestSignalService";
+import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
+import { Badge } from "../components/ui/badge";
 
 /* ───────── helpers ───────── */
 function formatDate(iso: string) {
@@ -36,6 +44,7 @@ function formatDate(iso: string) {
 function DataRoomDetail() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
+  const { profile } = useAuth();
 
   // Data
   const [room, setRoom] = useState<DataRoom | null>(null);
@@ -50,7 +59,10 @@ function DataRoomDetail() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deletingDoc, setDeletingDoc] = useState<string | null>(null);
+
+  // Signals
+  const [roomSignals, setRoomSignals] = useState<VisitorSignal[]>([]);
+  const [signalsLoading, setSignalsLoading] = useState(true);
 
   /* ── load data ── */
   const loadAll = useCallback(async () => {
@@ -69,6 +81,12 @@ function DataRoomDetail() {
       setRoom(roomData);
       setDocuments(docs);
       setAnalytics(analyticsData);
+
+      // Load signals non-blocking
+      setSignalsLoading(true);
+      getRoomVisitorSignals(roomId)
+        .then(setRoomSignals)
+        .finally(() => setSignalsLoading(false));
     } catch (err) {
       console.error("Failed to load room", err);
     } finally {
@@ -82,8 +100,8 @@ function DataRoomDetail() {
 
   /* ── actions ── */
   const handleCopyLink = () => {
-    if (!room) return;
-    const url = `${window.location.origin}/room/${room.slug}`;
+    if (!room || !profile?.handle) return;
+    const url = `${window.location.origin}/${profile.handle}/room/${room.slug}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -97,17 +115,30 @@ function DataRoomDetail() {
 
   const handleRemoveDocument = async (deckId: string) => {
     if (!roomId) return;
-    setDeletingDoc(deckId);
-    try {
-      await dataRoomService.removeDocument(roomId, deckId);
-      setDocuments((prev) => prev.filter((d) => d.deck_id !== deckId));
-      setAnalytics((prev) => ({
-        ...prev,
-        perDeck: prev.perDeck.filter((p) => p.deckId !== deckId),
-      }));
-    } finally {
-      setDeletingDoc(null);
-    }
+    await dataRoomService.removeDocument(roomId, deckId);
+    setDocuments((prev) => prev.filter((d) => d.deck_id !== deckId));
+    setAnalytics((prev) => ({
+      ...prev,
+      perDeck: prev.perDeck.filter((p) => p.deckId !== deckId),
+    }));
+  };
+
+  const handleReorderDocuments = async (orderedDeckIds: string[]) => {
+    if (!roomId) return;
+
+    // Optimistic UI update: instantly reorder local state
+    setDocuments((prev) => {
+      const newDocs = [...prev];
+      newDocs.sort((a, b) => {
+        return (
+          orderedDeckIds.indexOf(a.deck_id) - orderedDeckIds.indexOf(b.deck_id)
+        );
+      });
+      return newDocs;
+    });
+
+    // Save in background
+    await dataRoomService.reorderDocuments(roomId, orderedDeckIds);
   };
 
   const handleDeleteRoom = async () => {
@@ -116,7 +147,10 @@ function DataRoomDetail() {
     navigate("/rooms");
   };
 
-  const shareUrl = room ? `${window.location.origin}/room/${room.slug}` : "";
+  const shareUrl =
+    room && profile?.handle
+      ? `${window.location.origin}/${profile.handle}/room/${room.slug}`
+      : "";
 
   /* ── loading state ── */
   if (loading) {
@@ -131,82 +165,83 @@ function DataRoomDetail() {
 
   if (!room) return null;
 
-  const visitorsByDeck = new Map(
-    analytics.perDeck.map((p) => [p.deckId, p.visitors]),
-  );
-
   return (
     <DashboardLayout title="Data Rooms" showFab={false}>
       <div className="space-y-0">
         {/* ═══════════════ HERO BANNER ═══════════════ */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="relative overflow-hidden bg-[#090b10] border-b border-white/5 py-12">
           {/* Background pattern */}
           <div
             className="absolute inset-0 opacity-[0.03]"
             style={{
               backgroundImage:
                 "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
-              backgroundSize: "24px 24px",
+              backgroundSize: "32px 32px",
             }}
           />
           {/* Glow accents */}
-          <div className="absolute -top-32 -right-32 w-96 h-96 bg-deckly-primary/10 rounded-full blur-[120px]" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/8 rounded-full blur-[100px]" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-deckly-primary/10 rounded-full blur-[120px] -mr-64 -mt-64" />
+          <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/10 rounded-full blur-[100px] -ml-32 -mb-32" />
 
-          <div className="relative z-10 max-w-5xl mx-auto px-6 pt-6 pb-10">
+          <div className="relative z-10 max-w-5xl mx-auto px-6">
             {/* Back button */}
             <button
               onClick={() => navigate("/rooms")}
-              className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium mb-8 group transition-colors"
+              className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-12 group transition-all"
             >
-              <ArrowLeft
-                size={16}
-                className="group-hover:-translate-x-1 transition-transform"
-              />
-              All Rooms
+              <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-deckly-primary/10 group-hover:border-deckly-primary/20 transition-all">
+                <ArrowLeft
+                  size={14}
+                  className="group-hover:-translate-x-0.5 transition-transform"
+                />
+              </div>
+              Return to Rooms
             </button>
 
-            {/* Center content */}
             <div className="flex flex-col items-center text-center">
               {/* Icon */}
-              <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden mb-5 shadow-2xl shadow-black/40 backdrop-blur-sm">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden mb-8 shadow-2xl backdrop-blur-md relative group">
+                <div className="absolute inset-0 bg-deckly-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 {room.icon_url ? (
                   <img
                     src={room.icon_url}
                     alt={room.name}
-                    className="w-full h-full object-cover rounded-2xl"
+                    className="w-full h-full object-cover relative z-10 transition-transform duration-700 group-hover:scale-110"
                   />
                 ) : (
-                  <Monitor size={32} className="text-slate-500" />
+                  <Monitor
+                    size={32}
+                    className="text-slate-500 group-hover:text-deckly-primary transition-colors duration-500 relative z-10"
+                  />
                 )}
               </div>
 
               {/* Name */}
-              <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">
+              <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-4 uppercase tracking-[0.05em]">
                 {room.name}
               </h1>
 
               {room.description && (
-                <p className="text-slate-400 text-sm max-w-md mb-5 leading-relaxed">
+                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-[0.15em] max-w-md mb-8 leading-relaxed">
                   {room.description}
                 </p>
               )}
 
               {/* Action pills */}
-              <div className="flex items-center gap-2 flex-wrap justify-center">
+              <div className="flex items-center gap-3 flex-wrap justify-center">
                 <button
                   onClick={handleCopyLink}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm text-slate-300 hover:text-white transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/3 hover:bg-white/10 border border-white/5 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95 shadow-lg"
                 >
                   {copied ? (
                     <>
-                      <Check size={14} className="text-green-400" />
-                      Copied!
+                      <Check size={14} className="text-deckly-primary" />
+                      Link Copied
                     </>
                   ) : (
                     <>
                       <Copy size={14} />
-                      Copy Link
+                      Share Room
                     </>
                   )}
                 </button>
@@ -214,85 +249,90 @@ function DataRoomDetail() {
                   href={shareUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm text-slate-300 hover:text-white transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/3 hover:bg-white/10 border border-white/5 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95 shadow-lg"
                 >
                   <ExternalLink size={14} />
-                  Preview
+                  Live Preview
                 </a>
                 <button
                   onClick={() => navigate(`/rooms/${roomId}/edit`)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm text-slate-300 hover:text-white transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-deckly-primary text-slate-950 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-deckly-primary/90 transition-all active:scale-95 shadow-lg shadow-deckly-primary/10"
                 >
                   <Pencil size={14} />
-                  Edit
+                  Manage
                 </button>
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-full text-sm text-red-400 hover:text-red-300 transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400 transition-all active:scale-95 shadow-lg"
                 >
                   <Trash2 size={14} />
-                  Delete
+                  Erase
                 </button>
               </div>
             </div>
           </div>
         </div>
-
         {/* ═══════════════ STATS ROW ═══════════════ */}
-        <div className="bg-white border-b border-slate-200">
-          <div className="max-w-5xl mx-auto px-6 py-0">
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-slate-100">
+        <div className="bg-[#0e1117]/50 border-b border-white/5 py-0 px-6 backdrop-blur-md overflow-x-auto scrollbar-hide">
+          <div className="max-w-5xl mx-auto min-w-[640px] md:min-w-0">
+            <div className="grid grid-cols-4 divide-x divide-white/5">
               <StatItem
                 icon={<FileText size={16} />}
-                label="Documents"
+                label="Assets Gated"
                 value={documents.length}
               />
               <StatItem
                 icon={<Users size={16} />}
-                label="Total Visitors"
+                label="Total Reach"
                 value={analytics.totalVisitors}
               />
               <StatItem
                 icon={<Calendar size={16} />}
-                label="Created"
+                label="Established"
                 value={formatDate(room.created_at)}
                 isText
               />
               <StatItem
-                icon={<LinkIcon size={16} />}
-                label="Share Link"
-                value={`/room/${room.slug}`}
+                icon={
+                  copied ? (
+                    <Check size={16} className="text-deckly-primary" />
+                  ) : (
+                    <LinkIcon size={16} />
+                  )
+                }
+                label={copied ? "Copied" : "Public Link"}
+                value={
+                  copied ? "Success" : `/${profile?.handle}/room/${room.slug}`
+                }
                 isText
+                onClick={handleCopyLink}
               />
             </div>
           </div>
         </div>
 
         {/* ═══════════════ MAIN CONTENT ═══════════════ */}
-        <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-          {/* ── Documents Section ── */}
-          <section>
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
+        <div className="max-w-5xl mx-auto px-6 py-12 space-y-12">
+          {/* Room Assets section */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-3">
                 <FileText size={16} className="text-deckly-primary" />
-                <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                  Documents
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
+                  Room Assets
                 </h2>
-                <span className="ml-1 px-2 py-0.5 bg-deckly-primary/10 text-deckly-primary text-[10px] font-black rounded-full">
-                  {documents.length}
-                </span>
               </div>
-              <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => navigate(`/upload?returnToRoom=${roomId}`)}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-200 transition-all active:scale-95"
+                  className="flex items-center gap-2 px-4 py-2 bg-deckly-primary text-slate-950 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-deckly-primary/90 transition-all active:scale-95 shadow-lg shadow-deckly-primary/10"
                 >
                   <Plus size={14} />
-                  Upload New
+                  Add New
                 </button>
                 <button
                   onClick={() => setPickerOpen(true)}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-deckly-primary text-slate-900 font-bold text-xs rounded-xl hover:bg-deckly-primary/90 transition-all active:scale-95"
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95"
                 >
                   <Plus size={14} />
                   Add Existing
@@ -300,235 +340,179 @@ function DataRoomDetail() {
               </div>
             </div>
 
-            {documents.length === 0 ? (
-              <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-12 text-center">
-                <FileText size={32} className="text-slate-300 mx-auto mb-3" />
-                <p className="text-sm font-medium text-slate-500 mb-1">
-                  No documents yet
-                </p>
-                <p className="text-xs text-slate-400 mb-4">
-                  Add your first deck to this data room
-                </p>
-                <button
-                  onClick={() => setPickerOpen(true)}
-                  className="text-xs font-bold text-deckly-primary hover:underline"
-                >
-                  + Add Documents
-                </button>
+            <div className="glass-shiny bg-white/[0.03] backdrop-blur-xl rounded-[2rem] border border-white/10 p-4 shadow-2xl">
+              <RoomDocumentList
+                documents={documents}
+                onRemove={handleRemoveDocument}
+                onReorder={handleReorderDocuments}
+              />
+            </div>
+          </div>
+
+          {/* Visitor Engagement Signals Section (Room Level) */}
+          <div className="glass-shiny bg-white/[0.03] backdrop-blur-xl border border-white/5 rounded-[3rem] p-8 md:p-12 shadow-2xl relative overflow-hidden group">
+            <div className="space-y-10 relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-[1.25rem] bg-deckly-primary/10 border border-deckly-primary/20 flex items-center justify-center">
+                  <Users size={24} className="text-deckly-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold uppercase tracking-widest text-white">
+                    Visitor Signals
+                  </h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mt-1">
+                    Behavior-based interest discovery across room
+                  </p>
+                </div>
+                {roomSignals.length > 0 && (
+                  <Badge className="ml-auto bg-deckly-primary text-slate-950 font-bold text-[10px] uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg shadow-deckly-primary/20">
+                    {roomSignals.length} Viewer
+                    {roomSignals.length !== 1 ? "s" : ""}
+                  </Badge>
+                )}
               </div>
-            ) : (
-              <div className="space-y-2">
-                {documents.map((doc, idx) => {
-                  const deck = doc.deck;
-                  const visitors = visitorsByDeck.get(doc.deck_id) || 0;
 
-                  return (
+              {signalsLoading ? (
+                <div className="py-20 flex flex-col items-center gap-4 text-slate-700">
+                  <div className="w-12 h-12 border-4 border-white/5 border-t-deckly-primary rounded-full animate-spin shadow-2xl shadow-deckly-primary/10" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest">
+                    Gathering room signals...
+                  </p>
+                </div>
+              ) : roomSignals.length === 0 ? (
+                <div className="py-20 text-center space-y-6">
+                  <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-[2.5rem] flex items-center justify-center mx-auto text-slate-700 relative">
+                    <div className="absolute inset-0 bg-deckly-primary/5 blur-2xl rounded-full" />
+                    <Users size={40} className="relative z-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+                      No visitors yet
+                    </p>
+                    <p className="text-[10px] text-slate-700 max-w-xs mx-auto font-bold uppercase tracking-widest leading-loose">
+                      Insights appear when visitors view and interact with
+                      assets in this room.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {roomSignals.map((visitor, idx) => (
                     <motion.div
-                      key={doc.deck_id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.04 }}
-                      className="group bg-white border border-slate-200 rounded-2xl p-4 hover:border-deckly-primary/30 hover:shadow-lg hover:shadow-deckly-primary/5 transition-all"
+                      key={visitor.visitorId}
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className={cn(
+                        "rounded-[2rem] border transition-all duration-500 overflow-hidden cursor-default",
+                        "bg-white/[0.03] border-white/5 hover:border-white/10 hover:bg-white/[0.05]",
+                      )}
                     >
-                      <div className="flex items-center gap-4">
-                        {/* Order badge */}
-                        <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 shrink-0">
-                          {idx + 1}
-                        </div>
-
-                        {/* Thumbnail */}
-                        <div className="w-14 h-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
-                          {deck?.pages?.[0]?.image_url ? (
-                            <img
-                              src={deck.pages[0].image_url}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <FileText size={14} className="text-slate-300" />
+                      <div className="p-6 md:p-8">
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center gap-5">
+                            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center relative group-hover:border-deckly-primary/30 transition-colors">
+                              <div className="absolute inset-0 bg-deckly-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <span className="text-sm font-bold text-deckly-primary relative z-10 uppercase tracking-widest">
+                                V{idx + 1}
+                              </span>
                             </div>
-                          )}
-                        </div>
+                            <div>
+                              <p className="text-base font-bold text-white uppercase tracking-wider">
+                                {visitor.viewerEmail || `Anonymous Viewer`}
+                              </p>
+                              <div className="flex items-center gap-4 mt-1">
+                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+                                  {visitor.totalVisits} Views
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-white/10" />
+                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+                                  {visitor.totalTime}s Spend
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-white/10" />
+                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+                                  {visitor.distinctDays} Day
+                                  {visitor.distinctDays > 1 ? "s" : ""}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
 
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-deckly-primary transition-colors">
-                            {deck?.title || "Untitled Deck"}
-                          </p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {deck?.pages?.length || 0} pages
-                          </p>
-                        </div>
-
-                        {/* Stats */}
-                        <div className="hidden md:flex items-center gap-5">
-                          <div className="text-right">
-                            <p className="text-sm font-bold text-slate-700">
-                              {visitors}
-                            </p>
-                            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                              Visitors
-                            </p>
+                          <div className="flex items-center gap-6">
+                            <div className="text-right hidden md:block">
+                              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">
+                                Intensity
+                              </p>
+                              <div className="flex gap-0.5 mt-1.5">
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                  <div
+                                    key={i}
+                                    className={cn(
+                                      "w-3 h-1 rounded-full",
+                                      i <= visitor.signals.length
+                                        ? "bg-deckly-primary shadow-[0_0_8px_rgba(34,197,94,0.4)]"
+                                        : "bg-white/5",
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {deck && (
-                            <Link
-                              to={`/analytics/${deck.id}`}
-                              className="p-2 text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 rounded-lg transition-colors"
-                              title="View Analytics"
-                            >
-                              <BarChart3 size={15} />
-                            </Link>
-                          )}
-                          <a
-                            href={deck ? `/${deck.slug}` : "#"}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-2 text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 rounded-lg transition-colors"
-                            title="Preview Deck"
-                          >
-                            <ExternalLink size={15} />
-                          </a>
-                          <button
-                            onClick={() => handleRemoveDocument(doc.deck_id)}
-                            disabled={deletingDoc === doc.deck_id}
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
-                            title="Remove from room"
-                          >
-                            {deletingDoc === doc.deck_id ? (
-                              <Loader2 size={15} className="animate-spin" />
-                            ) : (
-                              <X size={15} />
-                            )}
-                          </button>
+                        <div className="flex flex-wrap gap-2.5">
+                          {visitor.signals.map((signal) => (
+                            <InterestSignalBadge key={signal} signal={signal} />
+                          ))}
                         </div>
                       </div>
                     </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          {/* ── Analytics Per Deck ── */}
-          {analytics.perDeck.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-5">
-                <BarChart3 size={16} className="text-deckly-primary" />
-                <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                  Analytics Overview
-                </h2>
-              </div>
-
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                <div className="grid grid-cols-12 px-5 py-3 bg-slate-50 border-b border-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  <div className="col-span-6">Document</div>
-                  <div className="col-span-3 text-right">Visitors</div>
-                  <div className="col-span-3 text-right">Share</div>
+                  ))}
                 </div>
-                {analytics.perDeck.map((item, idx) => {
-                  const pct =
-                    analytics.totalVisitors > 0
-                      ? Math.round(
-                          (item.visitors / analytics.totalVisitors) * 100,
-                        )
-                      : 0;
+              )}
+            </div>
+          </div>
 
-                  return (
-                    <div
-                      key={item.deckId}
-                      className={`grid grid-cols-12 px-5 py-3.5 items-center ${
-                        idx < analytics.perDeck.length - 1
-                          ? "border-b border-slate-50"
-                          : ""
-                      } hover:bg-slate-50/50 transition-colors`}
-                    >
-                      <div className="col-span-6 flex items-center gap-3 min-w-0">
-                        <div className="w-6 h-6 rounded-md bg-deckly-primary/10 flex items-center justify-center text-[10px] font-black text-deckly-primary shrink-0">
-                          {idx + 1}
-                        </div>
-                        <p className="text-sm text-slate-700 font-medium truncate">
-                          {item.title}
-                        </p>
-                      </div>
-                      <div className="col-span-3 text-right">
-                        <span className="text-sm font-bold text-slate-800">
-                          {item.visitors}
-                        </span>
-                      </div>
-                      <div className="col-span-3 flex items-center justify-end gap-2 group/share relative">
-                        <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-deckly-primary rounded-full transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-bold text-slate-500 w-8 text-right">
-                          {pct}%
-                        </span>
-
-                        {/* Tooltip */}
-                        <div
-                          className={`absolute ${idx === 0 ? "top-full mt-2" : "bottom-full mb-2"} right-0 w-48 p-2 bg-slate-900 text-[10px] text-white rounded-lg opacity-0 group-hover/share:opacity-100 transition-opacity pointer-events-none z-50 text-center font-medium leading-tight shadow-xl`}
-                        >
-                          Percentage of total room visitors who viewed this
-                          specific document.
-                          <div
-                            className={`absolute ${idx === 0 ? "bottom-full border-b-slate-900" : "top-full border-t-slate-900"} right-4 border-8 border-transparent`}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* ── Room Settings Summary ── */}
-          <section>
-            <div className="flex items-center gap-2 mb-5">
-              <Pencil size={16} className="text-deckly-primary" />
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                Room Settings
+          {/* Configuration Overview section */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 px-2">
+              <BarChart3 size={16} className="text-deckly-primary" />
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
+                Security Protocol
               </h2>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-2xl p-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="glass-shiny bg-white/[0.03] backdrop-blur-xl rounded-[2rem] border border-white/10 p-8 shadow-2xl">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <SettingPill
-                  label="Email Capture"
-                  value={room.require_email ? "Enabled" : "Disabled"}
+                  label="Email Required"
+                  value={room.require_email ? "FORCED" : "BYPASS"}
                   active={!!room.require_email}
                 />
                 <SettingPill
-                  label="Password"
-                  value={room.require_password ? "Enabled" : "Disabled"}
+                  label="Gate Access"
+                  value={room.require_password ? "GATED" : "OPEN"}
                   active={!!room.require_password}
                 />
                 <SettingPill
-                  label="Expiry"
+                  label="Expiration"
                   value={
-                    room.expires_at ? formatDate(room.expires_at) : "No expiry"
+                    room.expires_at ? formatDate(room.expires_at) : "INFINITE"
                   }
                   active={!!room.expires_at}
                 />
               </div>
-              <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
+              <div className="mt-8 pt-6 border-t border-white/5 flex justify-end">
                 <button
                   onClick={() => navigate(`/rooms/${roomId}/edit`)}
-                  className="text-xs font-bold text-deckly-primary hover:underline flex items-center gap-1"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-deckly-primary hover:text-white transition-colors flex items-center gap-2"
                 >
                   <Pencil size={12} />
-                  Edit Settings
+                  Adjust Security
                 </button>
               </div>
             </div>
-          </section>
+          </div>
         </div>
       </div>
 
@@ -598,25 +582,42 @@ function StatItem({
   label,
   value,
   isText = false,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string | number;
   isText?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-5 px-3 gap-1">
-      <div className="text-slate-400 mb-1">{icon}</div>
+    <div
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-center justify-center py-6 px-4 gap-2 transition-all duration-300",
+        onClick
+          ? "cursor-pointer hover:bg-white/[0.04] active:scale-95 group/stat"
+          : "",
+      )}
+    >
+      <div
+        className={cn(
+          "text-slate-500 transition-colors duration-300",
+          onClick ? "group-hover/stat:text-deckly-primary" : "",
+        )}
+      >
+        {icon}
+      </div>
       <p
-        className={`font-bold tracking-tight ${
+        className={`font-bold tracking-tighter transition-all ${
           isText
-            ? "text-sm text-slate-600 truncate max-w-[140px]"
-            : "text-2xl text-deckly-primary"
+            ? "text-[11px] uppercase tracking-widest text-slate-400 truncate max-w-[140px]"
+            : "text-4xl text-white shadow-premium"
         }`}
       >
         {value}
       </p>
-      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500/80">
         {label}
       </p>
     </div>
@@ -634,16 +635,18 @@ function SettingPill({
 }) {
   return (
     <div
-      className={`flex items-center justify-between p-3 rounded-xl border ${
+      className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
         active
-          ? "bg-deckly-primary/5 border-deckly-primary/20"
-          : "bg-slate-50 border-slate-200"
+          ? "bg-deckly-primary/10 border-deckly-primary/30 shadow-[0_0_20px_rgba(34,197,94,0.05)]"
+          : "bg-white/[0.02] border-white/10"
       }`}
     >
-      <span className="text-xs font-bold text-slate-500">{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+        {label}
+      </span>
       <span
-        className={`text-xs font-bold ${
-          active ? "text-deckly-primary" : "text-slate-400"
+        className={`text-[10px] font-bold uppercase tracking-widest ${
+          active ? "text-deckly-primary" : "text-slate-600"
         }`}
       >
         {value}

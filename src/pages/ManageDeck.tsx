@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { deckService } from "../services/deckService";
 import { supabase } from "../services/supabase";
+import { dataRoomService } from "../services/dataRoomService";
 import {
   Upload,
   ArrowLeft,
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { userService } from "../services/userService";
 import { TierUpsellModal } from "../components/TierUpsellModal";
 import { TIER_CONFIG } from "../constants/tiers";
+import { normalizeSlug } from "../utils/slug";
 
 // Layout
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -31,7 +33,7 @@ import { DashboardCard } from "../components/ui/DashboardCard";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Switch } from "../components/ui/switch";
-import { Progress } from "../components/ui/progress";
+// import { Progress } from "../components/ui/progress";
 import { Button } from "../components/ui/button";
 
 // Set worker source for pdfjs-dist
@@ -142,14 +144,9 @@ function ManageDeck() {
         }
 
         if (!slug && !editId) {
-          const generatedSlug = `${selectedFile.name
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, "-")
-            .replace(/-+/g, "-")
-            .replace(
-              /^-|-$/g,
-              "",
-            )}-${Math.random().toString(36).substring(2, 6)}`;
+          const generatedSlug = normalizeSlug(
+            `${selectedFile.name.split(".")[0]}-${Math.random().toString(36).substring(2, 6)}`,
+          );
           setSlug(generatedSlug);
         }
         if (!title && !editId) {
@@ -343,6 +340,12 @@ function ManageDeck() {
 
         if (deckError) throw deckError;
 
+        // Automatically link to Data Room if returnToRoom is set
+        if (returnToRoom && deckRecord) {
+          setProgress("Linking to Data Room...");
+          await dataRoomService.addDocuments(returnToRoom, [deckRecord.id]);
+        }
+
         // If it was an interactive non-PDF, trigger and WAIT for the edge function here
         if (
           fileType !== "pdf" &&
@@ -396,10 +399,10 @@ function ManageDeck() {
       <div className="flex-1 p-4 md:p-8 max-w-3xl mx-auto w-full space-y-6">
         {/* Page Header */}
         <div>
-          <h2 className="text-xl md:text-3xl font-bold text-slate-900 tracking-tight">
+          <h2 className="text-xl md:text-3xl font-bold text-white tracking-tight uppercase tracking-[0.05em]">
             {editId ? "Refine Deck" : "Add New Asset"}
           </h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-2">
             {editId
               ? "Update your pitch deck details and slides"
               : "Upload a PDF to your data room"}
@@ -407,105 +410,47 @@ function ManageDeck() {
         </div>
 
         {/* Main Form Card */}
-        <DashboardCard className="p-6 md:p-10">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-8">
-            {/* --- Document Details Section --- */}
-            <div className="space-y-5">
+        <DashboardCard className="p-6 md:p-12 border-white/5 shadow-2xl glass-shiny relative overflow-hidden">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-10">
+            {/* --- PDF Upload Zone (Section 1) --- */}
+            <div className="space-y-4">
               <div className="flex items-center gap-2 mb-1">
-                <FileText size={16} className="text-deckly-primary" />
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Document Details
+                <Upload size={14} className="text-deckly-primary" />
+                <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                  {editId ? "Replace Document" : "Upload Document"}
                 </h3>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="title" className="text-slate-700 font-semibold">
-                  Asset Title
-                </Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                  placeholder="e.g. Series A Pitch Deck - v2"
-                  className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-deckly-primary text-slate-900 placeholder:text-slate-400"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="slug" className="text-slate-700 font-semibold">
-                  URL Slug
-                </Label>
-                <Input
-                  id="slug"
-                  value={slug}
-                  onChange={(e) => !editId && setSlug(e.target.value)}
-                  required
-                  placeholder="e.g. series-a-v2"
-                  disabled={!!editId}
-                  className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-deckly-primary text-slate-900 placeholder:text-slate-400"
-                />
-                {editId && (
-                  <p className="text-xs text-slate-400 px-1">
-                    Links are permanent to prevent broken access.
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label
-                  htmlFor="description"
-                  className="text-slate-700 font-semibold"
-                >
-                  Description
-                </Label>
-                <textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Briefly explain what this document contains..."
-                  rows={3}
-                  className="flex w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-deckly-primary resize-none"
-                />
-              </div>
-            </div>
-
-            {/* --- PDF Upload Zone --- */}
-            <div className="space-y-2">
-              <Label className="text-slate-700 font-semibold">
-                {editId ? "Replace Document" : "PDF Document"}
-              </Label>
               <div
                 onClick={() => !loading && fileInputRef.current?.click()}
                 className={cn(
-                  "relative group cursor-pointer border-2 border-dashed rounded-2xl p-8 md:p-10 text-center transition-all",
+                  "relative group cursor-pointer border-2 border-dashed rounded-2xl p-10 md:p-14 text-center transition-all duration-500",
                   file
-                    ? "border-deckly-primary/40 bg-deckly-primary/5"
-                    : "border-slate-200 hover:border-deckly-primary/40 hover:bg-slate-50",
-                  loading ? "opacity-50 cursor-not-allowed" : "",
+                    ? "border-deckly-primary/30 bg-deckly-primary/5 shadow-[0_0_30px_rgba(34,197,94,0.05)]"
+                    : "border-white/10 bg-white/[0.02] hover:border-deckly-primary/30 hover:bg-deckly-primary/[0.02]",
+                  loading ? "opacity-30 cursor-not-allowed" : "",
                 )}
               >
-                <div className="flex flex-col items-center gap-3">
+                <div className="flex flex-col items-center gap-4">
                   {file ? (
-                    <div className="w-14 h-14 rounded-2xl bg-deckly-primary/10 flex items-center justify-center">
-                      <CheckCircle2 size={28} className="text-deckly-primary" />
+                    <div className="w-16 h-16 rounded-2xl bg-deckly-primary/10 flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.2)]">
+                      <CheckCircle2 size={32} className="text-deckly-primary" />
                     </div>
                   ) : (
-                    <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center group-hover:bg-deckly-primary/10 transition-colors">
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-deckly-primary/10 group-hover:border-deckly-primary/20 transition-all duration-500">
                       <Upload
-                        size={28}
-                        className="text-slate-400 group-hover:text-deckly-primary transition-colors"
+                        size={32}
+                        className="text-slate-500 group-hover:text-deckly-primary transition-colors"
                       />
                     </div>
                   )}
                   <div>
-                    <p className="text-sm font-bold text-slate-900">
+                    <p className="text-base font-bold text-white tracking-tight">
                       {file ? file.name : "Click to select a document"}
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-2">
                       {file
                         ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
-                        : "PPTX, DOCX, XLSX, or PDF (Max 50MB)"}
+                        : "PPTX, DOCX, XLSX, OR PDF (MAX 50MB)"}
                     </p>
                   </div>
                 </div>
@@ -520,25 +465,25 @@ function ManageDeck() {
 
               {/* Display Mode Toggle for New Formats */}
               {file && fileType !== "pdf" && (
-                <div className="p-4 rounded-2xl border border-deckly-primary/30 bg-deckly-primary/5 flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
+                <div className="p-6 rounded-2xl border border-deckly-primary/20 bg-deckly-primary/[0.03] backdrop-blur-sm flex flex-col gap-4">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
-                      <p className="text-sm font-bold text-slate-900">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-deckly-primary">
                         Experience Mode
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-500 font-medium mt-1">
                         How should visitors see this?
                       </p>
                     </div>
-                    <div className="flex bg-slate-200 p-1 rounded-lg">
+                    <div className="flex bg-white/5 border border-white/10 p-1.5 rounded-xl backdrop-blur-md">
                       <button
                         type="button"
                         onClick={() => setConversionMode("raw")}
                         className={cn(
-                          "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
+                          "px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all",
                           conversionMode === "raw"
-                            ? "bg-white text-deckly-primary shadow-sm"
-                            : "text-slate-500 hover:text-slate-700",
+                            ? "bg-deckly-primary text-slate-950 shadow-lg"
+                            : "text-slate-500 hover:text-slate-300",
                         )}
                       >
                         RAW
@@ -556,23 +501,23 @@ function ManageDeck() {
                           }
                         }}
                         className={cn(
-                          "px-3 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5",
+                          "px-4 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all flex items-center gap-2",
                           conversionMode === "interactive"
-                            ? "bg-white text-deckly-primary shadow-sm"
-                            : "text-slate-500 hover:text-slate-700",
+                            ? "bg-deckly-primary text-slate-950 shadow-lg"
+                            : "text-slate-500 hover:text-slate-300",
                         )}
                       >
                         INTERACTIVE
                         {!TIER_CONFIG[userProfile?.tier || "FREE"]
                           .allowInteractive && (
-                          <span className="bg-deckly-primary/10 text-deckly-primary text-[8px] px-1 rounded">
+                          <span className="bg-slate-950/20 text-[8px] px-1.5 py-0.5 rounded font-bold">
                             PRO
                           </span>
                         )}
                       </button>
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-relaxed italic">
+                  <p className="text-[10px] text-slate-400 leading-relaxed italic opacity-80">
                     {conversionMode === "interactive"
                       ? "✨ We will convert your document into a smooth, slide-based presentation."
                       : "📄 Visitors will see the original document in a high-fidelity embed viewer."}
@@ -581,12 +526,100 @@ function ManageDeck() {
               )}
             </div>
 
+            {/* --- Document Details Section (Section 2) --- */}
+            <div className="space-y-6 pt-4 border-t border-white/5">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText size={14} className="text-deckly-primary" />
+                <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                  Asset Specifications
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="title"
+                    className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500/80 ml-1"
+                  >
+                    Asset Title
+                  </Label>
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    placeholder="e.g. Series A Pitch Deck - v2"
+                    className="h-12 rounded-xl border-white/10 bg-white/5 focus-visible:ring-deckly-primary/30 text-white placeholder:text-slate-600 transition-all focus:bg-white/[0.08]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="slug"
+                    className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500/80 ml-1"
+                  >
+                    URL Slug
+                  </Label>
+                  <div className="relative group/slug">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none z-10">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                        {userProfile?.handle || "username"}/
+                      </span>
+                    </div>
+                    <Input
+                      id="slug"
+                      value={slug}
+                      onChange={(e) => {
+                        if (!editId) {
+                          setSlug(normalizeSlug(e.target.value));
+                        }
+                      }}
+                      required
+                      placeholder="my-pitch"
+                      disabled={!!editId}
+                      className={cn(
+                        "h-12 rounded-xl border-white/10 bg-white/5 focus-visible:ring-deckly-primary/30 text-deckly-primary font-bold uppercase tracking-wider transition-all focus:bg-white/[0.08] disabled:opacity-40",
+                        userProfile?.handle ? "pl-28" : "pl-20",
+                      )}
+                    />
+                  </div>
+                  {editId ? (
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 px-1 mt-1">
+                      Links are permanent to prevent breaks.
+                    </p>
+                  ) : (
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 px-1 mt-1">
+                      Your URL: deckly.com/{userProfile?.handle || "..."}/
+                      {slug || "your-slug"}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="description"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500/80 ml-1"
+                >
+                  Description
+                </Label>
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Briefly explain what this document contains..."
+                  rows={3}
+                  className="flex w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-slate-600 focus-visible:outline-none focus:bg-white/[0.08] focus:ring-1 focus:ring-deckly-primary/30 transition-all resize-none"
+                />
+              </div>
+            </div>
+
             {/* --- Access Protection Section --- */}
-            <div className="pt-4 border-t border-slate-100 space-y-5">
-              <div className="flex items-center gap-2">
-                <Lock size={16} className="text-deckly-primary" />
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Access Protection
+            <div className="pt-8 border-t border-white/5 space-y-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Lock size={14} className="text-deckly-primary" />
+                <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                  Security & Access
                 </h3>
               </div>
 
@@ -594,25 +627,29 @@ function ManageDeck() {
                 {/* Require Email */}
                 <div
                   className={cn(
-                    "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                    "flex items-center justify-between p-5 rounded-2xl border transition-all duration-300",
                     requireEmail
-                      ? "bg-deckly-primary/5 border-deckly-primary/30"
-                      : "bg-slate-50/50 border-slate-200",
+                      ? "bg-deckly-primary/[0.08] border-deckly-primary/30 shadow-[0_0_20px_rgba(34,197,94,0.05)]"
+                      : "bg-white/[0.02] border-white/10",
                   )}
                 >
-                  <div className="flex items-center gap-3">
-                    <Mail
-                      size={18}
-                      className={
-                        requireEmail ? "text-deckly-primary" : "text-slate-400"
-                      }
-                    />
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                        requireEmail
+                          ? "bg-deckly-primary/20 text-deckly-primary"
+                          : "bg-white/5 text-slate-500",
+                      )}
+                    >
+                      <Mail size={18} />
+                    </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-900">
-                        Require Email
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-white leading-tight">
+                        Email Required
                       </p>
-                      <p className="text-[11px] text-slate-400">
-                        Capture viewer emails
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">
+                        ID Authentication
                       </p>
                     </div>
                   </div>
@@ -626,27 +663,29 @@ function ManageDeck() {
                 {/* Password Protected */}
                 <div
                   className={cn(
-                    "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                    "flex items-center justify-between p-5 rounded-2xl border transition-all duration-300",
                     requirePassword
-                      ? "bg-deckly-primary/5 border-deckly-primary/30"
-                      : "bg-slate-50/50 border-slate-200",
+                      ? "bg-deckly-primary/[0.08] border-deckly-primary/30 shadow-[0_0_20px_rgba(34,197,94,0.05)]"
+                      : "bg-white/[0.02] border-white/10",
                   )}
                 >
-                  <div className="flex items-center gap-3">
-                    <Lock
-                      size={18}
-                      className={
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
                         requirePassword
-                          ? "text-deckly-primary"
-                          : "text-slate-400"
-                      }
-                    />
+                          ? "bg-deckly-primary/20 text-deckly-primary"
+                          : "bg-white/5 text-slate-500",
+                      )}
+                    >
+                      <Lock size={18} />
+                    </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-900">
-                        Password
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-white leading-tight">
+                        Gate Access
                       </p>
-                      <p className="text-[11px] text-slate-400">
-                        Restrict with a password
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">
+                        Password Lock
                       </p>
                     </div>
                   </div>
@@ -666,10 +705,10 @@ function ManageDeck() {
                     exit={{ opacity: 0, height: 0, y: -10 }}
                     className="overflow-hidden"
                   >
-                    <div className="space-y-2">
+                    <div className="space-y-2 mt-4">
                       <Label
                         htmlFor="password"
-                        className="text-slate-700 font-semibold"
+                        className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500/80 ml-1"
                       >
                         Viewing Password
                       </Label>
@@ -681,14 +720,14 @@ function ManageDeck() {
                           onChange={(e) => setViewPassword(e.target.value)}
                           placeholder="Create a strong password"
                           required={requirePassword}
-                          className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-deckly-primary text-slate-900 placeholder:text-slate-400 pr-10"
+                          className="h-12 rounded-xl border-white/10 bg-white/5 focus-visible:ring-deckly-primary/30 text-white placeholder:text-slate-600 pr-12 transition-all focus:bg-white/[0.08]"
                         />
                         <button
                           type="button"
                           onClick={() =>
                             setShowPasswordField(!showPasswordField)
                           }
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
                         >
                           {showPasswordField ? (
                             <EyeOff size={18} />
@@ -705,25 +744,29 @@ function ManageDeck() {
               {/* Expiry Date Toggle */}
               <div
                 className={cn(
-                  "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                  "flex items-center justify-between p-5 rounded-2xl border transition-all duration-300",
                   enableExpiry
-                    ? "bg-deckly-primary/5 border-deckly-primary/30"
-                    : "bg-slate-50/50 border-slate-200",
+                    ? "bg-deckly-primary/[0.08] border-deckly-primary/30 shadow-[0_0_20px_rgba(34,197,94,0.05)]"
+                    : "bg-white/[0.02] border-white/10",
                 )}
               >
-                <div className="flex items-center gap-3">
-                  <CalendarDays
-                    size={18}
-                    className={
-                      enableExpiry ? "text-deckly-primary" : "text-slate-400"
-                    }
-                  />
+                <div className="flex items-center gap-4">
+                  <div
+                    className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                      enableExpiry
+                        ? "bg-deckly-primary/20 text-deckly-primary"
+                        : "bg-white/5 text-slate-500",
+                    )}
+                  >
+                    <CalendarDays size={18} />
+                  </div>
                   <div>
-                    <p className="text-sm font-bold text-slate-900">
-                      Set Expiry Date
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-white leading-tight">
+                      Expiration
                     </p>
-                    <p className="text-[11px] text-slate-400">
-                      Auto-disable access after date
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">
+                      Duration Control
                     </p>
                   </div>
                 </div>
@@ -745,10 +788,10 @@ function ManageDeck() {
                     exit={{ opacity: 0, height: 0, y: -10 }}
                     className="overflow-hidden"
                   >
-                    <div className="space-y-2">
+                    <div className="space-y-2 mt-4">
                       <Label
                         htmlFor="expiry"
-                        className="text-slate-700 font-semibold"
+                        className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500/80 ml-1"
                       >
                         Expiry Date
                       </Label>
@@ -758,7 +801,7 @@ function ManageDeck() {
                         value={expiresAt}
                         onChange={(e) => setExpiresAt(e.target.value)}
                         min={new Date().toISOString().split("T")[0]}
-                        className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-deckly-primary text-slate-900"
+                        className="h-12 rounded-xl border-white/10 bg-white/5 focus-visible:ring-deckly-primary/30 text-white transition-all focus:bg-white/[0.08] [color-scheme:dark]"
                       />
                     </div>
                   </motion.div>
@@ -772,20 +815,27 @@ function ManageDeck() {
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
-                  className="space-y-3"
+                  className="space-y-4 pt-4"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-deckly-primary uppercase tracking-widest">
-                      {progress}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-400">
+                  <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-deckly-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+                      <span className="text-[10px] font-bold text-deckly-primary uppercase tracking-[0.2em]">
+                        {progress}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                       {progressPercent}%
                     </span>
                   </div>
-                  <Progress
-                    value={progressPercent}
-                    className="h-2 bg-slate-100 [&>div]:bg-deckly-primary"
-                  />
+                  <div className="relative h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                    <motion.div
+                      className="absolute top-0 left-0 h-full bg-deckly-primary shadow-[0_0_15px_rgba(34,197,94,0.5)]"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progressPercent}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </div>
                 </motion.div>
               )}
 
@@ -793,30 +843,32 @@ function ManageDeck() {
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
-                  className="flex items-center gap-3 bg-red-50 p-4 rounded-xl border border-red-200 text-red-600"
+                  className="flex items-center gap-3 bg-red-500/10 p-5 rounded-2xl border border-red-500/20 text-red-400 mt-4"
                 >
-                  <AlertCircle size={20} />
-                  <span className="text-sm font-bold">{error}</span>
+                  <AlertCircle size={20} className="shrink-0" />
+                  <span className="text-xs font-bold uppercase tracking-widest leading-relaxed">
+                    {error}
+                  </span>
                 </motion.div>
               )}
             </AnimatePresence>
 
             {/* --- Actions --- */}
-            <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col gap-4 pt-6 border-t border-white/5">
               <Button
                 type="submit"
                 disabled={loading}
-                className="h-12 rounded-xl bg-deckly-primary hover:bg-deckly-primary/90 text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-deckly-primary/20 transition-all"
+                className="h-14 rounded-2xl bg-deckly-primary hover:bg-deckly-primary/90 text-slate-950 font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-deckly-primary/20 transition-all active:scale-[0.98]"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Processing...
+                    <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
+                    Syncing Data...
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Sparkles size={16} />
-                    {editId ? "Update Asset" : "Upload"}
+                    <Sparkles size={18} />
+                    {editId ? "Update Asset" : "Finalize & Upload"}
                   </div>
                 )}
               </Button>
@@ -825,10 +877,10 @@ function ManageDeck() {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="w-full h-10 text-slate-400 hover:text-slate-700 font-bold text-xs uppercase tracking-widest"
+                  className="w-full h-12 text-slate-500 hover:text-white hover:bg-white/5 font-bold text-[10px] uppercase tracking-[0.2em] rounded-2xl transition-all"
                 >
-                  <ArrowLeft size={14} className="mr-2" />
-                  Discard Changes
+                  <ArrowLeft size={16} className="mr-3" />
+                  Back to Assets
                 </Button>
               </Link>
             </div>

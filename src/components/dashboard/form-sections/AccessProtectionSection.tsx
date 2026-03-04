@@ -35,98 +35,170 @@ export function AccessProtectionSection({
 
   return (
     <section className="space-y-5">
-      <div className="flex items-center gap-2 px-1">
+      <div className="flex items-center gap-3 px-1 mb-6">
         <Lock size={16} className="text-deckly-primary" />
-        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          Access Protection
+        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+          SECURITY OVERRIDE
         </h3>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Require Email */}
-        <div
-          className={cn(
-            "flex items-center justify-between p-4 rounded-2xl border transition-all",
-            requireEmail
-              ? "bg-deckly-primary/5 border-deckly-primary/30"
-              : "bg-slate-50/50 border-slate-200",
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <Mail
-              size={18}
-              className={
-                requireEmail ? "text-deckly-primary" : "text-slate-400"
-              }
-            />
-            <div>
-              <p className="text-sm font-bold text-slate-900">Require Email</p>
-              <p className="text-[11px] text-slate-400">
-                Capture viewer emails
-              </p>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Email Required */}
+          <div
+            className={cn(
+              "flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group cursor-pointer",
+              requireEmail
+                ? "bg-deckly-primary/[0.08] border-deckly-primary/30 shadow-[0_0_30px_rgba(34,197,94,0.05)]"
+                : "bg-white/[0.02] border-white/10 hover:border-white/20",
+            )}
+            onClick={() => setRequireEmail(!requireEmail)}
+          >
+            <div className="flex items-center gap-4">
+              <div
+                className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-inner shrink-0 aspect-square",
+                  requireEmail
+                    ? "bg-deckly-primary/20 text-deckly-primary border border-deckly-primary/30"
+                    : "bg-white/5 text-slate-700 border border-white/5",
+                )}
+              >
+                <Mail size={18} />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-white uppercase tracking-wider leading-tight">
+                  EMAIL REQUIRED
+                </p>
+                <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">
+                  ID AUTHENTICATION
+                </p>
+              </div>
             </div>
+            <Switch
+              id="require-email"
+              checked={requireEmail}
+              onCheckedChange={setRequireEmail}
+              className="data-[state=checked]:bg-deckly-primary"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
-          <Switch
-            id="require-email"
-            checked={requireEmail}
-            onCheckedChange={setRequireEmail}
-            className="data-[state=checked]:bg-deckly-primary"
-          />
+
+          {/* Gate Access */}
+          <div
+            className={cn(
+              "flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group cursor-pointer",
+              requirePassword
+                ? "bg-deckly-primary/[0.08] border-deckly-primary/30 shadow-[0_0_30px_rgba(34,197,94,0.05)]"
+                : "bg-white/[0.02] border-white/10 hover:border-white/20",
+            )}
+            onClick={() => setRequirePassword(!requirePassword)}
+          >
+            <div className="flex items-center gap-4">
+              <div
+                className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-inner shrink-0 aspect-square",
+                  requirePassword
+                    ? "bg-deckly-primary/20 text-deckly-primary border border-deckly-primary/30"
+                    : "bg-white/5 text-slate-700 border border-white/5",
+                )}
+              >
+                <Lock size={18} />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-white uppercase tracking-wider leading-tight">
+                  GATE ACCESS
+                </p>
+                <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">
+                  PASSWORD LOCK
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="require-password"
+              checked={requirePassword}
+              onCheckedChange={setRequirePassword}
+              className="data-[state=checked]:bg-deckly-primary"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
         </div>
 
-        {/* Password Protected */}
-        <div
-          className={cn(
-            "flex items-center justify-between p-4 rounded-2xl border transition-all",
-            requirePassword
-              ? "bg-deckly-primary/5 border-deckly-primary/30"
-              : "bg-slate-50/50 border-slate-200",
+        {/* Password Reveal */}
+        <AnimatePresence>
+          {requirePassword && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, y: -10 }}
+              animate={{ opacity: 1, height: "auto", y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -10 }}
+              className="overflow-hidden"
+            >
+              <div className="space-y-3 mt-1 pb-2">
+                <Label
+                  htmlFor="view-password"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ml-1"
+                >
+                  Set Security Key
+                </Label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center text-slate-700 group-focus-within:text-deckly-primary group-focus-within:border-deckly-primary/30 transition-all">
+                    <Lock size={14} />
+                  </div>
+                  <Input
+                    id="view-password"
+                    type={showPasswordField ? "text" : "password"}
+                    value={viewPassword}
+                    onChange={(e) => setViewPassword(e.target.value)}
+                    placeholder="ENTER STRONG PASSWORD..."
+                    className="h-12 pl-14 pr-12 rounded-xl border-white/5 bg-white/[0.03] focus-visible:ring-deckly-primary/30 text-white font-bold uppercase tracking-widest placeholder:text-slate-800 transition-all shadow-inner focus:bg-white/[0.08]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordField(!showPasswordField)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors"
+                  >
+                    {showPasswordField ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           )}
-        >
-          <div className="flex items-center gap-3">
-            <Lock
-              size={18}
-              className={
-                requirePassword ? "text-deckly-primary" : "text-slate-400"
-              }
-            />
-            <div>
-              <p className="text-sm font-bold text-slate-900">Password</p>
-              <p className="text-[11px] text-slate-400">
-                Restrict with a password
-              </p>
-            </div>
-          </div>
-          <Switch
-            id="require-password"
-            checked={requirePassword}
-            onCheckedChange={setRequirePassword}
-            className="data-[state=checked]:bg-deckly-primary"
-          />
-        </div>
+        </AnimatePresence>
 
-        {/* Set Expiry Date */}
+        {/* Expiration Toggle (Standalone Row) */}
         <div
           className={cn(
-            "flex items-center justify-between p-4 rounded-2xl border transition-all",
+            "flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 group cursor-pointer",
             expiryEnabled
-              ? "bg-deckly-primary/5 border-deckly-primary/30"
-              : "bg-slate-50/50 border-slate-200",
+              ? "bg-deckly-primary/[0.08] border-deckly-primary/30 shadow-[0_0_30px_rgba(34,197,94,0.05)]"
+              : "bg-white/[0.02] border-white/10 hover:border-white/20",
           )}
+          onClick={() => {
+            const next = !expiryEnabled;
+            setExpiryEnabled(next);
+            if (!next) setExpiryDate("");
+          }}
         >
-          <div className="flex items-center gap-3">
-            <CalendarDays
-              size={18}
-              className={
-                expiryEnabled ? "text-deckly-primary" : "text-slate-400"
-              }
-            />
+          <div className="flex items-center gap-4">
+            <div
+              className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-inner shrink-0 aspect-square",
+                expiryEnabled
+                  ? "bg-deckly-primary/20 text-deckly-primary border border-deckly-primary/30"
+                  : "bg-white/5 text-slate-700 border border-white/5",
+              )}
+            >
+              <CalendarDays size={18} />
+            </div>
             <div>
-              <p className="text-sm font-bold text-slate-900">
-                Set Expiry Date
+              <p className="text-[11px] font-bold text-white uppercase tracking-wider leading-tight">
+                EXPIRATION
               </p>
-              <p className="text-[11px] text-slate-400">
-                Auto-disable access after date
+              <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1">
+                DURATION CONTROL
               </p>
             </div>
           </div>
@@ -138,76 +210,44 @@ export function AccessProtectionSection({
               if (!checked) setExpiryDate("");
             }}
             className="data-[state=checked]:bg-deckly-primary"
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
-      </div>
 
-      {/* Password Reveal */}
-      <AnimatePresence>
-        {requirePassword && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, y: -10 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -10 }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-2">
-              <Label
-                htmlFor="view-password"
-                className="text-slate-700 font-semibold"
-              >
-                Viewing Password
-              </Label>
-              <div className="relative">
-                <Input
-                  id="view-password"
-                  type={showPasswordField ? "text" : "password"}
-                  value={viewPassword}
-                  onChange={(e) => setViewPassword(e.target.value)}
-                  placeholder="Create a strong password"
-                  className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-deckly-primary text-slate-900 placeholder:text-slate-400 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordField(!showPasswordField)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+        {/* Expiration Reveal */}
+        <AnimatePresence>
+          {expiryEnabled && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, y: -10 }}
+              animate={{ opacity: 1, height: "auto", y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -10 }}
+              className="overflow-hidden"
+            >
+              <div className="space-y-3 mt-1">
+                <Label
+                  htmlFor="expiry-date"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ml-1"
                 >
-                  {showPasswordField ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+                  Select Deadline
+                </Label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center text-slate-700 group-focus-within:text-deckly-primary group-focus-within:border-deckly-primary/30 transition-all">
+                    <CalendarDays size={14} />
+                  </div>
+                  <Input
+                    id="expiry-date"
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="h-12 pl-14 rounded-xl border-white/5 bg-white/[0.03] focus-visible:ring-deckly-primary/30 text-white font-bold uppercase tracking-widest placeholder:text-slate-800 transition-all shadow-inner focus:bg-white/[0.08] [color-scheme:dark]"
+                  />
+                </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Expiry Date Reveal */}
-      <AnimatePresence>
-        {expiryEnabled && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, y: -10 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -10 }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-2">
-              <Label
-                htmlFor="expiry-date"
-                className="text-slate-700 font-semibold"
-              >
-                Expiry Date
-              </Label>
-              <Input
-                id="expiry-date"
-                type="date"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-                className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus-visible:ring-deckly-primary text-slate-900"
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </section>
   );
 }

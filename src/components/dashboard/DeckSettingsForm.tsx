@@ -4,11 +4,15 @@ import * as pdfjsLib from "pdfjs-dist";
 import { deckService } from "../../services/deckService";
 import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
+import { normalizeSlug } from "../../utils/slug";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Sub-components
 import { ManagementSection } from "./form-sections/ManagementSection";
 import { AccessProtectionSection } from "./form-sections/AccessProtectionSection";
 import { DangerZoneSection } from "./form-sections/DangerZoneSection";
+import { Button } from "../ui/button";
+import { Save } from "lucide-react";
 
 // Set worker source for pdfjs-dist
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -41,6 +45,7 @@ export function DeckSettingsForm({
   const [uploadProgress, setUploadProgress] = useState("");
   const [newFile, setNewFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { profile } = useAuth();
 
   // PDF Processing Logic
   const processPdfToImages = async (pdfFile: File) => {
@@ -156,12 +161,11 @@ export function DeckSettingsForm({
         title={title}
         setTitle={setTitle}
         slug={slug}
-        setSlug={setSlug}
+        setSlug={(v) => setSlug(normalizeSlug(v))}
         originalSlug={deck.slug}
+        userHandle={profile?.handle || "username"}
         onFileClick={() => fileInputRef.current?.click()}
         newFile={newFile}
-        isSaving={isSaving}
-        handleSave={handleSave}
       />
 
       <input
@@ -185,6 +189,26 @@ export function DeckSettingsForm({
         setViewPassword={setViewPassword}
       />
 
+      <div className="flex justify-end pt-2 pb-6 px-1">
+        <Button
+          type="button"
+          onClick={(e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSave();
+          }}
+          disabled={isSaving}
+          className="w-full sm:w-auto rounded-2xl px-12 py-7 font-bold uppercase tracking-[0.2em] text-[10px] bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90 shadow-2xl shadow-deckly-primary/20 active:scale-[0.98] transition-all disabled:opacity-50"
+        >
+          {isSaving ? (
+            <div className="w-3 h-3 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin mr-2" />
+          ) : (
+            <Save size={14} className="mr-2" strokeWidth={3} />
+          )}
+          {isSaving ? "SAVING..." : "SAVE CHANGES"}
+        </Button>
+      </div>
+
       <DangerZoneSection onDelete={() => onDelete(deck.id)} />
 
       {/* Progress Notification */}
@@ -197,7 +221,7 @@ export function DeckSettingsForm({
             className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-white/10 px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl"
           >
             <div className="w-4 h-4 border-2 border-deckly-primary/30 border-t-deckly-primary rounded-full animate-spin" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-deckly-primary">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-deckly-primary">
               {uploadProgress}
             </span>
           </motion.div>
