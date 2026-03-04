@@ -44,7 +44,7 @@ const SectionHeader = ({ children, icon: Icon, color = "primary" }: any) => (
   <div className="flex flex-col gap-1.5 px-1 mb-6">
     <h3
       className={cn(
-        "text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2",
+        "text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2",
         color === "primary" ? "text-deckly-primary" : "text-slate-500",
       )}
     >
@@ -266,7 +266,7 @@ function DeckDetailPanel({
             >
               <X size={24} />
             </button>
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
               Asset Intelligence
             </h2>
           </div>
@@ -337,7 +337,7 @@ function DeckDetailPanel({
             </div>
 
             <div className="flex flex-col gap-1">
-              <h1 className="text-3xl font-black text-white tracking-tight leading-tight">
+              <h1 className="text-3xl font-bold text-white tracking-tight leading-tight">
                 {deck.title}
               </h1>
               <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">
@@ -407,7 +407,7 @@ function DeckDetailPanel({
                     </span>
                   </div>
                   {!newFile && (
-                    <span className="text-[10px] font-black uppercase text-slate-600">
+                    <span className="text-[10px] font-bold uppercase text-slate-600">
                       Upload
                     </span>
                   )}
@@ -449,7 +449,7 @@ function DeckDetailPanel({
               <div className="flex flex-col gap-1 p-6 rounded-[32px] bg-white/[0.03] border border-white/5 shadow-inner">
                 <div className="flex items-center gap-2 mb-4 px-1">
                   <Lock size={14} className="text-deckly-primary" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
                     Access Protection
                   </span>
                 </div>
@@ -522,10 +522,10 @@ function DeckDetailPanel({
                   <Eye size={20} />
                 </div>
                 <div className="flex flex-col leading-tight">
-                  <span className="text-2xl font-black text-white leading-none">
+                  <span className="text-2xl font-bold text-white leading-none">
                     {summaryStats.views}
                   </span>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mt-1">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">
                     Interactions
                   </span>
                 </div>
@@ -540,10 +540,10 @@ function DeckDetailPanel({
                   <Clock size={20} />
                 </div>
                 <div className="flex flex-col leading-tight">
-                  <span className="text-2xl font-black text-white leading-none">
+                  <span className="text-2xl font-bold text-white leading-none">
                     {Math.round(summaryStats.avgTime)}s
                   </span>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mt-1">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">
                     Retention
                   </span>
                 </div>
@@ -556,7 +556,7 @@ function DeckDetailPanel({
                 onShowAnalytics(deck);
                 onClose();
               }}
-              className="bg-deckly-secondary/5 text-deckly-secondary border border-deckly-secondary/20 hover:bg-deckly-secondary hover:text-slate-950 rounded-2xl py-4 font-black uppercase tracking-widest shadow-xl shadow-deckly-secondary/5 transition-all mt-4"
+              className="bg-deckly-secondary/5 text-deckly-secondary border border-deckly-secondary/20 hover:bg-deckly-secondary hover:text-slate-950 rounded-2xl py-4 font-bold uppercase tracking-widest shadow-xl shadow-deckly-secondary/5 transition-all mt-4"
             >
               Full Analytics Report
             </Button>
@@ -578,7 +578,7 @@ function DeckDetailPanel({
             onClick={handleSave}
             loading={isSaving}
             icon={Save}
-            className="rounded-2xl py-4 font-black uppercase tracking-widest shadow-2xl shadow-deckly-primary/20"
+            className="rounded-2xl py-4 font-bold uppercase tracking-widest shadow-2xl shadow-deckly-primary/20"
           >
             {isSaving ? uploadProgress || "Saving" : "Sync Changes"}
           </Button>

@@ -24,16 +24,22 @@ interface Deck {
 
 interface DecksTableProps {
   decks: Deck[];
+  userHandle: string;
   loading?: boolean;
   onDelete?: (deck: Deck) => Promise<void>;
 }
 
-export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
+export function DecksTable({
+  decks,
+  userHandle,
+  loading,
+  onDelete,
+}: DecksTableProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
   const handleCopyLink = (slug: string, id: string) => {
-    const url = `${window.location.origin}/${slug}`;
+    const url = `${window.location.origin}/${userHandle}/${slug}`;
     navigator.clipboard.writeText(url);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -53,20 +59,20 @@ export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
   };
 
   return (
-    <DashboardCard className="mt-8">
+    <DashboardCard className="mt-8 border-white/5 shadow-2xl glass-shiny">
       {/* ─── Mobile Card List ─── */}
-      <div className="md:hidden divide-y divide-slate-50">
+      <div className="md:hidden divide-y divide-white/5">
         {loading ? (
           Array(3)
             .fill(0)
             .map((_, i) => (
-              <div key={i} className="p-4 space-y-2">
-                <div className="h-4 w-40 bg-slate-100 animate-pulse rounded" />
-                <div className="h-3 w-24 bg-slate-100 animate-pulse rounded" />
+              <div key={i} className="p-6 space-y-4">
+                <div className="h-4 w-40 bg-white/5 animate-pulse rounded-lg" />
+                <div className="h-3 w-24 bg-white/5 animate-pulse rounded-lg" />
               </div>
             ))
         ) : decks.length === 0 ? (
-          <p className="p-8 text-center text-slate-400 text-sm">
+          <p className="p-12 text-center text-slate-500 text-sm font-bold uppercase tracking-widest">
             No decks uploaded yet
           </p>
         ) : (
@@ -74,68 +80,65 @@ export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
             <div
               key={deck.id}
               className={clsx(
-                "p-4 flex items-center gap-3",
+                "p-6 flex items-center gap-4",
                 deletingId === deck.id && "opacity-50 pointer-events-none",
               )}
             >
-              <div className="p-2 bg-slate-50 rounded-lg text-slate-400 shrink-0">
-                <FileText size={18} />
+              <div className="p-3 bg-white/5 rounded-2xl text-slate-400 shrink-0 border border-white/5">
+                <FileText size={20} />
               </div>
               <div className="flex-1 min-w-0">
                 <Link
-                  to={`/${deck.slug}`}
+                  to={`/${userHandle}/${deck.slug}`}
                   target="_blank"
-                  className="font-bold text-slate-900 text-sm truncate block"
+                  className="font-bold text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
                 >
                   {deck.title}
                 </Link>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
                   {deck.total_views} views · {deck.save_count} saves
                   {deck.last_viewed_at
                     ? ` · ${new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(deck.last_viewed_at)).replace(/\//g, "-")}`
                     : ""}
                 </p>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => handleCopyLink(deck.slug, deck.id)}
                   className={clsx(
-                    "p-2 rounded-lg transition-all",
+                    "p-3 rounded-xl transition-all border",
                     copiedId === deck.id
-                      ? "bg-deckly-primary text-white"
-                      : "text-slate-400 hover:bg-slate-100",
+                      ? "bg-deckly-primary border-deckly-primary text-slate-950 shadow-[0_0_15px_rgba(34,197,94,0.4)]"
+                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white",
                   )}
                   title="Copy Link"
                 >
-                  <Check
-                    size={15}
-                    strokeWidth={3}
-                    className={copiedId === deck.id ? "block" : "hidden"}
-                  />
-                  {copiedId !== deck.id && (
-                    <span className="text-[10px] font-black uppercase">
+                  {copiedId === deck.id ? (
+                    <Check size={16} strokeWidth={3} />
+                  ) : (
+                    <span className="text-[10px] font-bold uppercase tracking-widest px-1">
                       Copy
                     </span>
                   )}
                 </button>
                 <Link
                   to={`/analytics/${deck.id}`}
-                  className="p-2 text-slate-400 hover:text-deckly-primary hover:bg-slate-100 rounded-lg transition-all"
+                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 rounded-xl transition-all"
                 >
-                  <BarChart3 size={16} />
+                  <BarChart3 size={18} />
                 </Link>
                 <Link
                   to={`/edit/${deck.id}`}
-                  className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
+                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/20 rounded-xl transition-all"
                 >
-                  <Pencil size={16} />
+                  <Pencil size={18} />
                 </Link>
                 <button
                   onClick={() => handleDelete(deck)}
                   disabled={deletingId === deck.id}
-                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-slate-100 rounded-lg transition-all"
+                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 rounded-xl transition-all disabled:opacity-30"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={18} />
                 </button>
               </div>
             </div>
@@ -147,26 +150,26 @@ export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
       <div className="hidden md:block">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-slate-100">
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-6 px-8">
+            <TableRow className="hover:bg-transparent border-white/5">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 px-12">
                 Name
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-6">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8">
                 Upload Date
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-6 text-center">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
                 Link
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-6 text-center">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
                 Views
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-6 text-center">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
                 Saves
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-6 text-center">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
                 Last Viewed
               </TableHead>
-              <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 py-6 text-right px-8">
+              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-right px-12">
                 Actions
               </TableHead>
             </TableRow>
@@ -176,35 +179,35 @@ export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
               Array(3)
                 .fill(0)
                 .map((_, i) => (
-                  <TableRow key={i} className="border-slate-50">
-                    <TableCell className="px-8 py-6">
-                      <div className="h-4 w-40 bg-slate-50 animate-pulse rounded" />
+                  <TableRow key={i} className="border-white/5">
+                    <TableCell className="px-12 py-8">
+                      <div className="h-4 w-40 bg-white/5 animate-pulse rounded-lg" />
                     </TableCell>
-                    <TableCell className="py-6">
-                      <div className="h-4 w-24 bg-slate-50 animate-pulse rounded" />
+                    <TableCell className="py-8">
+                      <div className="h-4 w-24 bg-white/5 animate-pulse rounded-lg" />
                     </TableCell>
-                    <TableCell className="py-6">
-                      <div className="h-8 w-24 bg-slate-50 animate-pulse rounded-lg mx-auto" />
+                    <TableCell className="py-8">
+                      <div className="h-10 w-32 bg-white/5 animate-pulse rounded-xl mx-auto" />
                     </TableCell>
-                    <TableCell className="py-6">
-                      <div className="h-4 w-8 bg-slate-50 animate-pulse rounded mx-auto" />
+                    <TableCell className="py-8">
+                      <div className="h-4 w-8 bg-white/5 animate-pulse rounded mx-auto" />
                     </TableCell>
-                    <TableCell className="py-6">
-                      <div className="h-4 w-8 bg-slate-50 animate-pulse rounded mx-auto" />
+                    <TableCell className="py-8">
+                      <div className="h-4 w-8 bg-white/5 animate-pulse rounded mx-auto" />
                     </TableCell>
-                    <TableCell className="py-6">
-                      <div className="h-4 w-24 bg-slate-50 animate-pulse rounded mx-auto" />
+                    <TableCell className="py-8">
+                      <div className="h-4 w-24 bg-white/5 animate-pulse rounded mx-auto" />
                     </TableCell>
-                    <TableCell className="px-8 py-6">
-                      <div className="h-4 w-24 bg-slate-50 animate-pulse rounded ml-auto" />
+                    <TableCell className="px-12 py-8 text-right">
+                      <div className="h-10 w-24 bg-white/5 animate-pulse rounded-xl ml-auto" />
                     </TableCell>
                   </TableRow>
                 ))
             ) : decks.length === 0 ? (
-              <TableRow>
+              <TableRow className="border-transparent">
                 <TableCell
-                  colSpan={6}
-                  className="p-20 text-center text-slate-400"
+                  colSpan={7}
+                  className="p-32 text-center text-slate-500 font-bold uppercase tracking-widest text-xs"
                 >
                   No decks uploaded yet
                 </TableCell>
@@ -214,25 +217,25 @@ export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
                 <TableRow
                   key={deck.id}
                   className={clsx(
-                    "group hover:bg-slate-50/50 border-slate-50 transition-colors",
+                    "group hover:bg-white/[0.02] border-white/5 transition-colors",
                     deletingId === deck.id && "opacity-50 pointer-events-none",
                   )}
                 >
-                  <TableCell className="px-8 py-6">
+                  <TableCell className="px-12 py-8">
                     <Link
-                      to={`/${deck.slug}`}
+                      to={`/${userHandle}/${deck.slug}`}
                       target="_blank"
-                      className="flex items-center gap-3 transition-all group/title"
+                      className="flex items-center gap-4 transition-all group/title"
                     >
-                      <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover:text-deckly-primary transition-colors group-hover/title:bg-deckly-primary/10">
-                        <FileText size={18} />
+                      <div className="p-3 bg-white/5 rounded-2xl text-slate-400 group-hover:text-deckly-primary transition-colors group-hover/title:bg-deckly-primary/10 border border-white/5 shadow-lg">
+                        <FileText size={20} />
                       </div>
-                      <span className="font-bold text-slate-900 group-hover/title:text-deckly-primary transition-colors">
+                      <span className="font-bold text-slate-200 group-hover/title:text-deckly-primary transition-colors tracking-tight">
                         {deck.title}
                       </span>
                     </Link>
                   </TableCell>
-                  <TableCell className="py-6 text-slate-500 font-medium text-xs">
+                  <TableCell className="py-8 text-slate-500 font-bold text-xs">
                     {new Intl.DateTimeFormat("en-GB", {
                       day: "2-digit",
                       month: "2-digit",
@@ -241,32 +244,32 @@ export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
                       .format(new Date(deck.created_at))
                       .replace(/\//g, "-")}
                   </TableCell>
-                  <TableCell className="py-6 text-center">
+                  <TableCell className="py-8 text-center">
                     <button
                       onClick={() => handleCopyLink(deck.slug, deck.id)}
                       className={clsx(
-                        "text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-lg transition-all flex items-center gap-2 mx-auto",
+                        "text-[10px] font-bold uppercase tracking-[0.2em] px-5 py-3 rounded-xl transition-all flex items-center gap-2 mx-auto border",
                         copiedId === deck.id
-                          ? "bg-deckly-primary text-white"
-                          : "bg-slate-100 text-slate-500 hover:bg-slate-200",
+                          ? "bg-deckly-primary border-deckly-primary text-slate-950 shadow-[0_0_15px_rgba(34,197,94,0.4)]"
+                          : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20",
                       )}
                     >
                       {copiedId === deck.id ? (
                         <>
-                          <Check size={12} strokeWidth={3} /> Copied
+                          <Check size={14} strokeWidth={3} /> Copied
                         </>
                       ) : (
-                        "Click to copy"
+                        "Copy Link"
                       )}
                     </button>
                   </TableCell>
-                  <TableCell className="py-6 text-center font-bold text-slate-900">
+                  <TableCell className="py-8 text-center font-bold text-white text-lg">
                     {deck.total_views}
                   </TableCell>
-                  <TableCell className="py-6 text-center font-bold text-slate-900">
+                  <TableCell className="py-8 text-center font-bold text-white text-lg">
                     {deck.save_count}
                   </TableCell>
-                  <TableCell className="py-6 text-center text-slate-500 font-medium text-xs">
+                  <TableCell className="py-8 text-center text-slate-500 font-bold text-xs">
                     {deck.last_viewed_at
                       ? new Intl.DateTimeFormat("en-GB", {
                           day: "2-digit",
@@ -277,29 +280,38 @@ export function DecksTable({ decks, loading, onDelete }: DecksTableProps) {
                           .replace(/\//g, "-")
                       : "-"}
                   </TableCell>
-                  <TableCell className="px-8 py-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <TableCell className="px-12 py-8 text-right">
+                    <div className="flex items-center justify-end gap-3">
                       <Link
                         to={`/analytics/${deck.id}`}
-                        className="p-2 text-slate-400 hover:text-deckly-primary hover:bg-white rounded-lg transition-all"
+                        className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 rounded-xl transition-all shadow-lg group/icon"
                         title="View Detailed Analytics"
                       >
-                        <BarChart3 size={18} />
+                        <BarChart3
+                          size={20}
+                          className="group-hover/icon:scale-110 transition-transform"
+                        />
                       </Link>
                       <Link
                         to={`/edit/${deck.id}`}
-                        className="p-2 text-slate-400 hover:text-slate-900 hover:bg-white rounded-lg transition-all"
+                        className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/20 rounded-xl transition-all shadow-lg group/icon"
                         title="Edit Deck"
                       >
-                        <Pencil size={18} />
+                        <Pencil
+                          size={20}
+                          className="group-hover/icon:scale-110 transition-transform"
+                        />
                       </Link>
                       <button
                         onClick={() => handleDelete(deck)}
                         disabled={deletingId === deck.id}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-white rounded-lg transition-all"
+                        className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 rounded-xl transition-all shadow-lg group/icon disabled:opacity-30"
                         title="Delete Deck"
                       >
-                        <Trash2 size={18} />
+                        <Trash2
+                          size={20}
+                          className="group-hover/icon:scale-110 transition-transform"
+                        />
                       </button>
                     </div>
                   </TableCell>

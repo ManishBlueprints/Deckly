@@ -40,14 +40,14 @@ export function ContentStatsCard({
   }, [totalViews, totalTimeSeconds, totalSaves]);
 
   return (
-    <DashboardCard className="py-4 md:py-12 px-4 md:px-8">
-      <div className="flex flex-row items-center justify-around gap-2 md:gap-12">
+    <DashboardCard className="py-6 md:py-16 px-6 md:px-12 border-white/5 shadow-2xl glass-shiny">
+      <div className="flex flex-row items-center justify-around gap-4 md:gap-12">
         {stats.map((stat, i) => (
           <div key={i} className="text-center group flex-1 min-w-0">
-            <div className="flex items-start justify-center gap-1 md:gap-2 mb-1">
+            <div className="flex items-start justify-center gap-1 md:gap-2 mb-2">
               <span
                 className={cn(
-                  "text-2xl md:text-6xl font-bold tracking-tighter transition-transform group-hover:scale-105 duration-300 text-deckly-primary",
+                  "text-3xl md:text-7xl font-bold tracking-tighter transition-transform group-hover:scale-105 duration-500 text-deckly-primary shadow-premium",
                 )}
               >
                 {loading ? "..." : stat.value}
@@ -55,13 +55,13 @@ export function ContentStatsCard({
               {stat.sub && (
                 <Badge
                   variant="outline"
-                  className="bg-slate-50 text-[8px] font-black uppercase text-slate-400 border-slate-200 mt-1 md:mt-2 hidden md:inline-flex"
+                  className="bg-white/5 text-[8px] font-bold uppercase text-slate-500 border-white/10 mt-1 md:mt-3 hidden md:inline-flex"
                 >
                   {stat.sub}
                 </Badge>
               )}
             </div>
-            <p className="text-[9px] md:text-xs font-bold text-slate-900 uppercase tracking-widest leading-tight">
+            <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] leading-tight">
               {stat.label}
             </p>
           </div>

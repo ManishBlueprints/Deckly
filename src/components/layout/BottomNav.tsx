@@ -2,116 +2,159 @@ import {
   LayoutDashboard,
   FileText,
   Monitor,
-  BarChart3,
   Bookmark,
-  MessageCircle,
+  Plus,
+  Upload,
+  Home as RoomIcon,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
-import { useAuth } from "../../contexts/AuthContext";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
+  { icon: LayoutDashboard, label: "Home", href: "/" },
   { icon: FileText, label: "Content", href: "/content" },
+];
+
+const rightNavItems = [
   { icon: Monitor, label: "Rooms", href: "/rooms" },
-  { icon: Bookmark, label: "Saved Decks", href: "/saved-decks" },
-  { icon: BarChart3, label: "Analytics", href: "/analytics", disabled: true },
-  { icon: MessageCircle, label: "Requests", href: "/requests", disabled: true },
+  { icon: Bookmark, label: "Saved", href: "/saved-decks" },
 ];
 
 export function BottomNav() {
   const location = useLocation();
-  const { profile } = useAuth();
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
 
-  const handleDisabledClick = (label: string) => {
-    setActiveTooltip(label);
-    setTimeout(() => setActiveTooltip(null), 2000);
+  const handleAction = (href: string) => {
+    setIsOpen(false);
+    navigate(href);
   };
 
   return (
-    <nav className="md:hidden fixed bottom-6 left-4 right-4 z-50 bg-[#121212]/90 backdrop-blur-xl border border-white/10 flex items-center justify-around px-2 py-2 rounded-2xl shadow-2xl safe-area-pb">
-      {navItems.map((item) => {
-        const isActive = location.pathname === item.href;
+    <>
+      {/* Backdrop */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
+          />
+        )}
+      </AnimatePresence>
 
-        if (item.disabled) {
-          return (
-            <div
-              key={item.label}
-              className="flex flex-col items-center justify-center p-2 rounded-xl flex-1 relative"
-            >
-              <button
-                onClick={() => handleDisabledClick(item.label)}
-                className="flex flex-col items-center justify-center w-full h-full opacity-20 grayscale cursor-default"
-              >
-                <item.icon size={20} />
-              </button>
-
-              <AnimatePresence>
-                {activeTooltip === item.label && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                    className="absolute bottom-full mb-3 px-3 py-1.5 bg-deckly-primary text-slate-950 text-[10px] font-black uppercase tracking-widest rounded-lg shadow-xl pointer-events-none whitespace-nowrap"
-                  >
-                    Coming Soon
-                    {/* Tiny arrow */}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-deckly-primary" />
-                  </motion.div>
+      <nav className="md:hidden fixed bottom-6 left-3 right-3 z-50 bg-[#09090b]/60 backdrop-blur-3xl border border-white/5 flex items-center justify-between px-1 py-1.5 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] safe-area-pb glass-shiny glass-emerald-border">
+        {/* Left Items */}
+        <div className="flex-1 flex items-center justify-around">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.href;
+            return (
+              <Link
+                key={item.label}
+                to={item.href}
+                className={cn(
+                  "flex flex-col items-center gap-1 py-1 px-1 rounded-xl transition-all duration-300 flex-1 relative group min-w-0",
+                  isActive ? "text-deckly-primary" : "text-slate-500",
                 )}
-              </AnimatePresence>
-            </div>
-          );
-        }
+              >
+                <item.icon size={isActive ? 20 : 18} />
+                <span className="text-[9px] font-bold uppercase tracking-tight truncate w-full px-1 text-center">
+                  {item.label}
+                </span>
+                {isActive && (
+                  <motion.div
+                    layoutId="bottom-nav-dot"
+                    className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-deckly-primary rounded-full"
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </div>
 
-        return (
-          <Link
-            key={item.label}
-            to={item.href}
-            aria-label={item.label}
+        {/* Central Action Hub */}
+        <div className="relative flex items-center justify-center px-2">
+          <AnimatePresence>
+            {isOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.8 }}
+                className="absolute bottom-full mb-6 flex flex-col items-center gap-3 w-48"
+              >
+                <button
+                  onClick={() => handleAction("/rooms/new")}
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-[#09090b]/90 backdrop-blur-3xl border border-white/10 rounded-2xl text-white shadow-2xl group hover:border-deckly-primary/30 transition-all active:scale-95"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20 group-hover:bg-deckly-primary/20 transition-all text-deckly-primary">
+                    <RoomIcon size={16} />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
+                    New Room
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => handleAction("/upload")}
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-[#09090b]/90 backdrop-blur-3xl border border-white/10 rounded-2xl text-white shadow-2xl group hover:border-deckly-primary/30 transition-all active:scale-95"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20 group-hover:bg-deckly-primary/20 transition-all text-deckly-primary">
+                    <Upload size={16} />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
+                    New Deck
+                  </span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            onClick={() => setIsOpen(!isOpen)}
+            whileTap={{ scale: 0.9 }}
             className={cn(
-              "flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all duration-200 flex-1 relative",
-              isActive
-                ? "text-deckly-primary"
-                : "text-slate-500 hover:text-white",
+              "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl relative z-50",
+              isOpen
+                ? "bg-slate-900 border border-white/10 text-white rotate-45"
+                : "bg-deckly-primary text-slate-950 shadow-[0_4px_20px_rgba(34,197,94,0.4)]",
             )}
           >
-            <item.icon
-              size={20}
-              className={cn(
-                "transition-transform duration-200",
-                isActive && "scale-110",
-              )}
-            />
-            {isActive && (
-              <motion.div
-                layoutId="bottom-nav-active"
-                className="absolute -bottom-1 w-1 h-1 bg-deckly-primary rounded-full"
-              />
-            )}
-          </Link>
-        );
-      })}
-
-      {/* User Profile Icon */}
-      <div className="flex flex-col items-center justify-center py-2 px-3 rounded-xl flex-1 relative">
-        <div className="w-6 h-6 rounded-full bg-slate-800 border border-white/10 overflow-hidden shrink-0">
-          {profile?.avatar_url ? (
-            <img
-              src={profile.avatar_url}
-              alt={profile.full_name || "User"}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold text-[10px]">
-              {profile?.full_name?.charAt(0) || "U"}
-            </div>
-          )}
+            <Plus size={24} strokeWidth={3} />
+          </motion.button>
         </div>
-      </div>
-    </nav>
+
+        {/* Right Items */}
+        <div className="flex-1 flex items-center justify-around">
+          {rightNavItems.map((item) => {
+            const isActive = location.pathname === item.href;
+            return (
+              <Link
+                key={item.label}
+                to={item.href}
+                className={cn(
+                  "flex flex-col items-center gap-1 py-1 px-1 rounded-xl transition-all duration-300 flex-1 relative group min-w-0",
+                  isActive ? "text-deckly-primary" : "text-slate-500",
+                )}
+              >
+                <item.icon size={isActive ? 20 : 18} />
+                <span className="text-[9px] font-bold uppercase tracking-tight truncate w-full px-1 text-center">
+                  {item.label}
+                </span>
+                {isActive && (
+                  <motion.div
+                    layoutId="bottom-nav-dot"
+                    className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-deckly-primary rounded-full"
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </>
   );
 }

@@ -6,7 +6,7 @@ import { ContentStatsCard } from "./dashboard/ContentStatsCard";
 import { DecksTable } from "./dashboard/DecksTable";
 
 export function ContentView() {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
 
   // Initialize from cache if available for "instant" feel
   const getCachedData = () => {
@@ -83,14 +83,14 @@ export function ContentView() {
 
   return (
     <div className="space-y-12 pb-12 animate-in fade-in duration-700 relative">
-      <p className="text-slate-500 font-medium -mb-6 md:-mb-4">
+      <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] -mb-6 md:-mb-4">
         Manage your assets and track engagement across all your decks.
       </p>
       {/* Subtle refresh indicator */}
       {isRefreshing && !loading && (
         <div className="absolute top-0 right-0 py-2 flex items-center gap-2">
-          <div className="w-2 h-2 bg-deckly-primary rounded-full animate-ping" />
-          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+          <div className="w-2 h-2 bg-deckly-primary rounded-full animate-ping shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+          <span className="text-[8px] font-bold uppercase tracking-widest text-deckly-primary/70">
             Syncing...
           </span>
         </div>
@@ -103,7 +103,12 @@ export function ContentView() {
         loading={loading}
       />
 
-      <DecksTable decks={decks} loading={loading} onDelete={handleDelete} />
+      <DecksTable
+        decks={decks}
+        userHandle={profile?.handle || "username"}
+        loading={loading}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

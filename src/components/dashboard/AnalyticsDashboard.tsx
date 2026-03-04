@@ -105,49 +105,49 @@ export function AnalyticsDashboard() {
 
   return (
     <DashboardCard
-      className="min-h-[400px] md:min-h-[600px]"
+      className="min-h-[400px] md:min-h-[600px] border-white/5 shadow-2xl"
       contentClassName="flex flex-col md:flex-row border-t-0 h-full relative"
     >
       {isRefreshing && !loading && (
-        <div className="absolute top-4 right-8 flex items-center gap-2 z-10">
-          <div className="w-1.5 h-1.5 bg-deckly-primary rounded-full animate-ping" />
-          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-            Syncing...
+        <div className="absolute top-6 right-10 flex items-center gap-3 z-10 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 backdrop-blur-md">
+          <div className="w-2 h-2 bg-deckly-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+            Syncing
           </span>
         </div>
       )}
       <AnalyticsStatsSection items={overviewItems} loading={loading} />
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col bg-white/[0.01]">
         <Tabs defaultValue="VISITS" className="flex-1 flex flex-col">
-          <div className="flex items-center justify-center p-4 md:p-6 bg-slate-50/50">
-            <TabsList className="bg-white border border-slate-200 p-1 h-auto rounded-xl gap-1">
+          <div className="flex items-center justify-center p-6 md:p-10 bg-white/[0.02] border-b border-white/5">
+            <TabsList className="bg-white/5 border border-white/10 p-1.5 h-auto rounded-2xl gap-2 backdrop-blur-md shadow-inner">
               <TabsTrigger
                 value="VISITS"
-                className="rounded-lg text-[10px] font-black uppercase tracking-widest px-4 md:px-8 py-2 md:py-2.5 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-white shadow-none transition-colors"
+                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
               >
                 Visits
               </TabsTrigger>
               <TabsTrigger
                 value="TIME"
-                className="rounded-lg text-[10px] font-black uppercase tracking-widest px-4 md:px-8 py-2 md:py-2.5 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-white shadow-none transition-colors"
+                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
               >
                 <span className="md:hidden">Time</span>
-                <span className="hidden md:inline">Time Spend</span>
+                <span className="hidden md:inline">Duration</span>
               </TabsTrigger>
               <TabsTrigger
                 value="BOOKMARKS"
-                className="rounded-lg text-[10px] font-black uppercase tracking-widest px-4 md:px-8 py-2 md:py-2.5 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-white shadow-none transition-colors"
+                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
               >
                 <span className="md:hidden">Saved</span>
-                <span className="hidden md:inline">Bookmarked</span>
+                <span className="hidden md:inline">Bookmarks</span>
               </TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent
             value="VISITS"
-            className="flex-1 m-0 p-4 md:p-8 pb-8 md:pb-12 flex flex-col justify-end"
+            className="flex-1 m-0 p-0 flex flex-col justify-end"
           >
             <AnalyticsChart
               labels={daily.labels}
@@ -158,7 +158,7 @@ export function AnalyticsDashboard() {
 
           <TabsContent
             value="TIME"
-            className="flex-1 m-0 p-4 md:p-8 pb-8 md:pb-12 flex flex-col justify-end"
+            className="flex-1 m-0 p-0 flex flex-col justify-end"
           >
             <AnalyticsChart
               labels={daily.labels}
@@ -170,7 +170,7 @@ export function AnalyticsDashboard() {
 
           <TabsContent
             value="BOOKMARKS"
-            className="flex-1 m-0 p-4 md:p-8 pb-8 md:pb-12 flex flex-col justify-end"
+            className="flex-1 m-0 p-0 flex flex-col justify-end"
           >
             <AnalyticsChart
               labels={daily.labels}

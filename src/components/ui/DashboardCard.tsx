@@ -22,19 +22,19 @@ export function DashboardCard({
   return (
     <Card
       className={cn(
-        "rounded-card border-slate-200 overflow-hidden h-full bg-white",
+        "rounded-[32px] border-white/5 overflow-hidden h-full bg-white/[0.02] backdrop-blur-xl shadow-2xl glass-shiny",
         className,
       )}
     >
       {(title || headerAction) && (
         <CardHeader
           className={cn(
-            "p-6 border-b border-slate-100 flex flex-row items-center justify-between space-y-0",
+            "p-6 md:p-8 border-b border-white/5 flex flex-row items-center justify-between space-y-0 bg-white/[0.01]",
             headerClassName,
           )}
         >
           {title && (
-            <CardTitle className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
               {title}
             </CardTitle>
           )}

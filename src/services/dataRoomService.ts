@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { DataRoom, DataRoomDocument } from "../types";
 import { withRetry } from "../utils/resilience";
+import { normalizeSlug } from "../utils/slug";
 
 const roomsCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 60_000; // 1 minute
@@ -48,7 +49,7 @@ export const dataRoomService = {
         .insert({
           user_id: userId,
           name: roomData.name,
-          slug: roomData.slug.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
+          slug: normalizeSlug(roomData.slug),
           description: roomData.description || null,
           icon_url: roomData.icon_url || null,
         })
@@ -104,10 +105,10 @@ export const dataRoomService = {
     });
   },
 
-  // Get single data room by slug (uses public view to hide password)
-  async getDataRoomBySlug(slug: string): Promise<DataRoom | null> {
+  // Get single data room by handle and slug (uses public view to hide password)
+  async getDataRoomByHandleAndSlug(handle: string, slug: string): Promise<DataRoom | null> {
     return withRetry(async () => {
-      const cacheKey = `room:slug:${slug}`;
+      const cacheKey = `room:handle:${handle}:slug:${slug}`;
       const cached = getCached<DataRoom>(cacheKey);
       if (cached) return cached;
 
@@ -115,6 +116,7 @@ export const dataRoomService = {
         .from("data_rooms_public")
         .select("*")
         .eq("slug", slug)
+        .eq("user_handle", handle)
         .single();
 
       if (error) {
@@ -339,13 +341,21 @@ export const dataRoomService = {
     return count || 0;
   },
 
-  async checkSlugAvailable(slug: string): Promise<boolean> {
-    const { data } = await supabase
+  async checkSlugAvailable(slug: string, excludeId?: string): Promise<boolean> {
+    const userId = await resolveUserId();
+    if (!userId) return true;
+
+    let query = supabase
       .from("data_rooms")
       .select("id")
-      .eq("slug", slug)
-      .maybeSingle();
+      .eq("user_id", userId)
+      .eq("slug", slug);
 
+    if (excludeId) {
+      query = query.neq("id", excludeId);
+    }
+
+    const { data } = await query.maybeSingle();
     return !data;
   },
 };
