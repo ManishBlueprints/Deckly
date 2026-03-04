@@ -24,6 +24,12 @@ import { cn } from "@/lib/utils";
 import { dataRoomService } from "../services/dataRoomService";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
 import { useAuth } from "../contexts/AuthContext";
+import {
+  getRoomVisitorSignals,
+  VisitorSignal,
+} from "../services/interestSignalService";
+import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
+import { Badge } from "../components/ui/badge";
 
 /* ───────── helpers ───────── */
 function formatDate(iso: string) {
@@ -54,6 +60,10 @@ function DataRoomDetail() {
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Signals
+  const [roomSignals, setRoomSignals] = useState<VisitorSignal[]>([]);
+  const [signalsLoading, setSignalsLoading] = useState(true);
+
   /* ── load data ── */
   const loadAll = useCallback(async () => {
     if (!roomId) return;
@@ -71,6 +81,12 @@ function DataRoomDetail() {
       setRoom(roomData);
       setDocuments(docs);
       setAnalytics(analyticsData);
+
+      // Load signals non-blocking
+      setSignalsLoading(true);
+      getRoomVisitorSignals(roomId)
+        .then(setRoomSignals)
+        .finally(() => setSignalsLoading(false));
     } catch (err) {
       console.error("Failed to load room", err);
     } finally {
@@ -105,6 +121,24 @@ function DataRoomDetail() {
       ...prev,
       perDeck: prev.perDeck.filter((p) => p.deckId !== deckId),
     }));
+  };
+
+  const handleReorderDocuments = async (orderedDeckIds: string[]) => {
+    if (!roomId) return;
+
+    // Optimistic UI update: instantly reorder local state
+    setDocuments((prev) => {
+      const newDocs = [...prev];
+      newDocs.sort((a, b) => {
+        return (
+          orderedDeckIds.indexOf(a.deck_id) - orderedDeckIds.indexOf(b.deck_id)
+        );
+      });
+      return newDocs;
+    });
+
+    // Save in background
+    await dataRoomService.reorderDocuments(roomId, orderedDeckIds);
   };
 
   const handleDeleteRoom = async () => {
@@ -310,10 +344,132 @@ function DataRoomDetail() {
               <RoomDocumentList
                 documents={documents}
                 onRemove={handleRemoveDocument}
-                onReorder={(ids: string[]) =>
-                  dataRoomService.reorderDocuments(roomId!, ids)
-                }
+                onReorder={handleReorderDocuments}
               />
+            </div>
+          </div>
+
+          {/* Visitor Engagement Signals Section (Room Level) */}
+          <div className="glass-shiny bg-white/[0.03] backdrop-blur-xl border border-white/5 rounded-[3rem] p-8 md:p-12 shadow-2xl relative overflow-hidden group">
+            <div className="space-y-10 relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-[1.25rem] bg-deckly-primary/10 border border-deckly-primary/20 flex items-center justify-center">
+                  <Users size={24} className="text-deckly-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold uppercase tracking-widest text-white">
+                    Visitor Signals
+                  </h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mt-1">
+                    Behavior-based interest discovery across room
+                  </p>
+                </div>
+                {roomSignals.length > 0 && (
+                  <Badge className="ml-auto bg-deckly-primary text-slate-950 font-bold text-[10px] uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg shadow-deckly-primary/20">
+                    {roomSignals.length} Viewer
+                    {roomSignals.length !== 1 ? "s" : ""}
+                  </Badge>
+                )}
+              </div>
+
+              {signalsLoading ? (
+                <div className="py-20 flex flex-col items-center gap-4 text-slate-700">
+                  <div className="w-12 h-12 border-4 border-white/5 border-t-deckly-primary rounded-full animate-spin shadow-2xl shadow-deckly-primary/10" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest">
+                    Gathering room signals...
+                  </p>
+                </div>
+              ) : roomSignals.length === 0 ? (
+                <div className="py-20 text-center space-y-6">
+                  <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-[2.5rem] flex items-center justify-center mx-auto text-slate-700 relative">
+                    <div className="absolute inset-0 bg-deckly-primary/5 blur-2xl rounded-full" />
+                    <Users size={40} className="relative z-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+                      No visitors yet
+                    </p>
+                    <p className="text-[10px] text-slate-700 max-w-xs mx-auto font-bold uppercase tracking-widest leading-loose">
+                      Insights appear when visitors view and interact with
+                      assets in this room.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {roomSignals.map((visitor, idx) => (
+                    <motion.div
+                      key={visitor.visitorId}
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className={cn(
+                        "rounded-[2rem] border transition-all duration-500 overflow-hidden cursor-default",
+                        "bg-white/[0.03] border-white/5 hover:border-white/10 hover:bg-white/[0.05]",
+                      )}
+                    >
+                      <div className="p-6 md:p-8">
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center gap-5">
+                            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center relative group-hover:border-deckly-primary/30 transition-colors">
+                              <div className="absolute inset-0 bg-deckly-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <span className="text-sm font-bold text-deckly-primary relative z-10 uppercase tracking-widest">
+                                V{idx + 1}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-base font-bold text-white uppercase tracking-wider">
+                                {visitor.viewerEmail || `Anonymous Viewer`}
+                              </p>
+                              <div className="flex items-center gap-4 mt-1">
+                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+                                  {visitor.totalVisits} Views
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-white/10" />
+                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+                                  {visitor.totalTime}s Spend
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-white/10" />
+                                <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+                                  {visitor.distinctDays} Day
+                                  {visitor.distinctDays > 1 ? "s" : ""}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-6">
+                            <div className="text-right hidden md:block">
+                              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600">
+                                Intensity
+                              </p>
+                              <div className="flex gap-0.5 mt-1.5">
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                  <div
+                                    key={i}
+                                    className={cn(
+                                      "w-3 h-1 rounded-full",
+                                      i <= visitor.signals.length
+                                        ? "bg-deckly-primary shadow-[0_0_8px_rgba(34,197,94,0.4)]"
+                                        : "bg-white/5",
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2.5">
+                          {visitor.signals.map((signal) => (
+                            <InterestSignalBadge key={signal} signal={signal} />
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
