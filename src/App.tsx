@@ -1,25 +1,36 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
-import Home from "./pages/Home";
-import Viewer from "./pages/Viewer";
-import ManageDeck from "./pages/ManageDeck";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import ContentPage from "./pages/ContentPage";
-import DeckAnalytics from "./pages/DeckAnalytics";
-import EditDeck from "./pages/EditDeck";
-import DataRoomsPage from "./pages/DataRoomsPage";
-import ManageDataRoom from "./pages/ManageDataRoom";
-import DataRoomDetail from "./pages/DataRoomDetail";
-import DataRoomViewer from "./pages/DataRoomViewer";
-import SavedDecks from "./pages/SavedDecks";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import "./App.css";
+
+// Lazy loaded pages
+const Home = lazy(() => import("./pages/Home"));
+const Viewer = lazy(() => import("./pages/Viewer"));
+const ManageDeck = lazy(() => import("./pages/ManageDeck"));
+const Login = lazy(() => import("./pages/Login"));
+const Signup = lazy(() => import("./pages/Signup"));
+const ContentPage = lazy(() => import("./pages/ContentPage"));
+const DeckAnalytics = lazy(() => import("./pages/DeckAnalytics"));
+const EditDeck = lazy(() => import("./pages/EditDeck"));
+const DataRoomsPage = lazy(() => import("./pages/DataRoomsPage"));
+const ManageDataRoom = lazy(() => import("./pages/ManageDataRoom"));
+const DataRoomDetail = lazy(() => import("./pages/DataRoomDetail"));
+const DataRoomViewer = lazy(() => import("./pages/DataRoomViewer"));
+const SavedDecks = lazy(() => import("./pages/SavedDecks"));
+
+const LoadingFallback = () => (
+  <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
+    <div className="w-12 h-12 mb-4 relative">
+      <div className="absolute inset-0 border-4 border-deckly-primary/10 rounded-full"></div>
+      <div className="absolute inset-0 border-4 border-t-deckly-primary rounded-full animate-spin"></div>
+    </div>
+  </div>
+);
 
 const AppContent = () => {
   const { session, loading, initializationError } = useAuth();
@@ -78,58 +89,60 @@ const AppContent = () => {
 
   return (
     <div className="min-h-screen bg-deckly-background text-slate-200 selection:bg-deckly-primary/30 selection:text-deckly-primary">
-      <Routes>
-        <Route
-          path="/content"
-          element={session ? <ContentPage /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/upload"
-          element={session ? <ManageDeck /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/analytics/:deckId"
-          element={session ? <DeckAnalytics /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/edit/:deckId"
-          element={session ? <EditDeck /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/rooms"
-          element={session ? <DataRoomsPage /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/rooms/new"
-          element={session ? <ManageDataRoom /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/rooms/:roomId"
-          element={session ? <DataRoomDetail /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/rooms/:roomId/edit"
-          element={session ? <ManageDataRoom /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/login"
-          element={!session ? <Login /> : <Navigate to="/" />}
-        />
-        <Route
-          path="/signup"
-          element={!session ? <Signup /> : <Navigate to="/" />}
-        />
-        <Route
-          path="/saved-decks"
-          element={session ? <SavedDecks /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/"
-          element={session ? <Home /> : <Navigate to="/login" />}
-        />
-        <Route path="/:username/room/:slug" element={<DataRoomViewer />} />
-        <Route path="/:username/:slug" element={<Viewer />} />
-      </Routes>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          <Route
+            path="/content"
+            element={session ? <ContentPage /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/upload"
+            element={session ? <ManageDeck /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/analytics/:deckId"
+            element={session ? <DeckAnalytics /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/edit/:deckId"
+            element={session ? <EditDeck /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/rooms"
+            element={session ? <DataRoomsPage /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/rooms/new"
+            element={session ? <ManageDataRoom /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/rooms/:roomId"
+            element={session ? <DataRoomDetail /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/rooms/:roomId/edit"
+            element={session ? <ManageDataRoom /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/login"
+            element={!session ? <Login /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/signup"
+            element={!session ? <Signup /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/saved-decks"
+            element={session ? <SavedDecks /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/"
+            element={session ? <Home /> : <Navigate to="/login" />}
+          />
+          <Route path="/:username/room/:slug" element={<DataRoomViewer />} />
+          <Route path="/:username/:slug" element={<Viewer />} />
+        </Routes>
+      </Suspense>
     </div>
   );
 };
