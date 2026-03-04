@@ -29,7 +29,9 @@ function DataRoomsPage() {
       try {
         const data = await dataRoomService.getDataRooms();
         setRooms(data);
+        setLoading(false); // Unlock the UI immediately!
 
+        // Silently load the heavier analytics data in the background
         const metaEntries = await Promise.all(
           data.map(async (room) => {
             const [docCount, analytics] = await Promise.all([
@@ -45,7 +47,6 @@ function DataRoomsPage() {
         setRoomMeta(new Map(metaEntries));
       } catch (err) {
         console.error("Failed to load data rooms", err);
-      } finally {
         setLoading(false);
       }
     }
