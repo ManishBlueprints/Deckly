@@ -21,7 +21,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
   const EMAIL_CACHE_TTL = 24 * 60 * 60 * 1000;
 
   // Pre-fill email from session; also check 24h localStorage cache
-  const getInitialEmail = () => {
+  const getInitialEmail = (): string => {
     if (sessionEmail) return sessionEmail;
     try {
       const raw = localStorage.getItem(EMAIL_CACHE_KEY);
@@ -38,10 +38,27 @@ const AccessGate: React.FC<AccessGateProps> = ({
   const [email, setEmail] = useState(() => getInitialEmail());
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  // Skip the email step if we already have an email (session or cache)
-  const [step, setStep] = useState<"email" | "password">(
-    deck.require_email && !getInitialEmail() ? "email" : "password",
-  );
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  // Determine the starting step based on requirements and known info
+  const getStartingStep = (): "email" | "password" => {
+    if (deck.require_email && !email) return "email";
+    if (deck.require_password) return "password";
+    return "email"; // Default fallback
+  };
+
+  const [step, setStep] = useState<"email" | "password">(getStartingStep());
+
+  // Auto-grant access if all requirements are met on mount or update
+  React.useEffect(() => {
+    const hasEmail = !!email;
+    const needsEmail = !!deck.require_email;
+    const needsPassword = !!deck.require_password;
+
+    if ((!needsEmail || hasEmail) && !needsPassword) {
+      onAccessGranted(hasEmail ? email : undefined);
+    }
+  }, [deck.id]);
 
   const saveEmailToCache = (resolvedEmail: string) => {
     try {
@@ -59,13 +76,17 @@ const AccessGate: React.FC<AccessGateProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isVerifying) return;
     setError(null);
 
-    if (step === "email") {
+    const isEmailStep = step === "email";
+
+    if (isEmailStep) {
       if (!email || !email.includes("@")) {
         setError("Please enter a valid email address.");
         return;
       }
+
       if (deck.require_password) {
         setStep("password");
       } else {
@@ -74,18 +95,21 @@ const AccessGate: React.FC<AccessGateProps> = ({
       }
     } else {
       try {
+        setIsVerifying(true);
         const isValid = onVerifyPassword
           ? await onVerifyPassword(password)
           : await deckService.checkDeckPassword(deck.slug, password);
 
         if (isValid) {
-          saveEmailToCache(email);
-          onAccessGranted(email);
+          if (email) saveEmailToCache(email);
+          onAccessGranted(email || undefined);
         } else {
           setError("Incorrect password. Please try again.");
         }
       } catch (err) {
         setError("Failed to verify password. Please try again.");
+      } finally {
+        setIsVerifying(false);
       }
     }
   };
@@ -146,11 +170,14 @@ const AccessGate: React.FC<AccessGateProps> = ({
                       />
                       <input
                         type="email"
-                        placeholder="NAME@RESOURCES.COM"
+                        placeholder="name@resources.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
-                        className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-16 pr-6 text-xs font-bold uppercase tracking-widest text-white focus:outline-none focus:border-deckly-primary/30 transition-all shadow-inner"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck="false"
+                        className="w-full bg-white/5 border border-white/5 rounded-2xl py-5 pl-16 pr-6 text-xs tracking-widest text-white focus:outline-none focus:border-deckly-primary/30 transition-all shadow-inner"
                       />
                     </div>
                   </motion.div>

@@ -107,17 +107,15 @@ export default function DeckAnalytics() {
   }, [deckId, session?.user?.id, isPro]);
 
   // Derived Stats
-  const totalViews = useMemo(
-    () => stats.reduce((acc, curr) => acc + curr.total_views, 0),
-    [stats],
-  );
+
   const totalSeconds = useMemo(
     () => stats.reduce((acc, curr) => acc + curr.total_time_seconds, 0),
     [stats],
   );
   const avgTimePerView = useMemo(
-    () => (totalViews > 0 ? (totalSeconds / totalViews).toFixed(1) : "0"),
-    [totalViews, totalSeconds],
+    () =>
+      uniqueVisitors > 0 ? (totalSeconds / uniqueVisitors).toFixed(1) : "0",
+    [uniqueVisitors, totalSeconds],
   );
 
   const maxViews = useMemo(
@@ -156,7 +154,7 @@ export default function DeckAnalytics() {
     { id: "VISITS", label: "Visits" },
     { id: "TIME", label: "Duration", shortLabel: "Time" },
     { id: "DROPOFF", label: "Dropoff" },
-    { id: "BOOKMARKS", label: "Bookmarks", shortLabel: "Saved" },
+    { id: "SAVES", label: "Saves", shortLabel: "Saved" },
   ];
 
   if (loading) {
@@ -280,14 +278,16 @@ export default function DeckAnalytics() {
               />
               <StatItem
                 icon={<Bookmark size={16} />}
-                label="Bookmarked"
+                label="Saves"
                 value={totalSaves.toLocaleString()}
                 color="emerald"
               />
               <StatItem
                 icon={<MessageSquare size={16} />}
-                label="Engagement"
-                value={visitorSignals.length.toString()}
+                label="Engaged"
+                value={visitorSignals
+                  .filter((s) => s.isEngaged)
+                  .length.toString()}
                 color="blue"
               />
             </div>
@@ -349,14 +349,14 @@ export default function DeckAnalytics() {
 
               {/* Chart Content */}
               <div className="space-y-6 max-w-4xl mx-auto w-full pt-8">
-                {activeTab === "BOOKMARKS" ? (
+                {activeTab === ("SAVES" as any) ? (
                   bookmarks.length === 0 ? (
                     <div className="py-20 text-center space-y-6">
                       <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
                         <Bookmark size={32} />
                       </div>
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                        No one has bookmarked this deck yet.
+                        No one has saved this deck yet.
                       </p>
                     </div>
                   ) : (
@@ -371,8 +371,9 @@ export default function DeckAnalytics() {
                               {b.profiles?.full_name?.[0] || "?"}
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-white uppercase tracking-wider">
-                                {b.profiles?.full_name || "Anonymous Investor"}
+                              <p className="text-sm font-bold text-white tracking-wider">
+                                {b.profiles?.full_name?.toLowerCase() ||
+                                  "Anonymous Investor"}
                               </p>
                               <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
                                 Saved on{" "}
@@ -586,7 +587,8 @@ export default function DeckAnalytics() {
                             </div>
                             <div>
                               <p className="text-base font-bold text-white uppercase tracking-wider">
-                                {visitor.viewerEmail || `Anonymous Viewer`}
+                                {visitor.viewerEmail?.toLowerCase() ||
+                                  `Anonymous Viewer`}
                               </p>
                               <div className="flex items-center gap-4 mt-1">
                                 <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">

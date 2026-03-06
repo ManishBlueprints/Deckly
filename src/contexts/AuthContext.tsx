@@ -64,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const { error } = await supabase.from("profiles").upsert(
             {
               id: userId,
-              full_name: meta?.full_name || meta?.name || null,
+              full_name: meta?.full_name || meta?.name || user?.email || null,
               avatar_url: meta?.avatar_url || meta?.picture || null,
               tier: "FREE",
             },
