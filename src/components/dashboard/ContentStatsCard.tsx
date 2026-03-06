@@ -25,29 +25,29 @@ export function ContentStatsCard({
 
     return [
       {
-        label: "Total Visit",
+        label: "Visits",
         value: totalViews.toLocaleString(),
       },
       {
-        label: "Total Time Spent",
+        label: "Time Spent",
         value: formatTime(totalTimeSeconds),
       },
       {
-        label: "Bookmarked",
+        label: "Saves",
         value: (totalSaves || 0).toLocaleString(),
       },
     ] as { label: string; value: string; sub?: string }[];
   }, [totalViews, totalTimeSeconds, totalSaves]);
 
   return (
-    <DashboardCard className="py-6 md:py-16 px-6 md:px-12 border-white/5 shadow-2xl glass-shiny">
-      <div className="flex flex-row items-center justify-around gap-4 md:gap-12">
+    <DashboardCard className="py-6 md:py-8 px-6 md:px-10 border-white/5 shadow-2xl glass-shiny">
+      <div className="flex flex-row items-center justify-around gap-4 md:gap-8">
         {stats.map((stat, i) => (
           <div key={i} className="text-center group flex-1 min-w-0">
             <div className="flex items-start justify-center gap-1 md:gap-2 mb-2">
               <span
                 className={cn(
-                  "text-3xl md:text-7xl font-bold tracking-tighter transition-transform group-hover:scale-105 duration-500 text-deckly-primary shadow-premium",
+                  "text-3xl md:text-5xl font-bold tracking-tighter transition-transform group-hover:scale-105 duration-500 text-deckly-primary shadow-premium",
                 )}
               >
                 {loading ? "..." : stat.value}
