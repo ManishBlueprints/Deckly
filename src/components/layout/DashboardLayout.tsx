@@ -1,10 +1,9 @@
 import React from "react";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
-import { Plus, Pencil, Check, X, Upload, Home as RoomIcon } from "lucide-react";
+import { Plus, Upload, Home as RoomIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { deckService } from "../../services/deckService";
 import penguinMascot from "../../assets/penguine.png";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -27,6 +26,7 @@ export function DashboardLayout({
     setFabOpen(false);
     navigate(href);
   };
+
   const [roomName, setRoomName] = React.useState<string>(() => {
     try {
       const cached = localStorage.getItem("deckly-room-name");
@@ -35,8 +35,7 @@ export function DashboardLayout({
       return initialTitle;
     }
   });
-  const [isEditing, setIsEditing] = React.useState(false);
-  const [tempName, setTempName] = React.useState(roomName);
+
   const loading = false;
   const isRefreshing = false;
 
@@ -44,33 +43,9 @@ export function DashboardLayout({
   React.useEffect(() => {
     if (branding?.room_name) {
       setRoomName(branding.room_name);
-      setTempName(branding.room_name);
       localStorage.setItem("deckly-room-name", branding.room_name);
     }
   }, [branding?.room_name]);
-
-  const handleSave = async () => {
-    if (!tempName.trim()) {
-      setTempName(roomName);
-      setIsEditing(false);
-      return;
-    }
-
-    try {
-      await deckService.updateBrandingSettings({ room_name: tempName });
-      setRoomName(tempName);
-      setIsEditing(false);
-    } catch (err) {
-      console.error("Error updating room name:", err);
-      setTempName(roomName);
-      setIsEditing(false);
-    }
-  };
-
-  const handleCancel = () => {
-    setTempName(roomName);
-    setIsEditing(false);
-  };
 
   return (
     <div className="flex h-screen bg-[#09090b] overflow-hidden font-outfit selection:bg-deckly-primary/30">
@@ -89,58 +64,21 @@ export function DashboardLayout({
           <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-48 h-48 bg-deckly-primary/10 rounded-full blur-[60px] pointer-events-none group-hover:bg-deckly-primary/20 transition-all duration-700" />
 
           <div className="flex items-center gap-4 flex-1 relative z-10">
-            {isEditing ? (
-              <div className="flex items-center gap-2 group">
-                <input
-                  autoFocus
-                  type="text"
-                  value={tempName}
-                  onChange={(e) => setTempName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSave();
-                    if (e.key === "Escape") handleCancel();
-                  }}
-                  className="text-2xl md:text-3xl font-bold text-white bg-white/5 border-b-2 border-deckly-primary outline-none px-2 py-1 rounded-t-lg min-w-[300px] tracking-tight"
+            <div className="flex items-center gap-4">
+              <h1 className="text-lg md:text-3xl font-extrabold text-white flex items-center gap-2 md:gap-3 tracking-tight">
+                <img
+                  src={branding?.logo_url || penguinMascot}
+                  alt="Logo"
+                  className="w-8 h-8 object-contain md:hidden rounded-xl bg-white/[0.05] p-1 border border-white/10"
                 />
-                <button
-                  onClick={handleSave}
-                  className="p-2 hover:bg-white/10 rounded-xl text-deckly-primary transition-all active:scale-90"
-                >
-                  <Check size={24} strokeWidth={3} />
-                </button>
-                <button
-                  onClick={handleCancel}
-                  className="p-2 hover:bg-white/10 rounded-xl text-slate-500 transition-all active:scale-90"
-                >
-                  <X size={24} strokeWidth={3} />
-                </button>
-              </div>
-            ) : (
-              <div
-                className="flex items-center gap-4 group cursor-pointer"
-                onClick={() => setIsEditing(true)}
-              >
-                <h1 className="text-lg md:text-3xl font-extrabold text-white flex items-center gap-2 md:gap-3 tracking-tight">
-                  <img
-                    src={branding?.logo_url || penguinMascot}
-                    alt="Logo"
-                    className="w-8 h-8 object-contain md:hidden rounded-xl bg-white/[0.05] p-1 border border-white/10"
-                  />
-                  <span className="truncate flex items-center gap-2">
-                    {loading && !roomName ? "..." : roomName}
-                    {isRefreshing && !loading && (
-                      <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-deckly-primary rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.5)] shrink-0" />
-                    )}
-                  </span>
-                </h1>
-                <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all border border-white/10">
-                  <Pencil
-                    size={14}
-                    className="text-slate-400 group-hover:text-deckly-primary transition-colors"
-                  />
-                </div>
-              </div>
-            )}
+                <span className="truncate flex items-center gap-2">
+                  {loading && !roomName ? "..." : roomName}
+                  {isRefreshing && !loading && (
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-deckly-primary rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.5)] shrink-0" />
+                  )}
+                </span>
+              </h1>
+            </div>
           </div>
 
           <div className="hidden md:flex items-center gap-6">
