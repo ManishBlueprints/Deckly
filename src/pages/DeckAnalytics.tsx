@@ -371,8 +371,9 @@ export default function DeckAnalytics() {
                               {b.profiles?.full_name?.[0] || "?"}
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-white uppercase tracking-wider">
-                                {b.profiles?.full_name || "Anonymous Investor"}
+                              <p className="text-sm font-bold text-white tracking-wider">
+                                {b.profiles?.full_name?.toLowerCase() ||
+                                  "Anonymous Investor"}
                               </p>
                               <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
                                 Saved on{" "}
@@ -586,7 +587,8 @@ export default function DeckAnalytics() {
                             </div>
                             <div>
                               <p className="text-base font-bold text-white uppercase tracking-wider">
-                                {visitor.viewerEmail || `Anonymous Viewer`}
+                                {visitor.viewerEmail?.toLowerCase() ||
+                                  `Anonymous Viewer`}
                               </p>
                               <div className="flex items-center gap-4 mt-1">
                                 <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
