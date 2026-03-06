@@ -24,6 +24,7 @@ import { userService } from "../services/userService";
 import { TierUpsellModal } from "../components/TierUpsellModal";
 import { TIER_CONFIG } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
+import { useAuth } from "../contexts/AuthContext";
 
 // Layout
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -68,6 +69,7 @@ function ManageDeck() {
   const [upsellFeature, setUpsellFeature] = useState("");
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { profile: authProfile } = useAuth();
 
   useEffect(() => {
     fetchProfile();
@@ -563,7 +565,7 @@ function ManageDeck() {
                   <div className="relative group/slug">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none z-10">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-                        {userProfile?.handle || "username"}/
+                        {authProfile?.handle || userProfile?.handle || "..."}/
                       </span>
                     </div>
                     <Input
@@ -579,7 +581,9 @@ function ManageDeck() {
                       disabled={!!editId}
                       className={cn(
                         "h-12 rounded-xl border-white/10 bg-white/5 focus-visible:ring-deckly-primary/30 text-deckly-primary font-bold uppercase tracking-wider transition-all focus:bg-white/[0.08] disabled:opacity-40",
-                        userProfile?.handle ? "pl-28" : "pl-20",
+                        userProfile?.handle || authProfile?.handle
+                          ? "pl-28"
+                          : "pl-16",
                       )}
                     />
                   </div>
@@ -589,7 +593,8 @@ function ManageDeck() {
                     </p>
                   ) : (
                     <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 px-1 mt-1">
-                      Your URL: deckly.com/{userProfile?.handle || "..."}/
+                      Your URL: deckly.com/
+                      {authProfile?.handle || userProfile?.handle || "..."}/
                       {slug || "your-slug"}
                     </p>
                   )}
