@@ -169,7 +169,7 @@ function DataRoomDetail() {
     <DashboardLayout title="Data Rooms" showFab={false}>
       <div className="space-y-0">
         {/* ═══════════════ HERO BANNER ═══════════════ */}
-        <div className="relative overflow-hidden bg-[#090b10] border-b border-white/5 py-12">
+        <div className="relative overflow-hidden bg-[#090b10] border-b border-white/5 py-6">
           {/* Background pattern */}
           <div
             className="absolute inset-0 opacity-[0.03]"
@@ -187,7 +187,7 @@ function DataRoomDetail() {
             {/* Back button */}
             <button
               onClick={() => navigate("/rooms")}
-              className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-12 group transition-all"
+              className="flex items-center gap-2 text-slate-500 hover:text-white text-[10px] font-bold uppercase tracking-[0.2em] mb-6 group transition-all"
             >
               <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-deckly-primary/10 group-hover:border-deckly-primary/20 transition-all">
                 <ArrowLeft
@@ -200,7 +200,7 @@ function DataRoomDetail() {
 
             <div className="flex flex-col items-center text-center">
               {/* Icon */}
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden mb-8 shadow-2xl backdrop-blur-md relative group">
+              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden mb-4 shadow-2xl backdrop-blur-md relative group">
                 <div className="absolute inset-0 bg-deckly-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 {room.icon_url ? (
                   <img
@@ -210,19 +210,19 @@ function DataRoomDetail() {
                   />
                 ) : (
                   <Monitor
-                    size={32}
+                    size={22}
                     className="text-slate-500 group-hover:text-deckly-primary transition-colors duration-500 relative z-10"
                   />
                 )}
               </div>
 
               {/* Name */}
-              <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-4 uppercase tracking-[0.05em]">
+              <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight mb-3 uppercase tracking-[0.05em]">
                 {room.name}
               </h1>
 
               {room.description && (
-                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-[0.15em] max-w-md mb-8 leading-relaxed">
+                <p className="text-slate-500 text-[11px] font-bold uppercase tracking-[0.15em] max-w-md mb-4 leading-relaxed">
                   {room.description}
                 </p>
               )}
@@ -594,7 +594,7 @@ function StatItem({
     <div
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center justify-center py-6 px-4 gap-2 transition-all duration-300",
+        "flex flex-col items-center justify-center py-4 px-4 gap-1.5 transition-all duration-300",
         onClick
           ? "cursor-pointer hover:bg-white/[0.04] active:scale-95 group/stat"
           : "",
@@ -612,7 +612,7 @@ function StatItem({
         className={`font-bold tracking-tighter transition-all ${
           isText
             ? "text-[11px] uppercase tracking-widest text-slate-400 truncate max-w-[140px]"
-            : "text-4xl text-white shadow-premium"
+            : "text-2xl text-white shadow-premium"
         }`}
       >
         {value}
