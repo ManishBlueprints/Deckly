@@ -25,6 +25,7 @@ import { TierUpsellModal } from "../components/TierUpsellModal";
 import { TIER_CONFIG } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
 import { useAuth } from "../contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Layout
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -70,6 +71,7 @@ function ManageDeck() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile: authProfile } = useAuth();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     fetchProfile();
@@ -376,6 +378,12 @@ function ManageDeck() {
 
       setProgress("Successful!");
       setProgressPercent(100);
+
+      // Invalidate queries to refresh dashboard/content
+      queryClient.invalidateQueries({ queryKey: ["decks", session?.user?.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["user-total-stats", session?.user?.id],
+      });
 
       // Navigate back
       setTimeout(

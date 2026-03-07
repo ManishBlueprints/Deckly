@@ -1,21 +1,16 @@
-import { useState, useEffect } from "react";
 import { Plus, Monitor, Lock, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DataRoomCard } from "../components/dashboard/DataRoomCard";
-import { DataRoom } from "../types";
-import { dataRoomService } from "../services/dataRoomService";
 import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
+import { useDataRoomsWithMeta } from "../hooks/useDataRooms";
 
 function DataRoomsPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const [rooms, setRooms] = useState<DataRoom[]>([]);
-  const [roomMeta, setRoomMeta] = useState<
-    Map<string, { docCount: number; visitors: number }>
-  >(new Map());
-  const [loading, setLoading] = useState(true);
+
+  const { data: rooms = [], isLoading, isFetching } = useDataRoomsWithMeta();
 
   const tier: Tier = (profile?.tier as Tier) || "FREE";
   const tierConfig = TIER_CONFIG[tier];
@@ -23,35 +18,8 @@ function DataRoomsPage() {
   const isAtLimit = rooms.length >= maxRooms;
   const isUnlimited = maxRooms === Infinity;
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const data = await dataRoomService.getDataRooms();
-        setRooms(data);
-        setLoading(false); // Unlock the UI immediately!
-
-        // Silently load the heavier analytics data in the background
-        const metaEntries = await Promise.all(
-          data.map(async (room) => {
-            const [docCount, analytics] = await Promise.all([
-              dataRoomService.getDocumentCount(room.id),
-              dataRoomService.getDataRoomAnalytics(room.id),
-            ]);
-            return [
-              room.id,
-              { docCount, visitors: analytics.totalVisitors },
-            ] as const;
-          }),
-        );
-        setRoomMeta(new Map(metaEntries));
-      } catch (err) {
-        console.error("Failed to load data rooms", err);
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const loading = isLoading && rooms.length === 0;
+  const isRefreshing = isFetching;
 
   return (
     <DashboardLayout title="Data Rooms">
@@ -60,6 +28,15 @@ function DataRoomsPage() {
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 -mb-6 md:-mb-4">
             Bundle assets into shareable secure rooms with access controls
           </p>
+        )}
+
+        {isRefreshing && !loading && (
+          <div className="absolute top-0 right-0 py-2 flex items-center gap-2">
+            <div className="w-2 h-2 bg-deckly-primary rounded-full animate-ping shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+            <span className="text-[8px] font-bold uppercase tracking-widest text-deckly-primary/70">
+              Syncing...
+            </span>
+          </div>
         )}
 
         {!loading && rooms.length > 0 && (
@@ -166,17 +143,14 @@ function DataRoomsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room) => {
-              const meta = roomMeta.get(room.id);
-              return (
-                <DataRoomCard
-                  key={room.id}
-                  room={room}
-                  documentCount={meta?.docCount || 0}
-                  totalVisitors={meta?.visitors || 0}
-                />
-              );
-            })}
+            {rooms.map((room: any) => (
+              <DataRoomCard
+                key={room.id}
+                room={room}
+                documentCount={room.docCount || 0}
+                totalVisitors={room.visitors || 0}
+              />
+            ))}
           </div>
         )}
       </div>

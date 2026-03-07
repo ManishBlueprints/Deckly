@@ -1,81 +1,28 @@
-import { useEffect, useState, useMemo } from "react";
-import { analyticsService } from "../../services/analyticsService";
+import { useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { DashboardCard } from "../ui/DashboardCard";
 import { AnalyticsChart } from "./AnalyticsChart";
 import { AnalyticsStatsSection } from "./AnalyticsStatsSection";
+import { useUserTotalStats } from "../../hooks/useUserTotalStats";
+import { useDailyMetrics } from "../../hooks/useDailyMetrics";
 
 export function AnalyticsDashboard() {
   const { session } = useAuth();
 
-  // Initialize from cache
-  const getCachedData = () => {
-    try {
-      const cached = localStorage.getItem(
-        `dashboard-analytics-cache-${session?.user?.id}`,
-      );
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
-    }
-  };
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+  } = useUserTotalStats(session?.user?.id);
+  const {
+    data: daily,
+    isLoading: dailyLoading,
+    isFetching: dailyFetching,
+  } = useDailyMetrics(session?.user?.id);
 
-  const initialCache = getCachedData();
-  const [stats, setStats] = useState(
-    initialCache?.stats || {
-      totalViews: 0,
-      totalTimeSeconds: 0,
-      totalSaves: 0,
-    },
-  );
-  const [daily, setDaily] = useState<{
-    labels: string[];
-    visits: number[];
-    timeSpent: number[];
-    bookmarks: number[];
-  }>(
-    initialCache?.daily || {
-      labels: [],
-      visits: [],
-      timeSpent: [],
-      bookmarks: [],
-    },
-  );
-
-  const [loading, setLoading] = useState(!initialCache);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  useEffect(() => {
-    if (session?.user?.id) {
-      // Only show skeleton if we have no data
-      if (stats.totalViews === 0) setLoading(true);
-      setIsRefreshing(true);
-
-      Promise.all([
-        analyticsService.getUserTotalStats(session.user.id),
-        analyticsService.getDailyMetrics(session.user.id),
-      ])
-        .then(([total, dailyData]) => {
-          setStats(total);
-          setDaily(dailyData);
-
-          localStorage.setItem(
-            `dashboard-analytics-cache-${session.user.id}`,
-            JSON.stringify({
-              stats: total,
-              daily: dailyData,
-              timestamp: Date.now(),
-            }),
-          );
-        })
-        .catch((err) => console.error("Dashboard fetch error:", err))
-        .finally(() => {
-          setLoading(false);
-          setIsRefreshing(false);
-        });
-    }
-  }, [session?.user?.id]); // Remove initialCache from dependencies
+  const loading = (statsLoading || dailyLoading) && !stats;
+  const isRefreshing = statsFetching || dailyFetching;
 
   const overviewItems = useMemo(() => {
     const formatTime = (seconds: number) => {
@@ -87,21 +34,28 @@ export function AnalyticsDashboard() {
     return [
       {
         label: "Total Visit",
-        value: stats.totalViews.toLocaleString(),
+        value: (stats?.totalViews || 0).toLocaleString(),
         sub: "",
       },
       {
         label: "Total Time Spent",
-        value: formatTime(stats.totalTimeSeconds),
+        value: formatTime(stats?.totalTimeSeconds || 0),
         sub: "",
       },
       {
         label: "Bookmarked",
-        value: (stats.totalSaves || 0).toLocaleString(),
+        value: (stats?.totalSaves || 0).toLocaleString(),
         sub: "",
       },
     ];
   }, [stats]);
+
+  const dailyData = daily || {
+    labels: [],
+    visits: [],
+    timeSpent: [],
+    bookmarks: [],
+  };
 
   return (
     <DashboardCard
@@ -150,8 +104,8 @@ export function AnalyticsDashboard() {
             className="flex-1 m-0 p-0 flex flex-col justify-end"
           >
             <AnalyticsChart
-              labels={daily.labels}
-              data={daily.visits}
+              labels={dailyData.labels}
+              data={dailyData.visits}
               loading={loading}
             />
           </TabsContent>
@@ -161,8 +115,8 @@ export function AnalyticsDashboard() {
             className="flex-1 m-0 p-0 flex flex-col justify-end"
           >
             <AnalyticsChart
-              labels={daily.labels}
-              data={daily.timeSpent}
+              labels={dailyData.labels}
+              data={dailyData.timeSpent}
               loading={loading}
               isTime
             />
@@ -173,8 +127,8 @@ export function AnalyticsDashboard() {
             className="flex-1 m-0 p-0 flex flex-col justify-end"
           >
             <AnalyticsChart
-              labels={daily.labels}
-              data={daily.bookmarks}
+              labels={dailyData.labels}
+              data={dailyData.bookmarks}
               loading={loading}
             />
           </TabsContent>

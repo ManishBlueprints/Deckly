@@ -21,11 +21,13 @@ import { dataRoomService } from "../services/dataRoomService";
 import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
+import { useQueryClient } from "@tanstack/react-query";
 
 function ManageDataRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const isEditMode = !!roomId && roomId !== "new";
 
   // Tier limit safety check for create mode
@@ -258,6 +260,12 @@ function ManageDataRoom() {
 
         navigate(`/rooms/${room.id}`);
       }
+
+      // Invalidate queries to refresh dashboard/rooms
+      queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
+      queryClient.invalidateQueries({
+        queryKey: ["user-total-stats", profile?.id],
+      });
     } catch (err: any) {
       console.error("Failed to save", err);
       setError(err?.message || "Failed to save data room");
@@ -271,6 +279,10 @@ function ManageDataRoom() {
     if (!isEditMode) return;
     try {
       await dataRoomService.deleteDataRoom(roomId!);
+      queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
+      queryClient.invalidateQueries({
+        queryKey: ["user-total-stats", profile?.id],
+      });
       navigate("/rooms");
     } catch (err) {
       console.error("Failed to delete room", err);
