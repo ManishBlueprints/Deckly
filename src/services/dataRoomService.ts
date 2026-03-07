@@ -1,32 +1,6 @@
 import { supabase } from "./supabase";
 import { DataRoom, DataRoomDocument } from "../types";
 import { withRetry } from "../utils/resilience";
-import { normalizeSlug } from "../utils/slug";
-
-const roomsCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 60_000; // 1 minute
-
-function getCached<T>(key: string): T | null {
-  const cached = roomsCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data as T;
-  }
-  return null;
-}
-
-function setCache(key: string, data: any) {
-  roomsCache.set(key, { data, timestamp: Date.now() });
-}
-
-function invalidateCache(prefix?: string) {
-  if (prefix) {
-    for (const key of roomsCache.keys()) {
-      if (key.startsWith(prefix)) roomsCache.delete(key);
-    }
-  } else {
-    roomsCache.clear();
-  }
-}
 
 async function resolveUserId(providedUserId?: string): Promise<string | null> {
   if (providedUserId) return providedUserId;
@@ -37,9 +11,12 @@ async function resolveUserId(providedUserId?: string): Promise<string | null> {
 export const dataRoomService = {
   // ── CRUD ────────────────────────────────────────────────
 
-  async createDataRoom(
-    roomData: { name: string; slug: string; description?: string; icon_url?: string }
-  ): Promise<DataRoom> {
+  async createDataRoom(roomData: {
+    name: string;
+    slug: string;
+    description?: string;
+    icon_url?: string;
+  }): Promise<DataRoom> {
     return withRetry(async () => {
       const userId = await resolveUserId();
       if (!userId) throw new Error("Not authenticated");
@@ -47,17 +24,13 @@ export const dataRoomService = {
       const { data, error } = await supabase
         .from("data_rooms")
         .insert({
+          ...roomData,
           user_id: userId,
-          name: roomData.name,
-          slug: normalizeSlug(roomData.slug),
-          description: roomData.description || null,
-          icon_url: roomData.icon_url || null,
         })
         .select()
         .single();
 
       if (error) throw error;
-      invalidateCache("rooms:");
       return data as DataRoom;
     });
   },
@@ -67,10 +40,6 @@ export const dataRoomService = {
       const userId = await resolveUserId(providedUserId);
       if (!userId) return [];
 
-      const cacheKey = `rooms:${userId}`;
-      const cached = getCached<DataRoom[]>(cacheKey);
-      if (cached) return cached;
-
       const { data, error } = await supabase
         .from("data_rooms")
         .select("*")
@@ -78,18 +47,12 @@ export const dataRoomService = {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      const rooms = data as DataRoom[];
-      setCache(cacheKey, rooms);
-      return rooms;
+      return data as DataRoom[];
     });
   },
 
   async getDataRoomById(id: string): Promise<DataRoom | null> {
     return withRetry(async () => {
-      const cacheKey = `room:${id}`;
-      const cached = getCached<DataRoom>(cacheKey);
-      if (cached) return cached;
-
       const { data, error } = await supabase
         .from("data_rooms")
         .select("*")
@@ -100,18 +63,15 @@ export const dataRoomService = {
         if (error.code === "PGRST116") return null; // Not found
         throw error;
       }
-      setCache(cacheKey, data);
       return data as DataRoom;
     });
   },
 
-  // Get single data room by handle and slug (uses public view to hide password)
-  async getDataRoomByHandleAndSlug(handle: string, slug: string): Promise<DataRoom | null> {
+  async getDataRoomByHandleAndSlug(
+    handle: string,
+    slug: string,
+  ): Promise<DataRoom | null> {
     return withRetry(async () => {
-      const cacheKey = `room:handle:${handle}:slug:${slug}`;
-      const cached = getCached<DataRoom>(cacheKey);
-      if (cached) return cached;
-
       const { data, error } = await supabase
         .from("data_rooms_public")
         .select("*")
@@ -123,39 +83,23 @@ export const dataRoomService = {
         if (error.code === "PGRST116") return null;
         throw error;
       }
-      setCache(cacheKey, data);
       return data as DataRoom;
     });
   },
 
-  // NEW: Securely check data room password via RPC
-  async checkDataRoomPassword(slug: string, password: string): Promise<boolean> {
-    const { data, error } = await supabase.rpc("check_data_room_password", {
-      p_slug: slug,
-      p_password: password,
-    });
-    if (error) throw error;
-    return !!data;
-  },
-
   async updateDataRoom(
     id: string,
-    updates: Partial<Pick<DataRoom, "name" | "slug" | "description" | "icon_url" | "require_email" | "require_password" | "view_password" | "expires_at">>
+    updates: Partial<DataRoom>,
   ): Promise<DataRoom> {
     return withRetry(async () => {
-      const userId = await resolveUserId();
-      if (!userId) throw new Error("Not authenticated");
-
       const { data, error } = await supabase
         .from("data_rooms")
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update(updates)
         .eq("id", id)
-        .eq("user_id", userId)
         .select()
         .single();
 
       if (error) throw error;
-      invalidateCache();
       return data as DataRoom;
     });
   },
@@ -165,18 +109,6 @@ export const dataRoomService = {
       const userId = await resolveUserId();
       if (!userId) throw new Error("Not authenticated");
 
-      // Delete icon from storage if it exists
-      const room = await dataRoomService.getDataRoomById(id);
-      if (room?.icon_url) {
-        try {
-          const url = new URL(room.icon_url);
-          const storagePath = url.pathname.split("/storage/v1/object/public/decks/")[1];
-          if (storagePath) {
-            await supabase.storage.from("decks").remove([storagePath]);
-          }
-        } catch { /* best effort */ }
-      }
-
       const { error } = await supabase
         .from("data_rooms")
         .delete()
@@ -184,28 +116,6 @@ export const dataRoomService = {
         .eq("user_id", userId);
 
       if (error) throw error;
-      invalidateCache();
-    });
-  },
-
-  // ── ICON UPLOAD ─────────────────────────────────────────
-
-  async uploadRoomIcon(file: File): Promise<string> {
-    return withRetry(async () => {
-      const userId = await resolveUserId();
-      if (!userId) throw new Error("Not authenticated");
-
-      const ext = file.name.split(".").pop() || "png";
-      const path = `${userId}/room-icons/${Date.now()}.${ext}`;
-
-      const { error } = await supabase.storage
-        .from("decks")
-        .upload(path, file, { upsert: true });
-
-      if (error) throw error;
-
-      const { data: urlData } = supabase.storage.from("decks").getPublicUrl(path);
-      return urlData.publicUrl;
     });
   },
 
@@ -213,10 +123,6 @@ export const dataRoomService = {
 
   async getDocuments(roomId: string): Promise<DataRoomDocument[]> {
     return withRetry(async () => {
-      const cacheKey = `room-docs:${roomId}`;
-      const cached = getCached<DataRoomDocument[]>(cacheKey);
-      if (cached) return cached;
-
       const { data, error } = await supabase
         .from("data_room_documents")
         .select("*, deck:decks(*)")
@@ -225,34 +131,27 @@ export const dataRoomService = {
 
       if (error) throw error;
 
-      const docs = (data || []).map((d: any) => ({
+      return (data || []).map((d: any) => ({
         ...d,
         deck: d.deck || undefined,
       })) as DataRoomDocument[];
-
-      setCache(cacheKey, docs);
-      return docs;
     });
   },
 
   async addDocuments(roomId: string, deckIds: string[]): Promise<void> {
     return withRetry(async () => {
-      // Get current max display order
-      const existing = await dataRoomService.getDocuments(roomId);
-      let maxOrder = existing.reduce((max, d) => Math.max(max, d.display_order), -1);
+      const count = await this.getDocumentCount(roomId);
 
-      const inserts = deckIds.map((deckId) => ({
+      const inserts = deckIds.map((deckId, index) => ({
         data_room_id: roomId,
         deck_id: deckId,
-        display_order: ++maxOrder,
+        display_order: count + index,
       }));
 
-      const { error } = await supabase
-        .from("data_room_documents")
-        .upsert(inserts, { onConflict: "data_room_id,deck_id" });
-
+      const { error } = await supabase.from("data_room_documents").insert(
+        inserts,
+      );
       if (error) throw error;
-      invalidateCache(`room-docs:${roomId}`);
     });
   },
 
@@ -265,11 +164,13 @@ export const dataRoomService = {
         .eq("deck_id", deckId);
 
       if (error) throw error;
-      invalidateCache(`room-docs:${roomId}`);
     });
   },
 
-  async reorderDocuments(roomId: string, orderedDeckIds: string[]): Promise<void> {
+  async reorderDocuments(
+    roomId: string,
+    orderedDeckIds: string[],
+  ): Promise<void> {
     return withRetry(async () => {
       const updates = orderedDeckIds.map((deckId, index) =>
         supabase
@@ -280,31 +181,59 @@ export const dataRoomService = {
       );
 
       await Promise.all(updates);
-      invalidateCache(`room-docs:${roomId}`);
     });
   },
 
-  // ── ANALYTICS AGGREGATION ───────────────────────────────
+  async getDocumentCount(roomId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from("data_room_documents")
+      .select("*", { count: "exact", head: true })
+      .eq("data_room_id", roomId);
 
-  async getDataRoomAnalytics(roomId: string): Promise<{ totalVisitors: number; perDeck: { deckId: string; title: string; visitors: number }[] }> {
+    if (error) throw error;
+    return count || 0;
+  },
+
+  // ── ASSETS ──────────────────────────────────────────────
+
+  async uploadRoomIcon(file: File): Promise<string> {
+    const userId = await resolveUserId();
+    if (!userId) throw new Error("Not authenticated");
+
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+    const filePath = `room-icons/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("assets")
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from("assets").getPublicUrl(filePath);
+    return data.publicUrl;
+  },
+
+  // ── ANALYTICS ───────────────────────────────────────────
+
+  async getDataRoomAnalytics(roomId: string): Promise<{
+    totalVisitors: number;
+    perDeck: { deckId: string; title: string; visitors: number }[];
+  }> {
     return withRetry(async () => {
-      const cacheKey = `room-analytics:${roomId}`;
-      const cached = getCached<any>(cacheKey);
-      if (cached) return cached;
-
-      const docs = await dataRoomService.getDocuments(roomId);
+      const docs = await this.getDocuments(roomId);
       const deckIds = docs.map((d) => d.deck_id);
 
       if (deckIds.length === 0) {
-        const empty = { totalVisitors: 0, perDeck: [] };
-        setCache(cacheKey, empty);
-        return empty;
+        return { totalVisitors: 0, perDeck: [] };
       }
 
-      const { data: viewData } = await supabase
+      const { data: viewData, error } = await supabase
         .from("deck_page_views")
         .select("deck_id, visitor_id")
         .in("deck_id", deckIds);
+
+      if (error) throw error;
 
       const allVisitors = new Set<string>();
       const visitorsByDeck = new Map<string, Set<string>>();
@@ -323,39 +252,31 @@ export const dataRoomService = {
         visitors: visitorsByDeck.get(d.deck_id)?.size || 0,
       }));
 
-      const result = { totalVisitors: allVisitors.size, perDeck };
-      setCache(cacheKey, result);
-      return result;
+      return { totalVisitors: allVisitors.size, perDeck };
     });
   },
 
-  // ── HELPERS ─────────────────────────────────────────────
-
-  async getDocumentCount(roomId: string): Promise<number> {
-    const { count, error } = await supabase
-      .from("data_room_documents")
-      .select("id", { count: "exact", head: true })
-      .eq("data_room_id", roomId);
-
-    if (error) return 0;
-    return count || 0;
-  },
+  // ── UTILS ───────────────────────────────────────────────
 
   async checkSlugAvailable(slug: string, excludeId?: string): Promise<boolean> {
-    const userId = await resolveUserId();
-    if (!userId) return true;
+    return withRetry(async () => {
+      const userId = await resolveUserId();
+      if (!userId) return true;
 
-    let query = supabase
-      .from("data_rooms")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("slug", slug);
+      let query = supabase
+        .from("data_rooms")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("slug", slug);
 
-    if (excludeId) {
-      query = query.neq("id", excludeId);
-    }
+      if (excludeId) {
+        query = query.neq("id", excludeId);
+      }
 
-    const { data } = await query.maybeSingle();
-    return !data;
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return (data?.length || 0) === 0;
+    });
   },
 };

@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Save, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
-import { noteService } from "../../services/noteService";
 import { useAuth } from "../../contexts/AuthContext";
 import { Button } from "../ui/button";
+import {
+  useInvestorNotes,
+  useSaveNoteMutation,
+} from "../../hooks/useViewerQueries";
 
 interface NotesSidebarProps {
   isOpen: boolean;
@@ -20,24 +23,21 @@ export function NotesSidebar({
 }: NotesSidebarProps) {
   const { session } = useAuth();
   const [content, setContent] = useState("");
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSavedContent, setLastSavedContent] = useState("");
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load existing note
+  // TanStack Queries
+  const { data: initialNote, isLoading: isInitialLoading } = useInvestorNotes(
+    deckId,
+    session?.user?.id,
+  );
+  const saveNoteMutation = useSaveNoteMutation();
+
+  // Sync local state with initial query data
   useEffect(() => {
-    if (isOpen && session && deckId) {
-      setIsInitialLoading(true);
-      noteService.getNote(deckId).then((note) => {
-        setContent(note);
-        setLastSavedContent(note);
-        setIsInitialLoading(false);
-      });
-    } else if (!session) {
-      setIsInitialLoading(false);
+    if (initialNote !== undefined) {
+      setContent(initialNote);
     }
-  }, [isOpen, session, deckId]);
+  }, [initialNote]);
 
   // Debounced save
   const debouncedSave = useCallback(
@@ -48,19 +48,11 @@ export function NotesSidebar({
         clearTimeout(saveTimeoutRef.current);
       }
 
-      setIsSaving(true);
-      saveTimeoutRef.current = setTimeout(async () => {
-        try {
-          await noteService.saveNote(deckId, newContent);
-          setLastSavedContent(newContent);
-        } catch (error) {
-          console.error("Failed to save note:", error);
-        } finally {
-          setIsSaving(false);
-        }
+      saveTimeoutRef.current = setTimeout(() => {
+        saveNoteMutation.mutate({ deckId, content: newContent });
       }, 1000); // 1 second debounce
     },
-    [deckId, session],
+    [deckId, session, saveNoteMutation],
   );
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -162,7 +154,7 @@ export function NotesSidebar({
                   {/* Status Indicator */}
                   <div className="absolute bottom-0 right-0 py-4 flex items-center gap-2 pointer-events-none">
                     <AnimatePresence mode="wait">
-                      {isSaving ? (
+                      {saveNoteMutation.isPending ? (
                         <motion.div
                           key="saving"
                           initial={{ opacity: 0, scale: 0.8 }}
@@ -173,7 +165,7 @@ export function NotesSidebar({
                           <Loader2 size={12} className="animate-spin" />
                           Saving...
                         </motion.div>
-                      ) : content !== lastSavedContent ? (
+                      ) : content !== (initialNote || "") ? (
                         <motion.div
                           key="unsaved"
                           initial={{ opacity: 0 }}

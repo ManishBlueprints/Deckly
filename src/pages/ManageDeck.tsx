@@ -16,7 +16,9 @@ import {
   EyeOff,
   Sparkles,
   CalendarDays,
+  Loader2,
 } from "lucide-react";
+import { useCheckDeckSlug } from "../hooks/useSlugValidation";
 import * as pdfjsLib from "pdfjs-dist";
 import { Deck, SlidePage, UserProfile } from "../types";
 import { cn } from "@/lib/utils";
@@ -72,6 +74,11 @@ function ManageDeck() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile: authProfile } = useAuth();
   const queryClient = useQueryClient();
+
+  const { data: isSlugAvailable, isLoading: isCheckingSlug } = useCheckDeckSlug(
+    slug,
+    editId || undefined,
+  );
 
   useEffect(() => {
     fetchProfile();
@@ -196,6 +203,11 @@ function ManageDeck() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!file && !editId) || !title || !slug) return;
+
+    if (!isSlugAvailable && !editId) {
+      setError("This URL Slug is already taken. Please enter a different one.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -594,7 +606,44 @@ function ManageDeck() {
                           : "pl-16",
                       )}
                     />
+                    {isCheckingSlug && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <Loader2
+                          size={16}
+                          className="text-slate-600 animate-spin"
+                        />
+                      </div>
+                    )}
                   </div>
+                  <AnimatePresence>
+                    {!editId &&
+                      slug.length > 2 &&
+                      isSlugAvailable === false &&
+                      !isCheckingSlug && (
+                        <motion.p
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="mt-2 ml-1 text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1.5"
+                        >
+                          <AlertCircle size={12} />
+                          This slug is already taken
+                        </motion.p>
+                      )}
+                    {!editId &&
+                      slug.length > 2 &&
+                      isSlugAvailable === true &&
+                      !isCheckingSlug && (
+                        <motion.p
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="mt-2 ml-1 text-[10px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1.5"
+                        >
+                          <CheckCircle2 size={12} />
+                          URL Available
+                        </motion.p>
+                      )}
+                  </AnimatePresence>
                   {editId ? (
                     <p className="text-[9px] font-bold uppercase tracking-widest text-slate-600 px-1 mt-1">
                       Links are permanent to prevent breaks.

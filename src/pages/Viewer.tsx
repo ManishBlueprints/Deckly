@@ -20,6 +20,10 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Deck } from "../types";
 import Button from "../components/common/Button";
+import {
+  useIsDeckSaved,
+  useSaveToLibraryMutation,
+} from "../hooks/useViewerQueries";
 
 function Viewer() {
   const { username, slug } = useParams<{ username: string; slug: string }>();
@@ -30,11 +34,15 @@ function Viewer() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
+
+  // UI States
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+
+  // TanStack Queries
+  const { data: isSaved = false } = useIsDeckSaved(deck?.id, session?.user?.id);
+  const saveToLibraryMutation = useSaveToLibraryMutation();
 
   const loadDeck = useCallback(async () => {
     if (!slug || !username) return;
@@ -45,9 +53,9 @@ function Viewer() {
 
       // Check if current user is the owner
       const {
-        data: { session },
+        data: { session: currentSession },
       } = await supabase.auth.getSession();
-      const userIsOwner = session?.user?.id === data.user_id;
+      const userIsOwner = currentSession?.user?.id === data.user_id;
       setIsOwner(userIsOwner);
 
       // If no protection OR user is the owner, track view immediately and unlock
@@ -63,37 +71,32 @@ function Viewer() {
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, username]);
 
   useEffect(() => {
     loadDeck();
   }, [loadDeck]);
 
-  // NEW: Check if deck is saved and handle pending save
+  // Handle pending save from guest flow and auto-update last viewed
   useEffect(() => {
-    const checkSaved = async () => {
-      if (session && deck) {
-        // 1. Check if already saved
-        const saved = await deckService.isDeckSaved(deck.id);
-        setIsSaved(saved);
-
-        // 2. Handle pending save from guest flow
-        const pendingDeckId = localStorage.getItem("pending_save_deck_id");
-        if (pendingDeckId === deck.id) {
-          localStorage.removeItem("pending_save_deck_id");
-          if (!saved) {
-            handleSave();
-          }
-        }
-
-        // 3. Mark as viewed if it's already in the library
-        if (saved) {
-          deckService.updateLibraryLastViewed(deck.id);
+    if (session && deck) {
+      // 1. Handle pending save from guest flow
+      const pendingDeckId = localStorage.getItem("pending_save_deck_id");
+      if (pendingDeckId === deck.id) {
+        localStorage.removeItem("pending_save_deck_id");
+        if (!isSaved) {
+          saveToLibraryMutation.mutate({ deckId: deck.id, save: true });
+          setShowSuccessToast(true);
+          setTimeout(() => setShowSuccessToast(false), 3000);
         }
       }
-    };
-    checkSaved();
-  }, [session, deck?.id]);
+
+      // 2. Mark as viewed if it's already in the library
+      if (isSaved) {
+        deckService.updateLibraryLastViewed(deck.id);
+      }
+    }
+  }, [session, deck?.id, isSaved]);
 
   const handleSave = async () => {
     if (!deck) return;
@@ -104,30 +107,14 @@ function Viewer() {
       return;
     }
 
-    // Optimistic Update
-    const previousSaved = isSaved;
-    setIsSaved(!previousSaved);
+    const nextSaveState = !isSaved;
 
-    if (!previousSaved) {
+    if (nextSaveState) {
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 3000);
     }
 
-    try {
-      setIsSaving(true);
-      if (previousSaved) {
-        await deckService.removeFromLibrary(deck.id);
-      } else {
-        await deckService.saveToLibrary(deck.id);
-      }
-    } catch (err) {
-      console.error("Save to library failed:", err);
-      // Rollback on error
-      setIsSaved(previousSaved);
-      setShowSuccessToast(false);
-    } finally {
-      setIsSaving(false);
-    }
+    saveToLibraryMutation.mutate({ deckId: deck.id, save: nextSaveState });
   };
 
   return (
@@ -206,7 +193,7 @@ function Viewer() {
 
               <button
                 onClick={handleSave}
-                disabled={isSaving}
+                disabled={saveToLibraryMutation.isPending}
                 className={`
                   flex items-center gap-2 md:gap-3 px-3 py-2 md:px-6 md:py-3 backdrop-blur-xl border transition-all active:scale-95 rounded-full
                   ${
@@ -225,7 +212,11 @@ function Viewer() {
                   <Bookmark size={16} className="md:w-[18px] md:h-[18px]" />
                 )}
                 <span className="text-[10px] md:text-sm font-bold uppercase tracking-wider">
-                  {isSaving ? "Saving..." : isSaved ? "Saved" : "Save"}
+                  {saveToLibraryMutation.isPending
+                    ? "Saving..."
+                    : isSaved
+                      ? "Saved"
+                      : "Save"}
                 </span>
               </button>
 

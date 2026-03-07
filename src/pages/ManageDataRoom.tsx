@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Upload,
@@ -10,7 +11,10 @@ import {
   Image,
   Loader2,
   Trash2,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
+import { useCheckDataRoomSlug } from "../hooks/useSlugValidation";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DocumentPicker } from "../components/dashboard/DocumentPicker";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
@@ -62,6 +66,9 @@ function ManageDataRoom() {
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+
+  const { data: isSlugAvailable, isLoading: isCheckingSlug } =
+    useCheckDataRoomSlug(slug, isEditMode ? roomId : undefined);
 
   // Load existing room data
   useEffect(() => {
@@ -201,6 +208,11 @@ function ManageDataRoom() {
       return;
     }
 
+    if (!isSlugAvailable && !isEditMode) {
+      setError("This URL slug is already taken. Please choose another.");
+      return;
+    }
+
     setSaving(true);
     setError("");
 
@@ -221,17 +233,6 @@ function ManageDataRoom() {
         });
         navigate(`/rooms/${roomId}`);
       } else {
-        // Check slug availability
-        const available = await dataRoomService.checkSlugAvailable(
-          slug,
-          isEditMode ? roomId : undefined,
-        );
-        if (!available) {
-          setError("This slug is already taken. Please choose another.");
-          setSaving(false);
-          return;
-        }
-
         const room = await dataRoomService.createDataRoom({
           name: name.trim(),
           slug: slug.trim(),
@@ -436,6 +437,14 @@ function ManageDataRoom() {
                     placeholder="alpha-series"
                     className="flex-1 py-4 pr-6 bg-transparent text-sm text-deckly-primary font-bold uppercase tracking-wider focus:outline-none placeholder:text-slate-700"
                   />
+                  {isCheckingSlug && (
+                    <div className="pr-4">
+                      <Loader2
+                        size={16}
+                        className="text-slate-600 animate-spin"
+                      />
+                    </div>
+                  )}
                 </div>
                 {slug && (
                   <button
@@ -454,6 +463,35 @@ function ManageDataRoom() {
                   </button>
                 )}
               </div>
+              <AnimatePresence>
+                {!isEditMode &&
+                  slug.length > 2 &&
+                  isSlugAvailable === false &&
+                  !isCheckingSlug && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="mt-2 ml-1 text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1.5"
+                    >
+                      <AlertCircle size={12} />
+                      This slug is already taken
+                    </motion.p>
+                  )}
+                {!isEditMode &&
+                  slug.length > 2 &&
+                  isSlugAvailable === true &&
+                  !isCheckingSlug && (
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="mt-2 ml-1 text-[10px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 size={12} />
+                      URL Available
+                    </motion.p>
+                  )}
+              </AnimatePresence>
               {slug && (
                 <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-700 mt-3 ml-1 flex items-center gap-2">
                   <LinkIcon size={12} className="text-deckly-primary" />
@@ -569,7 +607,12 @@ function ManageDataRoom() {
         <div className="flex justify-end pb-12">
           <button
             onClick={handleSave}
-            disabled={saving || !name.trim() || !slug.trim()}
+            disabled={
+              saving ||
+              !name.trim() ||
+              !slug.trim() ||
+              (!isEditMode && !isSlugAvailable)
+            }
             className="flex items-center gap-3 px-12 py-5 bg-deckly-primary text-slate-950 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-deckly-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-2xl shadow-deckly-primary/20"
           >
             {saving ? (
