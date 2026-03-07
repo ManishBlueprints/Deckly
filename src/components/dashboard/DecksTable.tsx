@@ -29,6 +29,8 @@ interface DecksTableProps {
   onDelete?: (deck: Deck) => Promise<void>;
 }
 
+import { ConfirmModal } from "../common/ConfirmModal";
+
 export function DecksTable({
   decks,
   userHandle,
@@ -36,7 +38,8 @@ export function DecksTable({
   onDelete,
 }: DecksTableProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
-  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<Deck | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleCopyLink = (slug: string, id: string) => {
     const url = `${window.location.origin}/${userHandle}/${slug}`;
@@ -45,17 +48,22 @@ export function DecksTable({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleDelete = async (deck: Deck) => {
-    if (window.confirm(`Are you sure you want to delete "${deck.title}"?`)) {
-      setDeletingId(deck.id);
-      try {
-        if (onDelete) await onDelete(deck);
-      } catch (err) {
-        console.error("Delete failed:", err);
-      } finally {
-        setDeletingId(null);
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    setIsDeleting(true);
+    try {
+      if (onDelete) await onDelete(deleteTarget);
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error("Delete failed:", err);
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const handleDeleteClick = (deck: Deck) => {
+    setDeleteTarget(deck);
   };
 
   return (
@@ -81,7 +89,8 @@ export function DecksTable({
               key={deck.id}
               className={clsx(
                 "p-6 flex items-center gap-4",
-                deletingId === deck.id && "opacity-50 pointer-events-none",
+                deleteTarget?.id === deck.id &&
+                  "opacity-50 pointer-events-none",
               )}
             >
               <div className="p-3 bg-white/5 rounded-2xl text-slate-400 shrink-0 border border-white/5">
@@ -134,8 +143,8 @@ export function DecksTable({
                   <Pencil size={18} />
                 </Link>
                 <button
-                  onClick={() => handleDelete(deck)}
-                  disabled={deletingId === deck.id}
+                  onClick={() => handleDeleteClick(deck)}
+                  disabled={deleteTarget?.id === deck.id}
                   className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 rounded-xl transition-all disabled:opacity-30"
                 >
                   <Trash2 size={18} />
@@ -218,7 +227,8 @@ export function DecksTable({
                   key={deck.id}
                   className={clsx(
                     "group hover:bg-white/[0.02] border-white/5 transition-colors",
-                    deletingId === deck.id && "opacity-50 pointer-events-none",
+                    deleteTarget?.id === deck.id &&
+                      "opacity-50 pointer-events-none",
                   )}
                 >
                   <TableCell className="px-12 py-8">
@@ -303,8 +313,8 @@ export function DecksTable({
                         />
                       </Link>
                       <button
-                        onClick={() => handleDelete(deck)}
-                        disabled={deletingId === deck.id}
+                        onClick={() => handleDeleteClick(deck)}
+                        disabled={deleteTarget?.id === deck.id}
                         className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 rounded-xl transition-all shadow-lg group/icon disabled:opacity-30"
                         title="Delete Deck"
                       >
@@ -321,6 +331,16 @@ export function DecksTable({
           </TableBody>
         </Table>
       </div>
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+        title="Delete Deck"
+        message={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone and all analytics will be lost.`}
+        confirmText="Delete Deck"
+        variant="danger"
+      />
     </DashboardCard>
   );
 }

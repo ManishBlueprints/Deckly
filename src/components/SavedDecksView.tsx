@@ -15,20 +15,23 @@ import {
   BookmarkMinus,
   ExternalLink,
   FileText,
-  Pencil,
   Check,
-  X,
   Loader2,
+  Lock,
+  Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "../utils/cn";
+import { motion, AnimatePresence } from "framer-motion";
+import { ConfirmModal } from "./common/ConfirmModal";
 
 export function SavedDecksView() {
   const { session } = useAuth();
   const [decks, setDecks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [unsavingId, setUnsavingId] = useState<string | null>(null);
+  const [unsaveTarget, setUnsaveTarget] = useState<any>(null);
+  const [isUnsavingInProgress, setIsUnsavingInProgress] = useState(false);
 
   // Editing state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,17 +56,23 @@ export function SavedDecksView() {
     fetchSavedDecks();
   }, [fetchSavedDecks]);
 
-  const handleUnsave = async (deckId: string) => {
-    if (!window.confirm("Remove this deck from your library?")) return;
-    setUnsavingId(deckId);
+  const handleConfirmUnsave = async () => {
+    if (!unsaveTarget) return;
+
+    setIsUnsavingInProgress(true);
     try {
-      await deckService.removeFromLibrary(deckId);
-      setDecks((prev) => prev.filter((d) => d.id !== deckId));
+      await deckService.removeFromLibrary(unsaveTarget.id);
+      setDecks((prev) => prev.filter((d) => d.id !== unsaveTarget.id));
+      setUnsaveTarget(null);
     } catch (err) {
       console.error("Failed to unsave deck:", err);
     } finally {
-      setUnsavingId(null);
+      setIsUnsavingInProgress(false);
     }
+  };
+
+  const handleUnsaveClick = (deck: any) => {
+    setUnsaveTarget(deck);
   };
 
   const startEditing = (deck: any) => {
@@ -141,7 +150,7 @@ export function SavedDecksView() {
                   key={deck.id}
                   className={cn(
                     "p-6 flex flex-col gap-6",
-                    unsavingId === deck.id && "opacity-50",
+                    unsaveTarget?.id === deck.id && "opacity-50",
                   )}
                 >
                   <div className="flex items-start gap-4">
@@ -171,7 +180,7 @@ export function SavedDecksView() {
                       </p>
                     </div>
                     <button
-                      onClick={() => handleUnsave(deck.id)}
+                      onClick={() => handleUnsaveClick(deck)}
                       className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 rounded-xl transition-all shadow-lg disabled:opacity-30"
                       title="Remove from Library"
                     >
@@ -180,58 +189,91 @@ export function SavedDecksView() {
                   </div>
 
                   {/* Notes below the name (mobile) */}
-                  <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5 group/note relative transition-colors hover:border-white/10">
-                    <div className="flex gap-2 items-start justify-start w-full">
-                      <div className="flex-1 min-w-0">
-                        {editingId === deck.id ? (
-                          <div className="space-y-4">
-                            <textarea
-                              value={editContent}
-                              onChange={(e) => setEditContent(e.target.value)}
-                              className="w-full bg-[#09090b] border border-white/10 rounded-xl p-4 text-xs text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 min-h-[140px] shadow-inner"
-                              autoFocus
-                              placeholder="Write your private notes here..."
-                            />
-                            <div className="flex items-center justify-end gap-3">
-                              <button
-                                onClick={cancelEditing}
-                                className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={() => handleSaveNote(deck.id)}
-                                disabled={isSavingNote}
-                                className="px-6 py-2 bg-deckly-primary text-slate-950 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-2 disabled:opacity-50 shadow-lg active:scale-95 transition-all"
-                              >
-                                {isSavingNote ? (
-                                  <Loader2 size={12} className="animate-spin" />
-                                ) : (
-                                  <Check size={12} strokeWidth={3} />
+                  <div className="group/note relative">
+                    <AnimatePresence mode="wait">
+                      {editingId === deck.id ? (
+                        <motion.div
+                          key="editing-mobile"
+                          initial={{ opacity: 0, scale: 0.98 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.98 }}
+                          className="bg-[#09090b] p-4 rounded-2xl border border-deckly-primary/30 shadow-xl space-y-4"
+                        >
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-deckly-primary uppercase tracking-widest">
+                            <Lock size={10} />
+                            Private Note
+                          </div>
+                          <textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            className="w-full bg-transparent border-none focus:ring-0 text-xs text-white min-h-[120px] resize-none p-0 placeholder:text-slate-600"
+                            autoFocus
+                            placeholder="Write your private investment thesis..."
+                          />
+                          <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/5">
+                            <button
+                              onClick={cancelEditing}
+                              className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleSaveNote(deck.id)}
+                              disabled={isSavingNote}
+                              className="px-6 py-2 bg-deckly-primary text-slate-950 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-2 disabled:opacity-50 shadow-lg active:scale-95 transition-all"
+                            >
+                              {isSavingNote ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <Check size={12} strokeWidth={3} />
+                              )}
+                              SAVE
+                            </button>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="view-mobile"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          onClick={() => startEditing(deck)}
+                          className={cn(
+                            "relative p-4 rounded-2xl border transition-all active:scale-[0.98]",
+                            deck.investor_note
+                              ? "bg-white/[0.03] border-white/5"
+                              : "bg-transparent border-dashed border-white/10",
+                          )}
+                        >
+                          <div className="absolute top-3 right-4 flex items-center gap-1.5 px-2 py-0.5 bg-white/5 rounded-full border border-white/5">
+                            <Lock size={8} className="text-slate-500" />
+                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest font-mono">
+                              Private
+                            </span>
+                          </div>
+
+                          <div className="flex items-start gap-3">
+                            {!deck.investor_note && (
+                              <div className="mt-0.5 p-1.5 bg-deckly-primary/10 rounded-lg text-deckly-primary">
+                                <Plus size={14} />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0 pr-12">
+                              <p
+                                className={cn(
+                                  "text-xs leading-relaxed font-medium tracking-tight",
+                                  deck.investor_note
+                                    ? "text-slate-200"
+                                    : "text-slate-500 italic",
                                 )}
-                                SAVE
-                              </button>
+                              >
+                                {deck.investor_note ||
+                                  "Add private investment thesis..."}
+                              </p>
                             </div>
                           </div>
-                        ) : (
-                          <p className="text-xs text-slate-300 leading-relaxed font-bold italic tracking-tight">
-                            {deck.investor_note
-                              ? `"${deck.investor_note}"`
-                              : "No private notes yet..."}
-                          </p>
-                        )}
-                      </div>
-
-                      {editingId !== deck.id && (
-                        <button
-                          onClick={() => startEditing(deck)}
-                          className="p-2 text-slate-500 hover:text-deckly-primary transition-all hover:bg-white/5 rounded-lg shrink-0"
-                          title="Edit Note"
-                        >
-                          <Pencil size={14} />
-                        </button>
+                        </motion.div>
                       )}
-                    </div>
+                    </AnimatePresence>
                   </div>
                 </div>
               );
@@ -312,7 +354,7 @@ export function SavedDecksView() {
                       key={deck.id}
                       className={cn(
                         "group hover:bg-white/[0.02] border-white/5 transition-colors",
-                        unsavingId === deck.id &&
+                        unsaveTarget?.id === deck.id &&
                           "opacity-50 pointer-events-none",
                       )}
                     >
@@ -339,69 +381,102 @@ export function SavedDecksView() {
                           </div>
                         </Link>
                       </TableCell>
-                      <TableCell className="py-8">
-                        <div className="flex items-start gap-3 group/note relative w-fit max-w-sm">
-                          <div className="min-w-0">
+                      <TableCell className="py-8 min-w-[380px]">
+                        <div className="group/note relative">
+                          <AnimatePresence mode="wait">
                             {editingId === deck.id ? (
-                              <div
-                                className="flex items-start gap-3 min-w-[340px] bg-[#09090b] p-3 rounded-2xl border border-white/10 shadow-2xl backdrop-blur-3xl z-30"
+                              <motion.div
+                                key="editing"
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -5 }}
+                                className="bg-[#09090b] p-4 rounded-2xl border border-deckly-primary/30 shadow-2xl backdrop-blur-3xl z-30 space-y-3"
                                 onClick={(e) => e.stopPropagation()}
                               >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-deckly-primary uppercase tracking-widest">
+                                    <Lock size={10} />
+                                    Editing Private Note
+                                  </div>
+                                </div>
                                 <textarea
                                   value={editContent}
                                   onChange={(e) =>
                                     setEditContent(e.target.value)
                                   }
-                                  className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-white min-h-[100px] resize-none p-0"
+                                  className="w-full bg-transparent border-none focus:ring-0 text-xs text-white min-h-[100px] resize-none p-0 placeholder:text-slate-600"
                                   autoFocus
-                                  placeholder="Private notes..."
+                                  placeholder="Write your note for this document?"
                                 />
-                                <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
                                   <button
-                                    onClick={handleSaveNote.bind(null, deck.id)}
+                                    onClick={cancelEditing}
+                                    className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleSaveNote(deck.id)}
                                     disabled={isSavingNote}
-                                    className="p-2 bg-deckly-primary text-slate-950 rounded-xl disabled:opacity-50 hover:scale-110 transition-transform shadow-lg"
-                                    title="Save"
+                                    className="px-4 py-1.5 bg-deckly-primary text-slate-950 text-[10px] font-black uppercase tracking-widest rounded-lg flex items-center gap-2 disabled:opacity-50 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-deckly-primary/10"
                                   >
                                     {isSavingNote ? (
                                       <Loader2
-                                        size={14}
+                                        size={12}
                                         className="animate-spin"
                                       />
                                     ) : (
-                                      <Check size={14} strokeWidth={3} />
+                                      <Check size={12} strokeWidth={3} />
                                     )}
-                                  </button>
-                                  <button
-                                    onClick={cancelEditing}
-                                    className="p-2 bg-white/5 text-slate-500 rounded-xl hover:text-white transition-colors border border-white/10"
-                                    title="Cancel"
-                                  >
-                                    <X size={14} />
+                                    Save Note
                                   </button>
                                 </div>
-                              </div>
+                              </motion.div>
                             ) : (
-                              <p className="text-xs text-slate-400 italic font-bold tracking-tight line-clamp-2 leading-relaxed">
-                                {deck.investor_note ||
-                                  "Click to add private notes..."}
-                              </p>
-                            )}
-                          </div>
+                              <motion.div
+                                key="view"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                whileHover={{ scale: 1.01 }}
+                                onClick={() => startEditing(deck)}
+                                className={cn(
+                                  "relative p-4 rounded-2xl border transition-all cursor-pointer group/card overflow-hidden",
+                                  deck.investor_note
+                                    ? "bg-white/[0.03] border-white/5 hover:border-white/20"
+                                    : "bg-transparent border-dashed border-white/10 hover:border-deckly-primary/30 hover:bg-deckly-primary/[0.02]",
+                                )}
+                              >
+                                {/* Private Badge */}
+                                <div className="absolute top-3 right-4 flex items-center gap-1.5 px-2 py-0.5 bg-white/5 rounded-full border border-white/5 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                                  <Lock size={8} className="text-slate-500" />
+                                  <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest font-mono">
+                                    Private
+                                  </span>
+                                </div>
 
-                          {editingId !== deck.id && (
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                startEditing(deck);
-                              }}
-                              className="p-2 text-slate-600 hover:text-deckly-primary transition-all shrink-0 hover:bg-white/5 rounded-lg opacity-0 group-hover:opacity-100"
-                              title="Edit Note"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                          )}
+                                <div className="flex items-start gap-3">
+                                  {!deck.investor_note && (
+                                    <div className="mt-0.5 p-1.5 bg-white/5 rounded-lg text-slate-500 group-hover/card:text-deckly-primary group-hover/card:bg-deckly-primary/10 transition-colors">
+                                      <Plus size={14} />
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0 pr-12">
+                                    <p
+                                      className={cn(
+                                        "text-xs leading-relaxed font-medium tracking-tight line-clamp-3 transition-colors",
+                                        deck.investor_note
+                                          ? "text-slate-300"
+                                          : "text-slate-500 group-hover/card:text-slate-400",
+                                      )}
+                                    >
+                                      {deck.investor_note ||
+                                        "Click to add private investment notes, thesis or key takeaways..."}
+                                    </p>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       </TableCell>
                       <TableCell className="py-8 text-slate-500 font-bold text-xs uppercase tracking-widest">
@@ -435,8 +510,7 @@ export function SavedDecksView() {
                             />
                           </Link>
                           <button
-                            onClick={() => handleUnsave(deck.id)}
-                            disabled={unsavingId === deck.id}
+                            onClick={() => handleUnsaveClick(deck)}
                             className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 rounded-xl transition-all shadow-lg group/icon disabled:opacity-30"
                             title="Remove from Library"
                           >
@@ -455,6 +529,16 @@ export function SavedDecksView() {
           </Table>
         </div>
       </DashboardCard>
+      <ConfirmModal
+        isOpen={!!unsaveTarget}
+        onClose={() => setUnsaveTarget(null)}
+        onConfirm={handleConfirmUnsave}
+        isLoading={isUnsavingInProgress}
+        title="Remove from Library"
+        message={`Are you sure you want to remove "${unsaveTarget?.title}" from your library?`}
+        confirmText="Remove Deck"
+        variant="danger"
+      />
     </div>
   );
 }

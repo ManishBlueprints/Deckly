@@ -24,14 +24,7 @@ export function ContentView() {
   const loading = (decksLoading || statsLoading) && decks.length === 0;
   const isRefreshing = decksFetching || statsFetching;
 
-  const handleDelete = async (deck: any) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this deck? This action cannot be undone.",
-      )
-    )
-      return;
-
+  const handleDeleteDeck = async (deck: any) => {
     try {
       await deckService.deleteDeck(deck.id, deck.file_url, deck.slug);
       // Invalidate queries to trigger refetch
@@ -42,6 +35,7 @@ export function ContentView() {
     } catch (err) {
       console.error("Failed to delete deck:", err);
       alert("Error deleting deck. Please try again.");
+      throw err; // Propagate error to DecksTable
     }
   };
 
@@ -71,7 +65,7 @@ export function ContentView() {
         decks={decks}
         userHandle={profile?.handle || "username"}
         loading={loading}
-        onDelete={handleDelete}
+        onDelete={handleDeleteDeck}
       />
     </div>
   );

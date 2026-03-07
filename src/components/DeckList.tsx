@@ -23,6 +23,7 @@ import { Deck, BrandingSettings } from "../types";
 import { cn } from "../utils/cn";
 import Button from "./common/Button";
 import { useAuth } from "../contexts/AuthContext";
+import { ConfirmModal } from "./common/ConfirmModal";
 
 interface DeckListProps {
   decks: Deck[];
@@ -52,6 +53,9 @@ function DeckList({
     useState<Deck | null>(null);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { profile, isPro } = useAuth();
 
   useEffect(() => {
@@ -84,7 +88,7 @@ function DeckList({
       onBrandingUpdate({ room_name: editValue });
       setIsEditingTitle(false);
     } catch (err: any) {
-      alert("Failed to update room name: " + err.message);
+      setError("Failed to update room name: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -123,15 +127,14 @@ function DeckList({
       );
       setBranding((prev) => ({ ...prev, banner_url: publicUrl }));
     } catch (err: any) {
-      alert("Failed to upload banner: " + err.message);
+      setError("Failed to upload banner: " + err.message);
     } finally {
       setUploading(false);
     }
   };
 
-  const handleResetBranding = async () => {
-    if (!window.confirm("Reset branding to defaults?")) return;
-
+  const handleConfirmReset = async () => {
+    setIsResetting(true);
     try {
       const defaults = { room_name: "Deckly Data Room", banner_url: "" };
       await deckService.updateBrandingSettings({
@@ -140,8 +143,11 @@ function DeckList({
       });
       setBranding(defaults);
       setShowBrandingMenu(false);
+      setResetTarget(false);
     } catch (err: any) {
-      alert("Failed to reset branding: " + err.message);
+      setError("Failed to reset branding: " + err.message);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -266,7 +272,7 @@ function DeckList({
                 </button>
                 <div className="h-px bg-white/5 my-1" />
                 <button
-                  onClick={handleResetBranding}
+                  onClick={() => setResetTarget(true)}
                   className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-red-500/10 text-sm transition-all text-red-400 group/item"
                 >
                   <RotateCcw
@@ -623,6 +629,38 @@ function DeckList({
           onClose={() => setSelectedAnalyticsDeck(null)}
         />
       )}
+
+      <ConfirmModal
+        isOpen={resetTarget}
+        onClose={() => setResetTarget(false)}
+        onConfirm={handleConfirmReset}
+        isLoading={isResetting}
+        title="Reset Branding"
+        message="Are you sure you want to reset your room name and banner to defaults? This action cannot be undone."
+        confirmText="Reset Branding"
+        variant="danger"
+      />
+
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-32 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl z-[200] flex items-center gap-3 border border-red-400/20"
+          >
+            <span className="text-xs font-bold uppercase tracking-widest">
+              {error}
+            </span>
+            <button
+              onClick={() => setError(null)}
+              className="p-1 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
