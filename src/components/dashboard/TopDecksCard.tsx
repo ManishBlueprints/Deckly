@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
-import { analyticsService } from "../../services/analyticsService";
-import { getDeckSignalCount } from "../../services/interestSignalService";
+import {
+  useTopPerformingDecks,
+  useDeckSignalCounts,
+} from "../../hooks/useTopPerformingDecks";
+import { useUserTotalStats } from "../../hooks/useUserTotalStats";
 import { useAuth } from "../../contexts/AuthContext";
 import { DashboardCard } from "../ui/DashboardCard";
 import {
@@ -12,82 +14,24 @@ import {
   TableRow,
 } from "../ui/table";
 
-interface DeckStat {
-  id: string;
-  title: string;
-  views: number;
-  time: number;
-}
-
 export function TopDecksCard() {
   const { session } = useAuth();
+  const userId = session?.user?.id;
 
-  const getCachedData = () => {
-    try {
-      const cached = localStorage.getItem(
-        `top-decks-cache-${session?.user?.id}`,
-      );
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
-    }
-  };
+  const {
+    data: stats = [],
+    isLoading,
+    isFetching,
+  } = useTopPerformingDecks(userId);
 
-  const initialCache = getCachedData();
-  const [stats, setStats] = useState<DeckStat[]>(initialCache || []);
-  const [loading, setLoading] = useState(!initialCache);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [signalCounts, setSignalCounts] = useState<Record<string, number>>({});
-  const [totalUserViews, setTotalUserViews] = useState<number>(0);
+  const deckIds = stats.map((s) => s.id);
+  const { data: signalCounts = {} } = useDeckSignalCounts(deckIds);
 
-  const fetchTopDecks = useCallback(async () => {
-    if (!session?.user?.id) return;
+  const { data: userStats } = useUserTotalStats(userId);
+  const totalUserViews = userStats?.totalViews || 0;
 
-    if (stats.length === 0) setLoading(true);
-    setIsRefreshing(true);
-
-    try {
-      const data = await analyticsService.getTopPerformingDecks(
-        session.user.id,
-      );
-      const mapped = data.map((d: any) => ({
-        id: d.id,
-        title: d.title,
-        views: d.views,
-        time: d.time,
-      }));
-      setStats(mapped);
-
-      // Fetch signal counts for each deck
-      const counts: Record<string, number> = {};
-      await Promise.all(
-        mapped.map(async (d: DeckStat) => {
-          counts[d.id] = await getDeckSignalCount(d.id);
-        }),
-      );
-      setSignalCounts(counts);
-
-      // Fetch global total views for share calculation
-      const totalStats = await analyticsService.getUserTotalStats(
-        session.user.id,
-      );
-      setTotalUserViews(totalStats.totalViews);
-
-      localStorage.setItem(
-        `top-decks-cache-${session.user.id}`,
-        JSON.stringify(mapped),
-      );
-    } catch (err) {
-      console.error("Failed to fetch top decks:", err);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [session?.user?.id]); // Remove initialCache dependency
-
-  useEffect(() => {
-    fetchTopDecks();
-  }, [fetchTopDecks]);
+  const loading = isLoading;
+  const isRefreshing = isFetching;
 
   return (
     <DashboardCard

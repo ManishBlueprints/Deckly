@@ -1,41 +1,21 @@
-import { useState, useEffect } from "react";
-import { deckService } from "../services/deckService";
-import { Deck, BrandingSettings } from "../types";
 import { useAuth } from "../contexts/AuthContext";
+import { useDecks } from "../hooks/useDecks";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DashboardView } from "../components/DashboardView";
 import { EmptyStateOverlay } from "../components/dashboard/EmptyStateOverlay";
 import { WorkspaceSetupModal } from "../components/dashboard/WorkspaceSetupModal";
 
 function Home() {
-  const [decks, setDecks] = useState<Deck[]>([]);
-  const [, setBranding] = useState<BrandingSettings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { session, profile } = useAuth();
 
-  useEffect(() => {
-    if (session?.user) {
-      loadInitialData(session.user.id);
-    }
-  }, [session]);
+  const {
+    data: decks = [],
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useDecks(session?.user?.id);
 
-  const loadInitialData = async (userId: string) => {
-    try {
-      // Parallel fetch branding and decks
-      const [decksData, brandingData] = await Promise.all([
-        deckService.getAllDecks(userId),
-        deckService.getBrandingSettings(userId),
-      ]);
-
-      setDecks(decksData);
-      setBranding(brandingData);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const error = queryError ? (queryError as Error).message : null;
 
   if (error) {
     return (
@@ -63,11 +43,7 @@ function Home() {
             {error}
           </p>
           <button
-            onClick={() => {
-              setError(null);
-              setLoading(true);
-              if (session?.user) loadInitialData(session.user.id);
-            }}
+            onClick={() => refetch()}
             className="px-8 py-3 bg-deckly-primary text-white rounded-xl text-sm font-bold hover:bg-opacity-90 transition-all active:scale-95"
           >
             Try Again
