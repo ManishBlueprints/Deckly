@@ -43,7 +43,7 @@ export function AnalyticsDashboard() {
         sub: "",
       },
       {
-        label: "Bookmarked",
+        label: "Total Saves",
         value: (stats?.totalSaves || 0).toLocaleString(),
         sub: "",
       },
