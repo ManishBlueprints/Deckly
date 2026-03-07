@@ -7,13 +7,6 @@ import { getTierConfig } from "../constants/tiers";
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
 
-const statsCache = new Map<string, { data: DeckStats[]; timestamp: number }>();
-const pendingRequests = new Map<string, Promise<DeckStats[]>>();
-const CACHE_TTL = 120000; // 2 minutes cache
-const totalStatsCache = new Map<string, { data: any; timestamp: number }>();
-const dailyMetricsCache = new Map<string, { data: any; timestamp: number }>();
-const topDecksCache = new Map<string, { data: any; timestamp: number }>();
-
 export const analyticsService = {
   // Track when someone views a deck
   trackDeckView(deck: Deck, metadata: Record<string, any> = {}) {
@@ -163,7 +156,6 @@ export const analyticsService = {
     deckId: string,
     isPro: boolean = false,
     providedUserId?: string,
-    forceRefresh: boolean = false,
   ): Promise<DeckStats[]> {
     let userId = providedUserId;
 
@@ -177,54 +169,26 @@ export const analyticsService = {
 
     const tier = getTierConfig(isPro);
 
-    // Cache check
-    const cacheKey = `${deckId}-${userId}-${tier.days}`;
-    const cached = statsCache.get(cacheKey);
-    if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.data;
-    }
+    return withRetry(async () => {
+      const cutoffDate = new Date(
+        Date.now() - tier.days * 24 * 60 * 60 * 1000,
+      ).toISOString();
 
-    // Request collapsing: if a request for this key is already in flight, reuse its promise
-    if (!forceRefresh && pendingRequests.has(cacheKey)) {
-      return pendingRequests.get(cacheKey)!;
-    }
+      const { data, error } = await supabase
+        .from("deck_stats")
+        .select("*")
+        .eq("deck_id", deckId)
+        .eq("user_id", userId)
+        .gt("updated_at", cutoffDate)
+        .order("page_number", { ascending: true });
 
-    const fetchPromise = withRetry(async () => {
-      try {
-        const cutoffDate = new Date(
-          Date.now() - tier.days * 24 * 60 * 60 * 1000,
-        ).toISOString();
-
-        const { data, error } = await supabase
-          .from("deck_stats")
-          .select("*")
-          .eq("deck_id", deckId)
-          .eq("user_id", userId)
-          .gt("updated_at", cutoffDate)
-          .order("page_number", { ascending: true });
-
-        if (error) throw error;
-
-        const result = data as DeckStats[];
-        statsCache.set(cacheKey, { data: result, timestamp: Date.now() });
-        return result;
-      } finally {
-        pendingRequests.delete(cacheKey);
-      }
+      if (error) throw error;
+      return data as DeckStats[];
     });
-
-    pendingRequests.set(cacheKey, fetchPromise);
-    return fetchPromise;
   },
 
   // Get top performing decks based on total views
   async getTopPerformingDecks(userId: string, limit: number = 3) {
-    const cacheKey = `top-${userId}-${limit}`;
-    const cached = topDecksCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < 60000) { // 1 min cache
-      return cached.data;
-    }
-
     // 1. Get time stats from deck_stats
     const { data: statsData, error: statsError } = await supabase
       .from("deck_stats")
@@ -235,7 +199,7 @@ export const analyticsService = {
 
     // Aggregate time by deck_id and collect titles
     const deckInfo: Record<string, { title: string; time: number }> = {};
-    for (const row of (statsData as any[])) {
+    for (const row of statsData as any[]) {
       const id = row.deck_id;
       if (!deckInfo[id]) {
         deckInfo[id] = { title: row.decks?.title || "Untitled", time: 0 };
@@ -245,7 +209,6 @@ export const analyticsService = {
 
     const deckIds = Object.keys(deckInfo);
     if (deckIds.length === 0) {
-      topDecksCache.set(cacheKey, { data: [], timestamp: Date.now() });
       return [];
     }
 
@@ -256,7 +219,7 @@ export const analyticsService = {
       .in("deck_id", deckIds);
 
     const visitorsByDeck = new Map<string, Set<string>>();
-    for (const row of (viewData || [])) {
+    for (const row of viewData || []) {
       if (!visitorsByDeck.has(row.deck_id)) {
         visitorsByDeck.set(row.deck_id, new Set());
       }
@@ -264,27 +227,21 @@ export const analyticsService = {
     }
 
     // 3. Merge and sort
-    const result = deckIds.map((id) => ({
-      id,
-      title: deckInfo[id].title,
-      views: visitorsByDeck.get(id)?.size || 0,
-      time: deckInfo[id].time,
-    }))
+    const result = deckIds
+      .map((id) => ({
+        id,
+        title: deckInfo[id].title,
+        views: visitorsByDeck.get(id)?.size || 0,
+        time: deckInfo[id].time,
+      }))
       .sort((a, b) => b.views - a.views)
       .slice(0, limit);
 
-    topDecksCache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
   },
 
   // Get daily metrics for the last 7 days (optionally filtered by deck)
   async getDailyMetrics(userId: string, deckId?: string) {
-    const cacheKey = `daily-${userId}-${deckId || "all"}`;
-    const cached = dailyMetricsCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < 60000) { // 1 min cache
-      return cached.data;
-    }
-
     const days = 7;
     const labels: string[] = [];
     const visits: number[] = [];
@@ -310,10 +267,10 @@ export const analyticsService = {
       sevenDaysAgo.setHours(0, 0, 0, 0);
 
       // 1. Fetch user's deck IDs
-      let deckIdsQuery = supabase
-        .from("decks")
-        .select("id")
-        .eq("user_id", userId);
+      let deckIdsQuery = supabase.from("decks").select("id").eq(
+        "user_id",
+        userId,
+      );
 
       if (deckId) {
         deckIdsQuery = deckIdsQuery.eq("id", deckId);
@@ -375,23 +332,11 @@ export const analyticsService = {
       console.error("Error fetching daily metrics:", err);
     }
 
-    const result = { labels, visits, timeSpent, bookmarks };
-    dailyMetricsCache.set(cacheKey, { data: result, timestamp: Date.now() });
-    return result;
+    return { labels, visits, timeSpent, bookmarks };
   },
 
   // Get total stats for the user dashboard (optionally filtered by deck)
-  async getUserTotalStats(
-    userId: string,
-    deckId?: string,
-    forceRefresh: boolean = false,
-  ) {
-    const cacheKey = `total-${userId}-${deckId || "all"}`;
-    const cached = totalStatsCache.get(cacheKey);
-    if (!forceRefresh && cached && Date.now() - cached.timestamp < 10000) { // 10s cache
-      return cached.data;
-    }
-
+  async getUserTotalStats(userId: string, deckId?: string) {
     // 1. Fetch user's deck IDs
     const { data: userDecks } = await supabase
       .from("decks")
@@ -399,9 +344,7 @@ export const analyticsService = {
       .eq("user_id", userId);
 
     if (!userDecks || userDecks.length === 0) {
-      const result = { totalViews: 0, totalTimeSeconds: 0, totalSaves: 0 };
-      totalStatsCache.set(cacheKey, { data: result, timestamp: Date.now() });
-      return result;
+      return { totalViews: 0, totalTimeSeconds: 0, totalSaves: 0 };
     }
 
     const deckIds = deckId ? [deckId] : userDecks.map((d: any) => d.id);
@@ -409,20 +352,23 @@ export const analyticsService = {
     // 2. Fetch everything in parallel
     const [timeResult, viewResult, saveResult] = await Promise.all([
       // Total time
-      supabase.from("deck_stats").select("total_time_seconds").in(
-        "deck_id",
-        deckIds,
-      ),
+      supabase
+        .from("deck_stats")
+        .select("total_time_seconds")
+        .in("deck_id", deckIds),
       // Unique visitors
-      supabase.from("deck_page_views").select("visitor_id, deck_id").in(
-        "deck_id",
-        deckIds,
-      ),
+      supabase
+        .from("deck_page_views")
+        .select("visitor_id, deck_id")
+        .in("deck_id", deckIds),
       // Total saves - use count check
-      supabase.from("investor_library").select("id", {
-        count: "exact",
-        head: true,
-      }).in("deck_id", deckIds),
+      supabase
+        .from("investor_library")
+        .select("id", {
+          count: "exact",
+          head: true,
+        })
+        .in("deck_id", deckIds),
     ]);
 
     if (timeResult.error) {
@@ -456,10 +402,7 @@ export const analyticsService = {
 
     const totalSaves = saveResult.count || 0;
 
-    const result = { totalViews, totalTimeSeconds, totalSaves };
-
-    totalStatsCache.set(cacheKey, { data: result, timestamp: Date.now() });
-    return result;
+    return { totalViews, totalTimeSeconds, totalSaves };
   },
 
   // Get unique visitor count for a deck (distinct people, not slide views)

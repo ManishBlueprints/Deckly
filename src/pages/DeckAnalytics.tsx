@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,99 +12,58 @@ import {
   Users,
   ChevronDown,
   FileText,
+  Loader2,
 } from "lucide-react";
-import { analyticsService } from "../services/analyticsService";
-import { deckService } from "../services/deckService";
-import { Deck, DeckStats } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import {
-  getVisitorSignals,
-  VisitorSignal,
-} from "../services/interestSignalService";
 import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
+import { useDeck } from "../hooks/useDecks";
+import {
+  useDeckStats,
+  useDeckBookmarks,
+  useVisitorSignals,
+  useUniqueVisitorCount,
+} from "../hooks/useDeckAnalyticsData";
 
 export default function DeckAnalytics() {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
   const { session, isPro } = useAuth();
-  const [deck, setDeck] = useState<Deck | null>(null);
-  const [stats, setStats] = useState<DeckStats[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "VISITS" | "TIME" | "DROPOFF" | "BOOKMARKS"
+    "VISITS" | "TIME" | "DROPOFF" | "SAVES"
   >("VISITS");
-  const [visitorSignals, setVisitorSignals] = useState<VisitorSignal[]>([]);
-  const [signalsLoading, setSignalsLoading] = useState(true);
   const [expandedVisitor, setExpandedVisitor] = useState<string | null>(null);
-  const [uniqueVisitors, setUniqueVisitors] = useState(0);
-  const [totalSaves, setTotalSaves] = useState(0);
-  const [bookmarks, setBookmarks] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
-  // Used to prevent too frequent background refreshes
-  const lastFetchedRef = React.useRef<number>(0);
-  const lastDeckIdRef = React.useRef<string | undefined>(undefined);
-  const FETCH_THROTTLE_MS = 2 * 60 * 1000; // 2 minutes
+  // Queries
+  const {
+    data: deck,
+    isLoading: deckLoading,
+    error: deckError,
+  } = useDeck(deckId, session?.user?.id);
+  const {
+    data: stats = [],
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+  } = useDeckStats(deckId, !!isPro, session?.user?.id);
+  const { data: bookmarks = [], isFetching: bookmarksFetching } =
+    useDeckBookmarks(deckId);
+  const {
+    data: visitorSignals = [],
+    isLoading: signalsLoading,
+    isFetching: signalsFetching,
+  } = useVisitorSignals(deckId);
+  const { data: uniqueVisitors = 0, isFetching: uniqueFetching } =
+    useUniqueVisitorCount(deckId);
 
-  useEffect(() => {
-    if (deckId && session?.user?.id) {
-      const now = Date.now();
-      const isNewDeck = lastDeckIdRef.current !== deckId;
-      const isInitialLoad = !deck || isNewDeck;
-      const shouldThrottle =
-        !isInitialLoad && now - lastFetchedRef.current < FETCH_THROTTLE_MS;
-
-      if (shouldThrottle) return;
-
-      if (isInitialLoad) {
-        setLoading(true);
-        // Clear old data for new deck to prevent flicker
-        if (isNewDeck) {
-          setDeck(null);
-          setStats([]);
-        }
-      }
-
-      lastFetchedRef.current = now;
-      lastDeckIdRef.current = deckId;
-
-      Promise.all([
-        deckService.getDeckById(deckId),
-        analyticsService.getDeckStats(deckId, !!isPro, session.user.id),
-        analyticsService.getUserTotalStats(session.user.id, deckId, true),
-        analyticsService.getDeckBookmarks(deckId).catch((err) => {
-          console.error("Error fetching bookmarks:", err);
-          return []; // Fallback to empty bookmarks if join fails
-        }),
-      ])
-        .then(([deckData, statsData, totalData, bookmarksData]) => {
-          setDeck(deckData);
-          setStats(statsData || []);
-          setTotalSaves(totalData.totalSaves || 0);
-          setBookmarks(bookmarksData || []);
-        })
-        .catch((err) => {
-          console.error("Critical error loading analytics:", err);
-          // Only show error if we couldn't even get basic deck info
-          if (!deck) setError("Failed to load analytics data.");
-        })
-        .finally(() => setLoading(false));
-
-      // Fetch interest signals
-      setSignalsLoading(true);
-      getVisitorSignals(deckId)
-        .then(setVisitorSignals)
-        .finally(() => setSignalsLoading(false));
-
-      // Fetch unique visitor count
-      analyticsService.getUniqueVisitorCount(deckId).then(setUniqueVisitors);
-    }
-  }, [deckId, session?.user?.id, isPro]);
+  const loading = deckLoading || (stats.length === 0 && statsLoading);
+  const isRefreshing =
+    statsFetching || bookmarksFetching || signalsFetching || uniqueFetching;
+  const error = deckError ? "Failed to load analytics data." : null;
+  const totalSaves = bookmarks.length;
 
   // Derived Stats
 
@@ -205,6 +164,26 @@ export default function DeckAnalytics() {
       <div className="flex-1 -m-8 relative">
         {/* ═══════════════ HERO SECTION ═══════════════ */}
         <div className="relative pt-24 pb-32 px-6 overflow-hidden">
+          {/* Background Indicator for Refreshing */}
+          <AnimatePresence>
+            {isRefreshing && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="absolute top-8 right-8 z-50 flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-xl"
+              >
+                <Loader2
+                  size={14}
+                  className="text-deckly-primary animate-spin"
+                />
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-deckly-primary">
+                  Syncing Live Insights
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Animated Background Accents */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-full pointer-events-none">
             <div className="absolute top-0 left-1/4 w-96 h-96 bg-deckly-primary/10 rounded-full blur-[120px] animate-pulse" />

@@ -4,8 +4,7 @@ import { analyticsService } from "../services/analyticsService";
 export function useUserTotalStats(userId: string | undefined, deckId?: string) {
     return useQuery({
         queryKey: ["user-total-stats", userId, deckId || "all"],
-        queryFn: () =>
-            analyticsService.getUserTotalStats(userId!, deckId, true),
+        queryFn: () => analyticsService.getUserTotalStats(userId!, deckId),
         enabled: !!userId,
     });
 }
