@@ -604,4 +604,19 @@ export const deckService = {
     const { data } = await query.maybeSingle();
     return !data;
   },
+
+  // NEW: Get deck by slug only (for legacy redirects)
+  async getDeckBySlugOnly(
+    slug: string,
+  ): Promise<{ handle: string; slug: string } | null> {
+    const { data, error } = await supabase
+      .from("decks_public")
+      .select("user_handle, slug")
+      .eq("slug", slug)
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+    return { handle: data.user_handle, slug: data.slug };
+  },
 };

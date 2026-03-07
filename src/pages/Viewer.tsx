@@ -26,7 +26,7 @@ import {
 } from "../hooks/useViewerQueries";
 
 function Viewer() {
-  const { username, slug } = useParams<{ username: string; slug: string }>();
+  const { handle, slug } = useParams<{ handle: string; slug: string }>();
   const { session } = useAuth();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -45,10 +45,10 @@ function Viewer() {
   const saveToLibraryMutation = useSaveToLibraryMutation();
 
   const loadDeck = useCallback(async () => {
-    if (!slug || !username) return;
+    if (!slug || !handle) return;
     try {
       setLoading(true);
-      const data = await deckService.getDeckByHandleAndSlug(username, slug);
+      const data = await deckService.getDeckByHandleAndSlug(handle, slug);
       setDeck(data);
 
       // Check if current user is the owner
@@ -66,12 +66,23 @@ function Viewer() {
         }
       }
     } catch (err: any) {
+      // Try slug-only fallback for namespacing enforcement
+      try {
+        const fallback = await deckService.getDeckBySlugOnly(slug);
+        if (fallback && fallback.handle !== handle) {
+          window.location.replace(`/${fallback.handle}/${fallback.slug}`);
+          return;
+        }
+      } catch (e) {
+        /* ignore */
+      }
+
       setError(err.message);
       console.error("Error loading deck:", err);
     } finally {
       setLoading(false);
     }
-  }, [slug, username]);
+  }, [slug, handle]);
 
   useEffect(() => {
     loadDeck();

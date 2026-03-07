@@ -160,7 +160,7 @@ export function SavedDecksView() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <Link
-                          to={`/${deck.slug}`}
+                          to={`/${deck.user_handle}/${deck.slug}`}
                           target="_blank"
                           className="font-black text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
                         >
@@ -360,7 +360,7 @@ export function SavedDecksView() {
                     >
                       <TableCell className="px-12 py-8">
                         <Link
-                          to={`/${deck.slug}`}
+                          to={`/${deck.user_handle}/${deck.slug}`}
                           target="_blank"
                           className="flex items-center gap-4 group/title"
                         >
@@ -499,7 +499,7 @@ export function SavedDecksView() {
                       <TableCell className="px-12 py-8 text-right">
                         <div className="flex items-center justify-end gap-3">
                           <Link
-                            to={`/${deck.slug}`}
+                            to={`/${deck.user_handle}/${deck.slug}`}
                             target="_blank"
                             className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 rounded-xl transition-all shadow-lg group/icon"
                             title="Open Deck"

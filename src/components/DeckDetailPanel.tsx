@@ -271,7 +271,7 @@ function DeckDetailPanel({
             </h2>
           </div>
           <a
-            href={`/${profile?.handle || "username"}/${deck.slug}`}
+            href={`/${profile?.handle}/${deck.slug}`}
             target="_blank"
             rel="noreferrer"
           >

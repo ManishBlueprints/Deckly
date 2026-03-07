@@ -279,4 +279,30 @@ export const dataRoomService = {
       return (data?.length || 0) === 0;
     });
   },
+
+  async checkDataRoomPassword(
+    slug: string,
+    password: string,
+  ): Promise<boolean> {
+    const { data, error } = await supabase.rpc("check_data_room_password", {
+      p_slug: slug,
+      p_password: password,
+    });
+    if (error) throw error;
+    return !!data;
+  },
+
+  async getDataRoomBySlugOnly(
+    slug: string,
+  ): Promise<{ handle: string; slug: string } | null> {
+    const { data, error } = await supabase
+      .from("data_rooms_public")
+      .select("user_handle, slug")
+      .eq("slug", slug)
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+    return { handle: data.user_handle, slug: data.slug };
+  },
 };

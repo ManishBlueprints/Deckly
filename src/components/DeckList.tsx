@@ -154,7 +154,8 @@ function DeckList({
   const handleCopyLink = (e: React.MouseEvent, deck: Deck) => {
     e.preventDefault();
     e.stopPropagation();
-    const url = `${window.location.origin}/${deck.slug}`;
+    const handle = profile?.handle;
+    const url = `${window.location.origin}/${handle}/${deck.slug}`;
     navigator.clipboard.writeText(url);
     setCopiedId(deck.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -437,7 +438,7 @@ function DeckList({
                 }}
               >
                 <Link
-                  to={`/${deck.slug}`}
+                  to={`/${profile?.handle}/${deck.slug}`}
                   className="group relative flex flex-col bg-slate-900 border border-white/5 rounded-2xl overflow-hidden hover:border-deckly-primary/30 transition-all duration-300 shadow-xl hover:shadow-2xl"
                 >
                   {/* Thumbnail area */}
