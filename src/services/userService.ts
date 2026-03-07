@@ -58,4 +58,14 @@ export const userService = {
 
     return data;
   },
+
+  async isHandleAvailable(handle: string): Promise<boolean> {
+    const { count, error } = await supabase
+      .from("profiles")
+      .select("handle", { count: "exact", head: true })
+      .eq("handle", handle);
+
+    if (error) return false;
+    return count === 0;
+  },
 };

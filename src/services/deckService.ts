@@ -519,6 +519,25 @@ export const deckService = {
 
       if (error) throw error;
 
+      // Extract unique user IDs from decks to fetch handles
+      const ownerIds = [
+        ...new Set((data || []).map((item) => (item.deck as any).user_id)),
+      ];
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, handle")
+        .in("id", ownerIds);
+
+      if (profilesError) {
+        console.error("Error fetching profiles for library:", profilesError);
+      }
+
+      const handlesMap = (profilesData || []).reduce((acc, curr) => {
+        acc[curr.id] = curr.handle;
+        return acc;
+      }, {} as Record<string, string>);
+
       // Fetch notes for these decks in parallel
       const deckIds = (data || []).map((item) => (item.deck as any).id);
       const { data: notesData, error: notesError } = await supabase
@@ -542,6 +561,7 @@ export const deckService = {
       // Flatten the response so it looks like an array of decks (with extra library metadata if needed)
       return (data || []).map((item: any) => ({
         ...item.deck,
+        user_handle: handlesMap[item.deck?.user_id] || "username",
         saved_at: item.created_at,
         last_viewed_at: item.last_viewed_at,
         library_id: item.id,

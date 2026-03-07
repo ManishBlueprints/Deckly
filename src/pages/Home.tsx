@@ -5,13 +5,14 @@ import { useAuth } from "../contexts/AuthContext";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DashboardView } from "../components/DashboardView";
 import { EmptyStateOverlay } from "../components/dashboard/EmptyStateOverlay";
+import { WorkspaceSetupModal } from "../components/dashboard/WorkspaceSetupModal";
 
 function Home() {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [, setBranding] = useState<BrandingSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
 
   useEffect(() => {
     if (session?.user) {
@@ -89,6 +90,13 @@ function Home() {
 
   return (
     <DashboardLayout title="Dashboard">
+      <WorkspaceSetupModal
+        isOpen={!!profile && !profile.handle}
+        userId={session?.user?.id || ""}
+        onComplete={() => {
+          window.location.reload();
+        }}
+      />
       {decks.length === 0 ? <EmptyStateOverlay /> : <DashboardView />}
     </DashboardLayout>
   );

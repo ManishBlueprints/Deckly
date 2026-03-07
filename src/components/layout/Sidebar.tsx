@@ -102,7 +102,7 @@ export function Sidebar() {
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-white tracking-tight truncate leading-none">
-                {branding?.room_name || "Deckly"}
+                {branding?.room_name || "My Workspace"}
               </p>
               <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold mt-0.5">
                 Workspace
@@ -279,6 +279,7 @@ export function Sidebar() {
           onClose={() => setShowSettings(false)}
           branding={branding}
           onUpdate={(newBranding) => setBranding(newBranding)}
+          userProfile={profile || undefined}
         />,
         document.body,
       )}

@@ -27,25 +27,8 @@ export function DashboardLayout({
     navigate(href);
   };
 
-  const [roomName, setRoomName] = React.useState<string>(() => {
-    try {
-      const cached = localStorage.getItem("deckly-room-name");
-      return cached || initialTitle;
-    } catch {
-      return initialTitle;
-    }
-  });
-
   const loading = false;
   const isRefreshing = false;
-
-  // Sync roomName with branding global state
-  React.useEffect(() => {
-    if (branding?.room_name) {
-      setRoomName(branding.room_name);
-      localStorage.setItem("deckly-room-name", branding.room_name);
-    }
-  }, [branding?.room_name]);
 
   return (
     <div className="flex h-screen bg-[#09090b] overflow-hidden font-outfit selection:bg-deckly-primary/30">
@@ -72,7 +55,7 @@ export function DashboardLayout({
                   className="w-8 h-8 object-contain md:hidden rounded-xl bg-white/[0.05] p-1 border border-white/10"
                 />
                 <span className="truncate flex items-center gap-2">
-                  {loading && !roomName ? "..." : roomName}
+                  {initialTitle}
                   {isRefreshing && !loading && (
                     <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-deckly-primary rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.5)] shrink-0" />
                   )}
