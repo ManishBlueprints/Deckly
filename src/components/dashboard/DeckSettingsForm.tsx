@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import * as pdfjsLib from "pdfjs-dist";
+import { useNavigate } from "react-router-dom";
 import { deckService } from "../../services/deckService";
 import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
@@ -46,6 +47,7 @@ export function DeckSettingsForm({
   const [newFile, setNewFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile } = useAuth();
+  const navigate = useNavigate();
 
   // PDF Processing Logic
   const processPdfToImages = async (pdfFile: File) => {
@@ -135,7 +137,10 @@ export function DeckSettingsForm({
       const updated = await deckService.updateDeck(deck.id, updates, userId);
       onUpdate(updated);
       setUploadProgress("Changes Synced!");
-      setTimeout(() => setUploadProgress(""), 2000);
+      setTimeout(() => {
+        setUploadProgress("");
+        navigate("/content");
+      }, 800);
       setNewFile(null);
     } catch (err: any) {
       console.error("Sync error:", err);
@@ -189,7 +194,7 @@ export function DeckSettingsForm({
         setViewPassword={setViewPassword}
       />
 
-      <div className="flex justify-end pt-2 pb-6 px-1">
+      <div className="flex justify-end pt-6 mt-6 border-t border-[#222]">
         <Button
           type="button"
           onClick={(e: React.MouseEvent) => {
@@ -198,14 +203,14 @@ export function DeckSettingsForm({
             handleSave();
           }}
           disabled={isSaving}
-          className="w-full sm:w-auto rounded-2xl px-12 py-7 font-bold uppercase tracking-[0.2em] text-[10px] bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90 shadow-2xl shadow-deckly-primary/20 active:scale-[0.98] transition-all disabled:opacity-50"
+          className="w-full sm:w-auto h-11 px-8 rounded-md font-semibold text-sm bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90 transition-all disabled:opacity-50"
         >
           {isSaving ? (
-            <div className="w-3 h-3 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin mr-2" />
+            <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin mr-2" />
           ) : (
-            <Save size={14} className="mr-2" strokeWidth={3} />
+            <Save size={16} className="mr-2" />
           )}
-          {isSaving ? "SAVING..." : "SAVE CHANGES"}
+          {isSaving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
 
@@ -218,10 +223,10 @@ export function DeckSettingsForm({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-slate-900 border border-white/10 px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl"
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-[#111] border border-[#333] px-6 py-3 rounded-md flex items-center gap-3 shadow-2xl"
           >
             <div className="w-4 h-4 border-2 border-deckly-primary/30 border-t-deckly-primary rounded-full animate-spin" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-deckly-primary">
+            <span className="text-sm font-medium text-white">
               {uploadProgress}
             </span>
           </motion.div>

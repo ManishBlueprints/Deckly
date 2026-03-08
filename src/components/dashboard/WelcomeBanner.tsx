@@ -1,5 +1,4 @@
-import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -15,53 +14,47 @@ export function WelcomeBanner() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden rounded-[40px] border border-white/10 bg-[#09090b]/40 backdrop-blur-2xl p-8 md:p-12 mb-12 glass-shiny group"
-    >
-      {/* Decorative Emerald Glow */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-deckly-primary/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-deckly-primary/20 transition-all duration-700" />
+    <div className="relative overflow-hidden rounded-lg border border-[#222] bg-[#10120f] p-6 md:p-8 mb-8 mt-2">
+      {/* Subtle Green Grid Pattern */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.20]"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, #22c55e 1px, transparent 1px),
+            linear-gradient(to bottom, #22c55e 1px, transparent 1px)
+          `,
+          backgroundSize: "32px 32px",
+          maskImage:
+            "linear-gradient(to bottom right, black 20%, transparent 80%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom right, black 20%, transparent 80%)",
+        }}
+      />
 
-      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-        <div className="flex-1 space-y-4 text-center md:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-deckly-primary/10 border border-deckly-primary/20">
-            <Sparkles size={14} className="text-deckly-primary animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-deckly-primary">
-              v2.0 Dashboard
-            </span>
-          </div>
-
-          <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight leading-tight">
-            {getGreeting()},{" "}
-            <span className="text-deckly-primary">{firstName}</span>.
+      <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">
+            {getGreeting()}, {firstName}
           </h1>
-
-          <p className="text-slate-400 text-sm md:text-base font-medium max-w-xl">
-            Welcome back to your command center. Your pitch decks are performing
-            <span className="text-white font-bold ml-1">12% better</span> this
-            week.
+          <p className="text-sm text-slate-400 mt-1">
+            Here's what's happening with your decks today.
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
-          <Link to="/upload" className="w-full sm:w-auto">
-            <button className="w-full sm:w-auto px-8 py-4 bg-deckly-primary text-slate-950 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl shadow-[0_10px_30px_rgba(34,197,94,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3">
-              <Upload size={18} />
-              New Deck
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <Link to="/rooms" className="flex-1 md:flex-none">
+            <button className="w-full md:w-auto h-9 px-4 bg-[#10120f] border border-[#333] text-slate-200 text-sm font-medium rounded-md hover:bg-[#1a1a1a] transition-colors flex items-center justify-center gap-2">
+              View Rooms
             </button>
           </Link>
-          <Link to="/rooms" className="w-full sm:w-auto">
-            <button className="w-full sm:w-auto px-8 py-4 bg-white/5 border border-white/10 text-white font-bold text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 group/btn">
-              View Rooms
-              <ArrowRight
-                size={16}
-                className="group-hover/btn:translate-x-1 transition-transform"
-              />
+          <Link to="/upload" className="flex-1 md:flex-none">
+            <button className="w-full md:w-auto h-9 px-4 bg-deckly-primary text-slate-950 text-sm font-medium rounded-md hover:bg-emerald-400 transition-colors flex items-center justify-center gap-2 shadow-sm">
+              <Upload size={14} />
+              New Deck
             </button>
           </Link>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

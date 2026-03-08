@@ -62,7 +62,7 @@ function DeckDetailPanel({
   onShowAnalytics,
   onUpdate,
 }: DeckDetailPanelProps) {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const userId = session?.user?.id;
   const [editValues, setEditValues] = useState({
     title: "",
@@ -270,7 +270,11 @@ function DeckDetailPanel({
               Asset Intelligence
             </h2>
           </div>
-          <a href={`/${deck.slug}`} target="_blank" rel="noreferrer">
+          <a
+            href={`/${profile?.handle}/${deck.slug}`}
+            target="_blank"
+            rel="noreferrer"
+          >
             <Button variant="ghost" size="small" icon={ExternalLink}>
               View Room
             </Button>
