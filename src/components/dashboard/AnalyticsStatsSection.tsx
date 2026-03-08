@@ -16,11 +16,13 @@ export function AnalyticsStatsSection({
   loading,
 }: AnalyticsStatsSectionProps) {
   return (
-    <div className="w-full md:w-[420px] border-b md:border-b-0 md:border-r border-white/5 p-8 md:p-14 md:space-y-20 bg-white/[0.01]">
-      <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 mb-6 md:mb-0">
-        Engagement Metrics
-      </h3>
-      <div className="overflow-x-auto no-scrollbar -mx-8 px-8 md:mx-0 md:px-0">
+    <div className="w-full md:w-[420px] border-b md:border-b-0 md:border-r border-[#222] bg-[#111]">
+      <div className="px-5 py-4 border-b border-[#222] bg-[#141414] rounded-tl-lg">
+        <h3 className="text-sm font-medium text-slate-200">
+          Engagement Metrics
+        </h3>
+      </div>
+      <div className="overflow-x-auto no-scrollbar p-6 md:p-12 md:space-y-16">
         <div className="flex flex-row md:flex-col gap-10 md:space-y-16 md:gap-0 pb-4 md:pb-0 min-w-max md:min-w-0">
           {loading
             ? Array(3)

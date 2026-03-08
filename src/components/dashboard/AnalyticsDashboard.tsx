@@ -59,7 +59,7 @@ export function AnalyticsDashboard() {
 
   return (
     <DashboardCard
-      className="min-h-[400px] md:min-h-[600px] border-white/5 shadow-2xl"
+      className="min-h-[400px] md:min-h-[600px] border-[#222]"
       contentClassName="flex flex-col md:flex-row border-t-0 h-full relative"
     >
       {isRefreshing && !loading && (
@@ -72,26 +72,26 @@ export function AnalyticsDashboard() {
       )}
       <AnalyticsStatsSection items={overviewItems} loading={loading} />
 
-      <div className="flex-1 flex flex-col bg-white/[0.01]">
+      <div className="flex-1 flex flex-col bg-[#111] border-l border-[#222]">
         <Tabs defaultValue="VISITS" className="flex-1 flex flex-col">
-          <div className="flex items-center justify-center p-6 md:p-10 bg-white/[0.02] border-b border-white/5">
-            <TabsList className="bg-white/5 border border-white/10 p-1.5 h-auto rounded-2xl gap-2 backdrop-blur-md shadow-inner">
+          <div className="flex items-center justify-center h-[53px] bg-[#141414] border-b border-[#222] rounded-tr-lg">
+            <TabsList className="bg-[#111] border border-[#333] p-1 h-auto rounded-md gap-1">
               <TabsTrigger
                 value="VISITS"
-                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
+                className="rounded text-xs font-medium px-4 py-1 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200"
               >
                 Visits
               </TabsTrigger>
               <TabsTrigger
                 value="TIME"
-                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
+                className="rounded text-xs font-medium px-4 py-1 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200"
               >
                 <span className="md:hidden">Time</span>
                 <span className="hidden md:inline">Duration</span>
               </TabsTrigger>
               <TabsTrigger
                 value="BOOKMARKS"
-                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
+                className="rounded text-xs font-medium px-4 py-1 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200"
               >
                 <span className="md:hidden">Saved</span>
                 <span className="hidden md:inline">Bookmarks</span>
