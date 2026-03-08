@@ -56,12 +56,12 @@ export function Sidebar() {
   return (
     <aside
       style={{ width: isCollapsed ? 64 : 240 }}
-      className="bg-[#0f0f0f] flex flex-col h-screen border-r border-[#222] shrink-0 relative z-20 transition-all duration-300"
+      className="bg-[#10120f] flex flex-col h-screen border-r border-[#222] shrink-0 relative z-20 transition-all duration-300"
     >
       {/* Collapse toggle */}
       <button
         onClick={toggleCollapsed}
-        className="absolute top-5 -right-3 z-30 w-6 h-6 rounded-full bg-[#111] border border-[#333] flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"
+        className="absolute top-5 -right-3.5 z-30 w-7 h-7 rounded-full bg-[#10120f] border border-[#333] flex items-center justify-center text-slate-400 hover:text-slate-200 shadow-xl transition-all active:scale-90"
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         <ChevronLeft
@@ -182,7 +182,7 @@ export function Sidebar() {
       </nav>
 
       {/* ── User Profile Footer ── */}
-      <div className={cn("p-3 shrink-0 border-t border-[#222] bg-[#0f0f0f]")}>
+      <div className={cn("p-3 shrink-0 border-t border-[#222] bg-[#10120f]")}>
         <div
           className={cn(
             "flex items-center gap-3 p-2 rounded-md transition-colors group",

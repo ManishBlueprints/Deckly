@@ -30,15 +30,15 @@ export function DashboardLayout({
   const isRefreshing = false;
 
   return (
-    <div className="flex h-screen bg-[#0f0f0f] overflow-hidden font-outfit selection:bg-deckly-primary/30 text-slate-200">
+    <div className="flex h-screen bg-[#10120f] overflow-hidden font-outfit selection:bg-deckly-primary/30 text-slate-200">
       {/* Sidebar - desktop only */}
-      <div className="hidden md:block relative z-10 w-[240px] shrink-0 border-r border-[#222]">
+      <div className="hidden md:block relative z-20 shrink-0">
         <Sidebar />
       </div>
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
         {/* Top Header */}
-        <header className="h-16 flex items-center justify-between px-6 border-b border-[#222] bg-[#0f0f0f] shrink-0 z-20">
+        <header className="h-16 flex items-center justify-between px-6 border-b border-[#222] bg-[#10120f] shrink-0 z-20">
           <div className="flex items-center gap-4 flex-1">
             <h1 className="text-lg font-semibold text-slate-100 flex items-center gap-2 md:gap-3 tracking-tight">
               <img
