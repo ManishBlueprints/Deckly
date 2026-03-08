@@ -22,8 +22,13 @@ const NAV_ITEMS = [
   { icon: FileText, label: "Content", href: "/content" },
   { icon: Monitor, label: "Rooms", href: "/rooms" },
   { icon: Bookmark, label: "Saved Decks", href: "/saved-decks" },
-  { icon: BarChart3, label: "Analytics", href: "/analytics", disabled: true },
-  { icon: MessageCircle, label: "Requests", href: "/requests", disabled: true },
+  {
+    icon: BarChart3,
+    label: "Full Analytics",
+    href: "/analytics",
+    disabled: true,
+  },
+  { icon: MessageCircle, label: "Messages", href: "/requests", disabled: true },
 ];
 
 function getInitialCollapsed(): boolean {
