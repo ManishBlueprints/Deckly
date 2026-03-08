@@ -7,13 +7,6 @@ import { getTierConfig } from "../constants/tiers";
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
 
-const statsCache = new Map<string, { data: DeckStats[]; timestamp: number }>();
-const pendingRequests = new Map<string, Promise<DeckStats[]>>();
-const CACHE_TTL = 120000; // 2 minutes cache
-const totalStatsCache = new Map<string, { data: any; timestamp: number }>();
-const dailyMetricsCache = new Map<string, { data: any; timestamp: number }>();
-const topDecksCache = new Map<string, { data: any; timestamp: number }>();
-
 export const analyticsService = {
   // Track when someone views a deck
   trackDeckView(deck: Deck, metadata: Record<string, any> = {}) {
@@ -65,10 +58,9 @@ export const analyticsService = {
   getVisitorId(): string {
     let visitorId = localStorage.getItem("deckly_visitor_id");
     if (!visitorId) {
-      visitorId =
-        typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : "v-" + Math.random().toString(36).substring(2, 15);
+      visitorId = typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : "v-" + Math.random().toString(36).substring(2, 15);
       localStorage.setItem("deckly_visitor_id", visitorId);
     }
     return visitorId;
@@ -164,7 +156,6 @@ export const analyticsService = {
     deckId: string,
     isPro: boolean = false,
     providedUserId?: string,
-    forceRefresh: boolean = false,
   ): Promise<DeckStats[]> {
     let userId = providedUserId;
 
@@ -178,54 +169,26 @@ export const analyticsService = {
 
     const tier = getTierConfig(isPro);
 
-    // Cache check
-    const cacheKey = `${deckId}-${userId}-${tier.days}`;
-    const cached = statsCache.get(cacheKey);
-    if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.data;
-    }
+    return withRetry(async () => {
+      const cutoffDate = new Date(
+        Date.now() - tier.days * 24 * 60 * 60 * 1000,
+      ).toISOString();
 
-    // Request collapsing: if a request for this key is already in flight, reuse its promise
-    if (!forceRefresh && pendingRequests.has(cacheKey)) {
-      return pendingRequests.get(cacheKey)!;
-    }
+      const { data, error } = await supabase
+        .from("deck_stats")
+        .select("*")
+        .eq("deck_id", deckId)
+        .eq("user_id", userId)
+        .gt("updated_at", cutoffDate)
+        .order("page_number", { ascending: true });
 
-    const fetchPromise = withRetry(async () => {
-      try {
-        const cutoffDate = new Date(
-          Date.now() - tier.days * 24 * 60 * 60 * 1000,
-        ).toISOString();
-
-        const { data, error } = await supabase
-          .from("deck_stats")
-          .select("*")
-          .eq("deck_id", deckId)
-          .eq("user_id", userId)
-          .gt("updated_at", cutoffDate)
-          .order("page_number", { ascending: true });
-
-        if (error) throw error;
-
-        const result = data as DeckStats[];
-        statsCache.set(cacheKey, { data: result, timestamp: Date.now() });
-        return result;
-      } finally {
-        pendingRequests.delete(cacheKey);
-      }
+      if (error) throw error;
+      return data as DeckStats[];
     });
-
-    pendingRequests.set(cacheKey, fetchPromise);
-    return fetchPromise;
   },
 
   // Get top performing decks based on total views
   async getTopPerformingDecks(userId: string, limit: number = 3) {
-    const cacheKey = `top-${userId}-${limit}`;
-    const cached = topDecksCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < 60000) { // 1 min cache
-      return cached.data;
-    }
-
     // 1. Get time stats from deck_stats
     const { data: statsData, error: statsError } = await supabase
       .from("deck_stats")
@@ -236,7 +199,7 @@ export const analyticsService = {
 
     // Aggregate time by deck_id and collect titles
     const deckInfo: Record<string, { title: string; time: number }> = {};
-    for (const row of (statsData as any[])) {
+    for (const row of statsData as any[]) {
       const id = row.deck_id;
       if (!deckInfo[id]) {
         deckInfo[id] = { title: row.decks?.title || "Untitled", time: 0 };
@@ -246,7 +209,6 @@ export const analyticsService = {
 
     const deckIds = Object.keys(deckInfo);
     if (deckIds.length === 0) {
-      topDecksCache.set(cacheKey, { data: [], timestamp: Date.now() });
       return [];
     }
 
@@ -257,7 +219,7 @@ export const analyticsService = {
       .in("deck_id", deckIds);
 
     const visitorsByDeck = new Map<string, Set<string>>();
-    for (const row of (viewData || [])) {
+    for (const row of viewData || []) {
       if (!visitorsByDeck.has(row.deck_id)) {
         visitorsByDeck.set(row.deck_id, new Set());
       }
@@ -265,27 +227,21 @@ export const analyticsService = {
     }
 
     // 3. Merge and sort
-    const result = deckIds.map(id => ({
-      id,
-      title: deckInfo[id].title,
-      views: visitorsByDeck.get(id)?.size || 0,
-      time: deckInfo[id].time,
-    }))
+    const result = deckIds
+      .map((id) => ({
+        id,
+        title: deckInfo[id].title,
+        views: visitorsByDeck.get(id)?.size || 0,
+        time: deckInfo[id].time,
+      }))
       .sort((a, b) => b.views - a.views)
       .slice(0, limit);
 
-    topDecksCache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
   },
 
   // Get daily metrics for the last 7 days (optionally filtered by deck)
   async getDailyMetrics(userId: string, deckId?: string) {
-    const cacheKey = `daily-${userId}-${deckId || "all"}`;
-    const cached = dailyMetricsCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < 60000) { // 1 min cache
-      return cached.data;
-    }
-
     const days = 7;
     const labels: string[] = [];
     const visits: number[] = [];
@@ -297,98 +253,90 @@ export const analyticsService = {
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      
-      labels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
-      dateKeys.push(d.toISOString().split('T')[0]);
+
+      labels.push(d.toLocaleDateString("en-US", { weekday: "short" }));
+      dateKeys.push(d.toISOString().split("T")[0]);
       visits.push(0);
       timeSpent.push(0);
       bookmarks.push(0);
     }
 
     try {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        sevenDaysAgo.setHours(0, 0, 0, 0);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
 
-        // 1. Fetch user's deck IDs
-        let deckIdsQuery = supabase
-            .from("decks")
-            .select("id")
-            .eq("user_id", userId);
-        
-        if (deckId) {
-            deckIdsQuery = deckIdsQuery.eq("id", deckId);
+      // 1. Fetch user's deck IDs
+      let deckIdsQuery = supabase.from("decks").select("id").eq(
+        "user_id",
+        userId,
+      );
+
+      if (deckId) {
+        deckIdsQuery = deckIdsQuery.eq("id", deckId);
+      }
+
+      const { data: userDecks } = await deckIdsQuery;
+
+      const deckIds = (userDecks || []).map((d) => d.id);
+      if (deckIds.length === 0) return { labels, visits, timeSpent, bookmarks };
+
+      // 2. Fetch both page views and bookmarks in parallel
+      const [vResult, bResult] = await Promise.all([
+        supabase
+          .from("deck_page_views")
+          .select("viewed_at, visitor_id, deck_id, time_spent")
+          .in("deck_id", deckIds)
+          .gt("viewed_at", sevenDaysAgo.toISOString()),
+        supabase
+          .from("investor_library")
+          .select("created_at, deck_id")
+          .in("deck_id", deckIds)
+          .gt("created_at", sevenDaysAgo.toISOString()),
+      ]);
+
+      if (vResult.error) throw vResult.error;
+      if (bResult.error) throw bResult.error;
+
+      const vData = vResult.data || [];
+      const bData = bResult.data || [];
+
+      // Tracks unique visitor/deck combos per day to count as "one visit"
+      const dayVisitsMap = dateKeys.map(() => new Set<string>());
+
+      // Map visits to days using date keys
+      vData.forEach((v) => {
+        const vDate = new Date(v.viewed_at).toISOString().split("T")[0];
+        const index = dateKeys.indexOf(vDate);
+        if (index !== -1) {
+          // Same logic as total views: unique visitor per deck per day
+          dayVisitsMap[index].add(`${v.visitor_id}-${v.deck_id}`);
+          timeSpent[index] += Number(v.time_spent || 0);
         }
+      });
 
-        const { data: userDecks } = await deckIdsQuery;
-        
-        const deckIds = (userDecks || []).map(d => d.id);
-        if (deckIds.length === 0) return { labels, visits, timeSpent, bookmarks };
+      // Map bookmarks to days
+      bData.forEach((b) => {
+        const bDate = new Date(b.created_at).toISOString().split("T")[0];
+        const index = dateKeys.indexOf(bDate);
+        if (index !== -1) {
+          bookmarks[index]++;
+        }
+      });
 
-        // 2. Fetch both page views and bookmarks in parallel
-        const [vResult, bResult] = await Promise.all([
-            supabase
-                .from("deck_page_views")
-                .select("viewed_at, visitor_id, deck_id, time_spent")
-                .in("deck_id", deckIds)
-                .gt("viewed_at", sevenDaysAgo.toISOString()),
-            supabase
-                .from("investor_library")
-                .select("created_at, deck_id")
-                .in("deck_id", deckIds)
-                .gt("created_at", sevenDaysAgo.toISOString())
-        ]);
-
-        if (vResult.error) throw vResult.error;
-        if (bResult.error) throw bResult.error;
-
-        const vData = vResult.data || [];
-        const bData = bResult.data || [];
-
-        // Tracks unique visitor/deck combos per day to count as "one visit"
-        const dayVisitsMap = dateKeys.map(() => new Set<string>());
-
-        // Map visits to days using date keys
-        vData.forEach(v => {
-            const vDate = new Date(v.viewed_at).toISOString().split('T')[0];
-            const index = dateKeys.indexOf(vDate);
-            if (index !== -1) {
-                // Same logic as total views: unique visitor per deck per day
-                dayVisitsMap[index].add(`${v.visitor_id}-${v.deck_id}`);
-                timeSpent[index] += Number(v.time_spent || 0);
-            }
-        });
-
-        // Map bookmarks to days
-        bData.forEach(b => {
-            const bDate = new Date(b.created_at).toISOString().split('T')[0];
-            const index = dateKeys.indexOf(bDate);
-            if (index !== -1) {
-                bookmarks[index]++;
-            }
-        });
-
-        // Convert Sets to counts
-        dayVisitsMap.forEach((set, i) => {
-            visits[i] = set.size;
-        });
+      // Convert Sets to counts
+      dayVisitsMap.forEach((set, i) => {
+        visits[i] = set.size;
+      });
     } catch (err) {
-        console.error("Error fetching daily metrics:", err);
+      console.error("Error fetching daily metrics:", err);
     }
 
-    const result = { labels, visits, timeSpent, bookmarks };
-    dailyMetricsCache.set(cacheKey, { data: result, timestamp: Date.now() });
-    return result;
+    return { labels, visits, timeSpent, bookmarks };
   },
 
   // Get total stats for the user dashboard (optionally filtered by deck)
-  async getUserTotalStats(userId: string, deckId?: string, forceRefresh: boolean = false) {
-    const cacheKey = `total-${userId}-${deckId || "all"}`;
-    const cached = totalStatsCache.get(cacheKey);
-    if (!forceRefresh && cached && Date.now() - cached.timestamp < 10000) { // 10s cache
-      return cached.data;
-    }
-
+  async getUserTotalStats(userId: string, deckId?: string) {
     // 1. Fetch user's deck IDs
     const { data: userDecks } = await supabase
       .from("decks")
@@ -396,9 +344,7 @@ export const analyticsService = {
       .eq("user_id", userId);
 
     if (!userDecks || userDecks.length === 0) {
-      const result = { totalViews: 0, totalTimeSeconds: 0, totalSaves: 0 };
-      totalStatsCache.set(cacheKey, { data: result, timestamp: Date.now() });
-      return result;
+      return { totalViews: 0, totalTimeSeconds: 0, totalSaves: 0 };
     }
 
     const deckIds = deckId ? [deckId] : userDecks.map((d: any) => d.id);
@@ -406,19 +352,38 @@ export const analyticsService = {
     // 2. Fetch everything in parallel
     const [timeResult, viewResult, saveResult] = await Promise.all([
       // Total time
-      supabase.from("deck_stats").select("total_time_seconds").in("deck_id", deckIds),
+      supabase
+        .from("deck_stats")
+        .select("total_time_seconds")
+        .in("deck_id", deckIds),
       // Unique visitors
-      supabase.from("deck_page_views").select("visitor_id, deck_id").in("deck_id", deckIds),
+      supabase
+        .from("deck_page_views")
+        .select("visitor_id, deck_id")
+        .in("deck_id", deckIds),
       // Total saves - use count check
-      supabase.from("investor_library").select("id", { count: 'exact', head: true }).in("deck_id", deckIds)
+      supabase
+        .from("investor_library")
+        .select("id", {
+          count: "exact",
+          head: true,
+        })
+        .in("deck_id", deckIds),
     ]);
 
-    if (timeResult.error) console.error("Error fetching time stats:", timeResult.error);
-    if (viewResult.error) console.error("Error fetching view stats:", viewResult.error);
-    if (saveResult.error) console.error("Error fetching save counts:", saveResult.error);
+    if (timeResult.error) {
+      console.error("Error fetching time stats:", timeResult.error);
+    }
+    if (viewResult.error) {
+      console.error("Error fetching view stats:", viewResult.error);
+    }
+    if (saveResult.error) {
+      console.error("Error fetching save counts:", saveResult.error);
+    }
 
     const totalTimeSeconds = (timeResult.data || []).reduce(
-      (acc, curr) => acc + curr.total_time_seconds, 0
+      (acc, curr) => acc + curr.total_time_seconds,
+      0,
     );
 
     let totalViews = 0;
@@ -437,10 +402,7 @@ export const analyticsService = {
 
     const totalSaves = saveResult.count || 0;
 
-    const result = { totalViews, totalTimeSeconds, totalSaves };
-
-    totalStatsCache.set(cacheKey, { data: result, timestamp: Date.now() });
-    return result;
+    return { totalViews, totalTimeSeconds, totalSaves };
   },
 
   // Get unique visitor count for a deck (distinct people, not slide views)
@@ -472,19 +434,44 @@ export const analyticsService = {
       .eq("deck_id", deckId)
       .order("created_at", { ascending: false });
 
-    // If join fails (often due to missing FK relation in schema), fallback to basic fetch
+    // If join fails (often due to missing FK relation in schema), fallback to manual join
     if (error) {
-      console.warn("Join with profiles failed, falling back to basic bookmarks:", error);
+      console.warn(
+        "Join with profiles failed, falling back to manual join:",
+        error,
+      );
       const { data: basicData, error: basicError } = await supabase
         .from("investor_library")
         .select("created_at, user_id")
         .eq("deck_id", deckId)
         .order("created_at", { ascending: false });
-      
+
       if (basicError) throw basicError;
-      return basicData;
+      if (!basicData || basicData.length === 0) return [];
+
+      const userIds = basicData.map((b) => b.user_id);
+
+      // Fetch profiles manually
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", userIds);
+
+      if (profilesError) {
+        console.error("Failed to fetch profiles for bookmarks:", profilesError);
+        return basicData;
+      }
+
+      const profilesMap = new Map(
+        (profilesData || []).map((p: any) => [p.id, p]),
+      );
+
+      return basicData.map((b) => ({
+        ...b,
+        profiles: profilesMap.get(b.user_id) || null,
+      }));
     }
-    
+
     return data;
   },
 };

@@ -1,5 +1,4 @@
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "./card";
 import { cn } from "../../utils/cn";
 
 interface DashboardCardProps {
@@ -20,30 +19,27 @@ export function DashboardCard({
   headerClassName,
 }: DashboardCardProps) {
   return (
-    <Card
+    <div
       className={cn(
-        "rounded-[32px] border-white/5 overflow-hidden h-full bg-white/[0.02] backdrop-blur-xl shadow-2xl glass-shiny",
+        "rounded-lg border border-[#222] h-full bg-[#10120f]",
+        !className?.includes("overflow-") && "overflow-hidden",
         className,
       )}
     >
       {(title || headerAction) && (
-        <CardHeader
+        <div
           className={cn(
-            "p-6 md:p-8 border-b border-white/5 flex flex-row items-center justify-between space-y-0 bg-white/[0.01]",
+            "px-5 py-4 border-b border-[#222] flex flex-row items-center justify-between bg-[#10120f]",
             headerClassName,
           )}
         >
           {title && (
-            <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-              {title}
-            </CardTitle>
+            <h3 className="text-sm font-medium text-slate-200">{title}</h3>
           )}
           {headerAction}
-        </CardHeader>
+        </div>
       )}
-      <CardContent className={cn("p-0", contentClassName)}>
-        {children}
-      </CardContent>
-    </Card>
+      <div className={cn("p-0 text-sm", contentClassName)}>{children}</div>
+    </div>
   );
 }

@@ -6,6 +6,8 @@ import {
   Bookmark,
   MessageCircle,
   LogOut,
+  ChevronLeft,
+  Settings,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
@@ -14,119 +16,181 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
-import { Settings } from "lucide-react";
-import { motion } from "framer-motion";
 
-const navItems = [
+const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
   { icon: FileText, label: "Content", href: "/content" },
   { icon: Monitor, label: "Rooms", href: "/rooms" },
   { icon: Bookmark, label: "Saved Decks", href: "/saved-decks" },
-  { icon: BarChart3, label: "Analytics", href: "/analytics", disabled: true },
-  { icon: MessageCircle, label: "Requests", href: "/requests", disabled: true },
+  {
+    icon: BarChart3,
+    label: "Full Analytics",
+    href: "/analytics",
+    disabled: true,
+  },
+  { icon: MessageCircle, label: "Messages", href: "/requests", disabled: true },
 ];
+
+function getInitialCollapsed(): boolean {
+  try {
+    return localStorage.getItem("sidebar-collapsed") === "true";
+  } catch {
+    return false;
+  }
+}
 
 export function Sidebar() {
   const location = useLocation();
   const { profile, signOut, session, branding, setBranding } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
+
+  function toggleCollapsed() {
+    const next = !isCollapsed;
+    setIsCollapsed(next);
+    try {
+      localStorage.setItem("sidebar-collapsed", String(next));
+    } catch {}
+  }
 
   return (
-    <aside className="w-72 bg-[#09090b]/50 backdrop-blur-3xl flex flex-col h-screen border-r border-white/5 shrink-0 relative z-20 glass-shiny">
-      {/* Brand/Mascot */}
-      <div className="p-8">
+    <aside
+      style={{ width: isCollapsed ? 64 : 240 }}
+      className="bg-[#10120f] flex flex-col h-screen border-r border-[#222] shrink-0 relative z-20 transition-all duration-300"
+    >
+      {/* Collapse toggle */}
+      <button
+        onClick={toggleCollapsed}
+        className="absolute top-5 -right-3.5 z-30 w-7 h-7 rounded-full bg-[#10120f] border border-[#333] flex items-center justify-center text-slate-400 hover:text-slate-200 shadow-xl transition-all active:scale-90"
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        <ChevronLeft
+          size={14}
+          className={cn(
+            "transition-transform duration-200",
+            isCollapsed ? "rotate-180" : "rotate-0",
+          )}
+        />
+      </button>
+
+      {/* ── Brand Header ── */}
+      <div className={cn("p-4 shrink-0 mt-2")}>
         <div
-          onClick={() => setShowSettings(true)}
-          className="relative w-full aspect-square bg-white/[0.02] rounded-[32px] border border-white/5 overflow-hidden mb-10 group cursor-pointer shadow-2xl transition-all hover:border-deckly-primary/30"
+          className={cn(
+            "flex items-center gap-3",
+            isCollapsed && "justify-center",
+          )}
         >
-          <img
-            src={branding?.logo_url || penguinMascot}
-            alt="Deckly Mascot"
-            className="w-full h-full object-contain p-6 transition-all group-hover:scale-110 group-hover:opacity-40"
-          />
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-            <div className="bg-deckly-primary p-3 rounded-2xl shadow-[0_0_20px_rgba(34,197,94,0.4)] translate-y-4 group-hover:translate-y-0 transition-all duration-300">
-              <Settings size={20} className="text-slate-950" />
+          {/* Logo icon */}
+          <button
+            onClick={() => setShowSettings(true)}
+            title="Workspace Settings"
+            className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center shrink-0 hover:border-deckly-primary transition-colors overflow-hidden relative group"
+          >
+            <img
+              src={branding?.logo_url || penguinMascot}
+              alt="Logo"
+              className="w-full h-full object-contain p-1"
+            />
+            {/* Minimal settings icon overlay */}
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Settings size={14} className="text-white" />
             </div>
-          </div>
-        </div>
+          </button>
 
-        {/* Nav Items */}
-        <nav className="space-y-2">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.href;
-            const content = (
-              <>
-                <item.icon
-                  size={20}
-                  className={cn(
-                    "transition-all duration-300",
-                    isActive
-                      ? "text-deckly-primary scale-110"
-                      : "text-slate-500 " +
-                          (!item.disabled ? "group-hover:text-white" : ""),
-                  )}
-                />
-                <span
-                  className={cn(
-                    "flex-1 font-semibold tracking-tight transition-colors",
-                    isActive
-                      ? "text-white"
-                      : "text-slate-400 group-hover:text-slate-200",
-                  )}
-                >
-                  {item.label}
-                </span>
-                {item.disabled && (
-                  <span className="text-[8px] font-bold bg-white/5 text-slate-600 border border-white/5 px-2 py-0.5 rounded-md uppercase tracking-widest">
-                    SOON
-                  </span>
-                )}
-                {isActive && (
-                  <motion.div
-                    layoutId="activeNav"
-                    className="absolute left-0 w-1 h-6 bg-deckly-primary rounded-r-full shadow-[0_0_15px_rgba(34,197,94,0.5)]"
-                  />
-                )}
-              </>
-            );
-
-            if (item.disabled) {
-              return (
-                <div
-                  key={item.label}
-                  className={cn(
-                    "flex items-center gap-4 px-6 py-3.5 rounded-2xl text-sm font-medium opacity-30 grayscale cursor-not-allowed",
-                    "text-slate-500",
-                  )}
-                >
-                  {content}
-                </div>
-              );
-            }
-
-            return (
-              <Link
-                key={item.label}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-4 px-6 py-3.5 rounded-2xl transition-all duration-300 group text-sm relative",
-                  isActive
-                    ? "bg-white/5 text-white shadow-xl border border-white/5"
-                    : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent",
-                )}
+          {/* Workspace name */}
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0 flex items-center justify-between group">
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
+                onClick={() => setShowSettings(true)}
               >
-                {content}
-              </Link>
-            );
-          })}
-        </nav>
+                <p className="text-[13px] font-semibold text-slate-200 truncate leading-tight">
+                  {branding?.room_name || "Workspace"}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* User / Bottom */}
-      <div className="mt-auto p-6 border-t border-white/5">
-        <div className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.03] border border-white/5 mb-2 hover:bg-white/5 transition-colors group relative overflow-hidden">
-          <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 shadow-lg">
+      {/* ── Nav ── */}
+      <nav
+        className={cn(
+          "flex-1 overflow-y-auto custom-scrollbar p-3 space-y-0.5 mt-2",
+        )}
+      >
+        {NAV_ITEMS.map((item) => {
+          const isActive = location.pathname === item.href;
+
+          if (item.disabled) {
+            return (
+              <div
+                key={item.label}
+                title={item.label}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md opacity-40 cursor-not-allowed",
+                  isCollapsed && "justify-center px-0",
+                )}
+              >
+                <div className="text-slate-500 flex shrink-0">
+                  <item.icon size={16} strokeWidth={1.5} />
+                </div>
+                {!isCollapsed && (
+                  <>
+                    <span className="text-[13px] font-medium text-slate-400 flex-1 truncate">
+                      {item.label}
+                    </span>
+                    <span className="text-[10px] text-slate-500 shrink-0">
+                      Soon
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <Link
+              key={item.label}
+              to={item.href}
+              title={isCollapsed ? item.label : undefined}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                isActive
+                  ? "bg-[#1a1a1a] text-deckly-primary"
+                  : "text-slate-400 hover:bg-[#1a1a1a] hover:text-slate-200",
+                isCollapsed && "justify-center px-0",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex shrink-0",
+                  isActive ? "text-deckly-primary" : "text-slate-400",
+                )}
+              >
+                <item.icon size={16} strokeWidth={1.5} />
+              </div>
+              {!isCollapsed && (
+                <span className={cn("text-[13px] font-medium truncate flex-1")}>
+                  {item.label}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* ── User Profile Footer ── */}
+      <div className={cn("p-3 shrink-0 border-t border-[#222] bg-[#10120f]")}>
+        <div
+          className={cn(
+            "flex items-center gap-3 p-2 rounded-md transition-colors group",
+            isCollapsed && "justify-center",
+          )}
+        >
+          {/* Avatar */}
+          <div className="w-8 h-8 rounded-full bg-slate-800 border border-[#333] overflow-hidden shrink-0 flex items-center justify-center">
             {profile?.avatar_url ? (
               <img
                 src={profile.avatar_url}
@@ -134,58 +198,77 @@ export function Sidebar() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-slate-500 font-bold text-lg">
-                {profile?.full_name?.charAt(0) || "U"}
-              </div>
+              <span className="text-slate-400 font-medium text-xs">
+                {profile?.full_name?.charAt(0) ||
+                  session?.user?.email?.charAt(0) ||
+                  "U"}
+              </span>
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-bold text-white truncate tracking-tight">
-                {profile?.full_name || "User Name"}
-              </p>
-              {(() => {
-                const t = profile?.tier || "FREE";
-                return (
-                  <span
-                    className={cn(
-                      "text-[8px] font-bold uppercase tracking-[0.2em] px-2 py-0.5 rounded-md shrink-0 leading-none border shadow-sm",
-                      t === "PRO_PLUS"
-                        ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
-                        : t === "PRO"
-                          ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                          : "bg-white/5 text-slate-500 border-white/5",
-                    )}
-                  >
-                    {t === "PRO_PLUS" ? "P+" : t}
-                  </span>
-                );
-              })()}
-            </div>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold truncate mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-              {session?.user?.email?.split("@")[0] || "Founder"}
-            </p>
-          </div>
-          <button
-            onClick={() => signOut()}
-            className="p-2 text-slate-600 hover:text-red-400 transition-all active:scale-95 group/logout"
-            title="Sign Out"
-          >
-            <LogOut
-              size={18}
-              className="group-hover/logout:translate-x-0.5 transition-transform"
-            />
-          </button>
+
+          {!isCollapsed && (
+            <>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-[13px] font-medium text-slate-200 truncate">
+                    {profile?.full_name?.split(" ")[0] || "User"}
+                  </p>
+                  {(() => {
+                    const t = profile?.tier || "FREE";
+                    let badgeStyles =
+                      "border-[#333] text-slate-400 bg-slate-800/50";
+                    let badgeLabel = "FREE";
+
+                    if (t === "PRO") {
+                      badgeStyles =
+                        "border-sky-500/30 text-sky-400 bg-sky-500/10";
+                      badgeLabel = "PRO";
+                    } else if (t === "PRO_PLUS") {
+                      badgeStyles =
+                        "border-fuchsia-500/30 text-fuchsia-400 bg-fuchsia-500/10";
+                      badgeLabel = "PRO+";
+                    }
+
+                    return (
+                      <span
+                        className={cn(
+                          "text-[9px] font-mono px-1 border rounded shrink-0 leading-relaxed uppercase",
+                          badgeStyles,
+                        )}
+                      >
+                        {badgeLabel}
+                      </span>
+                    );
+                  })()}
+                </div>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5 pr-2">
+                  {session?.user?.email}
+                </p>
+              </div>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  signOut();
+                }}
+                className="p-1.5 text-slate-500 hover:text-slate-200 rounded-md hover:bg-[#222] transition-colors shrink-0"
+                title="Sign Out"
+              >
+                <LogOut size={16} strokeWidth={1.5} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Render modal at document root to escape sidebar stacking context */}
+      {/* Settings modal */}
       {createPortal(
         <MascotSettingsModal
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           branding={branding}
           onUpdate={(newBranding) => setBranding(newBranding)}
+          userProfile={profile || undefined}
         />,
         document.body,
       )}
