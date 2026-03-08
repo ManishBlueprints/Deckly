@@ -11,6 +11,9 @@ export function useDeckStats(
         queryKey: ["deck-stats", deckId],
         queryFn: () => analyticsService.getDeckStats(deckId!, isPro, userId!),
         enabled: !!deckId && !!userId,
+        staleTime: 0,
+        refetchInterval: 45000,
+        refetchOnWindowFocus: true,
     });
 }
 
@@ -19,6 +22,9 @@ export function useDeckBookmarks(deckId: string | undefined) {
         queryKey: ["deck-bookmarks", deckId],
         queryFn: () => analyticsService.getDeckBookmarks(deckId!),
         enabled: !!deckId,
+        staleTime: 0,
+        refetchInterval: 45000,
+        refetchOnWindowFocus: true,
     });
 }
 
@@ -27,6 +33,9 @@ export function useVisitorSignals(deckId: string | undefined) {
         queryKey: ["visitor-signals", deckId],
         queryFn: () => getVisitorSignals(deckId!),
         enabled: !!deckId,
+        staleTime: 0,
+        refetchInterval: 45000,
+        refetchOnWindowFocus: true,
     });
 }
 
@@ -35,5 +44,8 @@ export function useUniqueVisitorCount(deckId: string | undefined) {
         queryKey: ["unique-visitor-count", deckId],
         queryFn: () => analyticsService.getUniqueVisitorCount(deckId!),
         enabled: !!deckId,
+        staleTime: 0,
+        refetchInterval: 45000,
+        refetchOnWindowFocus: true,
     });
 }
