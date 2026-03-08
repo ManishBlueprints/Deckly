@@ -5,6 +5,7 @@ import { DataRoomCard } from "../components/dashboard/DataRoomCard";
 import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { useDataRoomsWithMeta } from "../hooks/useDataRooms";
+import { cn } from "@/lib/utils";
 
 function DataRoomsPage() {
   const navigate = useNavigate();
@@ -25,9 +26,14 @@ function DataRoomsPage() {
     <DashboardLayout title="Data Rooms">
       <div className="space-y-8 animate-in fade-in duration-700 relative">
         {rooms.length > 0 && (
-          <p className="text-sm font-medium text-slate-400 -mb-4">
-            Bundle assets into shareable secure rooms with access controls
-          </p>
+          <div className="flex flex-col gap-1.5">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Overview
+            </h2>
+            <p className="text-sm font-medium text-slate-400">
+              Bundle assets into shareable secure rooms with access controls
+            </p>
+          </div>
         )}
 
         {isRefreshing && !loading && (
@@ -40,17 +46,18 @@ function DataRoomsPage() {
         )}
 
         {!loading && rooms.length > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4">
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+            <div className="flex items-center gap-3">
               {/* Usage indicator */}
-              <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-[#1a1a1a] border border-[#222] rounded-lg">
+              <div className="flex items-center gap-3 px-4 py-2 bg-[#1a1a1a] border border-[#222] rounded-lg">
                 <div className="flex gap-1.5">
                   {Array.from({ length: Math.min(maxRooms, 5) }).map((_, i) => (
                     <div
                       key={i}
-                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                        i < rooms.length ? "bg-deckly-primary" : "bg-[#222]"
-                      }`}
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                        i < rooms.length ? "bg-deckly-primary" : "bg-[#222]",
+                      )}
                     />
                   ))}
                   {isUnlimited && (
@@ -61,24 +68,26 @@ function DataRoomsPage() {
                 </div>
                 <span className="text-xs font-semibold text-slate-400">
                   {rooms.length}
-                  {!isUnlimited && ` / ${maxRooms}`} Rooms
+                  {!isUnlimited && ` / ${maxRooms}`}
+                  <span className="hidden xs:inline ml-1">Rooms</span>
                 </span>
               </div>
-
-              {/* Create button */}
-              <button
-                onClick={() => !isAtLimit && navigate("/rooms/new")}
-                disabled={isAtLimit}
-                className={`hidden sm:flex flex-none items-center justify-center gap-2 px-6 py-2.5 font-semibold text-xs rounded-lg transition-all active:scale-95 ${
-                  isAtLimit
-                    ? "bg-[#1a1a1a] text-slate-500 border border-[#222] cursor-not-allowed"
-                    : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90"
-                }`}
-              >
-                {isAtLimit ? <Lock size={14} /> : <Plus size={14} />}
-                {isAtLimit ? "Room Limit Reached" : "New Room"}
-              </button>
             </div>
+
+            {/* Create button */}
+            <button
+              onClick={() => !isAtLimit && navigate("/rooms/new")}
+              disabled={isAtLimit}
+              className={cn(
+                "flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-xs rounded-lg transition-all active:scale-95 w-full sm:w-auto",
+                isAtLimit
+                  ? "bg-[#1a1a1a] text-slate-500 border border-[#222] cursor-not-allowed"
+                  : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90",
+              )}
+            >
+              {isAtLimit ? <Lock size={14} /> : <Plus size={14} />}
+              <span>{isAtLimit ? "Limit Reached" : "New Room"}</span>
+            </button>
           </div>
         )}
 
