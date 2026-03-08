@@ -72,10 +72,10 @@ export function AnalyticsDashboard() {
       )}
       <AnalyticsStatsSection items={overviewItems} loading={loading} />
 
-      <div className="flex-1 flex flex-col bg-[#111] border-l border-[#222]">
+      <div className="flex-1 flex flex-col bg-[#10120f] border-l border-[#222]">
         <Tabs defaultValue="VISITS" className="flex-1 flex flex-col">
-          <div className="flex items-center justify-center h-[53px] bg-[#141414] border-b border-[#222] rounded-tr-lg">
-            <TabsList className="bg-[#111] border border-[#333] p-1 h-auto rounded-md gap-1">
+          <div className="flex items-center justify-center h-[53px] bg-[#10120f] border-b border-[#222] rounded-tr-lg">
+            <TabsList className="bg-[#10120f] border border-[#333] p-1 h-auto rounded-md gap-1">
               <TabsTrigger
                 value="VISITS"
                 className="rounded text-xs font-medium px-4 py-1 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200"

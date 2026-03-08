@@ -16,8 +16,8 @@ export function AnalyticsStatsSection({
   loading,
 }: AnalyticsStatsSectionProps) {
   return (
-    <div className="w-full md:w-[420px] border-b md:border-b-0 md:border-r border-[#222] bg-[#111]">
-      <div className="px-5 py-4 border-b border-[#222] bg-[#141414] rounded-tl-lg">
+    <div className="w-full md:w-[420px] border-b md:border-b-0 md:border-r border-[#222] bg-[#10120f]">
+      <div className="px-5 py-4 border-b border-[#222] bg-[#10120f] rounded-tl-lg">
         <h3 className="text-sm font-medium text-slate-200">
           Engagement Metrics
         </h3>

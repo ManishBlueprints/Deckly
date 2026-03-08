@@ -40,7 +40,7 @@ export function ContentStatsCard({
   }, [totalViews, totalTimeSeconds, totalSaves]);
 
   return (
-    <DashboardCard className="py-6 md:py-8 px-6 md:px-10 bg-[#111] border border-[#222] rounded-lg">
+    <DashboardCard className="py-6 md:py-8 px-6 md:px-10 bg-[#10120f] border border-[#222] rounded-lg">
       <div className="flex flex-row items-center justify-around gap-4 md:gap-8">
         {stats.map((stat, i) => (
           <div key={i} className="text-center group flex-1 min-w-0">
@@ -55,7 +55,7 @@ export function ContentStatsCard({
               {stat.sub && (
                 <Badge
                   variant="outline"
-                  className="bg-[#141414] text-xs font-medium text-slate-400 border-[#333] mt-1 md:mt-3 hidden md:inline-flex capitalize"
+                  className="bg-[#10120f] text-xs font-medium text-slate-400 border-[#333] mt-1 md:mt-3 hidden md:inline-flex capitalize"
                 >
                   {stat.sub}
                 </Badge>

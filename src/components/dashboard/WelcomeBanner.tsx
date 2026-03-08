@@ -14,7 +14,7 @@ export function WelcomeBanner() {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-[#222] bg-[#111] p-6 md:p-8 mb-8 mt-2">
+    <div className="relative overflow-hidden rounded-lg border border-[#222] bg-[#10120f] p-6 md:p-8 mb-8 mt-2">
       {/* Subtle Green Grid Pattern */}
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.20]"
@@ -43,7 +43,7 @@ export function WelcomeBanner() {
 
         <div className="flex items-center gap-3 w-full md:w-auto">
           <Link to="/rooms" className="flex-1 md:flex-none">
-            <button className="w-full md:w-auto h-9 px-4 bg-[#141414] border border-[#333] text-slate-200 text-sm font-medium rounded-md hover:bg-[#1a1a1a] transition-colors flex items-center justify-center gap-2">
+            <button className="w-full md:w-auto h-9 px-4 bg-[#10120f] border border-[#333] text-slate-200 text-sm font-medium rounded-md hover:bg-[#1a1a1a] transition-colors flex items-center justify-center gap-2">
               View Rooms
             </button>
           </Link>

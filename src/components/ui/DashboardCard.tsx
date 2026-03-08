@@ -21,14 +21,14 @@ export function DashboardCard({
   return (
     <div
       className={cn(
-        "rounded-lg border border-[#222] overflow-hidden h-full bg-[#111]",
+        "rounded-lg border border-[#222] overflow-hidden h-full bg-[#10120f]",
         className,
       )}
     >
       {(title || headerAction) && (
         <div
           className={cn(
-            "px-5 py-4 border-b border-[#222] flex flex-row items-center justify-between bg-[#141414]",
+            "px-5 py-4 border-b border-[#222] flex flex-row items-center justify-between bg-[#10120f]",
             headerClassName,
           )}
         >
