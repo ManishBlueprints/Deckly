@@ -36,6 +36,7 @@ export function TopDecksCard() {
   return (
     <DashboardCard
       title="Top Performing Decks"
+      className="overflow-visible"
       headerAction={
         <div className="flex items-center gap-3">
           {isRefreshing && !loading && (
@@ -49,7 +50,7 @@ export function TopDecksCard() {
         </div>
       }
     >
-      <Table>
+      <Table containerClassName="overflow-visible">
         <TableHeader className="hidden">
           <TableRow>
             <TableHead>Deck</TableHead>
