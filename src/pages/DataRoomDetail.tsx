@@ -136,11 +136,6 @@ function DataRoomDetail() {
     navigate("/rooms");
   };
 
-  const shareUrl =
-    room && profile?.handle
-      ? `${window.location.origin}/${profile.handle}/room/${room.slug}`
-      : "";
-
   /* ── loading state ── */
   if (loading) {
     return (
@@ -158,146 +153,127 @@ function DataRoomDetail() {
     <DashboardLayout title="Data Rooms" showFab={false}>
       <div className="space-y-6 pb-12">
         {/* ── HEADER BAR ── */}
-        <div className="relative bg-[#09090b]/50 border border-white/5 rounded-3xl overflow-hidden">
-          <div className="absolute top-0 right-0 w-72 h-32 bg-deckly-primary/5 rounded-full blur-[80px] pointer-events-none" />
-
-          <div className="relative z-10 flex items-center gap-4 p-5 pr-6">
+        <div className="relative bg-[#1a1a1a] border border-[#222] rounded-lg overflow-hidden shadow-sm">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6 p-6">
             {/* Back */}
             <button
               onClick={() => navigate("/rooms")}
-              className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+              className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-slate-500 hover:text-white hover:bg-[#222] transition-colors shrink-0"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={14} />
             </button>
 
-            {/* Room Icon */}
-            <div className="w-11 h-11 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
-              {room.icon_url ? (
-                <img
-                  src={room.icon_url}
-                  alt={room.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <Monitor size={18} className="text-slate-500" />
-              )}
-            </div>
+            {/* Room Info */}
+            <div className="flex items-center gap-4 flex-1">
+              <div className="w-10 h-10 rounded-md bg-[#222] border border-[#333] flex items-center justify-center shrink-0 overflow-hidden">
+                {room.icon_url ? (
+                  <img
+                    src={room.icon_url}
+                    alt={room.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Monitor size={18} className="text-slate-500" />
+                )}
+              </div>
 
-            {/* Name + description */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-base font-bold text-white tracking-tight truncate">
-                {room.name}
-              </h1>
-              {room.description && (
-                <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
-                  {room.description}
-                </p>
-              )}
-            </div>
-
-            {/* Security icon pills */}
-            <div className="hidden md:flex items-center gap-2">
-              {room.require_email && (
-                <span
-                  title="Email required"
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 rounded-xl text-[9px] font-bold uppercase tracking-widest text-blue-400"
-                >
-                  <Users size={11} /> Email Gate
-                </span>
-              )}
-              {room.require_password && (
-                <span
-                  title="Password protected"
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-500/10 border border-purple-500/20 rounded-xl text-[9px] font-bold uppercase tracking-widest text-purple-400"
-                >
-                  <LinkIcon size={11} /> Password
-                </span>
-              )}
-              {room.expires_at && (
-                <span
-                  title={`Expires ${formatDate(room.expires_at)}`}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[9px] font-bold uppercase tracking-widest text-amber-400"
-                >
-                  <Calendar size={11} /> Expires
-                </span>
-              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-lg font-semibold text-white tracking-tight truncate">
+                    {room.name}
+                  </h1>
+                  <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                    {room.require_email && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[10px] font-medium text-blue-400">
+                        Email Required
+                      </span>
+                    )}
+                    {room.require_password && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 rounded text-[10px] font-medium text-purple-400">
+                        Password Gate
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {room.description && (
+                  <p className="text-xs text-slate-500 mt-0.5 max-w-xl line-clamp-1">
+                    {room.description}
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={handleCopyLink}
-                className="flex items-center gap-1.5 px-2.5 py-2 md:px-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
-                title="Share"
+                className="flex items-center gap-2 px-3 py-2 bg-[#222] border border-[#333] rounded-md text-sm font-medium text-slate-300 hover:text-white hover:border-[#444] transition-all active:scale-95"
               >
                 {copied ? (
-                  <Check size={13} className="text-deckly-primary" />
+                  <Check size={14} className="text-deckly-primary" />
                 ) : (
-                  <Copy size={13} />
+                  <Copy size={14} />
                 )}
-                <span className="hidden sm:inline">
-                  {copied ? "Copied" : "Share"}
-                </span>
+                <span>{copied ? "Copied" : "Copy Link"}</span>
               </button>
+
               <a
-                href={shareUrl}
+                href={`${window.location.origin}/${profile?.handle}/room/${room.slug}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1.5 px-2.5 py-2 md:px-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
-                title="Preview"
+                className="p-2 bg-[#222] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"
+                title="Preview Public Room"
               >
-                <ExternalLink size={13} />
-                <span className="hidden sm:inline">Preview</span>
+                <ExternalLink size={18} />
               </a>
+
               <button
                 onClick={() => navigate(`/rooms/${roomId}/edit`)}
-                className="flex items-center gap-1.5 px-2.5 py-2 md:px-3 bg-deckly-primary text-slate-950 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-deckly-primary/90 transition-all active:scale-95"
+                className="p-2 bg-[#222] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"
                 title="Edit Details"
               >
-                <Pencil size={13} />
-                <span className="hidden sm:inline">Edit Details</span>
+                <Pencil size={18} />
               </button>
+
               <button
                 onClick={() => setConfirmDelete(true)}
-                className="w-9 h-9 flex items-center justify-center bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 hover:bg-red-500/20 transition-colors active:scale-95"
+                className="p-2 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95"
                 title="Delete Room"
               >
-                <Trash2 size={15} />
+                <Trash2 size={18} />
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Stats bar */}
-          <div className="border-t border-white/5 grid grid-cols-2 md:grid-cols-4 divide-x divide-white/5">
-            <StatItem
-              icon={<FileText size={14} />}
-              label="Assets"
-              value={documents.length}
-            />
-            <StatItem
-              icon={<Users size={14} />}
-              label="Visitors"
-              value={analytics.totalVisitors}
-            />
-            <StatItem
-              icon={<Calendar size={14} />}
-              label="Created"
-              value={formatDate(room.created_at)}
-              isText
-            />
-            <StatItem
-              icon={
-                copied ? (
-                  <Check size={14} className="text-deckly-primary" />
-                ) : (
-                  <LinkIcon size={14} />
-                )
-              }
-              label={copied ? "Copied!" : "Public Link"}
-              value={`/${profile?.handle}/room/${room.slug}`}
-              isText
-              onClick={handleCopyLink}
-            />
+        {/* ── STATS BAR ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard
+            icon={<FileText size={16} />}
+            label="Internal Assets"
+            value={documents.length}
+          />
+          <StatCard
+            icon={<Users size={16} />}
+            label="Total Visitors"
+            value={analytics.totalVisitors}
+          />
+          <StatCard
+            icon={<Calendar size={16} />}
+            label="Created On"
+            value={formatDate(room.created_at)}
+          />
+          <div
+            onClick={handleCopyLink}
+            className="p-4 bg-[#1a1a1a] border border-[#222] rounded-lg group cursor-pointer hover:border-[#333] transition-all"
+          >
+            <div className="flex items-center gap-2 text-slate-500 mb-1 group-hover:text-deckly-primary transition-colors">
+              <LinkIcon size={14} />
+              <span className="text-[10px] font-medium">Access Link</span>
+            </div>
+            <p className="text-xs font-medium text-slate-300 truncate">
+              /{profile?.handle}/room/{room.slug}
+            </p>
           </div>
         </div>
 
@@ -308,34 +284,34 @@ function DataRoomDetail() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText size={14} className="text-deckly-primary" />
-                <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
+                <h2 className="text-xs font-semibold text-slate-400">
                   Room Assets
                 </h2>
-                <span className="text-[9px] font-bold bg-white/5 text-slate-500 px-2 py-0.5 rounded-full border border-white/5">
+                <span className="text-[10px] font-medium bg-[#1a1a1a] text-slate-500 px-2 py-0.5 rounded-full border border-[#222]">
                   {documents.length}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setPickerOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#222] border border-[#333] rounded-md text-xs font-medium text-slate-400 hover:text-white hover:border-[#444] transition-all active:scale-95"
                 >
                   <Plus size={13} /> Add Existing
                 </button>
                 <button
                   onClick={() => navigate(`/upload?returnToRoom=${roomId}`)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-deckly-primary text-slate-950 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-deckly-primary/90 transition-all active:scale-95 shadow shadow-deckly-primary/20"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-deckly-primary text-slate-950 rounded-md text-xs font-semibold hover:bg-deckly-primary/90 transition-all active:scale-95"
                 >
                   <Plus size={13} /> New Deck
                 </button>
               </div>
             </div>
 
-            <div className="bg-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/5 overflow-hidden">
+            <div className="bg-[#1a1a1a] border border-[#222] rounded-lg overflow-hidden">
               {documents.length === 0 ? (
-                <div className="py-16 flex flex-col items-center gap-4 text-center">
-                  <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-600">
-                    <FileText size={22} />
+                <div className="py-12 flex flex-col items-center gap-3 text-center">
+                  <div className="w-12 h-12 rounded-lg bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-slate-600">
+                    <FileText size={20} />
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-500">
@@ -347,7 +323,7 @@ function DataRoomDetail() {
                   </div>
                   <button
                     onClick={() => setPickerOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-deckly-primary text-slate-950 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-deckly-primary/90 transition-all"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-deckly-primary text-slate-950 rounded-md text-xs font-semibold hover:bg-deckly-primary/90 transition-all"
                   >
                     <Plus size={13} /> Add a Deck
                   </button>
@@ -367,19 +343,19 @@ function DataRoomDetail() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users size={14} className="text-deckly-primary" />
-                <h2 className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
+                <h2 className="text-xs font-semibold text-slate-400">
                   Visitor Signals
                 </h2>
               </div>
               {roomSignals.length > 0 && (
-                <span className="text-[9px] font-bold bg-deckly-primary/10 text-deckly-primary px-2.5 py-1 rounded-full border border-deckly-primary/20">
-                  {roomSignals.length} viewer
+                <span className="text-[10px] font-medium bg-deckly-primary/10 text-deckly-primary px-2 py-0.5 rounded-full border border-deckly-primary/20">
+                  {roomSignals.length} Viewer
                   {roomSignals.length !== 1 ? "s" : ""}
                 </span>
               )}
             </div>
 
-            <div className="bg-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/5 overflow-hidden">
+            <div className="bg-[#1a1a1a] border border-[#222] rounded-lg overflow-hidden">
               {signalsLoading ? (
                 <div className="py-12 flex flex-col items-center gap-4 text-slate-600">
                   <div className="w-8 h-8 border-2 border-white/5 border-t-deckly-primary rounded-full animate-spin" />
@@ -389,55 +365,52 @@ function DataRoomDetail() {
                 </div>
               ) : roomSignals.length === 0 ? (
                 <div className="py-12 flex flex-col items-center gap-3 text-center px-6">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-600">
+                  <div className="w-12 h-12 rounded-lg bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-slate-600">
                     <Users size={20} />
                   </div>
-                  <p className="text-xs font-bold text-slate-500">
+                  <p className="text-sm font-semibold text-slate-500">
                     No visitors yet
                   </p>
-                  <p className="text-[9px] text-slate-600 uppercase tracking-widest leading-relaxed">
+                  <p className="text-xs text-slate-600 leading-relaxed">
                     Signals appear when investors view assets in this room
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-white/5">
+                <div className="divide-y divide-[#222]">
                   {roomSignals.map((visitor, idx) => (
                     <div
                       key={visitor.visitorId}
-                      className="p-4 hover:bg-white/[0.02] transition-colors"
+                      className="p-4 hover:bg-[#1a1a1a] transition-colors"
                     >
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                          <span className="text-[10px] font-bold text-deckly-primary uppercase">
+                        <div className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center shrink-0">
+                          <span className="text-[10px] font-semibold text-deckly-primary uppercase">
                             V{idx + 1}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-white truncate">
+                          <p className="text-xs font-semibold text-slate-200 truncate">
                             {visitor.viewerEmail || "Anonymous Viewer"}
                           </p>
                           <div className="flex items-center gap-3 mt-0.5">
-                            <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
-                              {visitor.totalVisits}v
+                            <span className="text-[10px] text-slate-600 font-medium">
+                              {visitor.totalVisits} visits
                             </span>
-                            <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+                            <span className="text-[10px] text-slate-600 font-medium">
                               {visitor.totalTime}s
-                            </span>
-                            <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
-                              {visitor.distinctDays}d
                             </span>
                           </div>
                         </div>
                         {/* Intensity blocks */}
-                        <div className="flex gap-0.5">
+                        <div className="flex gap-1">
                           {[1, 2, 3, 4, 5].map((i) => (
                             <div
                               key={i}
                               className={cn(
-                                "w-2 h-2 rounded-sm",
+                                "w-1.5 h-3 rounded-[1px]",
                                 i <= visitor.signals.length
-                                  ? "bg-deckly-primary shadow-[0_0_6px_rgba(34,197,94,0.4)]"
-                                  : "bg-white/5",
+                                  ? "bg-deckly-primary/40"
+                                  : "bg-[#222]",
                               )}
                             />
                           ))}
@@ -468,31 +441,31 @@ function DataRoomDetail() {
             onClick={() => setConfirmDelete(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.98, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              exit={{ scale: 0.98, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-[#111113] border border-white/10 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
+              className="bg-[#111] border border-[#222] rounded-lg p-6 max-w-sm w-full shadow-2xl text-center"
             >
-              <div className="w-14 h-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                <Trash2 size={24} className="text-red-500" />
+              <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-md flex items-center justify-center mx-auto mb-5">
+                <Trash2 size={20} className="text-red-500" />
               </div>
-              <h3 className="text-base font-bold text-white mb-2">
+              <h3 className="text-lg font-semibold text-white mb-2">
                 Delete {room.name}?
               </h3>
               <p className="text-sm text-slate-500 mb-6">
                 This permanently deletes the room. Your decks remain intact.
               </p>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-slate-400 font-bold text-sm rounded-xl hover:bg-white/10 transition-colors"
+                  className="flex-1 px-4 py-2 bg-[#1a1a1a] border border-[#333] text-slate-400 font-semibold text-sm rounded-md hover:text-white transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteRoom}
-                  className="flex-1 px-4 py-2.5 bg-red-500 text-white font-bold text-sm rounded-xl hover:bg-red-600 transition-colors"
+                  className="flex-1 px-4 py-2 bg-red-500 text-white font-semibold text-sm rounded-md hover:bg-red-600 transition-colors"
                 >
                   Delete
                 </button>
@@ -517,49 +490,22 @@ export default DataRoomDetail;
 
 /* ─────────── Sub-components ─────────── */
 
-function StatItem({
+function StatCard({
   icon,
   label,
   value,
-  isText = false,
-  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string | number;
-  isText?: boolean;
-  onClick?: () => void;
 }) {
   return (
-    <div
-      onClick={onClick}
-      className={cn(
-        "flex flex-col items-center justify-center py-4 px-4 gap-1.5 transition-all duration-300",
-        onClick
-          ? "cursor-pointer hover:bg-white/[0.04] active:scale-95 group/stat"
-          : "",
-      )}
-    >
-      <div
-        className={cn(
-          "text-slate-500 transition-colors duration-300",
-          onClick ? "group-hover/stat:text-deckly-primary" : "",
-        )}
-      >
+    <div className="p-4 bg-[#1a1a1a] border border-[#222] rounded-lg">
+      <div className="flex items-center gap-2 text-slate-500 mb-1">
         {icon}
+        <span className="text-[10px] font-medium">{label}</span>
       </div>
-      <p
-        className={`font-bold tracking-tighter transition-all ${
-          isText
-            ? "text-[11px] uppercase tracking-widest text-slate-400 truncate max-w-[140px]"
-            : "text-2xl text-white"
-        }`}
-      >
-        {value}
-      </p>
-      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500/80">
-        {label}
-      </p>
+      <p className="text-lg font-semibold text-white">{value}</p>
     </div>
   );
 }

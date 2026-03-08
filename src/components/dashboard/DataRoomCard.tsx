@@ -18,11 +18,11 @@ export function DataRoomCard({
   return (
     <button
       onClick={() => navigate(`/rooms/${room.id}`)}
-      className="w-full text-left glass-shiny bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 hover:bg-white/[0.05] hover:border-deckly-primary/30 hover:shadow-2xl hover:shadow-deckly-primary/10 transition-all duration-300 group relative overflow-hidden"
+      className="w-full text-left bg-[#1a1a1a] border border-[#222] rounded-lg p-5 hover:border-deckly-primary/30 transition-all duration-200 group relative overflow-hidden shadow-sm active:scale-[0.99]"
     >
-      <div className="flex items-center gap-5 relative z-10">
+      <div className="flex items-center gap-4 relative z-10">
         {/* Icon */}
-        <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden group-hover:border-deckly-primary/30 group-hover:bg-deckly-primary/5 transition-all duration-300 shadow-inner">
+        <div className="w-12 h-12 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center shrink-0 overflow-hidden group-hover:border-deckly-primary/40 transition-all duration-200">
           {room.icon_url ? (
             <img
               src={room.icon_url}
@@ -31,7 +31,7 @@ export function DataRoomCard({
             />
           ) : (
             <Monitor
-              size={24}
+              size={20}
               className="text-slate-500 group-hover:text-deckly-primary transition-colors"
             />
           )}
@@ -39,29 +39,29 @@ export function DataRoomCard({
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-bold text-white tracking-tight group-hover:text-deckly-primary transition-colors uppercase tracking-[0.05em]">
+          <h3 className="text-base font-semibold text-slate-200 group-hover:text-deckly-primary transition-colors">
             {room.name}
           </h3>
           {room.description && (
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 truncate mt-1">
+            <p className="text-xs text-slate-500 truncate mt-0.5">
               {room.description}
             </p>
           )}
-          <div className="flex items-center gap-4 mt-4">
-            <span className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
+          <div className="flex items-center gap-3 mt-3">
+            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 bg-[#222] px-2 py-0.5 rounded-md border border-[#333]/50">
               <FileText size={12} className="text-deckly-primary" />
-              {documentCount} {documentCount === 1 ? "ASSET" : "ASSETS"}
+              {documentCount} {documentCount === 1 ? "Asset" : "Assets"}
             </span>
-            <span className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
+            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 bg-[#222] px-2 py-0.5 rounded-md border border-[#333]/50">
               <Eye size={12} className="text-deckly-primary" />
-              {totalVisitors} {totalVisitors === 1 ? "VIEWER" : "VIEWERS"}
+              {totalVisitors} {totalVisitors === 1 ? "Viewer" : "Viewers"}
             </span>
           </div>
         </div>
 
         {/* Arrow accent */}
-        <div className="hidden md:flex opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all duration-300">
-          <div className="w-8 h-8 rounded-full bg-deckly-primary flex items-center justify-center text-slate-950 shadow-lg shadow-deckly-primary/20">
+        <div className="hidden md:flex opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-200">
+          <div className="w-7 h-7 rounded-sm bg-deckly-primary flex items-center justify-center text-slate-950">
             <Monitor size={14} />
           </div>
         </div>

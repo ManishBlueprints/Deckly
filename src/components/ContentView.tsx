@@ -40,8 +40,8 @@ export function ContentView() {
   };
 
   return (
-    <div className="space-y-12 pb-12 animate-in fade-in duration-700 relative">
-      <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] -mb-6 md:-mb-4">
+    <div className="space-y-8 pb-12 animate-in fade-in duration-700 relative">
+      <p className="text-slate-400 text-sm font-medium -mb-4">
         Manage your assets and track engagement across all your decks.
       </p>
       {/* Subtle refresh indicator */}

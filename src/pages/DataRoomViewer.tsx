@@ -122,7 +122,7 @@ function DataRoomViewer() {
     : null;
 
   return (
-    <div className="fixed inset-0 bg-[#090b10] flex flex-col items-stretch overflow-hidden">
+    <div className="fixed inset-0 bg-[#0d0d0d] flex flex-col items-stretch overflow-hidden">
       <AnimatePresence mode="wait">
         {loading ? (
           <motion.div
@@ -130,52 +130,43 @@ function DataRoomViewer() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-[#090b10]"
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-[#0d0d0d]"
           >
             <div className="relative">
-              <div className="w-24 h-24 rounded-full border-4 border-white/5" />
-              <div className="absolute inset-0 w-24 h-24 rounded-full border-t-4 border-deckly-primary animate-spin shadow-[0_0_20px_rgba(34,197,94,0.3)]" />
-              <div className="absolute inset-4 rounded-full bg-deckly-primary/10 blur-[15px] animate-pulse" />
+              <div className="w-12 h-12 rounded-full border-2 border-[#222]" />
+              <div className="absolute inset-0 w-12 h-12 rounded-full border-t-2 border-deckly-primary animate-spin" />
             </div>
-            <div className="text-center">
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-deckly-primary mb-2">
-                SYNCHRONIZING SECURE BUNDLE
-              </p>
-              <h2 className="text-xl font-bold text-white uppercase tracking-wider animate-pulse">
-                Accessing Vault
-              </h2>
-            </div>
+            <p className="text-slate-500 text-xs font-semibold tracking-wider">
+              Loading Room...
+            </p>
           </motion.div>
         ) : error || !room ? (
           <motion.div
             key="error"
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-[#090b10]"
+            className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-[#0d0d0d]"
           >
-            <div className="max-w-md w-full glass-shiny border border-white/5 rounded-[3rem] p-12 text-center shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] -mr-32 -mt-32" />
-              <div className="w-24 h-24 bg-red-500/10 rounded-[2rem] flex items-center justify-center text-red-500 mx-auto mb-10 border border-red-500/20 shadow-2xl shadow-red-500/10">
-                <AlertCircle size={48} />
+            <div className="max-w-md w-full bg-[#111] border border-[#222] rounded-lg p-10 text-center shadow-xl">
+              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto mb-6">
+                <AlertCircle size={32} />
               </div>
-              <p className="text-[10px] font-bold text-red-500 uppercase tracking-[0.2em] mb-4">
-                ACCESS SYSTEM ALERT
-              </p>
-              <h2 className="text-3xl font-bold text-white tracking-tight uppercase tracking-wider mb-6">
-                Entry Terminated
+              <h2 className="text-xl font-bold text-white mb-3">
+                Access Restricted
               </h2>
-              <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest leading-relaxed mb-12 opacity-80">
+              <p className="text-slate-500 text-sm leading-relaxed mb-8">
                 {error ||
-                  "The data room you're looking for might have been moved or the link has expired."}
+                  "The document you're looking for might have been moved or the link has expired."}
               </p>
               <Link to="/">
-                <button className="w-full py-5 bg-white text-slate-950 font-bold uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-slate-200 transition-all active:scale-95 shadow-2xl">
-                  RETURN TO BASE
+                <button className="w-full px-6 py-3 bg-white text-black font-semibold rounded-md flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors">
+                  <ArrowLeft size={18} />
+                  Return to Dashboard
                 </button>
               </Link>
             </div>
           </motion.div>
-        ) : !isUnlocked && roomAsDeck ? (
+        ) : !isUnlocked && roomAsDeck && room ? (
           <AccessGate
             deck={roomAsDeck}
             onAccessGranted={(email) => {
@@ -186,7 +177,7 @@ function DataRoomViewer() {
               dataRoomService.checkDataRoomPassword(room.slug, pass)
             }
           />
-        ) : (
+        ) : room ? (
           <motion.div
             key="viewer"
             initial={{ opacity: 0 }}
@@ -210,34 +201,33 @@ function DataRoomViewer() {
             <div
               className={`
                 ${sidebarOpen ? (isMobile ? "w-[280px]" : "w-80") : "w-0"} 
-                bg-[#0e1117] border-r border-white/5 flex flex-col transition-all duration-500 overflow-hidden shrink-0 relative z-50 shadow-2xl
+                bg-[#111] border-r border-[#222] flex flex-col transition-all duration-500 overflow-hidden shrink-0 relative z-50 shadow-xl
                 ${isMobile ? "absolute inset-y-0 left-0" : "relative"}
               `}
             >
               {/* Room Header */}
-              <div className="p-8 border-b border-white/5 bg-white/[0.02]">
-                <div className="flex items-center gap-4">
-                  <div className="relative group">
-                    <div className="absolute inset-0 bg-deckly-primary/20 rounded-2xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="p-6 border-b border-[#222] bg-[#1a1a1a]/30">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
                     {room.icon_url ? (
                       <img
                         src={room.icon_url}
                         alt={room.name}
-                        className="w-12 h-12 rounded-2xl object-cover border border-white/10 relative z-10"
+                        className="w-10 h-10 rounded-md object-cover border border-[#333]"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 relative z-10 hover:border-deckly-primary/30 transition-colors">
-                        <FileText size={20} className="text-deckly-primary" />
+                      <div className="w-10 h-10 rounded-md bg-[#1a1a1a] flex items-center justify-center border border-[#333]">
+                        <FileText size={18} className="text-deckly-primary" />
                       </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-[11px] font-bold text-white uppercase tracking-wider truncate">
+                    <h2 className="text-xs font-semibold text-slate-200 truncate">
                       {room.name}
                     </h2>
-                    <p className="text-[9px] text-slate-600 uppercase tracking-widest font-bold mt-1">
+                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">
                       {documents.length}{" "}
-                      {documents.length === 1 ? "RESOURCE" : "RESOURCES"}
+                      {documents.length === 1 ? "Resource" : "Resources"}
                     </p>
                   </div>
                 </div>
@@ -253,15 +243,15 @@ function DataRoomViewer() {
                     <button
                       key={doc.deck_id}
                       onClick={() => deck && setSelectedDeck(deck)}
-                      className={`w-full flex items-center gap-4 px-4 py-4 rounded-[1.25rem] border transition-all duration-300 group ${
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-md border transition-all duration-200 group ${
                         isActive
-                          ? "bg-deckly-primary/10 border-deckly-primary/30 shadow-[0_0_20px_rgba(34,197,94,0.05)]"
-                          : "hover:bg-white/5 border-transparent hover:border-white/5"
+                          ? "bg-deckly-primary/5 border-deckly-primary/40 shadow-sm"
+                          : "hover:bg-[#1a1a1a] border-transparent"
                       }`}
                     >
                       {/* Thumbnail */}
                       <div
-                        className={`w-12 h-10 rounded-xl bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${isActive ? "border-deckly-primary/30 scale-105 shadow-lg shadow-deckly-primary/10" : "border-white/5 grayscale group-hover:grayscale-0"}`}
+                        className={`w-10 h-8 rounded-sm bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${isActive ? "border-deckly-primary/40 shadow-sm" : "border-[#222] grayscale group-hover:grayscale-0"}`}
                       >
                         {deck?.pages?.[0]?.image_url ? (
                           <img
@@ -279,18 +269,18 @@ function DataRoomViewer() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <p
-                          className={`text-[11px] font-bold uppercase tracking-wider truncate transition-colors ${
+                          className={`text-xs font-semibold truncate transition-colors ${
                             isActive
                               ? "text-deckly-primary"
-                              : "text-white group-hover:text-deckly-primary"
+                              : "text-slate-300 group-hover:text-deckly-primary"
                           }`}
                         >
-                          {deck?.title || "Untitled RESOURCE"}
+                          {deck?.title || "Untitled Resource"}
                         </p>
                         <p
-                          className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-700"}`}
+                          className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-600"}`}
                         >
-                          {deck?.pages?.length || 0} SLIDES
+                          {deck?.pages?.length || 0} Slides
                         </p>
                       </div>
                     </button>
@@ -310,11 +300,11 @@ function DataRoomViewer() {
             {!isMobile && (
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="absolute top-1/2 -translate-y-1/2 z-30 w-8 h-12 flex items-center justify-center bg-[#0e1117] border-y border-r border-white/5 rounded-r-xl text-slate-700 hover:text-deckly-primary hover:bg-white/5 transition-all shadow-2xl"
+                className="absolute top-1/2 -translate-y-1/2 z-30 w-6 h-10 flex items-center justify-center bg-[#111] border border-[#222] rounded-r-md text-slate-500 hover:text-deckly-primary transition-all shadow-xl"
                 style={{ left: sidebarOpen ? "20rem" : "0" }}
               >
                 <ChevronRight
-                  size={18}
+                  size={16}
                   className={`transition-transform duration-500 ${sidebarOpen ? "rotate-180" : ""}`}
                 />
               </button>
@@ -323,9 +313,9 @@ function DataRoomViewer() {
             {isMobile && !sidebarOpen && (
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="absolute top-8 left-4 z-[100] w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl text-white shadow-2xl active:scale-95"
+                className="absolute top-6 left-4 z-[100] w-9 h-9 flex items-center justify-center bg-[#111] border border-[#333] rounded-md text-white shadow-xl active:scale-95"
               >
-                <ChevronRight size={20} />
+                <ChevronRight size={18} />
               </button>
             )}
 
@@ -334,18 +324,16 @@ function DataRoomViewer() {
               {/* Back to room */}
               <Link
                 to="/"
-                className={`absolute ${isMobile ? "top-8 right-4" : "top-8 right-8"} z-[100] group`}
+                className={`absolute ${isMobile ? "top-6 right-4" : "top-6 right-6"} z-[100] group`}
               >
                 <div
-                  className={`flex items-center gap-2 md:gap-4 ${isMobile ? "px-4 py-2.5" : "px-8 py-4"} bg-white/5 backdrop-blur-3xl border border-white/10 rounded-xl md:rounded-[1.25rem] text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all group-hover:shadow-[0_0_30px_rgba(255,255,255,0.05)] active:scale-95`}
+                  className={`flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95`}
                 >
                   <ArrowLeft
-                    size={isMobile ? 14 : 18}
-                    className="group-hover:-translate-x-1 transition-transform"
+                    size={16}
+                    className="group-hover:-translate-x-0.5 transition-transform"
                   />
-                  <span
-                    className={`${isMobile ? "text-[9px]" : "text-[10px]"} font-bold uppercase tracking-[0.2em]`}
-                  >
+                  <span className="text-xs font-semibold">
                     {isMobile ? "Exit" : "Exit Room"}
                   </span>
                 </div>
@@ -373,7 +361,7 @@ function DataRoomViewer() {
               </div>
             </div>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
     </div>
   );

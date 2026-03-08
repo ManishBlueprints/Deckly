@@ -67,20 +67,20 @@ export function DecksTable({
   };
 
   return (
-    <DashboardCard className="mt-8 border-white/5 shadow-2xl glass-shiny">
+    <DashboardCard className="mt-8 bg-[#111] border border-[#222] rounded-lg">
       {/* ─── Mobile Card List ─── */}
-      <div className="md:hidden divide-y divide-white/5">
+      <div className="md:hidden divide-y divide-[#222]">
         {loading ? (
           Array(3)
             .fill(0)
             .map((_, i) => (
-              <div key={i} className="p-6 space-y-4">
-                <div className="h-4 w-40 bg-white/5 animate-pulse rounded-lg" />
-                <div className="h-3 w-24 bg-white/5 animate-pulse rounded-lg" />
+              <div key={i} className="p-4 space-y-3">
+                <div className="h-4 w-40 bg-[#1a1a1a] animate-pulse rounded-md" />
+                <div className="h-3 w-24 bg-[#1a1a1a] animate-pulse rounded-md" />
               </div>
             ))
         ) : decks.length === 0 ? (
-          <p className="p-12 text-center text-slate-500 text-sm font-bold uppercase tracking-widest">
+          <p className="p-8 text-center text-slate-400 text-sm">
             No decks uploaded yet
           </p>
         ) : (
@@ -88,66 +88,64 @@ export function DecksTable({
             <div
               key={deck.id}
               className={clsx(
-                "p-6 flex items-center gap-4",
+                "p-4 flex items-center gap-3",
                 deleteTarget?.id === deck.id &&
                   "opacity-50 pointer-events-none",
               )}
             >
-              <div className="p-3 bg-white/5 rounded-2xl text-slate-400 shrink-0 border border-white/5">
-                <FileText size={20} />
+              <div className="p-2.5 bg-[#141414] rounded-md text-slate-500 shrink-0 border border-[#333]">
+                <FileText size={18} />
               </div>
               <div className="flex-1 min-w-0">
                 <Link
                   to={`/${userHandle}/${deck.slug}`}
                   target="_blank"
-                  className="font-bold text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
+                  className="font-medium text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
                 >
                   {deck.title}
                 </Link>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   {deck.total_views} views · {deck.save_count} saves
                   {deck.last_viewed_at
                     ? ` · ${new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(deck.last_viewed_at)).replace(/\//g, "-")}`
                     : ""}
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => handleCopyLink(deck.slug, deck.id)}
                   className={clsx(
-                    "p-3 rounded-xl transition-all border",
+                    "p-2.5 rounded-md transition-all border",
                     copiedId === deck.id
-                      ? "bg-deckly-primary border-deckly-primary text-slate-950 shadow-[0_0_15px_rgba(34,197,94,0.4)]"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white",
+                      ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
+                      : "bg-[#141414] border-[#333] text-slate-400 hover:text-white",
                   )}
                   title="Copy Link"
                 >
                   {copiedId === deck.id ? (
-                    <Check size={16} strokeWidth={3} />
+                    <Check size={16} />
                   ) : (
-                    <span className="text-[10px] font-bold uppercase tracking-widest px-1">
-                      Copy
-                    </span>
+                    <span className="text-xs px-1">Copy</span>
                   )}
                 </button>
                 <Link
                   to={`/analytics/${deck.id}`}
-                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 rounded-xl transition-all"
+                  className="p-2.5 bg-[#141414] border border-[#333] text-slate-400 hover:text-white rounded-md transition-all"
                 >
-                  <BarChart3 size={18} />
+                  <BarChart3 size={16} />
                 </Link>
                 <Link
                   to={`/edit/${deck.id}`}
-                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/20 rounded-xl transition-all"
+                  className="p-2.5 bg-[#141414] border border-[#333] text-slate-400 hover:text-white rounded-md transition-all"
                 >
-                  <Pencil size={18} />
+                  <Pencil size={16} />
                 </Link>
                 <button
                   onClick={() => handleDeleteClick(deck)}
                   disabled={deleteTarget?.id === deck.id}
-                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 rounded-xl transition-all disabled:opacity-30"
+                  className="p-2.5 bg-[#141414] border border-[#333] text-slate-400 hover:text-red-400 hover:border-red-900/50 hover:bg-red-500/10 rounded-md transition-all disabled:opacity-50"
                 >
-                  <Trash2 size={18} />
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
@@ -159,26 +157,26 @@ export function DecksTable({
       <div className="hidden md:block">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-white/5">
-              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 px-12">
+            <TableRow className="hover:bg-transparent border-[#222]">
+              <TableHead className="text-xs font-semibold text-slate-400 py-4 px-6 capitalize">
                 Name
               </TableHead>
-              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8">
+              <TableHead className="text-xs font-semibold text-slate-400 py-4 capitalize">
                 Upload Date
               </TableHead>
-              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
+              <TableHead className="text-xs font-semibold text-slate-400 py-4 text-center capitalize">
                 Link
               </TableHead>
-              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
+              <TableHead className="text-xs font-semibold text-slate-400 py-4 text-center capitalize">
                 Views
               </TableHead>
-              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
+              <TableHead className="text-xs font-semibold text-slate-400 py-4 text-center capitalize">
                 Saves
               </TableHead>
-              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-center">
+              <TableHead className="text-xs font-semibold text-slate-400 py-4 text-center capitalize">
                 Last Viewed
               </TableHead>
-              <TableHead className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 py-8 text-right px-12">
+              <TableHead className="text-xs font-semibold text-slate-400 py-4 text-right px-6 capitalize">
                 Actions
               </TableHead>
             </TableRow>
@@ -188,27 +186,27 @@ export function DecksTable({
               Array(3)
                 .fill(0)
                 .map((_, i) => (
-                  <TableRow key={i} className="border-white/5">
-                    <TableCell className="px-12 py-8">
-                      <div className="h-4 w-40 bg-white/5 animate-pulse rounded-lg" />
+                  <TableRow key={i} className="border-[#222]">
+                    <TableCell className="px-6 py-4">
+                      <div className="h-4 w-40 bg-[#1a1a1a] animate-pulse rounded-md" />
                     </TableCell>
-                    <TableCell className="py-8">
-                      <div className="h-4 w-24 bg-white/5 animate-pulse rounded-lg" />
+                    <TableCell className="py-4">
+                      <div className="h-4 w-24 bg-[#1a1a1a] animate-pulse rounded-md" />
                     </TableCell>
-                    <TableCell className="py-8">
-                      <div className="h-10 w-32 bg-white/5 animate-pulse rounded-xl mx-auto" />
+                    <TableCell className="py-4">
+                      <div className="h-8 w-24 bg-[#1a1a1a] animate-pulse rounded-md mx-auto" />
                     </TableCell>
-                    <TableCell className="py-8">
-                      <div className="h-4 w-8 bg-white/5 animate-pulse rounded mx-auto" />
+                    <TableCell className="py-4">
+                      <div className="h-4 w-8 bg-[#1a1a1a] animate-pulse rounded mx-auto" />
                     </TableCell>
-                    <TableCell className="py-8">
-                      <div className="h-4 w-8 bg-white/5 animate-pulse rounded mx-auto" />
+                    <TableCell className="py-4">
+                      <div className="h-4 w-8 bg-[#1a1a1a] animate-pulse rounded mx-auto" />
                     </TableCell>
-                    <TableCell className="py-8">
-                      <div className="h-4 w-24 bg-white/5 animate-pulse rounded mx-auto" />
+                    <TableCell className="py-4">
+                      <div className="h-4 w-24 bg-[#1a1a1a] animate-pulse rounded mx-auto" />
                     </TableCell>
-                    <TableCell className="px-12 py-8 text-right">
-                      <div className="h-10 w-24 bg-white/5 animate-pulse rounded-xl ml-auto" />
+                    <TableCell className="px-6 py-4 text-right">
+                      <div className="h-8 w-20 bg-[#1a1a1a] animate-pulse rounded-md ml-auto" />
                     </TableCell>
                   </TableRow>
                 ))
@@ -216,7 +214,7 @@ export function DecksTable({
               <TableRow className="border-transparent">
                 <TableCell
                   colSpan={7}
-                  className="p-32 text-center text-slate-500 font-bold uppercase tracking-widest text-xs"
+                  className="p-20 text-center text-slate-500 text-sm"
                 >
                   No decks uploaded yet
                 </TableCell>
@@ -226,26 +224,26 @@ export function DecksTable({
                 <TableRow
                   key={deck.id}
                   className={clsx(
-                    "group hover:bg-white/[0.02] border-white/5 transition-colors",
+                    "group hover:bg-[#141414] border-[#222] transition-colors",
                     deleteTarget?.id === deck.id &&
                       "opacity-50 pointer-events-none",
                   )}
                 >
-                  <TableCell className="px-12 py-8">
+                  <TableCell className="px-6 py-4">
                     <Link
                       to={`/${userHandle}/${deck.slug}`}
                       target="_blank"
-                      className="flex items-center gap-4 transition-all group/title"
+                      className="flex items-center gap-3 transition-all group/title"
                     >
-                      <div className="p-3 bg-white/5 rounded-2xl text-slate-400 group-hover:text-deckly-primary transition-colors group-hover/title:bg-deckly-primary/10 border border-white/5 shadow-lg">
-                        <FileText size={20} />
+                      <div className="p-2 bg-[#1a1a1a] rounded-md text-slate-500 group-hover:text-deckly-primary transition-colors border border-[#333]">
+                        <FileText size={16} />
                       </div>
-                      <span className="font-bold text-slate-200 group-hover/title:text-deckly-primary transition-colors tracking-tight">
+                      <span className="font-medium text-slate-300 group-hover/title:text-deckly-primary transition-colors">
                         {deck.title}
                       </span>
                     </Link>
                   </TableCell>
-                  <TableCell className="py-8 text-slate-500 font-bold text-xs">
+                  <TableCell className="py-4 text-slate-500 text-xs">
                     {new Intl.DateTimeFormat("en-GB", {
                       day: "2-digit",
                       month: "2-digit",
@@ -254,32 +252,32 @@ export function DecksTable({
                       .format(new Date(deck.created_at))
                       .replace(/\//g, "-")}
                   </TableCell>
-                  <TableCell className="py-8 text-center">
+                  <TableCell className="py-4 text-center">
                     <button
                       onClick={() => handleCopyLink(deck.slug, deck.id)}
                       className={clsx(
-                        "text-[10px] font-bold uppercase tracking-[0.2em] px-5 py-3 rounded-xl transition-all flex items-center gap-2 mx-auto border",
+                        "text-xs px-4 py-2 rounded-md transition-all flex items-center gap-2 mx-auto border",
                         copiedId === deck.id
-                          ? "bg-deckly-primary border-deckly-primary text-slate-950 shadow-[0_0_15px_rgba(34,197,94,0.4)]"
-                          : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20",
+                          ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
+                          : "bg-[#1a1a1a] border-[#333] text-slate-400 hover:text-white hover:border-[#444]",
                       )}
                     >
                       {copiedId === deck.id ? (
                         <>
-                          <Check size={14} strokeWidth={3} /> Copied
+                          <Check size={14} /> Copied
                         </>
                       ) : (
                         "Copy Link"
                       )}
                     </button>
                   </TableCell>
-                  <TableCell className="py-8 text-center font-bold text-white text-lg">
+                  <TableCell className="py-4 text-center text-sm text-slate-300">
                     {deck.total_views}
                   </TableCell>
-                  <TableCell className="py-8 text-center font-bold text-white text-lg">
+                  <TableCell className="py-4 text-center text-sm text-slate-300">
                     {deck.save_count}
                   </TableCell>
-                  <TableCell className="py-8 text-center text-slate-500 font-bold text-xs">
+                  <TableCell className="py-4 text-center text-slate-500 text-xs">
                     {deck.last_viewed_at
                       ? new Intl.DateTimeFormat("en-GB", {
                           day: "2-digit",
@@ -290,38 +288,29 @@ export function DecksTable({
                           .replace(/\//g, "-")
                       : "-"}
                   </TableCell>
-                  <TableCell className="px-12 py-8 text-right">
-                    <div className="flex items-center justify-end gap-3">
+                  <TableCell className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
                       <Link
                         to={`/analytics/${deck.id}`}
-                        className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 rounded-xl transition-all shadow-lg group/icon"
+                        className="p-2 bg-[#1a1a1a] border border-[#333] text-slate-400 hover:bg-[#222] hover:text-white rounded-md transition-all"
                         title="View Detailed Analytics"
                       >
-                        <BarChart3
-                          size={20}
-                          className="group-hover/icon:scale-110 transition-transform"
-                        />
+                        <BarChart3 size={16} />
                       </Link>
                       <Link
                         to={`/edit/${deck.id}`}
-                        className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/20 rounded-xl transition-all shadow-lg group/icon"
+                        className="p-2 bg-[#1a1a1a] border border-[#333] text-slate-400 hover:bg-[#222] hover:text-white rounded-md transition-all"
                         title="Edit Deck"
                       >
-                        <Pencil
-                          size={20}
-                          className="group-hover/icon:scale-110 transition-transform"
-                        />
+                        <Pencil size={16} />
                       </Link>
                       <button
                         onClick={() => handleDeleteClick(deck)}
                         disabled={deleteTarget?.id === deck.id}
-                        className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 rounded-xl transition-all shadow-lg group/icon disabled:opacity-30"
+                        className="p-2 bg-[#1a1a1a] border border-[#333] text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-900/50 rounded-md transition-all disabled:opacity-50"
                         title="Delete Deck"
                       >
-                        <Trash2
-                          size={20}
-                          className="group-hover/icon:scale-110 transition-transform"
-                        />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </TableCell>

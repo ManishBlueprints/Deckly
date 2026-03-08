@@ -231,7 +231,7 @@ function ManageDataRoom() {
               ? new Date(expiryDate).toISOString()
               : null,
         });
-        navigate(`/rooms/${roomId}`);
+        navigate("/content");
       } else {
         const room = await dataRoomService.createDataRoom({
           name: name.trim(),
@@ -259,7 +259,7 @@ function ManageDataRoom() {
           await dataRoomService.addDocuments(room.id, deckIds);
         }
 
-        navigate(`/rooms/${room.id}`);
+        navigate("/content");
       }
 
       // Invalidate queries to refresh dashboard/rooms
@@ -312,122 +312,118 @@ function ManageDataRoom() {
 
   return (
     <DashboardLayout title="Data Rooms" showFab={false}>
-      <div className="max-w-3xl mx-auto p-6 space-y-8">
+      <div className="max-w-3xl mx-auto w-full px-4 md:px-6 space-y-6 pb-20 pt-6">
         {/* Back + Title */}
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-4 relative z-10 border-b border-[#222] pb-4">
           <button
-            onClick={() => navigate(isEditMode ? `/rooms/${roomId}` : "/rooms")}
-            className="w-12 h-12 flex items-center justify-center text-slate-500 hover:text-white transition-all rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:shadow-xl group"
+            onClick={() => navigate("/rooms")}
+            className="flex items-center justify-center w-8 h-8 rounded-md bg-[#111] border border-[#222] text-slate-400 hover:text-white hover:bg-[#141414] transition-all shrink-0"
+            title="Return to Rooms"
           >
-            <ArrowLeft
-              size={20}
-              className="group-hover:-translate-x-1 transition-transform"
-            />
+            <ArrowLeft size={16} />
           </button>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-deckly-primary mb-1">
-              {isEditMode ? "Data Room Configuration" : "Room Initiation"}
-            </p>
-            <h1 className="text-3xl font-bold text-white tracking-tight uppercase tracking-wider">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg md:text-xl font-semibold text-white tracking-tight truncate">
               {isEditMode ? "Modify Assets" : "Create Data Room"}
             </h1>
+            <p className="text-xs text-slate-400 mt-0.5 truncate">
+              {isEditMode ? "Data Room Configuration" : "Room Initiation"}
+            </p>
           </div>
         </div>
 
         {/* Error */}
         {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
+          <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-md text-sm text-red-500">
             {error}
           </div>
         )}
 
         {/* ──── Section 1: Room Identity ──── */}
-        <div className="glass-shiny bg-white/[0.03] backdrop-blur-xl rounded-[32px] border border-white/10 overflow-hidden shadow-2xl relative">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-deckly-primary/5 rounded-full blur-[80px] -mr-32 -mt-32" />
-
-          <div className="px-8 py-6 border-b border-white/5 relative z-10">
-            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Room Branding
-            </h2>
+        <div className="bg-[#111] border border-[#222] rounded-lg overflow-hidden relative">
+          <div className="px-6 py-4 border-b border-[#222]">
+            <h2 className="text-sm font-medium text-white">Room Branding</h2>
           </div>
-          <div className="p-8 space-y-8 relative z-10">
+          <div className="p-6 space-y-6">
             {/* Icon */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-              <div className="w-24 h-24 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 relative group shadow-inner">
+              <div className="w-16 h-16 rounded-md bg-[#0f0f0f] border border-[#222] flex items-center justify-center overflow-hidden shrink-0 relative group">
                 {iconPreview ? (
                   <>
                     <img
                       src={iconPreview}
                       alt="Room icon"
-                      className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500"
+                      className="w-full h-full object-cover transition-all duration-300"
                     />
                     <button
                       onClick={() => {
                         setIconUrl("");
                         setIconPreview("");
                       }}
-                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl backdrop-blur-sm"
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md backdrop-blur-sm"
                     >
                       <Trash2
-                        size={20}
-                        className="text-red-400 hover:scale-110 transition-transform"
+                        size={18}
+                        className="text-white hover:text-red-400 transition-colors"
                       />
                     </button>
                   </>
                 ) : uploadingIcon ? (
                   <Loader2
-                    size={24}
+                    size={20}
                     className="text-deckly-primary animate-spin"
                   />
                 ) : (
                   <Image
-                    size={32}
-                    className="text-slate-700 group-hover:text-deckly-primary transition-colors duration-500"
+                    size={24}
+                    className="text-slate-500 group-hover:text-deckly-primary transition-colors duration-300"
                   />
                 )}
               </div>
-              <div className="space-y-3">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">
-                  ROOM IMAGE
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-slate-300">
+                  Room Image
                 </p>
-                <label className="inline-flex items-center gap-3 px-6 py-2.5 bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 hover:border-deckly-primary/30 rounded-xl text-xs font-bold uppercase tracking-widest cursor-pointer transition-all active:scale-95 shadow-lg">
-                  <Upload size={14} className="text-deckly-primary" />
-                  {iconPreview ? "Modify Badge" : "Upload Badge"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleIconUpload}
-                  />
-                </label>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-700">
-                  Ideal size: 256x256 • Max 1MB
-                </p>
+                <div className="flex items-center gap-3">
+                  <label className="inline-flex items-center justify-center h-9 px-4 bg-[#141414] border border-[#333] hover:border-[#444] rounded-md text-sm font-medium text-white cursor-pointer transition-all">
+                    <Upload size={14} className="mr-2 text-deckly-primary" />
+                    {iconPreview ? "Modify Image" : "Upload Image"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleIconUpload}
+                    />
+                  </label>
+                  <p className="text-xs text-slate-500">
+                    Ideal size: 256x256 • Max 1MB
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Name */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300">
                 Display Name <span className="text-deckly-primary">*</span>
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="PROPOSAL: ALPHA SERIES"
-                className="w-full px-6 py-4 bg-white/5 border border-white/5 rounded-2xl text-sm text-white font-bold uppercase tracking-wider placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-deckly-primary/20 focus:border-deckly-primary/30 transition-all shadow-inner"
+                placeholder="Proposal: Alpha Series"
+                className="w-full h-11 px-4 bg-[#141414] border border-[#333] rounded-md text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary transition-all placeholder:text-slate-500 focus:bg-[#1a1a1a]"
               />
             </div>
 
             {/* Slug */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300">
                 Internal URL <span className="text-deckly-primary">*</span>
               </label>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 flex items-center bg-white/5 border border-white/5 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-deckly-primary/20 focus-within:border-deckly-primary/30 transition-all shadow-inner">
-                  <span className="pl-6 pr-1 text-[11px] font-bold uppercase tracking-widest text-slate-600 select-none whitespace-nowrap">
+              <div className="flex gap-3">
+                <div className="flex-1 flex items-center bg-[#141414] border border-[#333] rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary transition-all focus-within:bg-[#1a1a1a] h-11 relative">
+                  <span className="pl-3 pr-1 text-sm text-slate-500 select-none whitespace-nowrap">
                     /{profile?.handle}/room/
                   </span>
                   <input
@@ -435,13 +431,13 @@ function ManageDataRoom() {
                     value={slug}
                     onChange={(e) => setSlug(normalizeSlug(e.target.value))}
                     placeholder="alpha-series"
-                    className="flex-1 py-4 pr-6 bg-transparent text-sm text-deckly-primary font-bold uppercase tracking-wider focus:outline-none placeholder:text-slate-700"
+                    className="flex-1 h-full pr-3 bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-500"
                   />
                   {isCheckingSlug && (
-                    <div className="pr-4">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <Loader2
-                        size={16}
-                        className="text-slate-600 animate-spin"
+                        size={14}
+                        className="text-slate-500 animate-spin"
                       />
                     </div>
                   )}
@@ -449,16 +445,13 @@ function ManageDataRoom() {
                 {slug && (
                   <button
                     onClick={handleCopyLink}
-                    className="p-4 bg-white/5 border border-white/5 rounded-2xl text-slate-500 hover:text-deckly-primary hover:bg-deckly-primary/5 transition-all shadow-lg active:scale-95 group"
+                    className="flex items-center justify-center w-11 h-11 bg-[#141414] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all shrink-0"
                     title="Copy share link"
                   >
                     {copied ? (
-                      <Check size={20} className="text-deckly-primary" />
+                      <Check size={16} className="text-deckly-primary" />
                     ) : (
-                      <Copy
-                        size={20}
-                        className="group-hover:scale-110 transition-transform"
-                      />
+                      <Copy size={16} />
                     )}
                   </button>
                 )}
@@ -469,12 +462,12 @@ function ManageDataRoom() {
                   isSlugAvailable === false &&
                   !isCheckingSlug && (
                     <motion.p
-                      initial={{ opacity: 0, y: -10 }}
+                      initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="mt-2 ml-1 text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1.5"
+                      exit={{ opacity: 0, y: -5 }}
+                      className="text-xs text-red-500 flex items-center gap-1.5"
                     >
-                      <AlertCircle size={12} />
+                      <AlertCircle size={14} />
                       This slug is already taken
                     </motion.p>
                   )}
@@ -485,15 +478,15 @@ function ManageDataRoom() {
                     <motion.p
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="mt-2 ml-1 text-[10px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1.5"
+                      className="text-xs text-emerald-500 flex items-center gap-1.5"
                     >
-                      <CheckCircle2 size={12} />
+                      <CheckCircle2 size={14} />
                       URL Available
                     </motion.p>
                   )}
               </AnimatePresence>
               {slug && (
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-700 mt-3 ml-1 flex items-center gap-2">
+                <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
                   <LinkIcon size={12} className="text-deckly-primary" />
                   {shareUrl}
                 </p>
@@ -501,34 +494,34 @@ function ManageDataRoom() {
             </div>
 
             {/* Description */}
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300">
                 Contextual Brief
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="ADDITIONAL ROOM CONTEXT..."
+                placeholder="Additional room context..."
                 rows={3}
-                className="w-full px-6 py-4 bg-white/5 border border-white/5 rounded-2xl text-sm text-slate-400 uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-deckly-primary/20 focus:border-deckly-primary/30 transition-all shadow-inner resize-none"
+                className="w-full px-4 py-3 bg-[#141414] border border-[#333] rounded-md text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary transition-all placeholder:text-slate-500 focus:bg-[#1a1a1a] resize-none"
               />
             </div>
           </div>
         </div>
 
         {/* ──── Section 2: Documents ──── */}
-        <div className="glass-shiny bg-white/[0.03] backdrop-blur-xl rounded-[32px] border border-white/10 overflow-hidden shadow-2xl">
-          <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between">
-            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+        <div className="bg-[#111] border border-[#222] rounded-lg overflow-hidden relative">
+          <div className="px-6 py-4 border-b border-[#222] flex items-center justify-between">
+            <h2 className="text-sm font-medium text-white">
               Bundle Composition
             </h2>
             {documents.length > 0 && (
               <button
                 onClick={() => setPickerOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95"
+                className="flex items-center gap-2 h-8 px-3 bg-[#141414] border border-[#333] hover:border-[#444] text-white rounded-md text-xs font-medium transition-all"
               >
                 <Plus size={14} />
-                ADD ASSETS
+                Add Assets
               </button>
             )}
           </div>
@@ -536,24 +529,24 @@ function ManageDataRoom() {
             {documents.length === 0 ? (
               <div
                 onClick={() => setPickerOpen(true)}
-                className="group cursor-pointer border-2 border-dashed border-white/5 bg-white/[0.01] hover:border-deckly-primary/30 hover:bg-deckly-primary/[0.02] rounded-2xl p-12 text-center transition-all duration-500 flex flex-col items-center gap-4 m-2"
+                className="group cursor-pointer border border-dashed border-[#333] hover:border-deckly-primary/30 bg-[#141414] hover:bg-[#1a1a1a] rounded-md p-8 text-center transition-all flex flex-col items-center gap-4"
               >
-                <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-deckly-primary/10 group-hover:border-deckly-primary/20 transition-all duration-500">
+                <div className="w-12 h-12 rounded-lg bg-[#0f0f0f] border border-[#222] flex items-center justify-center group-hover:border-deckly-primary/30 transition-all">
                   <Plus
-                    size={32}
-                    className="text-slate-600 group-hover:text-deckly-primary transition-colors"
+                    size={24}
+                    className="text-slate-500 group-hover:text-deckly-primary transition-colors"
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-bold text-white uppercase tracking-wider">
+                  <p className="text-sm font-semibold text-white">
                     Add documents to your room
                   </p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
-                    Existing Assets will be bundled into a secure link
+                  <p className="text-xs text-slate-500">
+                    Existing assets will be bundled into a secure link
                   </p>
                 </div>
-                <button className="mt-2 px-8 py-3 bg-deckly-primary text-slate-950 font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-deckly-primary/90 transition-all shadow-xl shadow-deckly-primary/20 group-hover:scale-105 active:scale-95">
-                  ADD ASSETS
+                <button className="mt-2 h-9 px-4 bg-deckly-primary text-slate-950 font-semibold text-sm rounded-md hover:bg-deckly-primary/90 transition-all">
+                  Add Assets
                 </button>
               </div>
             ) : (
@@ -567,13 +560,13 @@ function ManageDataRoom() {
         </div>
 
         {/* ──── Section 3: Access Controls ──── */}
-        <div className="glass-shiny bg-white/[0.03] backdrop-blur-xl rounded-[32px] border border-white/10 overflow-hidden shadow-2xl">
-          <div className="px-8 py-6 border-b border-white/5">
-            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Security Protocol
+        <div className="bg-[#111] border border-[#222] rounded-lg overflow-hidden relative">
+          <div className="px-6 py-4 border-b border-[#222]">
+            <h2 className="text-sm font-medium text-white">
+              Security & Access
             </h2>
           </div>
-          <div className="p-8">
+          <div className="p-6">
             <AccessProtectionSection
               requireEmail={requireEmail}
               setRequireEmail={setRequireEmail}
@@ -591,20 +584,18 @@ function ManageDataRoom() {
 
         {/* ──── Section 4: Danger Zone (edit only) ──── */}
         {isEditMode && (
-          <div className="glass-shiny bg-red-500/[0.02] backdrop-blur-xl rounded-[32px] border border-red-500/10 overflow-hidden shadow-2xl">
-            <div className="px-8 py-5 border-b border-red-500/10">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-500/60">
-                Danger Zone
-              </h2>
+          <div className="bg-[#1a0f0f] border border-red-900/50 rounded-lg overflow-hidden relative">
+            <div className="px-6 py-4 border-b border-red-900/30">
+              <h2 className="text-sm font-medium text-red-500">Danger Zone</h2>
             </div>
-            <div className="p-8">
+            <div className="p-6">
               <DangerZoneSection onDelete={handleDelete} />
             </div>
           </div>
         )}
 
         {/* ──── Save Button ──── */}
-        <div className="flex justify-end pb-12">
+        <div className="flex justify-end pt-4 border-t border-[#222]">
           <button
             onClick={handleSave}
             disabled={
@@ -613,12 +604,12 @@ function ManageDataRoom() {
               !slug.trim() ||
               (!isEditMode && !isSlugAvailable)
             }
-            className="flex items-center gap-3 px-12 py-5 bg-deckly-primary text-slate-950 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-deckly-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] shadow-2xl shadow-deckly-primary/20"
+            className="flex items-center justify-center w-full sm:w-auto px-8 h-11 bg-deckly-primary text-slate-950 font-semibold text-sm rounded-md hover:bg-deckly-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
-              <Loader2 size={18} className="animate-spin" />
+              <Loader2 size={16} className="animate-spin mr-2" />
             ) : (
-              <Check size={18} />
+              <Check size={16} className="mr-2" />
             )}
             {isEditMode ? "Finalize Changes" : "Deploy Data Room"}
           </button>

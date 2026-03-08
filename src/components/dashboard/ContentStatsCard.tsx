@@ -40,14 +40,14 @@ export function ContentStatsCard({
   }, [totalViews, totalTimeSeconds, totalSaves]);
 
   return (
-    <DashboardCard className="py-6 md:py-8 px-6 md:px-10 border-white/5 shadow-2xl glass-shiny">
+    <DashboardCard className="py-6 md:py-8 px-6 md:px-10 bg-[#111] border border-[#222] rounded-lg">
       <div className="flex flex-row items-center justify-around gap-4 md:gap-8">
         {stats.map((stat, i) => (
           <div key={i} className="text-center group flex-1 min-w-0">
             <div className="flex items-start justify-center gap-1 md:gap-2 mb-2">
               <span
                 className={cn(
-                  "text-3xl md:text-5xl font-bold tracking-tighter transition-transform group-hover:scale-105 duration-500 text-deckly-primary shadow-premium",
+                  "text-3xl md:text-5xl font-semibold tracking-tight transition-transform group-hover:scale-105 duration-300 text-deckly-primary",
                 )}
               >
                 {loading ? "..." : stat.value}
@@ -55,13 +55,13 @@ export function ContentStatsCard({
               {stat.sub && (
                 <Badge
                   variant="outline"
-                  className="bg-white/5 text-[8px] font-bold uppercase text-slate-500 border-white/10 mt-1 md:mt-3 hidden md:inline-flex"
+                  className="bg-[#141414] text-xs font-medium text-slate-400 border-[#333] mt-1 md:mt-3 hidden md:inline-flex capitalize"
                 >
                   {stat.sub}
                 </Badge>
               )}
             </div>
-            <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-[0.2em] leading-tight">
+            <p className="text-xs font-medium text-slate-400 capitalize">
               {stat.label}
             </p>
           </div>

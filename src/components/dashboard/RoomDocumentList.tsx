@@ -75,12 +75,12 @@ export function RoomDocumentList({
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={() => handleDrop(index)}
               onDragEnd={handleDragEnd}
-              className={`flex items-center gap-4 px-4 py-3 rounded-2xl border transition-all duration-300 group ${
+              className={`flex items-center gap-4 px-4 py-3 rounded-lg border transition-all duration-300 group ${
                 isDragging
-                  ? "opacity-40 border-deckly-primary/50 bg-deckly-primary/10"
+                  ? "opacity-40 border-deckly-primary/50 bg-[#111]"
                   : isDragOver
-                    ? "border-white/20 bg-white/5 scale-[1.02]"
-                    : "glass-shiny border-white/5 hover:border-deckly-primary/30"
+                    ? "border-[#222] bg-[#1a1a1a] scale-[1.01]"
+                    : "bg-[#111] border-[#222] hover:border-deckly-primary/30"
               }`}
             >
               {/* Drag handle */}
@@ -89,17 +89,17 @@ export function RoomDocumentList({
               </div>
 
               {/* Order number */}
-              <span className="text-[10px] font-bold text-slate-700 w-6 text-center shrink-0 uppercase tracking-widest">
+              <span className="text-[10px] font-semibold text-slate-500 w-6 text-center shrink-0 uppercase tracking-wider">
                 {String(index + 1).padStart(2, "0")}
               </span>
 
               {/* Thumbnail */}
-              <div className="w-12 h-10 rounded-xl bg-white/5 border border-white/10 overflow-hidden shrink-0 shadow-inner group-hover:border-deckly-primary/30 transition-all">
+              <div className="w-12 h-10 rounded-md bg-[#1a1a1a] border border-[#222] overflow-hidden shrink-0 group-hover:border-deckly-primary/30 transition-all">
                 {deck?.pages?.[0]?.image_url ? (
                   <img
                     src={deck.pages[0].image_url}
                     alt=""
-                    className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500"
+                    className="w-full h-full object-cover transition-all duration-500"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -110,45 +110,36 @@ export function RoomDocumentList({
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-bold text-white uppercase tracking-wider truncate group-hover:text-deckly-primary transition-colors">
+                <p className="text-xs font-semibold text-white truncate group-hover:text-deckly-primary transition-colors">
                   {deck?.title || "Untitled Asset"}
                 </p>
-                <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-0.5 whitespace-nowrap">
-                  {deck?.pages?.length || 0} SLIDES IN BUNDLE
+                <p className="text-[10px] font-medium text-slate-500 mt-0.5 whitespace-nowrap">
+                  {deck?.pages?.length || 0} Slides
                 </p>
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <Link
                   to={`/analytics/${doc.deck_id}`}
-                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 rounded-xl transition-all shadow-lg group/icon"
+                  className="w-8 h-8 flex items-center justify-center bg-[#1a1a1a] border border-[#333] text-slate-400 hover:text-emerald-400 hover:border-emerald-500/20 rounded-md transition-all active:scale-95"
                   title="View Analytics"
                 >
-                  <BarChart3
-                    size={20}
-                    className="group-hover/icon:scale-110 transition-transform"
-                  />
+                  <BarChart3 size={14} />
                 </Link>
                 <Link
                   to={`/upload?edit=${doc.deck_id}`}
-                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/20 rounded-xl transition-all shadow-lg group/icon"
+                  className="w-8 h-8 flex items-center justify-center bg-[#1a1a1a] border border-[#333] text-slate-400 hover:text-blue-400 hover:border-blue-500/20 rounded-md transition-all active:scale-95"
                   title="Edit Asset"
                 >
-                  <Pencil
-                    size={20}
-                    className="group-hover/icon:scale-110 transition-transform"
-                  />
+                  <Pencil size={14} />
                 </Link>
                 <button
                   onClick={() => onRemove(doc.deck_id)}
-                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 rounded-xl transition-all shadow-lg group/icon"
+                  className="w-8 h-8 flex items-center justify-center bg-[#1a1a1a] border border-[#333] text-slate-400 hover:text-red-400 hover:border-red-500/20 rounded-md transition-all active:scale-95"
                   title="Remove from room"
                 >
-                  <Trash2
-                    size={20}
-                    className="group-hover/icon:scale-110 transition-transform"
-                  />
+                  <Trash2 size={14} />
                 </button>
               </div>
             </div>

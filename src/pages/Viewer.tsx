@@ -19,7 +19,6 @@ import { analyticsService } from "../services/analyticsService";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Deck } from "../types";
-import Button from "../components/common/Button";
 import {
   useIsDeckSaved,
   useSaveToLibraryMutation,
@@ -129,7 +128,7 @@ function Viewer() {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#090b10] flex flex-col items-stretch overflow-hidden">
+    <div className="fixed inset-0 bg-[#0d0d0d] flex flex-col items-stretch overflow-hidden">
       <AnimatePresence mode="wait">
         {loading ? (
           <motion.div
@@ -137,38 +136,39 @@ function Viewer() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-6"
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-[#0d0d0d]"
           >
             <div className="relative">
-              <div className="w-20 h-20 rounded-full border-4 border-white/5" />
-              <div className="absolute inset-0 w-20 h-20 rounded-full border-t-4 border-deckly-primary animate-spin" />
+              <div className="w-12 h-12 rounded-full border-2 border-[#222]" />
+              <div className="absolute inset-0 w-12 h-12 rounded-full border-t-2 border-deckly-primary animate-spin" />
             </div>
-            <p className="text-slate-500 font-bold uppercase tracking-[0.2em] animate-pulse">
-              Loading Room Contents
+            <p className="text-slate-500 text-xs font-semibold tracking-wider">
+              Loading Room...
             </p>
           </motion.div>
         ) : error || !deck ? (
           <motion.div
             key="error"
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="absolute inset-0 z-50 flex items-center justify-center p-6"
+            className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-[#0d0d0d]"
           >
-            <div className="max-w-md w-full bg-slate-900/50 backdrop-blur-xl border border-white/5 rounded-[40px] p-12 text-center shadow-2xl">
-              <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto mb-8">
-                <AlertCircle size={40} />
+            <div className="max-w-md w-full bg-[#111] border border-[#222] rounded-lg p-10 text-center shadow-xl">
+              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto mb-6">
+                <AlertCircle size={32} />
               </div>
-              <h2 className="text-3xl font-bold text-white tracking-tight mb-4">
+              <h2 className="text-xl font-bold text-white mb-3">
                 Access Restricted
               </h2>
-              <p className="text-slate-400 font-medium leading-relaxed mb-10">
+              <p className="text-slate-400 text-sm leading-relaxed mb-8">
                 The document you're looking for might have been moved or the
                 link has expired.
               </p>
               <Link to="/">
-                <Button size="large" fullWidth icon={ArrowLeft}>
+                <button className="w-full px-6 py-3 bg-white text-black font-semibold rounded-md flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors">
+                  <ArrowLeft size={18} />
                   Return to Dashboard
-                </Button>
+                </button>
               </Link>
             </div>
           </motion.div>
@@ -192,13 +192,11 @@ function Viewer() {
             animate={{ opacity: 1 }}
             className="flex-1 flex flex-col items-stretch relative"
           >
-            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[100] flex flex-wrap items-center gap-2 md:gap-3 px-2 md:px-0">
+            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[100] flex flex-wrap items-center gap-2 px-2 md:px-0">
               <Link to="/" className="group">
-                <div className="flex items-center gap-2 md:gap-3 px-3 py-2 md:px-6 md:py-3 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full text-slate-400 hover:text-white hover:bg-black/60 transition-all group-hover:-translate-x-1">
-                  <ArrowLeft size={16} className="md:w-[18px] md:h-[18px]" />
-                  <span className="text-[10px] md:text-sm font-bold uppercase tracking-wider">
-                    Leave
-                  </span>
+                <div className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all">
+                  <ArrowLeft size={16} />
+                  <span className="text-xs font-semibold">Leave</span>
                 </div>
               </Link>
 
@@ -206,23 +204,16 @@ function Viewer() {
                 onClick={handleSave}
                 disabled={saveToLibraryMutation.isPending}
                 className={`
-                  flex items-center gap-2 md:gap-3 px-3 py-2 md:px-6 md:py-3 backdrop-blur-xl border transition-all active:scale-95 rounded-full
+                  flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 border transition-all active:scale-95 rounded-md
                   ${
                     isSaved
-                      ? "bg-deckly-primary/20 border-deckly-primary/30 text-deckly-primary"
-                      : "bg-black/40 border-white/10 text-slate-400 hover:text-white hover:bg-black/60"
+                      ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
+                      : "bg-[#111] border-[#333] text-slate-400 hover:text-white"
                   }
                 `}
               >
-                {isSaved ? (
-                  <BookmarkCheck
-                    size={16}
-                    className="md:w-[18px] md:h-[18px]"
-                  />
-                ) : (
-                  <Bookmark size={16} className="md:w-[18px] md:h-[18px]" />
-                )}
-                <span className="text-[10px] md:text-sm font-bold uppercase tracking-wider">
+                {isSaved ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+                <span className="text-xs font-semibold">
                   {saveToLibraryMutation.isPending
                     ? "Saving..."
                     : isSaved
@@ -233,15 +224,10 @@ function Viewer() {
 
               <button
                 onClick={() => setIsNotesOpen(true)}
-                className="flex items-center gap-2 md:gap-3 px-3 py-2 md:px-6 md:py-3 bg-black/40 backdrop-blur-xl border border-white/10 text-slate-400 hover:text-white hover:bg-black/60 transition-all rounded-full active:scale-95"
+                className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] text-slate-400 hover:text-white transition-all rounded-md active:scale-95"
               >
-                <MessageSquareText
-                  size={16}
-                  className="md:w-[18px] md:h-[18px]"
-                />
-                <span className="text-[10px] md:text-sm font-bold uppercase tracking-wider">
-                  Notes
-                </span>
+                <MessageSquareText size={16} />
+                <span className="text-xs font-semibold">Notes</span>
               </button>
             </div>
 
@@ -249,12 +235,12 @@ function Viewer() {
               {deck.display_mode === "interactive" ||
               (Array.isArray(deck.pages) && deck.pages.length > 0) ? (
                 deck.status === "PENDING" ? (
-                  <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-[#0d0f14]">
-                    <div className="w-16 h-16 border-4 border-deckly-primary/30 border-t-deckly-primary rounded-full animate-spin mb-6" />
-                    <h2 className="text-2xl font-bold text-white tracking-tight mb-2">
-                      Optimizing for Presentation
+                  <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-[#0d0d0d]">
+                    <div className="w-12 h-12 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin mb-6" />
+                    <h2 className="text-xl font-bold text-white mb-2">
+                      Optimizing Room
                     </h2>
-                    <p className="text-slate-400 font-medium">
+                    <p className="text-slate-400 text-sm max-w-sm">
                       We're converting your slides into an interactive
                       experience. This usually takes less than a minute.
                     </p>
@@ -296,15 +282,15 @@ function Viewer() {
       <AnimatePresence>
         {showSuccessToast && (
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 bg-deckly-primary text-slate-950 rounded-2xl shadow-2xl font-bold"
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 px-5 py-3 bg-[#111] border border-[#333] text-white rounded-lg shadow-2xl"
           >
-            <div className="w-6 h-6 bg-slate-950/10 rounded-full flex items-center justify-center">
-              <Check size={14} strokeWidth={4} />
+            <div className="w-6 h-6 bg-deckly-primary/10 border border-deckly-primary/20 rounded-full flex items-center justify-center text-deckly-primary">
+              <Check size={14} strokeWidth={3} />
             </div>
-            Deck saved to your library!
+            <span className="text-sm font-medium">Saved to library</span>
           </motion.div>
         )}
       </AnimatePresence>

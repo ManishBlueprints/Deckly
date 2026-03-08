@@ -7,8 +7,8 @@ interface DangerZoneSectionProps {
 
 export function DangerZoneSection({ onDelete }: DangerZoneSectionProps) {
   return (
-    <section className="pt-8 mt-8 border-t border-[#222]">
-      <div className="p-6 rounded-lg bg-[#1a0f0f] border border-red-900/50 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+    <section className="space-y-4">
+      <div className="p-4 rounded-lg bg-[#1a0f0f]/50 border border-red-900/20 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
         <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="w-12 h-12 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
             <Trash2 size={24} />
