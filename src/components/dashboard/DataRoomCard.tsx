@@ -18,9 +18,21 @@ export function DataRoomCard({
   return (
     <button
       onClick={() => navigate(`/rooms/${room.id}`)}
-      className="w-full text-left bg-[#1a1a1a] border border-[#222] rounded-lg p-5 hover:border-deckly-primary/30 transition-all duration-200 group relative overflow-hidden shadow-sm active:scale-[0.99]"
+      className="w-full text-left bg-[#1a1a1a] border border-[#222] rounded-lg p-6 hover:border-deckly-primary/30 transition-all duration-300 group relative overflow-hidden shadow-sm active:scale-[0.99]"
     >
-      <div className="flex items-center gap-4 relative z-10">
+      {/* Pattern Overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.01] pointer-events-none"
+        style={{
+          backgroundImage:
+            "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+      {/* Subtle Corner Glow */}
+      <div className="absolute -top-10 -right-10 w-40 h-40 bg-deckly-primary/[0.04] blur-3xl pointer-events-none" />
+
+      <div className="flex items-center gap-5 relative z-10">
         {/* Icon */}
         <div className="w-12 h-12 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center shrink-0 overflow-hidden group-hover:border-deckly-primary/40 transition-all duration-200">
           {room.icon_url ? (
