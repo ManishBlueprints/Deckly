@@ -4,8 +4,10 @@ import {
   Routes,
   Route,
   Navigate,
+  useParams,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { deckService } from "./services/deckService";
 import "./App.css";
 
 // Lazy loaded pages
@@ -31,6 +33,39 @@ const LoadingFallback = () => (
     </div>
   </div>
 );
+
+const LegacyRedirect = () => {
+  const { slug } = useParams<{ slug: string }>();
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function findHandle() {
+      if (!slug) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const result = await deckService.getDeckBySlugOnly(slug);
+        if (result) {
+          setRedirectPath(`/${result.handle}/${result.slug}`);
+        } else {
+          setRedirectPath("/"); // Fallback to home if not found
+        }
+      } catch (err) {
+        console.error("Redirect error:", err);
+        setRedirectPath("/");
+      } finally {
+        setLoading(false);
+      }
+    }
+    findHandle();
+  }, [slug]);
+
+  if (loading) return <LoadingFallback />;
+  if (redirectPath) return <Navigate to={redirectPath} replace />;
+  return <Navigate to="/" replace />;
+};
 
 const AppContent = () => {
   const { session, loading, initializationError } = useAuth();
@@ -139,8 +174,10 @@ const AppContent = () => {
             path="/"
             element={session ? <Home /> : <Navigate to="/login" />}
           />
-          <Route path="/:username/room/:slug" element={<DataRoomViewer />} />
-          <Route path="/:username/:slug" element={<Viewer />} />
+          <Route path="/:handle/room/:slug" element={<DataRoomViewer />} />
+          <Route path="/:handle/:slug" element={<Viewer />} />
+          {/* Legacy Redirect Fallback */}
+          <Route path="/:slug" element={<LegacyRedirect />} />
         </Routes>
       </Suspense>
     </div>

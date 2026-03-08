@@ -1,8 +1,6 @@
 import { supabase } from "./supabase";
-import { Deck, BrandingSettings, SlidePage } from "../types";
+import { BrandingSettings, Deck, SlidePage } from "../types";
 import { withRetry } from "../utils/resilience";
- 
-const brandingCache = new Map<string, { data: BrandingSettings | null; timestamp: number }>();
 
 export const deckService = {
   // Get all decks for the logged-in user
@@ -63,7 +61,7 @@ export const deckService = {
       .from("decks")
       .select("*")
       .eq("id", id)
-      .eq("user_id", userId) 
+      .eq("user_id", userId)
       .single();
 
     if (error) throw error;
@@ -79,8 +77,10 @@ export const deckService = {
     const userId = session.user.id;
 
     const fileExt = file.name.split(".").pop();
-    const normalizedSlug = deckData.slug || file.name.split(".")[0].toLowerCase().replace(/[^a-z0-9]/g, "-");
-    const fileName = `${userId}/decks/${normalizedSlug}-${Date.now()}.${fileExt}`;
+    const normalizedSlug = deckData.slug ||
+      file.name.split(".")[0].toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const fileName =
+      `${userId}/decks/${normalizedSlug}-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("decks")
@@ -112,7 +112,12 @@ export const deckService = {
   },
 
   // Delete deck
-  async deleteDeck(id: string, fileUrl: string, slug: string, providedUserId?: string): Promise<void> {
+  async deleteDeck(
+    id: string,
+    fileUrl: string,
+    slug: string,
+    providedUserId?: string,
+  ): Promise<void> {
     let userId = providedUserId;
     if (!userId) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -151,10 +156,10 @@ export const deckService = {
 
   // NEW: Upload processing images
   async uploadSlideImages(
-    userId: string, 
-    deckSlug: string, 
+    userId: string,
+    deckSlug: string,
     imageBlobs: Blob[],
-    onProgress?: (current: number, total: number) => void
+    onProgress?: (current: number, total: number) => void,
   ): Promise<string[]> {
     const imageUrls: string[] = new Array(imageBlobs.length);
     const timestamp = Date.now();
@@ -162,8 +167,10 @@ export const deckService = {
 
     // Helper for a single upload with retry
     const uploadSingle = async (index: number) => {
-      const fileName = `${userId}/deck-images/${deckSlug}/page-${index + 1}-${timestamp}.webp`;
-      
+      const fileName = `${userId}/deck-images/${deckSlug}/page-${
+        index + 1
+      }-${timestamp}.webp`;
+
       let attempts = 0;
       const maxAttempts = 3;
 
@@ -178,9 +185,10 @@ export const deckService = {
 
           if (error) throw error;
 
-          const { data: { publicUrl } } = supabase.storage.from("decks").getPublicUrl(fileName);
+          const { data: { publicUrl } } = supabase.storage.from("decks")
+            .getPublicUrl(fileName);
           imageUrls[index] = publicUrl;
-          
+
           if (onProgress) {
             const completedCount = imageUrls.filter(Boolean).length;
             onProgress(completedCount, imageBlobs.length);
@@ -189,14 +197,16 @@ export const deckService = {
         } catch (err) {
           attempts++;
           if (attempts === maxAttempts) throw err;
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // Backoff
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempts)); // Backoff
         }
       }
     };
 
     // Run in parallel with concurrency limit
     for (let i = 0; i < imageBlobs.length; i += CONCURRENCY_LIMIT) {
-      const chunk = imageBlobs.slice(i, i + CONCURRENCY_LIMIT).map((_, idx) => uploadSingle(i + idx));
+      const chunk = imageBlobs.slice(i, i + CONCURRENCY_LIMIT).map((_, idx) =>
+        uploadSingle(i + idx)
+      );
       await Promise.all(chunk);
     }
 
@@ -204,7 +214,11 @@ export const deckService = {
   },
 
   // NEW: Update deck with processed pages (with ownership check)
-  async updateDeckPages(deckId: string, pages: SlidePage[], providedUserId?: string): Promise<Deck> {
+  async updateDeckPages(
+    deckId: string,
+    pages: SlidePage[],
+    providedUserId?: string,
+  ): Promise<Deck> {
     let userId = providedUserId;
     if (!userId) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -214,13 +228,13 @@ export const deckService = {
 
     const { data, error } = await supabase
       .from("decks")
-      .update({ 
-        pages, 
+      .update({
+        pages,
         status: "PROCESSED",
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq("id", deckId)
-      .eq("user_id", userId) 
+      .eq("user_id", userId)
       .select()
       .single();
 
@@ -229,7 +243,11 @@ export const deckService = {
   },
 
   // Update deck generic
-  async updateDeck(deckId: string, updates: Partial<Deck>, providedUserId?: string): Promise<Deck> {
+  async updateDeck(
+    deckId: string,
+    updates: Partial<Deck>,
+    providedUserId?: string,
+  ): Promise<Deck> {
     let userId = providedUserId;
     if (!userId) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -241,7 +259,7 @@ export const deckService = {
       .from("decks")
       .update({
         ...updates,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq("id", deckId)
       .eq("user_id", userId)
@@ -253,21 +271,12 @@ export const deckService = {
   },
 
   // Get global branding settings (for the current user)
-  async getBrandingSettings(providedUserId?: string): Promise<BrandingSettings | null> {
-    const userIdPromise = (async () => {
-      if (providedUserId) return providedUserId;
-      const { data: { session } } = await supabase.auth.getSession();
-      return session?.user?.id || null;
-    })();
-
-    const userId = await userIdPromise;
+  async getBrandingSettings(
+    providedUserId?: string,
+  ): Promise<BrandingSettings | null> {
+    const userId = providedUserId ||
+      (await supabase.auth.getSession()).data.session?.user.id;
     if (!userId) return null;
-
-    const cacheKey = `branding-${userId}`;
-    const cached = brandingCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < 300000) { // 5 min cache
-      return cached.data;
-    }
 
     return withRetry(async () => {
       const { data, error } = await supabase
@@ -277,15 +286,15 @@ export const deckService = {
         .single();
 
       if (error && error.code !== "PGRST116") throw error;
-      
-      const result = data as BrandingSettings;
-      brandingCache.set(cacheKey, { data: result, timestamp: Date.now() });
-      return result;
+      return data as BrandingSettings;
     });
   },
 
   // Update global branding settings
-  async updateBrandingSettings(settings: Partial<BrandingSettings>, providedUserId?: string): Promise<BrandingSettings> {
+  async updateBrandingSettings(
+    settings: Partial<BrandingSettings>,
+    providedUserId?: string,
+  ): Promise<BrandingSettings> {
     let userId = providedUserId;
     if (!userId) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -308,6 +317,7 @@ export const deckService = {
         .select()
         .single();
       if (error) throw error;
+      if (error) throw error;
       return data as BrandingSettings;
     } else {
       const { data, error } = await supabase
@@ -316,9 +326,7 @@ export const deckService = {
         .select()
         .single();
       if (error) throw error;
-      
-      // Clear cache on update
-      brandingCache.delete(`branding-${userId}`);
+
       return data as BrandingSettings;
     }
   },
@@ -338,7 +346,9 @@ export const deckService = {
 
     if (uploadError) throw uploadError;
 
-    const { data: { publicUrl } } = supabase.storage.from("decks").getPublicUrl(fileName);
+    const { data: { publicUrl } } = supabase.storage.from("decks").getPublicUrl(
+      fileName,
+    );
     return publicUrl;
   },
 
@@ -362,52 +372,64 @@ export const deckService = {
       if (decksError) throw decksError;
       if (!decks || decks.length === 0) return [];
 
-      const deckIds = decks.map(d => d.id);
+      const deckIds = decks.map((d) => d.id);
 
       // 2. Fetch stats, pageViews, and saves in parallel
       const [
         { data: stats, error: statsError },
         { data: pageViews },
-        { data: saves, error: savesError }
+        { data: saves, error: savesError },
       ] = await Promise.all([
-        supabase.from("deck_stats").select("deck_id, updated_at").in("deck_id", deckIds),
-        supabase.from("deck_page_views").select("deck_id, visitor_id").in("deck_id", deckIds),
-        supabase.from("investor_library").select("deck_id").in("deck_id", deckIds)
+        supabase.from("deck_stats").select("deck_id, updated_at").in(
+          "deck_id",
+          deckIds,
+        ),
+        supabase.from("deck_page_views").select("deck_id, visitor_id").in(
+          "deck_id",
+          deckIds,
+        ),
+        supabase.from("investor_library").select("deck_id").in(
+          "deck_id",
+          deckIds,
+        ),
       ]);
 
       if (statsError) throw statsError;
       if (savesError) throw savesError;
 
-    // Count unique visitors per deck
-    const viewsMap: Record<string, Set<string>> = {};
-    (pageViews || []).forEach((pv: any) => {
-      if (!viewsMap[pv.deck_id]) viewsMap[pv.deck_id] = new Set();
-      viewsMap[pv.deck_id].add(pv.visitor_id);
-    });
+      // Count unique visitors per deck
+      const viewsMap: Record<string, Set<string>> = {};
+      (pageViews || []).forEach((pv: any) => {
+        if (!viewsMap[pv.deck_id]) viewsMap[pv.deck_id] = new Set();
+        viewsMap[pv.deck_id].add(pv.visitor_id);
+      });
 
-    // Count saves per deck
-    const savesMap: Record<string, number> = {};
-    (saves || []).forEach((s: any) => {
-      savesMap[s.deck_id] = (savesMap[s.deck_id] || 0) + 1;
-    });
+      // Count saves per deck
+      const savesMap: Record<string, number> = {};
+      (saves || []).forEach((s: any) => {
+        savesMap[s.deck_id] = (savesMap[s.deck_id] || 0) + 1;
+      });
 
-    // Find latest activity per deck
-    const lastActiveMap: Record<string, string | null> = {};
-    (stats || []).forEach(s => {
-      const id = s.deck_id;
-      if (!lastActiveMap[id] || (s.updated_at && s.updated_at > lastActiveMap[id]!)) {
-        lastActiveMap[id] = s.updated_at;
-      }
-    });
+      // Find latest activity per deck
+      const lastActiveMap: Record<string, string | null> = {};
+      (stats || []).forEach((s) => {
+        const id = s.deck_id;
+        if (
+          !lastActiveMap[id] ||
+          (s.updated_at && s.updated_at > lastActiveMap[id]!)
+        ) {
+          lastActiveMap[id] = s.updated_at;
+        }
+      });
 
-    // 4. Merge data
-    return decks.map(deck => ({
-      ...deck,
-      total_views: viewsMap[deck.id]?.size || 0,
-      save_count: savesMap[deck.id] || 0,
-      last_viewed_at: lastActiveMap[deck.id] || null
-    }));
-  });
+      // 4. Merge data
+      return decks.map((deck) => ({
+        ...deck,
+        total_views: viewsMap[deck.id]?.size || 0,
+        save_count: savesMap[deck.id] || 0,
+        last_viewed_at: lastActiveMap[deck.id] || null,
+      }));
+    });
   },
 
   // Helper for user-specific storage path
@@ -426,10 +448,10 @@ export const deckService = {
 
     const { error } = await supabase
       .from("investor_library")
-      .upsert({ 
-        user_id: session.user.id, 
+      .upsert({
+        user_id: session.user.id,
         deck_id: deckId,
-        last_viewed_at: new Date().toISOString()
+        last_viewed_at: new Date().toISOString(),
       }, { onConflict: "user_id, deck_id" });
 
     if (error) throw error;
@@ -497,8 +519,27 @@ export const deckService = {
 
       if (error) throw error;
 
+      // Extract unique user IDs from decks to fetch handles
+      const ownerIds = [
+        ...new Set((data || []).map((item) => (item.deck as any).user_id)),
+      ];
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, handle")
+        .in("id", ownerIds);
+
+      if (profilesError) {
+        console.error("Error fetching profiles for library:", profilesError);
+      }
+
+      const handlesMap = (profilesData || []).reduce((acc, curr) => {
+        acc[curr.id] = curr.handle;
+        return acc;
+      }, {} as Record<string, string>);
+
       // Fetch notes for these decks in parallel
-      const deckIds = (data || []).map(item => (item.deck as any).id);
+      const deckIds = (data || []).map((item) => (item.deck as any).id);
       const { data: notesData, error: notesError } = await supabase
         .from("investor_notes")
         .select("deck_id, content")
@@ -506,21 +547,25 @@ export const deckService = {
         .in("deck_id", deckIds);
 
       if (notesError) {
-        console.error("Error fetching notes for bookmarked library:", notesError);
+        console.error(
+          "Error fetching notes for bookmarked library:",
+          notesError,
+        );
       }
 
       const notesMap = (notesData || []).reduce((acc, curr) => {
         acc[curr.deck_id] = curr.content;
         return acc;
       }, {} as Record<string, string>);
-      
+
       // Flatten the response so it looks like an array of decks (with extra library metadata if needed)
       return (data || []).map((item: any) => ({
         ...item.deck,
+        user_handle: handlesMap[item.deck?.user_id] || "username",
         saved_at: item.created_at,
         last_viewed_at: item.last_viewed_at,
         library_id: item.id,
-        investor_note: notesMap[item.deck.id] || ""
+        investor_note: notesMap[item.deck.id] || "",
       })) as Deck[];
     });
   },
@@ -558,5 +603,20 @@ export const deckService = {
 
     const { data } = await query.maybeSingle();
     return !data;
+  },
+
+  // NEW: Get deck by slug only (for legacy redirects)
+  async getDeckBySlugOnly(
+    slug: string,
+  ): Promise<{ handle: string; slug: string } | null> {
+    const { data, error } = await supabase
+      .from("decks_public")
+      .select("user_handle, slug")
+      .eq("slug", slug)
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+    return { handle: data.user_handle, slug: data.slug };
   },
 };

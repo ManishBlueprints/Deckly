@@ -1,21 +1,17 @@
-import { useState, useEffect } from "react";
 import { Plus, Monitor, Lock, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DataRoomCard } from "../components/dashboard/DataRoomCard";
-import { DataRoom } from "../types";
-import { dataRoomService } from "../services/dataRoomService";
 import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
+import { useDataRoomsWithMeta } from "../hooks/useDataRooms";
+import { cn } from "@/lib/utils";
 
 function DataRoomsPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const [rooms, setRooms] = useState<DataRoom[]>([]);
-  const [roomMeta, setRoomMeta] = useState<
-    Map<string, { docCount: number; visitors: number }>
-  >(new Map());
-  const [loading, setLoading] = useState(true);
+
+  const { data: rooms = [], isLoading, isFetching } = useDataRoomsWithMeta();
 
   const tier: Tier = (profile?.tier as Tier) || "FREE";
   const tierConfig = TIER_CONFIG[tier];
@@ -23,109 +19,96 @@ function DataRoomsPage() {
   const isAtLimit = rooms.length >= maxRooms;
   const isUnlimited = maxRooms === Infinity;
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const data = await dataRoomService.getDataRooms();
-        setRooms(data);
-        setLoading(false); // Unlock the UI immediately!
-
-        // Silently load the heavier analytics data in the background
-        const metaEntries = await Promise.all(
-          data.map(async (room) => {
-            const [docCount, analytics] = await Promise.all([
-              dataRoomService.getDocumentCount(room.id),
-              dataRoomService.getDataRoomAnalytics(room.id),
-            ]);
-            return [
-              room.id,
-              { docCount, visitors: analytics.totalVisitors },
-            ] as const;
-          }),
-        );
-        setRoomMeta(new Map(metaEntries));
-      } catch (err) {
-        console.error("Failed to load data rooms", err);
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const loading = isLoading && rooms.length === 0;
+  const isRefreshing = isFetching;
 
   return (
     <DashboardLayout title="Data Rooms">
-      <div className="space-y-12 animate-in fade-in duration-700 relative">
+      <div className="space-y-8 animate-in fade-in duration-700 relative">
         {rooms.length > 0 && (
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 -mb-6 md:-mb-4">
-            Bundle assets into shareable secure rooms with access controls
-          </p>
+          <div className="flex flex-col gap-1.5">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Overview
+            </h2>
+            <p className="text-sm font-medium text-slate-400">
+              Bundle assets into shareable secure rooms with access controls
+            </p>
+          </div>
+        )}
+
+        {isRefreshing && !loading && (
+          <div className="absolute top-0 right-0 py-2 flex items-center gap-2">
+            <div className="w-2 h-2 bg-deckly-primary rounded-full animate-ping" />
+            <span className="text-[10px] font-medium text-deckly-primary/70">
+              Syncing...
+            </span>
+          </div>
         )}
 
         {!loading && rooms.length > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-6">
-            <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+            <div className="flex items-center gap-3">
               {/* Usage indicator */}
-              <div className="hidden md:flex items-center gap-4 px-5 py-2.5 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md">
-                <div className="flex gap-1">
+              <div className="flex items-center gap-3 px-4 py-2 bg-[#1a1a1a] border border-[#222] rounded-lg">
+                <div className="flex gap-1.5">
                   {Array.from({ length: Math.min(maxRooms, 5) }).map((_, i) => (
                     <div
                       key={i}
-                      className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
-                        i < rooms.length
-                          ? "bg-deckly-primary shadow-[0_0_8px_rgba(34,197,94,0.6)]"
-                          : "bg-white/10"
-                      }`}
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                        i < rooms.length ? "bg-deckly-primary" : "bg-[#222]",
+                      )}
                     />
                   ))}
                   {isUnlimited && (
-                    <span className="text-[10px] font-bold text-deckly-primary ml-1 animate-pulse">
+                    <span className="text-xs font-bold text-deckly-primary ml-1 animate-pulse">
                       ∞
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-semibold text-slate-400">
                   {rooms.length}
-                  {!isUnlimited && ` / ${maxRooms}`} Rooms
+                  {!isUnlimited && ` / ${maxRooms}`}
+                  <span className="hidden xs:inline ml-1">Rooms</span>
                 </span>
               </div>
-
-              {/* Create button */}
-              <button
-                onClick={() => !isAtLimit && navigate("/rooms/new")}
-                disabled={isAtLimit}
-                className={`hidden sm:flex flex-none items-center justify-center gap-3 px-8 py-3.5 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl transition-all active:scale-[0.98] shadow-2xl ${
-                  isAtLimit
-                    ? "bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed"
-                    : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90 shadow-deckly-primary/20"
-                }`}
-              >
-                {isAtLimit ? <Lock size={16} /> : <Plus size={16} />}
-                {isAtLimit ? "Room Limit Reached" : "New Room"}
-              </button>
             </div>
+
+            {/* Create button */}
+            <button
+              onClick={() => !isAtLimit && navigate("/rooms/new")}
+              disabled={isAtLimit}
+              className={cn(
+                "flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-xs rounded-lg transition-all active:scale-95 w-full sm:w-auto",
+                isAtLimit
+                  ? "bg-[#1a1a1a] text-slate-500 border border-[#222] cursor-not-allowed"
+                  : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90",
+              )}
+            >
+              {isAtLimit ? <Lock size={14} /> : <Plus size={14} />}
+              <span>{isAtLimit ? "Limit Reached" : "New Room"}</span>
+            </button>
           </div>
         )}
 
         {/* Upgrade banner */}
         {isAtLimit && !isUnlimited && (
-          <div className="flex items-center gap-5 p-6 bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20 rounded-[2rem] relative overflow-hidden group">
-            <div className="absolute inset-0 bg-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="w-12 h-12 bg-amber-500/20 border border-amber-500/20 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/10">
-              <Zap size={24} className="text-amber-500" />
+          <div className="flex items-center gap-4 p-5 bg-[#1a140e] border border-amber-900/30 rounded-lg relative overflow-hidden group">
+            <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-center justify-center shrink-0">
+              <Zap size={20} className="text-amber-500" />
             </div>
-            <div className="flex-1 min-w-0 relative z-10">
-              <p className="text-sm font-bold text-white uppercase tracking-wider">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white">
                 {tier === "FREE"
                   ? "Upgrade to Pro for more rooms"
                   : "Go Unlimited with Pro+"}
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500/80 mt-1">
+              <p className="text-xs text-amber-500/80 mt-0.5">
                 You've used all {maxRooms} slots on {tier}
               </p>
             </div>
-            <button className="px-6 py-2.5 bg-amber-500 text-slate-950 font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-amber-400 transition-all shrink-0 shadow-xl shadow-amber-500/10 hover:scale-105 active:scale-95">
-              Upgrade Now
+            <button className="px-5 py-2 bg-amber-500 text-slate-950 font-semibold text-xs rounded-md hover:bg-amber-400 transition-all shrink-0">
+              Upgrade
             </button>
           </div>
         )}
@@ -136,47 +119,43 @@ function DataRoomsPage() {
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-40 bg-white/5 border border-white/5 rounded-[2rem] animate-pulse"
+                className="h-32 bg-[#1a1a1a] border border-[#222] rounded-lg animate-pulse"
               />
             ))}
           </div>
         ) : rooms.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-center glass-shiny border border-white/5 rounded-[3rem] shadow-2xl">
-            <div className="w-24 h-24 rounded-[2rem] bg-white/5 border border-white/10 flex items-center justify-center mb-8 relative group">
-              <div className="absolute inset-0 bg-deckly-primary/10 rounded-[2rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="flex flex-col items-center justify-center py-20 text-center bg-[#1a1a1a] border border-[#222] rounded-lg">
+            <div className="w-16 h-16 rounded-lg bg-[#1a1a1a] border border-[#333] flex items-center justify-center mb-6 group">
               <Monitor
-                size={40}
-                className="text-slate-600 group-hover:text-deckly-primary transition-all duration-500"
+                size={32}
+                className="text-slate-500 group-hover:text-deckly-primary transition-all duration-300"
               />
             </div>
-            <h3 className="text-2xl font-bold text-white tracking-tight uppercase tracking-widest mb-3">
+            <h3 className="text-lg font-semibold text-white mb-2">
               No data rooms yet
             </h3>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-10 max-w-xs leading-relaxed">
+            <p className="text-sm text-slate-400 mb-8 max-w-xs px-6">
               Bundle multiple assets into a single shareable link with elite
               security
             </p>
             <button
               onClick={() => navigate("/rooms/new")}
-              className="hidden sm:flex items-center gap-3 px-10 py-4 bg-deckly-primary text-slate-950 font-bold text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-deckly-primary/90 transition-all shadow-2xl shadow-deckly-primary/20 hover:scale-105 active:scale-95"
+              className="flex items-center gap-2 px-6 py-2.5 bg-deckly-primary text-slate-950 font-semibold text-xs rounded-md transition-all active:scale-95"
             >
-              <Plus size={18} />
+              <Plus size={16} />
               Create First Room
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room) => {
-              const meta = roomMeta.get(room.id);
-              return (
-                <DataRoomCard
-                  key={room.id}
-                  room={room}
-                  documentCount={meta?.docCount || 0}
-                  totalVisitors={meta?.visitors || 0}
-                />
-              );
-            })}
+            {rooms.map((room: any) => (
+              <DataRoomCard
+                key={room.id}
+                room={room}
+                documentCount={room.docCount || 0}
+                totalVisitors={room.visitors || 0}
+              />
+            ))}
           </div>
         )}
       </div>

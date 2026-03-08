@@ -8,7 +8,7 @@ export interface Deck {
   title: string;
   slug: string;
   file_url: string;
-  status: 'PENDING' | 'PROCESSED';
+  status: "PENDING" | "PROCESSED";
   user_id: string;
   display_order: number;
   pages: SlidePage[];
@@ -19,9 +19,10 @@ export interface Deck {
   require_password?: boolean;
   view_password?: string;
   file_type?: string;
-  display_mode?: 'raw' | 'interactive';
+  display_mode?: "raw" | "interactive";
   expires_at?: string | null;
   investor_note?: string;
+  user_handle?: string;
 }
 
 export type DeckWithExpiry = Deck;
@@ -48,7 +49,7 @@ export interface UserProfile {
   full_name: string | null;
   handle: string | null;
   avatar_url: string | null;
-  tier: 'FREE' | 'PRO' | 'PRO_PLUS';
+  tier: "FREE" | "PRO" | "PRO_PLUS";
   updated_at: string | null;
 }
 

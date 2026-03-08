@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
-import { analyticsService } from "../../services/analyticsService";
-import { getDeckSignalCount } from "../../services/interestSignalService";
+import {
+  useTopPerformingDecks,
+  useDeckSignalCounts,
+} from "../../hooks/useTopPerformingDecks";
+import { useUserTotalStats } from "../../hooks/useUserTotalStats";
 import { useAuth } from "../../contexts/AuthContext";
 import { DashboardCard } from "../ui/DashboardCard";
 import {
@@ -12,101 +14,43 @@ import {
   TableRow,
 } from "../ui/table";
 
-interface DeckStat {
-  id: string;
-  title: string;
-  views: number;
-  time: number;
-}
-
 export function TopDecksCard() {
   const { session } = useAuth();
+  const userId = session?.user?.id;
 
-  const getCachedData = () => {
-    try {
-      const cached = localStorage.getItem(
-        `top-decks-cache-${session?.user?.id}`,
-      );
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
-    }
-  };
+  const {
+    data: stats = [],
+    isLoading,
+    isFetching,
+  } = useTopPerformingDecks(userId);
 
-  const initialCache = getCachedData();
-  const [stats, setStats] = useState<DeckStat[]>(initialCache || []);
-  const [loading, setLoading] = useState(!initialCache);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [signalCounts, setSignalCounts] = useState<Record<string, number>>({});
-  const [totalUserViews, setTotalUserViews] = useState<number>(0);
+  const deckIds = stats.map((s) => s.id);
+  const { data: signalCounts = {} } = useDeckSignalCounts(deckIds);
 
-  const fetchTopDecks = useCallback(async () => {
-    if (!session?.user?.id) return;
+  const { data: userStats } = useUserTotalStats(userId);
+  const totalUserViews = userStats?.totalViews || 0;
 
-    if (stats.length === 0) setLoading(true);
-    setIsRefreshing(true);
-
-    try {
-      const data = await analyticsService.getTopPerformingDecks(
-        session.user.id,
-      );
-      const mapped = data.map((d: any) => ({
-        id: d.id,
-        title: d.title,
-        views: d.views,
-        time: d.time,
-      }));
-      setStats(mapped);
-
-      // Fetch signal counts for each deck
-      const counts: Record<string, number> = {};
-      await Promise.all(
-        mapped.map(async (d: DeckStat) => {
-          counts[d.id] = await getDeckSignalCount(d.id);
-        }),
-      );
-      setSignalCounts(counts);
-
-      // Fetch global total views for share calculation
-      const totalStats = await analyticsService.getUserTotalStats(
-        session.user.id,
-      );
-      setTotalUserViews(totalStats.totalViews);
-
-      localStorage.setItem(
-        `top-decks-cache-${session.user.id}`,
-        JSON.stringify(mapped),
-      );
-    } catch (err) {
-      console.error("Failed to fetch top decks:", err);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [session?.user?.id]); // Remove initialCache dependency
-
-  useEffect(() => {
-    fetchTopDecks();
-  }, [fetchTopDecks]);
+  const loading = isLoading;
+  const isRefreshing = isFetching;
 
   return (
     <DashboardCard
       title="Top Performing Decks"
+      className="overflow-visible"
       headerAction={
         <div className="flex items-center gap-3">
           {isRefreshing && !loading && (
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-deckly-primary rounded-full animate-ping" />
-              <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">
+              <span className="text-[11px] font-medium text-slate-400">
                 Syncing
               </span>
             </div>
           )}
-          <div className="w-2 h-2 rounded-full bg-deckly-primary animate-pulse shadow-[0_0_8px_rgba(42,212,133,0.5)]"></div>
+          <div className="w-2 h-2 rounded-full bg-deckly-primary" />
         </div>
       }
     >
-      <Table>
+      <Table containerClassName="overflow-visible">
         <TableHeader className="hidden">
           <TableRow>
             <TableHead>Deck</TableHead>
@@ -150,7 +94,7 @@ export function TopDecksCard() {
                     {deck.title}
                   </span>
                   {signalCounts[deck.id] > 0 && (
-                    <p className="text-[10px] font-bold text-deckly-primary mt-1 uppercase tracking-widest opacity-80">
+                    <p className="text-xs text-deckly-primary mt-1 opacity-90">
                       {signalCounts[deck.id]} Interested Viewer
                       {signalCounts[deck.id] > 1 ? "s" : ""}
                     </p>
@@ -162,9 +106,7 @@ export function TopDecksCard() {
                       <p className="text-2xl font-bold text-white group-hover:text-deckly-primary transition-colors leading-none tracking-tighter">
                         {deck.views.toLocaleString()}
                       </p>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mt-1">
-                        Views
-                      </p>
+                      <p className="text-xs text-slate-500 mt-1">Views</p>
                     </div>
 
                     {/* Share Metric */}
@@ -172,7 +114,7 @@ export function TopDecksCard() {
                       <div className="flex items-center gap-3">
                         <div className="w-16 h-2 bg-white/5 rounded-full overflow-hidden shadow-inner">
                           <div
-                            className="h-full bg-gradient-to-r from-emerald-500 to-deckly-primary rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
+                            className="h-full bg-deckly-primary"
                             style={{
                               width: `${totalUserViews > 0 ? Math.round((deck.views / totalUserViews) * 100) : 0}%`,
                             }}
@@ -185,18 +127,13 @@ export function TopDecksCard() {
                           %
                         </p>
                       </div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mt-1">
-                        Share
-                      </p>
+                      <p className="text-xs text-slate-500 mt-1">Share</p>
 
                       {/* Tooltip */}
                       <div
-                        className={`absolute ${idx === 0 ? "top-full mt-3" : "bottom-full mb-3"} right-0 w-56 p-3 bg-[#09090b] text-[10px] text-slate-400 rounded-xl opacity-0 group-hover/share:opacity-100 transition-all pointer-events-none z-50 text-center font-bold leading-tight shadow-[0_10px_40px_rgba(0,0,0,0.8)] border border-white/10 uppercase tracking-widest scale-90 group-hover/share:scale-100 origin-right`}
+                        className={`absolute ${idx === 0 ? "top-full mt-2" : "bottom-full mb-2"} right-0 w-52 p-2 bg-[#1a1a1a] text-xs text-slate-300 rounded shadow-md opacity-0 group-hover/share:opacity-100 transition-opacity z-50 text-center border border-[#333]`}
                       >
                         Percentage of your total audience that viewed this deck.
-                        <div
-                          className={`absolute ${idx === 0 ? "bottom-full border-b-[#09090b]" : "top-full border-t-[#09090b]"} right-6 border-8 border-transparent`}
-                        />
                       </div>
                     </div>
                   </div>

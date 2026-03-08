@@ -1,81 +1,28 @@
-import { useEffect, useState, useMemo } from "react";
-import { analyticsService } from "../../services/analyticsService";
+import { useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { DashboardCard } from "../ui/DashboardCard";
 import { AnalyticsChart } from "./AnalyticsChart";
 import { AnalyticsStatsSection } from "./AnalyticsStatsSection";
+import { useUserTotalStats } from "../../hooks/useUserTotalStats";
+import { useDailyMetrics } from "../../hooks/useDailyMetrics";
 
 export function AnalyticsDashboard() {
   const { session } = useAuth();
 
-  // Initialize from cache
-  const getCachedData = () => {
-    try {
-      const cached = localStorage.getItem(
-        `dashboard-analytics-cache-${session?.user?.id}`,
-      );
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
-    }
-  };
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isFetching: statsFetching,
+  } = useUserTotalStats(session?.user?.id);
+  const {
+    data: daily,
+    isLoading: dailyLoading,
+    isFetching: dailyFetching,
+  } = useDailyMetrics(session?.user?.id);
 
-  const initialCache = getCachedData();
-  const [stats, setStats] = useState(
-    initialCache?.stats || {
-      totalViews: 0,
-      totalTimeSeconds: 0,
-      totalSaves: 0,
-    },
-  );
-  const [daily, setDaily] = useState<{
-    labels: string[];
-    visits: number[];
-    timeSpent: number[];
-    bookmarks: number[];
-  }>(
-    initialCache?.daily || {
-      labels: [],
-      visits: [],
-      timeSpent: [],
-      bookmarks: [],
-    },
-  );
-
-  const [loading, setLoading] = useState(!initialCache);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  useEffect(() => {
-    if (session?.user?.id) {
-      // Only show skeleton if we have no data
-      if (stats.totalViews === 0) setLoading(true);
-      setIsRefreshing(true);
-
-      Promise.all([
-        analyticsService.getUserTotalStats(session.user.id),
-        analyticsService.getDailyMetrics(session.user.id),
-      ])
-        .then(([total, dailyData]) => {
-          setStats(total);
-          setDaily(dailyData);
-
-          localStorage.setItem(
-            `dashboard-analytics-cache-${session.user.id}`,
-            JSON.stringify({
-              stats: total,
-              daily: dailyData,
-              timestamp: Date.now(),
-            }),
-          );
-        })
-        .catch((err) => console.error("Dashboard fetch error:", err))
-        .finally(() => {
-          setLoading(false);
-          setIsRefreshing(false);
-        });
-    }
-  }, [session?.user?.id]); // Remove initialCache from dependencies
+  const loading = (statsLoading || dailyLoading) && !stats;
+  const isRefreshing = statsFetching || dailyFetching;
 
   const overviewItems = useMemo(() => {
     const formatTime = (seconds: number) => {
@@ -87,25 +34,32 @@ export function AnalyticsDashboard() {
     return [
       {
         label: "Total Visit",
-        value: stats.totalViews.toLocaleString(),
+        value: (stats?.totalViews || 0).toLocaleString(),
         sub: "",
       },
       {
         label: "Total Time Spent",
-        value: formatTime(stats.totalTimeSeconds),
+        value: formatTime(stats?.totalTimeSeconds || 0),
         sub: "",
       },
       {
-        label: "Bookmarked",
-        value: (stats.totalSaves || 0).toLocaleString(),
+        label: "Total Saves",
+        value: (stats?.totalSaves || 0).toLocaleString(),
         sub: "",
       },
     ];
   }, [stats]);
 
+  const dailyData = daily || {
+    labels: [],
+    visits: [],
+    timeSpent: [],
+    bookmarks: [],
+  };
+
   return (
     <DashboardCard
-      className="min-h-[400px] md:min-h-[600px] border-white/5 shadow-2xl"
+      className="min-h-[400px] md:min-h-[600px] border-[#222]"
       contentClassName="flex flex-col md:flex-row border-t-0 h-full relative"
     >
       {isRefreshing && !loading && (
@@ -118,26 +72,26 @@ export function AnalyticsDashboard() {
       )}
       <AnalyticsStatsSection items={overviewItems} loading={loading} />
 
-      <div className="flex-1 flex flex-col bg-white/[0.01]">
+      <div className="flex-1 flex flex-col bg-[#10120f] border-l border-[#222]">
         <Tabs defaultValue="VISITS" className="flex-1 flex flex-col">
-          <div className="flex items-center justify-center p-6 md:p-10 bg-white/[0.02] border-b border-white/5">
-            <TabsList className="bg-white/5 border border-white/10 p-1.5 h-auto rounded-2xl gap-2 backdrop-blur-md shadow-inner">
+          <div className="flex items-center justify-center h-[53px] bg-[#10120f] border-b border-[#222] rounded-tr-lg">
+            <TabsList className="bg-[#10120f] border border-[#333] p-1 h-auto rounded-md gap-1">
               <TabsTrigger
                 value="VISITS"
-                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
+                className="rounded text-xs font-medium px-4 py-1 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200"
               >
                 Visits
               </TabsTrigger>
               <TabsTrigger
                 value="TIME"
-                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
+                className="rounded text-xs font-medium px-4 py-1 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200"
               >
                 <span className="md:hidden">Time</span>
                 <span className="hidden md:inline">Duration</span>
               </TabsTrigger>
               <TabsTrigger
                 value="BOOKMARKS"
-                className="rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] px-6 md:px-10 py-3 md:py-4 text-slate-500 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 shadow-xl transition-all duration-300 active:scale-95"
+                className="rounded text-xs font-medium px-4 py-1 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200"
               >
                 <span className="md:hidden">Saved</span>
                 <span className="hidden md:inline">Bookmarks</span>
@@ -150,8 +104,8 @@ export function AnalyticsDashboard() {
             className="flex-1 m-0 p-0 flex flex-col justify-end"
           >
             <AnalyticsChart
-              labels={daily.labels}
-              data={daily.visits}
+              labels={dailyData.labels}
+              data={dailyData.visits}
               loading={loading}
             />
           </TabsContent>
@@ -161,8 +115,8 @@ export function AnalyticsDashboard() {
             className="flex-1 m-0 p-0 flex flex-col justify-end"
           >
             <AnalyticsChart
-              labels={daily.labels}
-              data={daily.timeSpent}
+              labels={dailyData.labels}
+              data={dailyData.timeSpent}
               loading={loading}
               isTime
             />
@@ -173,8 +127,8 @@ export function AnalyticsDashboard() {
             className="flex-1 m-0 p-0 flex flex-col justify-end"
           >
             <AnalyticsChart
-              labels={daily.labels}
-              data={daily.bookmarks}
+              labels={dailyData.labels}
+              data={dailyData.bookmarks}
               loading={loading}
             />
           </TabsContent>

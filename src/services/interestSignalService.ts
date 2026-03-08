@@ -23,6 +23,7 @@ export interface VisitorSignal {
   daysBetweenFirstAndLast: number | null;
   signals: SignalLabel[];
   slideBreakdown: SlideTime[];
+  isEngaged: boolean;
 }
 
 interface PageViewRow {
@@ -149,6 +150,7 @@ export async function getVisitorSignals(
       daysBetweenFirstAndLast: daysBetween,
       signals,
       slideBreakdown,
+      isEngaged: signals.length > 0,
     });
   }
 
@@ -265,6 +267,7 @@ export async function getRoomVisitorSignals(
       daysBetweenFirstAndLast: daysBetween,
       signals,
       slideBreakdown,
+      isEngaged: signals.length > 0,
     });
   }
 
