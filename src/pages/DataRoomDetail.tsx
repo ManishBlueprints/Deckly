@@ -207,14 +207,15 @@ function DataRoomDetail() {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={handleCopyLink}
-                className="flex items-center gap-2 px-3 py-2 bg-[#222] border border-[#333] rounded-md text-sm font-medium text-slate-300 hover:text-white hover:border-[#444] transition-all active:scale-95"
-              >
-                {copied ? (
-                  <Check size={14} className="text-deckly-primary" />
-                ) : (
-                  <Copy size={14} />
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all active:scale-95",
+                  copied
+                    ? "bg-green-500 text-white"
+                    : "bg-deckly-primary text-slate-950 hover:opacity-90",
                 )}
-                <span>{copied ? "Copied" : "Copy Link"}</span>
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                <span>{copied ? "Copied!" : "Copy Link"}</span>
               </button>
 
               <a
