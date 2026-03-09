@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../services/supabase";
@@ -16,6 +16,10 @@ function Signup() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = "Sign Up | Deckly";
+  }, []);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,9 +80,9 @@ function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-black p-4 md:p-6 gap-4 md:gap-6 overflow-hidden">
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#080808] p-4 md:p-6 gap-4 md:gap-6 overflow-y-auto">
       {/* Left Panel - Hero - Hidden on Mobile */}
-      <div className="hidden md:flex md:w-5/12 bg-deckly-primary p-12 flex-col items-center justify-center text-center rounded-3xl overflow-hidden">
+      <div className="hidden md:flex md:w-5/12 bg-deckly-primary p-12 flex-col items-center justify-center text-center rounded-xl overflow-hidden shadow-2xl">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -101,7 +105,7 @@ function Signup() {
         </div>
       </div>
 
-      <div className="w-full md:w-7/12 bg-deckly-background p-8 md:p-12 lg:p-24 flex flex-col items-center justify-center overflow-y-auto rounded-3xl overflow-hidden">
+      <div className="w-full md:w-7/12 bg-[#10120f] p-8 md:p-12 lg:p-24 flex flex-col items-center justify-center rounded-xl border border-white/5 shadow-2xl relative z-10">
         <div className="w-full max-w-[440px]">
           <div className="flex flex-col items-center text-center mb-8">
             <div className="w-24 h-24 mb-8 flex items-center justify-center">

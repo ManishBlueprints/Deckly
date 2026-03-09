@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "../services/supabase";
@@ -14,6 +14,10 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = "Log In | Deckly";
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,9 +68,9 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-black p-4 md:p-6 gap-4 md:gap-6 overflow-hidden">
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#080808] p-4 md:p-6 gap-4 md:gap-6 overflow-y-auto">
       {/* Left Panel - Hero - Hidden on Mobile */}
-      <div className="hidden md:flex md:w-5/12 bg-deckly-primary p-12 flex-col items-center justify-center text-center rounded-3xl overflow-hidden">
+      <div className="hidden md:flex md:w-5/12 bg-deckly-primary p-12 flex-col items-center justify-center text-center rounded-xl overflow-hidden shadow-2xl">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -89,7 +93,7 @@ function Login() {
         </div>
       </div>
 
-      <div className="w-full md:w-7/12 bg-deckly-background p-8 md:p-12 lg:p-24 flex flex-col items-center justify-center overflow-y-auto rounded-3xl overflow-hidden">
+      <div className="w-full md:w-7/12 bg-[#10120f] p-8 md:p-12 lg:p-24 flex flex-col items-center justify-center rounded-xl border border-white/5 shadow-2xl relative z-10">
         <div className="w-full max-w-[440px]">
           <div className="flex flex-col items-center text-center mb-8">
             <div className="w-24 h-24 mb-8 flex items-center justify-center">
@@ -180,9 +184,10 @@ function Login() {
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
-                className="bg-deckly-accent/10 border border-deckly-accent/20 text-deckly-accent text-xs font-bold p-3 rounded-xl text-center"
+                className="bg-deckly-accent/20 border border-deckly-accent/40 text-deckly-accent text-sm font-bold p-4 rounded-xl text-center mb-2"
+                id="login-error-message"
               >
-                {error}
+                Invalid credentials. {error}
               </motion.div>
             )}
 
