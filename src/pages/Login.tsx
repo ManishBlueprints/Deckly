@@ -70,7 +70,7 @@ function Login() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#080808] p-4 md:p-6 gap-4 md:gap-6 overflow-y-auto">
       {/* Left Panel - Hero - Hidden on Mobile */}
-      <div className="hidden md:flex md:w-5/12 bg-deckly-primary p-12 flex-col items-center justify-center text-center rounded-xl overflow-hidden shadow-2xl">
+      <div className="hidden md:flex md:w-5/12 bg-deckly-primary p-8 flex-col items-center justify-center text-center rounded-xl overflow-hidden shadow-2xl">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -80,7 +80,7 @@ function Login() {
           <img
             src={penguinMascot}
             alt="Mascot"
-            className="w-24 sm:w-40 md:w-42 h-auto object-contain"
+            className="w-20 sm:w-32 md:w-36 h-auto object-contain"
           />
         </motion.div>
         <div className="max-w-[540px]">
@@ -93,10 +93,10 @@ function Login() {
         </div>
       </div>
 
-      <div className="w-full md:w-7/12 bg-[#10120f] p-8 md:p-12 lg:p-24 flex flex-col items-center justify-center rounded-xl border border-white/5 shadow-2xl relative z-10">
-        <div className="w-full max-w-[440px]">
-          <div className="flex flex-col items-center text-center mb-8">
-            <div className="w-24 h-24 mb-8 flex items-center justify-center">
+      <div className="w-full md:w-7/12 bg-[#10120f] p-8 md:p-12 lg:p-16 flex flex-col items-center justify-center rounded-xl border border-white/5 shadow-2xl relative z-10">
+        <div className="w-full max-w-[400px]">
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-20 h-20 mb-6 flex items-center justify-center">
               <img
                 src={logo}
                 alt="Deckly"
@@ -106,12 +106,12 @@ function Login() {
             <h2 className="text-2xl font-bold text-white tracking-tight mb-2">
               Welcome Back
             </h2>
-            <p className="text-slate-500 font-bold mb-8">
+            <p className="text-slate-500 font-bold mb-6">
               An all in one pitchdeck management workspace
             </p>
 
             {/* Social Logins */}
-            <div className="w-full space-y-4 mb-8">
+            <div className="w-full space-y-4 mb-6">
               <button
                 onClick={handleGoogleSignIn}
                 className="w-full flex items-center justify-center gap-3 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-300 font-bold text-sm hover:bg-white/10 transition-all"
@@ -150,7 +150,7 @@ function Login() {
               </button>
             </div>
 
-            <div className="flex items-center w-full gap-4 mb-8">
+            <div className="flex items-center w-full gap-4 mb-6">
               <div className="h-px bg-white/5 flex-1" />
               <span className="text-[10px] uppercase font-bold tracking-widest text-slate-600">
                 Or Sign in With
@@ -159,7 +159,7 @@ function Login() {
             </div>
           </div>
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-6">
+          <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <Input
               label="Email Address"
               type="email"
@@ -196,13 +196,13 @@ function Login() {
               fullWidth
               size="large"
               loading={loading}
-              className="font-bold tracking-widest uppercase py-4"
+              className="font-bold tracking-widest uppercase py-3 mt-2"
             >
               Sign In
             </Button>
           </form>
 
-          <div className="mt-8 text-center">
+          <div className="mt-6 text-center">
             <p className="text-sm text-slate-500 font-bold">
               New to Deckly?{" "}
               <Link
@@ -214,7 +214,7 @@ function Login() {
             </p>
           </div>
 
-          <p className="mt-12 text-[10px] text-slate-600 font-bold text-center leading-relaxed">
+          <p className="mt-8 text-[10px] text-slate-600 font-bold text-center leading-relaxed">
             © 2026 Deckly by Manish
           </p>
         </div>
