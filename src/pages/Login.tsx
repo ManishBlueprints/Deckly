@@ -110,7 +110,7 @@ function Login() {
               An all in one pitchdeck management workspace
             </p>
 
-            {/* Social Logins */}
+            {/* Social Logins Google and GitHub */}
             <div className="w-full space-y-4 mb-6">
               <button
                 onClick={handleGoogleSignIn}

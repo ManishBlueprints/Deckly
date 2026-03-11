@@ -19,7 +19,7 @@ export const userService = {
 
       const result = data as UserProfile | null;
 
-      // Auto-generate handle if missing and full_name exists
+      // Auto-generate handle if missing and full_name exists so its never blank
       if (result && !result.handle && result.full_name) {
         const generatedHandle = normalizeHandle(result.full_name);
         if (generatedHandle) {
