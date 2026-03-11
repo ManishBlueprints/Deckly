@@ -10,7 +10,6 @@ import {
 import { userService } from "../../services/userService";
 import { deckService } from "../../services/deckService";
 import { normalizeSlug } from "../../utils/slug";
-import { cn } from "../../utils/cn";
 
 interface WorkspaceSetupModalProps {
   isOpen: boolean;
@@ -73,7 +72,7 @@ export function WorkspaceSetupModal({
       await deckService.updateBrandingSettings({ room_name: name });
 
       onComplete(name, slug);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Setup failed", err);
       setError("Failed to save workspace settings. Please try again.");
     } finally {

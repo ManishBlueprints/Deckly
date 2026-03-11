@@ -214,7 +214,7 @@ export const dataRoomService = {
     return data.publicUrl;
   },
 
-  // ── ANALYTICS ───────────────────────────────────────────
+  // ── ANALYTICS DASHBOARD ───────────────────────────────────────────
 
   async getDataRoomAnalytics(roomId: string): Promise<{
     totalVisitors: number;

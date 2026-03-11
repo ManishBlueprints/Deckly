@@ -19,14 +19,46 @@ export const userService = {
 
       const result = data as UserProfile | null;
 
-      // Auto-generate handle if missing and full_name exists
+      // Auto-generate handle if missing and full_name exists so its never blank
       if (result && !result.handle && result.full_name) {
         const generatedHandle = normalizeHandle(result.full_name);
         if (generatedHandle) {
           try {
-            return await userService.updateProfile(userId, {
-              handle: generatedHandle,
-            });
+            // Find existing handles safely and smartly to get a likely free suffix
+            const { data: existing } = await supabase
+              .from("profiles")
+              .select("handle")
+              .ilike("handle", `${generatedHandle}%`);
+
+            let suffix = 0;
+            if (existing && existing.length > 0) {
+              const taken = new Set(existing.map((e) => e.handle));
+              while (taken.has(suffix === 0 ? generatedHandle : `${generatedHandle}${suffix}`)) {
+                suffix++;
+              }
+            }
+
+            // Wrapping the update in a bounded retry loop handles any TOCTOU unique violations
+            let attempts = 0;
+            let finalHandle = suffix === 0 ? generatedHandle : `${generatedHandle}${suffix}`;
+
+            while (attempts < 5) {
+              try {
+                return await userService.updateProfile(userId, {
+                  handle: finalHandle,
+                });
+              } catch (updateError: any) {
+                // 23505 is the PostgreSQL Unique Violation error code
+                if (updateError?.code === "23505") {
+                  suffix++;
+                  finalHandle = `${generatedHandle}${suffix}`;
+                  attempts++;
+                } else {
+                  throw updateError; // Unexpected error, break loop
+                }
+              }
+            }
+            console.warn(`[User Service] Could not generate unique handle for ${result.full_name}`);
           } catch (e) {
             console.error("[User Service] Failed to auto-generate handle:", e);
           }
@@ -52,7 +84,9 @@ export const userService = {
       .single();
 
     if (error) {
-      console.error("Error updating profile:", error);
+      if (error.code !== "23505") {
+        console.error("Error updating profile:", error);
+      }
       throw error;
     }
 
