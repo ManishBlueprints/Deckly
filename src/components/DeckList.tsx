@@ -88,7 +88,10 @@ function DeckList({
       onBrandingUpdate({ room_name: editValue });
       setIsEditingTitle(false);
     } catch (err: unknown) {
-      setError("Failed to update room name: " + (err instanceof Error ? err.message : String(err)));
+      setError(
+        "Failed to update room name: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
     } finally {
       setSaving(false);
     }
@@ -126,26 +129,33 @@ function DeckList({
         profile?.id,
       );
       setBranding((prev) => ({ ...prev, banner_url: publicUrl }));
+      onBrandingUpdate({ banner_url: publicUrl });
     } catch (err: unknown) {
-      setError("Failed to upload banner: " + (err instanceof Error ? err.message : String(err)));
+      setError(
+        "Failed to upload banner: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
     } finally {
       setUploading(false);
     }
   };
-
   const handleConfirmReset = async () => {
     setIsResetting(true);
     try {
       const defaults = { room_name: "Deckly Data Room", banner_url: "" };
       await deckService.updateBrandingSettings({
         room_name: defaults.room_name,
-        banner_url: null,
+        banner_url: defaults.banner_url, // Match persisted value to local default
       });
       setBranding(defaults);
+      onBrandingUpdate(defaults); // Keep parent in sync
       setShowBrandingMenu(false);
       setResetTarget(false);
     } catch (err: unknown) {
-      setError("Failed to reset branding: " + (err instanceof Error ? err.message : String(err)));
+      setError(
+        "Failed to reset branding: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
     } finally {
       setIsResetting(false);
     }
@@ -453,7 +463,9 @@ function DeckList({
 
                       // Handle stringified JSON (common in Supabase responses sometimes)
                       // DeckPage may arrive as a plain string or an object with image_url/url keys
-                      type DeckPage = { image_url?: string; url?: string } | string;
+                      type DeckPage =
+                        | { image_url?: string; url?: string }
+                        | string;
                       const pageCandidate = firstPage as DeckPage;
                       if (
                         typeof pageCandidate === "string" &&
@@ -479,8 +491,18 @@ function DeckList({
                       } else {
                         imgSrc =
                           (typeof firstPage === "object" && firstPage !== null
-                            ? (firstPage as { image_url?: string; url?: string }).image_url ||
-                              (firstPage as { image_url?: string; url?: string }).url
+                            ? (
+                                firstPage as {
+                                  image_url?: string;
+                                  url?: string;
+                                }
+                              ).image_url ||
+                              (
+                                firstPage as {
+                                  image_url?: string;
+                                  url?: string;
+                                }
+                              ).url
                             : undefined) ||
                           branding.banner_url ||
                           defaultBanner;
@@ -497,12 +519,13 @@ function DeckList({
                           alt={deck.title}
                           referrerPolicy="no-referrer"
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                          onError={(
+                            e: React.SyntheticEvent<HTMLImageElement>,
+                          ) => {
                             const target = e.currentTarget;
                             if (!target.dataset.triedFallback) {
                               target.dataset.triedFallback = "true";
-                              target.src =
-                                branding.banner_url || defaultBanner;
+                              target.src = branding.banner_url || defaultBanner;
                             }
                           }}
                         />
@@ -519,7 +542,9 @@ function DeckList({
                       </h2>
                       <div className="flex flex-shrink-0 gap-2 items-center ml-auto">
                         <ActionButton
-                          onClick={(e: React.MouseEvent) => handleCopyLink(e, deck)}
+                          onClick={(e: React.MouseEvent) =>
+                            handleCopyLink(e, deck)
+                          }
                           title="Copy Link"
                           active={copiedId === deck.id}
                         >
