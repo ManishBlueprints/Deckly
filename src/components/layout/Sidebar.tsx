@@ -50,7 +50,9 @@ export function Sidebar() {
     setIsCollapsed(next);
     try {
       localStorage.setItem("sidebar-collapsed", String(next));
-    } catch {}
+    } catch {
+      // Ignore localStorage errors (e.g. incognito mode)
+    }
   }
 
   return (

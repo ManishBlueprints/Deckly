@@ -21,7 +21,7 @@ export const userService = {
 
       // Auto-generate handle if missing and full_name exists so its never blank
       if (result && !result.handle && result.full_name) {
-        let generatedHandle = normalizeHandle(result.full_name);
+        const generatedHandle = normalizeHandle(result.full_name);
         if (generatedHandle) {
           try {
             // Ensure uniqueness
