@@ -294,11 +294,11 @@ BEGIN
         p_page_number, 
         v_deck_owner_id, 
         CASE WHEN v_is_unique THEN 1 ELSE 0 END, 
-        p_time_spent
+        ROUND(p_time_spent::numeric)::INTEGER
     )
     ON CONFLICT (deck_id, page_number) DO UPDATE SET
         total_views = deck_stats.total_views + (CASE WHEN v_is_unique THEN 1 ELSE 0 END),
-        total_time_seconds = deck_stats.total_time_seconds + p_time_spent,
+        total_time_seconds = deck_stats.total_time_seconds + ROUND(p_time_spent::numeric)::INTEGER,
         updated_at = NOW();
 END;
 $$;
