@@ -114,14 +114,6 @@ CREATE POLICY "Owners can view their page views" ON public.deck_page_views
         SELECT 1 FROM public.decks d WHERE d.id = deck_id AND d.user_id = (select auth.uid())
     ));
 
-CREATE POLICY "Anyone can update their own page views" ON public.deck_page_views
-    FOR UPDATE USING (true) WITH CHECK (true);
-
-CREATE POLICY "Public can log valid deck stats" ON public.deck_stats
-    FOR ALL 
-    USING (EXISTS (SELECT 1 FROM public.decks WHERE id = deck_id))
-    WITH CHECK (EXISTS (SELECT 1 FROM public.decks WHERE id = deck_id));
-
 CREATE POLICY "Owners can manage their own stats" ON public.deck_stats
     FOR ALL USING (EXISTS (
         SELECT 1 FROM public.decks d WHERE d.id = deck_id AND d.user_id = (select auth.uid())
@@ -249,6 +241,65 @@ BEGIN
     SELECT 1 FROM public.data_rooms 
     WHERE slug = p_slug AND view_password = p_password
   );
+END;
+$$;
+
+-- Secure Postgres Function for Analytics (replaces client-side inserts/updates)
+CREATE OR REPLACE FUNCTION public.record_deck_visit(
+    p_deck_id UUID,
+    p_page_number INTEGER,
+    p_time_spent REAL,
+    p_visitor_id TEXT,
+    p_viewer_email TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_deck_owner_id UUID;
+    v_recent_view_id UUID;
+    v_is_unique BOOLEAN;
+BEGIN
+    -- 1. Get the deck owner
+    SELECT user_id INTO v_deck_owner_id FROM public.decks WHERE id = p_deck_id;
+    IF NOT FOUND THEN RETURN; END IF;
+
+    -- 2. Check for unique view in last 24 hours
+    SELECT id INTO v_recent_view_id 
+    FROM public.deck_page_views 
+    WHERE deck_id = p_deck_id 
+      AND page_number = p_page_number 
+      AND visitor_id = p_visitor_id 
+      AND viewed_at > (NOW() - INTERVAL '24 hours')
+    LIMIT 1;
+
+    v_is_unique := (v_recent_view_id IS NULL);
+
+    -- 3. Sync deck_page_views
+    IF v_is_unique THEN
+        INSERT INTO public.deck_page_views (deck_id, page_number, visitor_id, time_spent, viewer_email)
+        VALUES (p_deck_id, p_page_number, p_visitor_id, p_time_spent, p_viewer_email);
+    ELSE
+        UPDATE public.deck_page_views 
+        SET time_spent = time_spent + p_time_spent
+        WHERE id = v_recent_view_id;
+    END IF;
+
+    -- 4. Sync deck_stats (Aggregate)
+    INSERT INTO public.deck_stats (deck_id, page_number, user_id, total_views, total_time_seconds)
+    VALUES (
+        p_deck_id, 
+        p_page_number, 
+        v_deck_owner_id, 
+        CASE WHEN v_is_unique THEN 1 ELSE 0 END, 
+        p_time_spent
+    )
+    ON CONFLICT (deck_id, page_number) DO UPDATE SET
+        total_views = deck_stats.total_views + (CASE WHEN v_is_unique THEN 1 ELSE 0 END),
+        total_time_seconds = deck_stats.total_time_seconds + p_time_spent,
+        updated_at = NOW();
 END;
 $$;
 
