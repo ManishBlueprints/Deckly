@@ -175,7 +175,6 @@ export async function getDeckSignalCount(
 
 /**
  * Compute investor interest signals for an entire Data Room.
- * Aggregates all page views across all decks within the room.
  */
 export async function getRoomVisitorSignals(
   roomId: string,

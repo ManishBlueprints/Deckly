@@ -290,7 +290,7 @@ function Viewer() {
             <div className="w-6 h-6 bg-deckly-primary/10 border border-deckly-primary/20 rounded-full flex items-center justify-center text-deckly-primary">
               <Check size={14} strokeWidth={3} />
             </div>
-            <span className="text-sm font-medium">Saved to library</span>
+            <span className="text-sm font-medium">Saved</span>
           </motion.div>
         )}
       </AnimatePresence>

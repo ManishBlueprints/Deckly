@@ -605,7 +605,7 @@ export const deckService = {
     return !data;
   },
 
-  // NEW: Get deck by slug only (for legacy redirects)
+  // NEW: Get deck by slug only
   async getDeckBySlugOnly(
     slug: string,
   ): Promise<{ handle: string; slug: string } | null> {
