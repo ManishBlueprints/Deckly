@@ -125,24 +125,40 @@ export const deckService = {
       userId = session.user.id;
     }
 
-    // 1. Delete the PDF file
+    // 1. Delete the PDF file (Best effort)
     const urlParts = fileUrl.split("/storage/v1/object/public/decks/");
     const storagePath = urlParts[1];
 
     if (storagePath) {
-      await supabase.storage.from("decks").remove([storagePath]);
+      try {
+        await withRetry(async () => {
+          const { error } = await supabase.storage.from("decks").remove([storagePath]);
+          if (error) throw error;
+        });
+      } catch (err) {
+        console.error(`Failed to delete PDF from storage: ${storagePath}`, err);
+      }
     }
 
-    // 2. Delete processed images
-    const { data: files } = await supabase.storage
-      .from("decks")
-      .list(`${userId}/deck-images/${slug}`);
+    // 2. Delete processed images (Best effort)
+    try {
+      await withRetry(async () => {
+        const { data: files, error: listError } = await supabase.storage
+          .from("decks")
+          .list(`${userId}/deck-images/${slug}`);
 
-    if (files && files.length > 0) {
-      const filesToDelete = files.map(
-        (f) => `${userId}/deck-images/${slug}/${f.name}`,
-      );
-      await supabase.storage.from("decks").remove(filesToDelete);
+        if (listError) throw listError;
+
+        if (files && files.length > 0) {
+          const filesToDelete = files.map(
+            (f) => `${userId}/deck-images/${slug}/${f.name}`,
+          );
+          const { error: removeError } = await supabase.storage.from("decks").remove(filesToDelete);
+          if (removeError) throw removeError;
+        }
+      });
+    } catch (err) {
+      console.error(`Failed to delete processed images for deck slug: ${slug}`, err);
     }
 
     // 3. Delete from database
@@ -317,7 +333,6 @@ export const deckService = {
         .select()
         .single();
       if (error) throw error;
-      if (error) throw error;
       return data as BrandingSettings;
     } else {
       const { data, error } = await supabase
@@ -452,7 +467,7 @@ export const deckService = {
         user_id: session.user.id,
         deck_id: deckId,
         last_viewed_at: new Date().toISOString(),
-      }, { onConflict: "user_id, deck_id" });
+      }, { onConflict: "user_id,deck_id" });
 
     if (error) throw error;
   },
