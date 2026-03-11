@@ -21,12 +21,27 @@ export const userService = {
 
       // Auto-generate handle if missing and full_name exists so its never blank
       if (result && !result.handle && result.full_name) {
-        const generatedHandle = normalizeHandle(result.full_name);
+        let generatedHandle = normalizeHandle(result.full_name);
         if (generatedHandle) {
           try {
-            return await userService.updateProfile(userId, {
-              handle: generatedHandle,
-            });
+            // Ensure uniqueness
+            let isAvailable = await userService.isHandleAvailable(generatedHandle);
+            let suffix = 1;
+            let finalHandle = generatedHandle;
+            
+            while (!isAvailable && suffix < 100) {
+              finalHandle = `${generatedHandle}${suffix}`;
+              isAvailable = await userService.isHandleAvailable(finalHandle);
+              suffix++;
+            }
+
+            if (isAvailable) {
+              return await userService.updateProfile(userId, {
+                handle: finalHandle,
+              });
+            } else {
+              console.warn(`[User Service] Could not find a unique handle for ${result.full_name}`);
+            }
           } catch (e) {
             console.error("[User Service] Failed to auto-generate handle:", e);
           }
