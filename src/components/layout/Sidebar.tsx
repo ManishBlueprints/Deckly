@@ -106,11 +106,19 @@ export function Sidebar() {
               <div
                 className="flex-1 min-w-0 cursor-pointer"
                 onClick={() => setShowSettings(true)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setShowSettings(true);
+                  }
+                }}
               >
                 <p className="text-[13px] font-semibold text-slate-200 truncate leading-tight">
                   {branding?.room_name || "Workspace"}
                 </p>
-              </div>
+              </div>{" "}
             </div>
           )}
         </div>
