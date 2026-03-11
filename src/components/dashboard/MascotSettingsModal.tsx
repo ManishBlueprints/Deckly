@@ -6,7 +6,6 @@ import {
   Camera,
   Loader2,
   Info,
-  Link as LinkIcon,
   AlertCircle,
   Check,
 } from "lucide-react";
@@ -60,7 +59,7 @@ export function MascotSettingsModal({
       try {
         const available = await userService.isHandleAvailable(workspaceSlug);
         setIsSlugAvailable(available);
-      } catch (err) {
+      } catch {
         setIsSlugAvailable(false);
       } finally {
         setIsCheckingSlug(false);
@@ -89,7 +88,7 @@ export function MascotSettingsModal({
         logo_url: publicUrl,
       });
       onUpdate(updated);
-    } catch (err: any) {
+    } catch {
       setError("Failed to upload image. Please try again.");
     } finally {
       setUploading(false);
@@ -103,7 +102,7 @@ export function MascotSettingsModal({
         logo_url: null,
       });
       onUpdate(updated);
-    } catch (err) {
+    } catch {
       setError("Failed to reset logo.");
     } finally {
       setUploading(false);
@@ -131,7 +130,7 @@ export function MascotSettingsModal({
           window.location.reload();
         }
       }
-    } catch (err) {
+    } catch {
       setError("Failed to save workspace settings.");
     } finally {
       setSaving(false);

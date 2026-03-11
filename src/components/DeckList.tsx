@@ -87,8 +87,8 @@ function DeckList({
       setBranding((prev) => ({ ...prev, room_name: editValue }));
       onBrandingUpdate({ room_name: editValue });
       setIsEditingTitle(false);
-    } catch (err: any) {
-      setError("Failed to update room name: " + err.message);
+    } catch (err: unknown) {
+      setError("Failed to update room name: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
@@ -126,8 +126,8 @@ function DeckList({
         profile?.id,
       );
       setBranding((prev) => ({ ...prev, banner_url: publicUrl }));
-    } catch (err: any) {
-      setError("Failed to upload banner: " + err.message);
+    } catch (err: unknown) {
+      setError("Failed to upload banner: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setUploading(false);
     }
@@ -144,8 +144,8 @@ function DeckList({
       setBranding(defaults);
       setShowBrandingMenu(false);
       setResetTarget(false);
-    } catch (err: any) {
-      setError("Failed to reset branding: " + err.message);
+    } catch (err: unknown) {
+      setError("Failed to reset branding: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsResetting(false);
     }
@@ -452,7 +452,9 @@ function DeckList({
                           : null;
 
                       // Handle stringified JSON (common in Supabase responses sometimes)
-                      const pageCandidate = firstPage as any;
+                      // DeckPage may arrive as a plain string or an object with image_url/url keys
+                      type DeckPage = { image_url?: string; url?: string } | string;
+                      const pageCandidate = firstPage as DeckPage;
                       if (
                         typeof pageCandidate === "string" &&
                         (pageCandidate.startsWith("{") ||
@@ -460,7 +462,7 @@ function DeckList({
                       ) {
                         try {
                           firstPage = JSON.parse(pageCandidate);
-                        } catch (e) {
+                        } catch {
                           console.error(
                             "Failed to parse page JSON:",
                             firstPage,
@@ -476,8 +478,10 @@ function DeckList({
                         imgSrc = firstPage;
                       } else {
                         imgSrc =
-                          (firstPage as any).image_url ||
-                          (firstPage as any).url ||
+                          (typeof firstPage === "object" && firstPage !== null
+                            ? (firstPage as { image_url?: string; url?: string }).image_url ||
+                              (firstPage as { image_url?: string; url?: string }).url
+                            : undefined) ||
                           branding.banner_url ||
                           defaultBanner;
                       }
@@ -493,10 +497,11 @@ function DeckList({
                           alt={deck.title}
                           referrerPolicy="no-referrer"
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          onError={(e: any) => {
-                            if (!e.target.dataset.triedFallback) {
-                              e.target.dataset.triedFallback = "true";
-                              e.target.src =
+                          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                            const target = e.currentTarget;
+                            if (!target.dataset.triedFallback) {
+                              target.dataset.triedFallback = "true";
+                              target.src =
                                 branding.banner_url || defaultBanner;
                             }
                           }}
@@ -514,7 +519,7 @@ function DeckList({
                       </h2>
                       <div className="flex flex-shrink-0 gap-2 items-center ml-auto">
                         <ActionButton
-                          onClick={(e: any) => handleCopyLink(e, deck)}
+                          onClick={(e: React.MouseEvent) => handleCopyLink(e, deck)}
                           title="Copy Link"
                           active={copiedId === deck.id}
                         >
@@ -530,7 +535,7 @@ function DeckList({
                           )}
                         </ActionButton>
                         <ActionButton
-                          onClick={(e: any) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.preventDefault();
                             e.stopPropagation();
                             setSelectedAnalyticsDeck(deck);
@@ -545,7 +550,7 @@ function DeckList({
                           />
                         </ActionButton>
                         <ActionButton
-                          onClick={(e: any) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.preventDefault();
                             e.stopPropagation();
                             setSelectedDeck(deck);
@@ -559,7 +564,7 @@ function DeckList({
                           />
                         </ActionButton>
                         <ActionButton
-                          onClick={(e: any) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.preventDefault();
                             e.stopPropagation();
                             onDelete(deck);
@@ -667,6 +672,15 @@ function DeckList({
 }
 
 // Internal Helper Component for Action Buttons
+interface ActionButtonProps {
+  children: React.ReactNode;
+  onClick?: (e: React.MouseEvent) => void;
+  title?: string;
+  color?: "default" | "secondary" | "red";
+  active?: boolean;
+  className?: string;
+}
+
 function ActionButton({
   children,
   onClick,
@@ -674,8 +688,8 @@ function ActionButton({
   color = "default",
   active = false,
   className = "",
-}: any) {
-  const colors: any = {
+}: ActionButtonProps) {
+  const colors: Record<string, string> = {
     default: "hover:bg-deckly-primary hover:text-white",
     secondary: "hover:bg-deckly-secondary hover:text-white",
     red: "hover:bg-red-500 hover:text-white",
