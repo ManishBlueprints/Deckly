@@ -36,6 +36,8 @@ function DataRoomViewer() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Fetches public data room details, enforces slugs, and checks expiry
+  // Also validates if the current user is the owner to bypass the access gate
   const loadRoom = useCallback(async () => {
     if (!slug || !handle) return;
     try {
