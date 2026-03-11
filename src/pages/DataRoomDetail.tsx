@@ -82,6 +82,10 @@ function DataRoomDetail() {
       setSignalsLoading(true);
       getRoomVisitorSignals(roomId)
         .then(setRoomSignals)
+        .catch((err) => {
+          console.error("Failed to load visitor signals", err);
+          setRoomSignals([]);
+        })
         .finally(() => setSignalsLoading(false));
     } catch (err) {
       console.error("Failed to load room", err);
