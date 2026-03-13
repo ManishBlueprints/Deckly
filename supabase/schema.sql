@@ -196,9 +196,9 @@ ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS viewer_email TEXT;
 -- This section implements server-side password validation to prevent leakage.
 
 -- Minimal public profiles view: exposes only id and handle.
--- Runs as the view owner (security definer semantics for a view) so it can
--- bypass the restrictive RLS on public.profiles that would otherwise return
--- no rows for anonymous callers.
+-- IMPORTANT: regular PostgreSQL views do NOT bypass RLS automatically.
+-- The "Public profile fields" policy below grants anonymous SELECT on profiles;
+-- column-level GRANTs ensure only id and handle are accessible to anon/authenticated.
 CREATE OR REPLACE VIEW public.profiles_public AS
 SELECT id, handle
 FROM public.profiles;
@@ -221,6 +221,16 @@ SELECT
     p.handle as user_handle
 FROM public.data_rooms dr
 JOIN public.profiles_public p ON dr.user_id = p.id;
+
+-- Allow anonymous and authenticated roles to read only the public profile fields.
+-- Without this policy, RLS blocks all anon reads even through profiles_public.
+CREATE POLICY "Public profile fields are viewable by everyone"
+  ON public.profiles FOR SELECT
+  USING (true);
+
+-- Restrict which columns anon/authenticated can actually access on profiles.
+-- RLS controls which ROWS are visible; column grants control which COLUMNS.
+GRANT SELECT (id, handle) ON public.profiles TO anon, authenticated;
 
 -- Secure password validation function for Decks
 CREATE OR REPLACE FUNCTION public.check_deck_password(p_slug TEXT, p_password TEXT)

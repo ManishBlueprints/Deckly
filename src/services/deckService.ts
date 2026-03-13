@@ -139,7 +139,10 @@ export const deckService = {
 
     await withRetry(async () => {
       const { error } = await supabase.storage.from("decks").remove([storagePath]);
-      if (error) throw error;
+      // Treat 404/ObjectNotFound as success — file is already gone
+      if (error && !error.message?.includes("not found") && error.message !== "Object not found") {
+        throw error;
+      }
     });
 
     // 2. Delete processed images — must succeed before DB row is removed
@@ -148,14 +151,15 @@ export const deckService = {
         .from("decks")
         .list(`${userId}/deck-images/${slug}`);
 
-      if (listError) throw listError;
+      // 404 on the folder means no images exist — treat as success
+      if (listError && !listError.message?.includes("not found")) throw listError;
 
       if (files && files.length > 0) {
         const filesToDelete = files.map(
           (f) => `${userId}/deck-images/${slug}/${f.name}`,
         );
         const { error: removeError } = await supabase.storage.from("decks").remove(filesToDelete);
-        if (removeError) throw removeError;
+        if (removeError && !removeError.message?.includes("not found")) throw removeError;
       }
     });
 
