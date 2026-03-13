@@ -235,7 +235,7 @@ export async function getRoomVisitorSignals(
     // Deep reads (slides where visitor spent >= 20 seconds) - count unique (deck_id, page_number) combinations
     const deepSlides = new Set(
       rows
-        .filter((r) => (r.time_spent || 0) >= 20)
+        .filter((r) => r.deck_id != null && (r.time_spent || 0) >= 20)
         .map((r) => `${r.deck_id}_${r.page_number}`),
     ).size;
 

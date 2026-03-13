@@ -72,6 +72,7 @@ export const userService = {
   async updateProfile(
     userId: string,
     updates: Partial<UserProfile>,
+    options?: { suppressUniqueViolationLog?: boolean },
   ): Promise<UserProfile | null> {
     const { data, error } = await supabase
       .from("profiles")
@@ -84,7 +85,11 @@ export const userService = {
       .single();
 
     if (error) {
-      if (error.code !== "23505") {
+      // Only suppress logging for 23505 when the caller explicitly opts in
+      // (e.g., the handle-generation retry loop). All other callers still log.
+      const suppress =
+        options?.suppressUniqueViolationLog === true && error.code === "23505";
+      if (!suppress) {
         console.error("Error updating profile:", error);
       }
       throw error;
