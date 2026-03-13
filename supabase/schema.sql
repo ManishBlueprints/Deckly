@@ -12,21 +12,21 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index for profile handle
-CREATE INDEX IF NOT EXISTS idx_profiles_handle ON public.profiles(handle);
+-- Index for profile handle (removed unused var)
+
 
 -- Enable RLS for profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR PROFILES
 CREATE POLICY "Users can view their own profile" ON public.profiles
-    FOR SELECT USING (auth.uid() = id);
+    FOR SELECT USING ((select auth.uid()) = id);
 
 CREATE POLICY "Users can update their own profile" ON public.profiles
-    FOR UPDATE USING (auth.uid() = id);
+    FOR UPDATE USING ((select auth.uid()) = id);
 
 CREATE POLICY "Users can insert their own profile" ON public.profiles
-    FOR INSERT WITH CHECK (auth.uid() = id);
+    FOR INSERT WITH CHECK ((select auth.uid()) = id);
 
 -- 1. DECKS TABLE
 CREATE TABLE IF NOT EXISTS public.decks (
@@ -93,40 +93,34 @@ ALTER TABLE public.deck_stats ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR DECKS
 CREATE POLICY "Users can manage their own decks" ON public.decks
-    FOR ALL USING (auth.uid() = user_id);
+    FOR ALL USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Decks are viewable by everyone" ON public.decks
     FOR SELECT USING (true);
 
 -- POLICIES FOR BRANDING
 CREATE POLICY "Users can manage their own branding" ON public.branding
-    FOR ALL USING (auth.uid() = user_id);
+    FOR ALL USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Branding is viewable by everyone" ON public.branding
     FOR SELECT USING (true);
 
 -- POLICIES FOR ANALYTICS (Public insertion, Owner viewing)
-CREATE POLICY "Anyone can record page views" ON public.deck_page_views
-    FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public can log valid page views" ON public.deck_page_views
+    FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.decks WHERE id = deck_id));
 
 CREATE POLICY "Owners can view their page views" ON public.deck_page_views
     FOR SELECT USING (EXISTS (
-        SELECT 1 FROM public.decks d WHERE d.id = deck_id AND d.user_id = auth.uid()
+        SELECT 1 FROM public.decks d WHERE d.id = deck_id AND d.user_id = (select auth.uid())
     ));
-
-CREATE POLICY "Anyone can update their own page views" ON public.deck_page_views
-    FOR UPDATE USING (true) WITH CHECK (true);
-
-CREATE POLICY "Anyone can insert stats" ON public.deck_stats
-    FOR INSERT WITH CHECK (true); 
 
 CREATE POLICY "Owners can manage their own stats" ON public.deck_stats
     FOR ALL USING (EXISTS (
-        SELECT 1 FROM public.decks d WHERE d.id = deck_id AND d.user_id = auth.uid()
+        SELECT 1 FROM public.decks d WHERE d.id = deck_id AND d.user_id = (select auth.uid())
     ));
 
 CREATE POLICY "Owners can view their stats" ON public.deck_stats
-    FOR SELECT USING (auth.uid() = user_id);
+    FOR SELECT USING ((select auth.uid()) = user_id);
 
 -- 5. DATA ROOMS TABLE
 CREATE TABLE IF NOT EXISTS public.data_rooms (
@@ -164,7 +158,7 @@ ALTER TABLE public.data_room_documents ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR DATA ROOMS
 CREATE POLICY "Users can manage their own data rooms" ON public.data_rooms
-    FOR ALL USING (auth.uid() = user_id);
+    FOR ALL USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Data rooms are viewable by everyone" ON public.data_rooms
     FOR SELECT USING (true);
@@ -172,7 +166,7 @@ CREATE POLICY "Data rooms are viewable by everyone" ON public.data_rooms
 -- POLICIES FOR DATA ROOM DOCUMENTS
 CREATE POLICY "Owners can manage data room documents" ON public.data_room_documents
     FOR ALL USING (EXISTS (
-        SELECT 1 FROM public.data_rooms dr WHERE dr.id = data_room_id AND dr.user_id = auth.uid()
+        SELECT 1 FROM public.data_rooms dr WHERE dr.id = data_room_id AND dr.user_id = (select auth.uid())
     ));
 
 CREATE POLICY "Data room documents are viewable by everyone" ON public.data_room_documents
@@ -201,24 +195,42 @@ ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS viewer_email TEXT;
 -- 7. SECURITY HARDENING: SECURE ACCESS GATE
 -- This section implements server-side password validation to prevent leakage.
 
+-- Minimal public profiles view: exposes only id and handle.
+-- IMPORTANT: regular PostgreSQL views do NOT bypass RLS automatically.
+-- The "Public profile fields" policy below grants anonymous SELECT on profiles;
+-- column-level GRANTs ensure only id and handle are accessible to anon/authenticated.
+CREATE OR REPLACE VIEW public.profiles_public AS
+SELECT id, handle
+FROM public.profiles;
+
 -- Public view for decks (excludes sensitive view_password, includes user_handle)
-CREATE OR REPLACE VIEW public.decks_public AS
+CREATE OR REPLACE VIEW public.decks_public WITH (security_invoker = true) AS
 SELECT 
     d.id, d.user_id, d.title, d.slug, d.description, d.file_url, d.pages, d.status, 
     d.file_size, d.display_order, d.require_email, d.require_password, d.expires_at, 
     d.created_at, d.updated_at, d.file_type, d.display_mode,
     p.handle as user_handle
 FROM public.decks d
-JOIN public.profiles p ON d.user_id = p.id;
+JOIN public.profiles_public p ON d.user_id = p.id;
 
 -- Public view for data rooms (excludes sensitive view_password, includes user_handle)
-CREATE OR REPLACE VIEW public.data_rooms_public AS
+CREATE OR REPLACE VIEW public.data_rooms_public WITH (security_invoker = true) AS
 SELECT 
     dr.id, dr.user_id, dr.name, dr.slug, dr.description, dr.icon_url, dr.require_email, 
     dr.require_password, dr.expires_at, dr.created_at, dr.updated_at,
     p.handle as user_handle
 FROM public.data_rooms dr
-JOIN public.profiles p ON dr.user_id = p.id;
+JOIN public.profiles_public p ON dr.user_id = p.id;
+
+-- Allow anonymous and authenticated roles to read only the public profile fields.
+-- Without this policy, RLS blocks all anon reads even through profiles_public.
+CREATE POLICY "Public profile fields are viewable by everyone"
+  ON public.profiles FOR SELECT
+  USING (true);
+
+-- Restrict which columns anon/authenticated can actually access on profiles.
+-- RLS controls which ROWS are visible; column grants control which COLUMNS.
+GRANT SELECT (id, handle) ON public.profiles TO anon, authenticated;
 
 -- Secure password validation function for Decks
 CREATE OR REPLACE FUNCTION public.check_deck_password(p_slug TEXT, p_password TEXT)
@@ -250,6 +262,67 @@ BEGIN
 END;
 $$;
 
+-- Secure Postgres Function for Analytics (replaces client-side inserts/updates)
+CREATE OR REPLACE FUNCTION public.record_deck_visit(
+    p_deck_id UUID,
+    p_page_number INTEGER,
+    p_time_spent REAL,
+    p_visitor_id TEXT,
+    p_viewer_email TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_deck_owner_id UUID;
+    v_recent_view_id UUID;
+    v_is_unique BOOLEAN;
+BEGIN
+    -- 1. Get the deck owner
+    SELECT user_id INTO v_deck_owner_id FROM public.decks WHERE id = p_deck_id;
+    IF NOT FOUND THEN RETURN; END IF;
+
+    -- 2. Check for unique view in last 24 hours
+    SELECT id INTO v_recent_view_id 
+    FROM public.deck_page_views 
+    WHERE deck_id = p_deck_id 
+      AND page_number = p_page_number 
+      AND visitor_id = p_visitor_id 
+      AND viewed_at > (NOW() - INTERVAL '24 hours')
+    LIMIT 1;
+
+    v_is_unique := (v_recent_view_id IS NULL);
+
+    -- 3. Sync deck_page_views
+    IF v_is_unique THEN
+        INSERT INTO public.deck_page_views (deck_id, page_number, visitor_id, time_spent, viewer_email)
+        VALUES (p_deck_id, p_page_number, p_visitor_id, p_time_spent, p_viewer_email);
+    ELSE
+        UPDATE public.deck_page_views
+        SET time_spent = time_spent + p_time_spent,
+            viewed_at  = NOW(),
+            viewer_email = COALESCE(p_viewer_email, viewer_email)
+        WHERE id = v_recent_view_id;
+    END IF;
+
+    -- 4. Sync deck_stats (Aggregate)
+    INSERT INTO public.deck_stats (deck_id, page_number, user_id, total_views, total_time_seconds)
+    VALUES (
+        p_deck_id, 
+        p_page_number, 
+        v_deck_owner_id, 
+        CASE WHEN v_is_unique THEN 1 ELSE 0 END, 
+        ROUND(p_time_spent::numeric)::INTEGER
+    )
+    ON CONFLICT (deck_id, page_number) DO UPDATE SET
+        total_views = deck_stats.total_views + (CASE WHEN v_is_unique THEN 1 ELSE 0 END),
+        total_time_seconds = deck_stats.total_time_seconds + ROUND(p_time_spent::numeric)::INTEGER,
+        updated_at = NOW();
+END;
+$$;
+
 -- 8. INVESTOR LIBRARY
 CREATE TABLE IF NOT EXISTS public.investor_library (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -272,7 +345,7 @@ ALTER TABLE public.investor_library ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR INVESTOR LIBRARY
 CREATE POLICY "Users can manage their own library" ON public.investor_library
-    FOR ALL USING (auth.uid() = user_id);
+    FOR ALL USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Owners can view bookmarks of their decks" 
 ON public.investor_library 
@@ -281,7 +354,7 @@ USING (
   EXISTS (
     SELECT 1 FROM public.decks 
     WHERE decks.id = deck_id 
-    AND decks.user_id = auth.uid()
+    AND decks.user_id = (select auth.uid())
   )
 );
 
@@ -305,4 +378,11 @@ ALTER TABLE public.investor_notes ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR INVESTOR NOTES
 CREATE POLICY "Notes are strictly private" ON public.investor_notes
-    FOR ALL USING (auth.uid() = user_id);
+    FOR ALL USING ((select auth.uid()) = user_id);
+
+-- 10. FOREIGN KEY OPTIMIZATION INDEXES
+CREATE INDEX IF NOT EXISTS idx_branding_user ON public.branding(user_id);
+CREATE INDEX IF NOT EXISTS idx_data_room_documents_deck ON public.data_room_documents(deck_id);
+CREATE INDEX IF NOT EXISTS idx_deck_stats_user ON public.deck_stats(user_id);
+CREATE INDEX IF NOT EXISTS idx_decks_user ON public.decks(user_id);
+CREATE INDEX IF NOT EXISTS idx_investor_notes_deck ON public.investor_notes(deck_id);

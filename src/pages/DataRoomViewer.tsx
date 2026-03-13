@@ -36,6 +36,8 @@ function DataRoomViewer() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Fetches public data room details, enforces slugs, and checks expiry
+  // Also validates if the current user is the owner to bypass the access gate
   const loadRoom = useCallback(async () => {
     if (!slug || !handle) return;
     try {
@@ -54,7 +56,7 @@ function DataRoomViewer() {
             );
             return;
           }
-        } catch (e) {
+        } catch {
           /* ignore */
         }
         setError("Data room not found");
@@ -87,12 +89,14 @@ function DataRoomViewer() {
       if ((!data.require_email && !data.require_password) || isOwner) {
         setIsUnlocked(true);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load data room.");
       console.error("Error loading data room:", err);
     } finally {
       setLoading(false);
     }
+  // 'handle' is intentionally excluded: adding it would reset the room on every navigation
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   useEffect(() => {
@@ -107,6 +111,9 @@ function DataRoomViewer() {
         viewerEmail ? { email_captured: viewerEmail } : undefined,
       );
     }
+  // selectedDeck and viewerEmail intentionally excluded: we only want to fire on deck ID change,
+  // not on every re-render of the email/deck object reference
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDeck?.id, isUnlocked]);
 
   // Build a fake Deck object for AccessGate compatibility

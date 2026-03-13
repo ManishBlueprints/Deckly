@@ -64,7 +64,7 @@ function Viewer() {
           analyticsService.trackDeckView(data);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Try slug-only fallback for namespacing enforcement
       try {
         const fallback = await deckService.getDeckBySlugOnly(slug);
@@ -72,11 +72,11 @@ function Viewer() {
           window.location.replace(`/${fallback.handle}/${fallback.slug}`);
           return;
         }
-      } catch (e) {
+      } catch {
         /* ignore */
       }
 
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Failed to load deck.");
       console.error("Error loading deck:", err);
     } finally {
       setLoading(false);
@@ -106,6 +106,9 @@ function Viewer() {
         deckService.updateLibraryLastViewed(deck.id);
       }
     }
+  // deck.id, isSaved, and session are the actual triggers here; adding saveToLibraryMutation
+  // or full deck object would cause infinite re-renders due to object reference instability
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, deck?.id, isSaved]);
 
   const handleSave = async () => {
@@ -290,7 +293,7 @@ function Viewer() {
             <div className="w-6 h-6 bg-deckly-primary/10 border border-deckly-primary/20 rounded-full flex items-center justify-center text-deckly-primary">
               <Check size={14} strokeWidth={3} />
             </div>
-            <span className="text-sm font-medium">Saved to library</span>
+            <span className="text-sm font-medium">Saved</span>
           </motion.div>
         )}
       </AnimatePresence>

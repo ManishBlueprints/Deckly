@@ -60,6 +60,8 @@ function DataRoomDetail() {
   const [signalsLoading, setSignalsLoading] = useState(true);
 
   /* ── load data ── */
+  // useCallback is used here to memoize the loading of room data, documents, and analytics
+  // This prevents unnecessary re-fetching when the component re-renders
   const loadAll = useCallback(async () => {
     if (!roomId) return;
     setLoading(true);
@@ -80,6 +82,10 @@ function DataRoomDetail() {
       setSignalsLoading(true);
       getRoomVisitorSignals(roomId)
         .then(setRoomSignals)
+        .catch((err) => {
+          console.error("Failed to load visitor signals", err);
+          setRoomSignals([]);
+        })
         .finally(() => setSignalsLoading(false));
     } catch (err) {
       console.error("Failed to load room", err);

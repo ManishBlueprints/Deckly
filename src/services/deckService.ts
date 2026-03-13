@@ -125,27 +125,45 @@ export const deckService = {
       userId = session.user.id;
     }
 
-    // 1. Delete the PDF file
+    // 1. Delete the PDF file — must succeed before DB row is removed
     const urlParts = fileUrl.split("/storage/v1/object/public/decks/");
     const storagePath = urlParts[1];
 
-    if (storagePath) {
-      await supabase.storage.from("decks").remove([storagePath]);
-    }
-
-    // 2. Delete processed images
-    const { data: files } = await supabase.storage
-      .from("decks")
-      .list(`${userId}/deck-images/${slug}`);
-
-    if (files && files.length > 0) {
-      const filesToDelete = files.map(
-        (f) => `${userId}/deck-images/${slug}/${f.name}`,
+    if (!storagePath) {
+      console.warn(
+        `[deckService.deleteDeck] Unexpected fileUrl format — could not parse storage path. ` +
+        `Deck DB row will NOT be deleted to avoid orphaning data. fileUrl: ${fileUrl}`,
       );
-      await supabase.storage.from("decks").remove(filesToDelete);
+      return; // Abort: do not remove the DB row if we can't clean up storage
     }
 
-    // 3. Delete from database
+    await withRetry(async () => {
+      const { error } = await supabase.storage.from("decks").remove([storagePath]);
+      // Treat 404/ObjectNotFound as success — file is already gone
+      if (error && !error.message?.includes("not found") && error.message !== "Object not found") {
+        throw error;
+      }
+    });
+
+    // 2. Delete processed images — must succeed before DB row is removed
+    await withRetry(async () => {
+      const { data: files, error: listError } = await supabase.storage
+        .from("decks")
+        .list(`${userId}/deck-images/${slug}`);
+
+      // 404 on the folder means no images exist — treat as success
+      if (listError && !listError.message?.includes("not found")) throw listError;
+
+      if (files && files.length > 0) {
+        const filesToDelete = files.map(
+          (f) => `${userId}/deck-images/${slug}/${f.name}`,
+        );
+        const { error: removeError } = await supabase.storage.from("decks").remove(filesToDelete);
+        if (removeError && !removeError.message?.includes("not found")) throw removeError;
+      }
+    });
+
+    // 3. Delete from database — only reached if both storage steps above succeeded
     const { error } = await supabase
       .from("decks")
       .delete()
@@ -317,7 +335,6 @@ export const deckService = {
         .select()
         .single();
       if (error) throw error;
-      if (error) throw error;
       return data as BrandingSettings;
     } else {
       const { data, error } = await supabase
@@ -452,7 +469,7 @@ export const deckService = {
         user_id: session.user.id,
         deck_id: deckId,
         last_viewed_at: new Date().toISOString(),
-      }, { onConflict: "user_id, deck_id" });
+      }, { onConflict: "user_id,deck_id" });
 
     if (error) throw error;
   },
@@ -605,7 +622,7 @@ export const deckService = {
     return !data;
   },
 
-  // NEW: Get deck by slug only (for legacy redirects)
+  // NEW: Get deck by slug only
   async getDeckBySlugOnly(
     slug: string,
   ): Promise<{ handle: string; slug: string } | null> {

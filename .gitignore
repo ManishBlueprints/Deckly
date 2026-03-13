@@ -14,6 +14,7 @@ dist
 dist-ssr
 *.local
 .VSCodeCounter
+testsprite_tests
 
 # Editor directories and files
 .vscode/*
@@ -26,7 +27,7 @@ dist-ssr
 *.sln
 *.sw?
 
-
+.env
 .env.local
 
 # Documentation Hub (Founder Data Room)

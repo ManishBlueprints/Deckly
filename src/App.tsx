@@ -76,7 +76,7 @@ const AppContent = () => {
     if (loading) {
       timeout = setTimeout(() => {
         setShowSlowMessage(true);
-      }, 8000);
+      }, 3000); // Reduced from 8s to 3s for faster user feedback
     } else {
       setShowSlowMessage(false);
     }
