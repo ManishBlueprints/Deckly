@@ -187,7 +187,7 @@ function Login() {
                 className="bg-deckly-accent/20 border border-deckly-accent/40 text-deckly-accent text-sm font-bold p-4 rounded-xl text-center mb-2"
                 id="login-error-message"
               >
-                Invalid credentials. {error}
+                Sign-in failed: {error}
               </motion.div>
             )}
 
