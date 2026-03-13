@@ -118,7 +118,7 @@ export function Sidebar() {
                 <p className="text-[13px] font-semibold text-slate-200 truncate leading-tight">
                   {branding?.room_name || "Workspace"}
                 </p>
-              </div>{" "}
+              </div>
             </div>
           )}
         </div>

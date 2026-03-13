@@ -125,43 +125,45 @@ export const deckService = {
       userId = session.user.id;
     }
 
-    // 1. Delete the PDF file (Best effort)
+    // 1. Delete the PDF file — must succeed before DB row is removed
     const urlParts = fileUrl.split("/storage/v1/object/public/decks/");
     const storagePath = urlParts[1];
 
-    if (storagePath) {
-      try {
-        await withRetry(async () => {
-          const { error } = await supabase.storage.from("decks").remove([storagePath]);
-          if (error) throw error;
-        });
-      } catch (err) {
-        console.error(`Failed to delete PDF from storage: ${storagePath}`, err);
+    if (!storagePath) {
+      console.warn(
+        `[deckService.deleteDeck] Unexpected fileUrl format — could not parse storage path. ` +
+        `Deck DB row will NOT be deleted to avoid orphaning data. fileUrl: ${fileUrl}`,
+      );
+      return; // Abort: do not remove the DB row if we can't clean up storage
+    }
+
+    await withRetry(async () => {
+      const { error } = await supabase.storage.from("decks").remove([storagePath]);
+      // Treat 404/ObjectNotFound as success — file is already gone
+      if (error && !error.message?.includes("not found") && error.message !== "Object not found") {
+        throw error;
       }
-    }
+    });
 
-    // 2. Delete processed images (Best effort)
-    try {
-      await withRetry(async () => {
-        const { data: files, error: listError } = await supabase.storage
-          .from("decks")
-          .list(`${userId}/deck-images/${slug}`);
+    // 2. Delete processed images — must succeed before DB row is removed
+    await withRetry(async () => {
+      const { data: files, error: listError } = await supabase.storage
+        .from("decks")
+        .list(`${userId}/deck-images/${slug}`);
 
-        if (listError) throw listError;
+      // 404 on the folder means no images exist — treat as success
+      if (listError && !listError.message?.includes("not found")) throw listError;
 
-        if (files && files.length > 0) {
-          const filesToDelete = files.map(
-            (f) => `${userId}/deck-images/${slug}/${f.name}`,
-          );
-          const { error: removeError } = await supabase.storage.from("decks").remove(filesToDelete);
-          if (removeError) throw removeError;
-        }
-      });
-    } catch (err) {
-      console.error(`Failed to delete processed images for deck slug: ${slug}`, err);
-    }
+      if (files && files.length > 0) {
+        const filesToDelete = files.map(
+          (f) => `${userId}/deck-images/${slug}/${f.name}`,
+        );
+        const { error: removeError } = await supabase.storage.from("decks").remove(filesToDelete);
+        if (removeError && !removeError.message?.includes("not found")) throw removeError;
+      }
+    });
 
-    // 3. Delete from database
+    // 3. Delete from database — only reached if both storage steps above succeeded
     const { error } = await supabase
       .from("decks")
       .delete()

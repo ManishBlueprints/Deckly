@@ -195,6 +195,14 @@ ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS viewer_email TEXT;
 -- 7. SECURITY HARDENING: SECURE ACCESS GATE
 -- This section implements server-side password validation to prevent leakage.
 
+-- Minimal public profiles view: exposes only id and handle.
+-- IMPORTANT: regular PostgreSQL views do NOT bypass RLS automatically.
+-- The "Public profile fields" policy below grants anonymous SELECT on profiles;
+-- column-level GRANTs ensure only id and handle are accessible to anon/authenticated.
+CREATE OR REPLACE VIEW public.profiles_public AS
+SELECT id, handle
+FROM public.profiles;
+
 -- Public view for decks (excludes sensitive view_password, includes user_handle)
 CREATE OR REPLACE VIEW public.decks_public WITH (security_invoker = true) AS
 SELECT 
@@ -203,7 +211,7 @@ SELECT
     d.created_at, d.updated_at, d.file_type, d.display_mode,
     p.handle as user_handle
 FROM public.decks d
-JOIN public.profiles p ON d.user_id = p.id;
+JOIN public.profiles_public p ON d.user_id = p.id;
 
 -- Public view for data rooms (excludes sensitive view_password, includes user_handle)
 CREATE OR REPLACE VIEW public.data_rooms_public WITH (security_invoker = true) AS
@@ -212,7 +220,17 @@ SELECT
     dr.require_password, dr.expires_at, dr.created_at, dr.updated_at,
     p.handle as user_handle
 FROM public.data_rooms dr
-JOIN public.profiles p ON dr.user_id = p.id;
+JOIN public.profiles_public p ON dr.user_id = p.id;
+
+-- Allow anonymous and authenticated roles to read only the public profile fields.
+-- Without this policy, RLS blocks all anon reads even through profiles_public.
+CREATE POLICY "Public profile fields are viewable by everyone"
+  ON public.profiles FOR SELECT
+  USING (true);
+
+-- Restrict which columns anon/authenticated can actually access on profiles.
+-- RLS controls which ROWS are visible; column grants control which COLUMNS.
+GRANT SELECT (id, handle) ON public.profiles TO anon, authenticated;
 
 -- Secure password validation function for Decks
 CREATE OR REPLACE FUNCTION public.check_deck_password(p_slug TEXT, p_password TEXT)
@@ -282,8 +300,10 @@ BEGIN
         INSERT INTO public.deck_page_views (deck_id, page_number, visitor_id, time_spent, viewer_email)
         VALUES (p_deck_id, p_page_number, p_visitor_id, p_time_spent, p_viewer_email);
     ELSE
-        UPDATE public.deck_page_views 
-        SET time_spent = time_spent + p_time_spent
+        UPDATE public.deck_page_views
+        SET time_spent = time_spent + p_time_spent,
+            viewed_at  = NOW(),
+            viewer_email = COALESCE(p_viewer_email, viewer_email)
         WHERE id = v_recent_view_id;
     END IF;
 

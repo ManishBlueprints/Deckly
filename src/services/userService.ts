@@ -33,14 +33,22 @@ export const userService = {
             let suffix = 0;
             if (existing && existing.length > 0) {
               const taken = new Set(existing.map((e) => e.handle));
-              while (taken.has(suffix === 0 ? generatedHandle : `${generatedHandle}${suffix}`)) {
+              while (
+                taken.has(
+                  suffix === 0
+                    ? generatedHandle
+                    : `${generatedHandle}${suffix}`,
+                )
+              ) {
                 suffix++;
               }
             }
 
             // Wrapping the update in a bounded retry loop handles any TOCTOU unique violations
             let attempts = 0;
-            let finalHandle = suffix === 0 ? generatedHandle : `${generatedHandle}${suffix}`;
+            let finalHandle = suffix === 0
+              ? generatedHandle
+              : `${generatedHandle}${suffix}`;
 
             while (attempts < 5) {
               try {
@@ -58,7 +66,9 @@ export const userService = {
                 }
               }
             }
-            console.warn(`[User Service] Could not generate unique handle for ${result.full_name}`);
+            console.warn(
+              `[User Service] Could not generate unique handle for ${result.full_name}`,
+            );
           } catch (e) {
             console.error("[User Service] Failed to auto-generate handle:", e);
           }
@@ -72,6 +82,7 @@ export const userService = {
   async updateProfile(
     userId: string,
     updates: Partial<UserProfile>,
+    options?: { suppressUniqueViolationLog?: boolean },
   ): Promise<UserProfile | null> {
     const { data, error } = await supabase
       .from("profiles")
@@ -84,7 +95,11 @@ export const userService = {
       .single();
 
     if (error) {
-      if (error.code !== "23505") {
+      // Only suppress logging for 23505 when the caller explicitly opts in
+      // (e.g., the handle-generation retry loop). All other callers still log.
+      const suppress = options?.suppressUniqueViolationLog === true &&
+        error.code === "23505";
+      if (!suppress) {
         console.error("Error updating profile:", error);
       }
       throw error;
