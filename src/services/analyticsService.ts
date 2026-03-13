@@ -75,77 +75,16 @@ export const analyticsService = {
   ): Promise<void> {
     try {
       const visitorId = this.getVisitorId();
-      const twentyFourHoursAgo = new Date(
-        Date.now() - 24 * 60 * 60 * 1000,
-      ).toISOString();
 
-      // 1. Check if this visitor has seen this slide in the last 24 hours
-      const { data: recentView, error: viewError } = await supabase
-        .from("deck_page_views")
-        .select("id")
-        .eq("deck_id", deck.id)
-        .eq("page_number", pageNumber)
-        .eq("visitor_id", visitorId)
-        .gt("viewed_at", twentyFourHoursAgo)
-        .limit(1)
-        .maybeSingle();
+      const { error } = await supabase.rpc("record_deck_visit", {
+        p_deck_id: deck.id,
+        p_page_number: pageNumber,
+        p_time_spent: timeSpent,
+        p_visitor_id: visitorId,
+        p_viewer_email: viewerEmail || null,
+      });
 
-      if (viewError) throw viewError;
-
-      const isUniqueView = !recentView;
-
-      // 2. Record or update the view with time_spent
-      if (isUniqueView) {
-        await supabase.from("deck_page_views").insert({
-          deck_id: deck.id,
-          page_number: pageNumber,
-          visitor_id: visitorId,
-          viewed_at: new Date().toISOString(),
-          time_spent: timeSpent,
-          viewer_email: viewerEmail || null,
-        });
-      } else if (recentView?.id) {
-        // Accumulate time on revisit to same slide within 24h
-        const { data: existing } = await supabase
-          .from("deck_page_views")
-          .select("time_spent")
-          .eq("id", recentView.id)
-          .single();
-        await supabase
-          .from("deck_page_views")
-          .update({
-            time_spent: (existing?.time_spent || 0) + timeSpent,
-          })
-          .eq("id", recentView.id);
-      }
-
-      // 3. Update the aggregate stats
-      const { data: existing, error: fetchError } = await supabase
-        .from("deck_stats")
-        .select("total_views, total_time_seconds")
-        .eq("deck_id", deck.id)
-        .eq("page_number", pageNumber)
-        .single();
-
-      if (fetchError && fetchError.code !== "PGRST116") throw fetchError;
-
-      const newViews = (existing?.total_views || 0) + (isUniqueView ? 1 : 0);
-      const newTime = (existing?.total_time_seconds || 0) + timeSpent;
-
-      // 4. Upsert the new values
-      const { error: upsertError } = await supabase.from("deck_stats").upsert(
-        {
-          deck_id: deck.id,
-          page_number: pageNumber,
-          total_views: newViews,
-          total_time_seconds: newTime,
-          user_id: deck.user_id,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "deck_id, page_number" },
-      );
-
-      if (upsertError) throw upsertError;
+      if (error) throw error;
     } catch (err) {
       console.error("Error syncing slide stats:", err);
     }

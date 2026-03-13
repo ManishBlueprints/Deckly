@@ -32,6 +32,7 @@ interface PageViewRow {
   viewed_at: string;
   time_spent: number | null;
   viewer_email: string | null;
+  deck_id?: string;
 }
 
 /**
@@ -175,7 +176,6 @@ export async function getDeckSignalCount(
 
 /**
  * Compute investor interest signals for an entire Data Room.
- * Aggregates all page views across all decks within the room.
  */
 export async function getRoomVisitorSignals(
   roomId: string,
@@ -193,7 +193,7 @@ export async function getRoomVisitorSignals(
   // 2. Query page views for all those decks combined
   const { data, error } = await supabase
     .from("deck_page_views")
-    .select("visitor_id, page_number, viewed_at, time_spent, viewer_email")
+    .select("visitor_id, page_number, viewed_at, time_spent, viewer_email, deck_id")
     .in("deck_id", deckIds)
     .order("viewed_at", { ascending: true });
 
@@ -232,8 +232,12 @@ export async function getRoomVisitorSignals(
     // Total time across all slides
     const totalTime = rows.reduce((sum, r) => sum + (r.time_spent || 0), 0);
 
-    // Deep reads (slides where visitor spent >= 20 seconds) - treating each view row as a distinct slide interaction for the count since we don't have deck_id in the row right now to differentiate identical page_numbers
-    const deepSlides = rows.filter((r) => (r.time_spent || 0) >= 20).length;
+    // Deep reads (slides where visitor spent >= 20 seconds) - count unique (deck_id, page_number) combinations
+    const deepSlides = new Set(
+      rows
+        .filter((r) => (r.time_spent || 0) >= 20)
+        .map((r) => `${r.deck_id}_${r.page_number}`),
+    ).size;
 
     // Days between first and last visit
     const dates = rows

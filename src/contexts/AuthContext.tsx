@@ -65,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     let mounted = true;
 
-    // Safety fallback: ensure loading is NEVER stuck for more than 15 seconds
+    // Safety fallback: ensure loading is never stuck for more than 15 seconds
     const safetyTimeout = setTimeout(() => {
       if (mounted && loadingRef.current) {
         console.warn(

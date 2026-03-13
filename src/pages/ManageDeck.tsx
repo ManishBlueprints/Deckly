@@ -486,7 +486,7 @@ function ManageDeck() {
                 />
               </div>
 
-              {/* Display Mode Toggle for New Formats */}
+              {/* Display Mode Toggle for New Formats or Pro Formats */}
               {file && fileType !== "pdf" && (
                 <div className="p-4 md:p-6 rounded-lg border border-[#222] bg-[#141414] flex flex-col gap-4 mt-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
