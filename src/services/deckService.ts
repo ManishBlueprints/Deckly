@@ -129,12 +129,18 @@ export const deckService = {
     const urlParts = fileUrl.split("/storage/v1/object/public/decks/");
     const storagePath = urlParts[1];
 
-    if (storagePath) {
-      await withRetry(async () => {
-        const { error } = await supabase.storage.from("decks").remove([storagePath]);
-        if (error) throw error;
-      });
+    if (!storagePath) {
+      console.warn(
+        `[deckService.deleteDeck] Unexpected fileUrl format — could not parse storage path. ` +
+        `Deck DB row will NOT be deleted to avoid orphaning data. fileUrl: ${fileUrl}`,
+      );
+      return; // Abort: do not remove the DB row if we can't clean up storage
     }
+
+    await withRetry(async () => {
+      const { error } = await supabase.storage.from("decks").remove([storagePath]);
+      if (error) throw error;
+    });
 
     // 2. Delete processed images — must succeed before DB row is removed
     await withRetry(async () => {
