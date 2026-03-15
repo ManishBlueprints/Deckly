@@ -199,7 +199,7 @@ ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS viewer_email TEXT;
 -- IMPORTANT: regular PostgreSQL views do NOT bypass RLS automatically.
 -- The "Public profile fields" policy below grants anonymous SELECT on profiles;
 -- column-level GRANTs ensure only id and handle are accessible to anon/authenticated.
-CREATE OR REPLACE VIEW public.profiles_public AS
+CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = true) AS
 SELECT id, handle
 FROM public.profiles;
 
