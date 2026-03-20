@@ -71,32 +71,54 @@ function DataRoomViewer() {
 
       setRoom(data);
 
-      const docs = await dataRoomService.getDocuments(data.id);
-      setDocuments(docs);
-
-      // Auto-select first document
-      if (docs.length > 0 && docs[0].deck) {
-        setSelectedDeck(docs[0].deck);
-      }
-
       // Check if current user is the owner
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const isOwner = session?.user?.id === data.user_id;
 
-      // Skip access gate if no protection or user is owner
-      if ((!data.require_email && !data.require_password) || isOwner) {
+      let docsToSet: DataRoomDocument[] = [];
+
+      if (isOwner) {
+        docsToSet = await dataRoomService.getDocuments(data.id);
         setIsUnlocked(true);
+      } else if (!data.require_email && !data.require_password) {
+        // Free public
+        try {
+          const payloadDocs = await dataRoomService.getDataRoomPayload(
+            data.slug,
+          );
+          docsToSet = payloadDocs.map((deckObj: unknown, index: number) => {
+            const deck = deckObj as Deck;
+            return {
+              id: deck.id,
+              data_room_id: data.id,
+              deck_id: deck.id,
+              display_order: index,
+              added_at: new Date().toISOString(),
+              deck,
+            } as DataRoomDocument;
+          });
+          setIsUnlocked(true);
+        } catch {
+          throw new Error("Failed to load documents payload.");
+        }
+      }
+
+      setDocuments(docsToSet);
+      if (docsToSet.length > 0 && docsToSet[0].deck) {
+        setSelectedDeck(docsToSet[0].deck);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load data room.");
+      setError(
+        err instanceof Error ? err.message : "Failed to load data room.",
+      );
       console.error("Error loading data room:", err);
     } finally {
       setLoading(false);
     }
-  // 'handle' is intentionally excluded: adding it would reset the room on every navigation
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 'handle' is intentionally excluded: adding it would reset the room on every navigation
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   useEffect(() => {
@@ -111,9 +133,9 @@ function DataRoomViewer() {
         viewerEmail ? { email_captured: viewerEmail } : undefined,
       );
     }
-  // selectedDeck and viewerEmail intentionally excluded: we only want to fire on deck ID change,
-  // not on every re-render of the email/deck object reference
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // selectedDeck and viewerEmail intentionally excluded: we only want to fire on deck ID change,
+    // not on every re-render of the email/deck object reference
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDeck?.id, isUnlocked]);
 
   // Build a fake Deck object for AccessGate compatibility
@@ -176,9 +198,32 @@ function DataRoomViewer() {
         ) : !isUnlocked && roomAsDeck && room ? (
           <AccessGate
             deck={roomAsDeck}
-            onAccessGranted={(email) => {
-              setIsUnlocked(true);
-              if (email) setViewerEmail(email);
+            onAccessGranted={async (email, password) => {
+              try {
+                const payloadDocs = await dataRoomService.getDataRoomPayload(room.slug, password);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const docsToSet = payloadDocs.map((deckObj: any, index: number) => {
+                  const deck = deckObj as Deck;
+                  return {
+                    id: deck.id,
+                    data_room_id: room.id,
+                    deck_id: deck.id,
+                    display_order: index,
+                    added_at: new Date().toISOString(),
+                    deck,
+                  } as DataRoomDocument;
+                });
+                
+                setDocuments(docsToSet);
+                if (docsToSet.length > 0 && docsToSet[0].deck) {
+                  setSelectedDeck(docsToSet[0].deck);
+                }
+
+                setIsUnlocked(true);
+                if (email) setViewerEmail(email);
+              } catch {
+                setError("Failed to unlock data room payload.");
+              }
             }}
             onVerifyPassword={(pass) =>
               dataRoomService.checkDataRoomPassword(room.slug, pass)

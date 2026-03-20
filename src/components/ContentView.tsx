@@ -24,6 +24,7 @@ export function ContentView() {
   const loading = (decksLoading || statsLoading) && decks.length === 0;
   const isRefreshing = decksFetching || statsFetching;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleDeleteDeck = async (deck: any) => {
     try {
       await deckService.deleteDeck(deck.id, deck.file_url, deck.slug);

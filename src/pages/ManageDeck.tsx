@@ -113,7 +113,7 @@ function ManageDeck() {
         setExpiresAt(deck.expires_at ? deck.expires_at.split("T")[0] : "");
         setEnableExpiry(!!deck.expires_at);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error loading deck:", err);
       setError("Failed to load deck for editing.");
     } finally {
@@ -189,6 +189,7 @@ function ManageDeck() {
       canvas.height = viewport.height;
       canvas.width = viewport.width;
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (page as any).render({ canvasContext: context, viewport }).promise;
 
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -294,10 +295,10 @@ function ManageDeck() {
             description,
             file_url: finalFileUrl,
             pages: finalPages,
-            status: finalStatus as any,
+            status: finalStatus as "PENDING" | "PROCESSED",
             display_mode: conversionMode,
             file_size: file ? file.size : existingDeck?.file_size,
-            file_type: fileType as any,
+            file_type: fileType,
             require_email: requireEmail,
             require_password: requirePassword,
             view_password: viewPassword,
@@ -402,10 +403,11 @@ function ManageDeck() {
         () => navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content"),
         1500,
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Upload error:", err);
-      let errorMsg = err.message || "Something went wrong. Please try again.";
-      if (err.code === "23505" && err.message.includes("slug")) {
+      const e = err as { message?: string, code?: string };
+      let errorMsg = e.message || "Something went wrong. Please try again.";
+      if (e.code === "23505" && e.message?.includes("slug")) {
         errorMsg =
           "This URL Slug is already taken. Please enter a different one.";
       }

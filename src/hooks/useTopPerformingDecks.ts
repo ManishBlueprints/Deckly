@@ -15,7 +15,7 @@ export function useTopPerformingDecks(userId: string | undefined) {
         queryFn: async () => {
             const data = await analyticsService.getTopPerformingDecks(userId!);
 
-            const mapped = data.map((d: any) => ({
+            const mapped = data.map((d: DeckStat) => ({
                 id: d.id,
                 title: d.title,
                 views: d.views,

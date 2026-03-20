@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
@@ -99,9 +100,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setTimeout(() => reject(new Error("timeout")), 8000),
           ),
         ]);
-        await (racePromise as any);
-      } catch (err: any) {
-        if (err.message === "timeout" && mounted) {
+        await racePromise;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === "timeout" && mounted) {
           setInitializationError("connection_slow");
         }
       }

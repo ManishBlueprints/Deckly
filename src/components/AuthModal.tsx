@@ -27,8 +27,8 @@ export function AuthModal({
         },
       });
       if (error) throw error;
-    } catch (err: any) {
-      console.error("Google login failed:", err.message);
+    } catch (err: unknown) {
+      console.error("Google login failed:", err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -41,8 +41,8 @@ export function AuthModal({
         },
       });
       if (error) throw error;
-    } catch (err: any) {
-      console.error("GitHub login failed:", err.message);
+    } catch (err: unknown) {
+      console.error("GitHub login failed:", err instanceof Error ? err.message : String(err));
     }
   };
 
