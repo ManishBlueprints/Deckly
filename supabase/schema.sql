@@ -95,8 +95,8 @@ ALTER TABLE public.deck_stats ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage their own decks" ON public.decks
     FOR ALL USING ((select auth.uid()) = user_id);
 
-CREATE POLICY "Decks are viewable by everyone" ON public.decks
-    FOR SELECT USING (true);
+-- Removed: "Decks are viewable by everyone" USING (true)
+-- Decks can now only be accessed by the public via security definer views or RPCs.
 
 -- POLICIES FOR BRANDING
 CREATE POLICY "Users can manage their own branding" ON public.branding
@@ -160,8 +160,8 @@ ALTER TABLE public.data_room_documents ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage their own data rooms" ON public.data_rooms
     FOR ALL USING ((select auth.uid()) = user_id);
 
-CREATE POLICY "Data rooms are viewable by everyone" ON public.data_rooms
-    FOR SELECT USING (true);
+-- Removed: "Data rooms are viewable by everyone" USING (true)
+-- Rooms can now only be accessed by the public via security definer views or RPCs.
 
 -- POLICIES FOR DATA ROOM DOCUMENTS
 CREATE POLICY "Owners can manage data room documents" ON public.data_room_documents
@@ -169,8 +169,8 @@ CREATE POLICY "Owners can manage data room documents" ON public.data_room_docume
         SELECT 1 FROM public.data_rooms dr WHERE dr.id = data_room_id AND dr.user_id = (select auth.uid())
     ));
 
-CREATE POLICY "Data room documents are viewable by everyone" ON public.data_room_documents
-    FOR SELECT USING (true);
+-- Removed: "Data room documents are viewable by everyone" USING (true)
+-- Documents can now only be read by the public via get_data_room_payload RPC.
 
 -- STORAGE BUCKETS
 -- You must manually create a public bucket named 'decks' in the Supabase Dashboard.
@@ -199,22 +199,26 @@ ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS viewer_email TEXT;
 -- IMPORTANT: regular PostgreSQL views do NOT bypass RLS automatically.
 -- The "Public profile fields" policy below grants anonymous SELECT on profiles;
 -- column-level GRANTs ensure only id and handle are accessible to anon/authenticated.
-CREATE OR REPLACE VIEW public.profiles_public AS
+CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = true) AS
 SELECT id, handle
 FROM public.profiles;
 
--- Public view for decks (excludes sensitive view_password, includes user_handle)
-CREATE OR REPLACE VIEW public.decks_public WITH (security_invoker = true) AS
+-- Public view for decks (excludes sensitive view_password, file_url, and pages payload)
+-- Runs with security definer semantics to bypass the restricted RLS on decks.
+DROP VIEW IF EXISTS public.decks_public CASCADE;
+CREATE OR REPLACE VIEW public.decks_public WITH (security_invoker = false) AS
 SELECT 
-    d.id, d.user_id, d.title, d.slug, d.description, d.file_url, d.pages, d.status, 
+    d.id, d.user_id, d.title, d.slug, d.description, d.status, 
     d.file_size, d.display_order, d.require_email, d.require_password, d.expires_at, 
     d.created_at, d.updated_at, d.file_type, d.display_mode,
     p.handle as user_handle
 FROM public.decks d
 JOIN public.profiles_public p ON d.user_id = p.id;
 
--- Public view for data rooms (excludes sensitive view_password, includes user_handle)
-CREATE OR REPLACE VIEW public.data_rooms_public WITH (security_invoker = true) AS
+-- Public view for data rooms (excludes sensitive view_password and associated documents)
+-- Runs with security definer semantics to bypass the restricted RLS on data_rooms.
+DROP VIEW IF EXISTS public.data_rooms_public CASCADE;
+CREATE OR REPLACE VIEW public.data_rooms_public WITH (security_invoker = false) AS
 SELECT 
     dr.id, dr.user_id, dr.name, dr.slug, dr.description, dr.icon_url, dr.require_email, 
     dr.require_password, dr.expires_at, dr.created_at, dr.updated_at,
@@ -232,6 +236,103 @@ CREATE POLICY "Public profile fields are viewable by everyone"
 -- RLS controls which ROWS are visible; column grants control which COLUMNS.
 GRANT SELECT (id, handle) ON public.profiles TO anon, authenticated;
 
+-- GRANT VIEW PERMISSIONS --
+GRANT SELECT ON public.decks_public TO anon, authenticated;
+GRANT SELECT ON public.data_rooms_public TO anon, authenticated;
+
+-- RATE LIMITING FOR PASSWORD CHECKS
+CREATE TABLE IF NOT EXISTS public.auth_rate_limits (
+    ip_address TEXT NOT NULL,
+    target_slug TEXT NOT NULL,
+    failed_attempts INTEGER DEFAULT 0,
+    last_attempt_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (ip_address, target_slug)
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_rate_limits_last_attempt ON public.auth_rate_limits(last_attempt_at);
+
+-- PASSWORD HASHING SETUP
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE OR REPLACE FUNCTION public.hash_password_trigger()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.view_password IS NOT NULL AND NEW.view_password IS DISTINCT FROM OLD.view_password THEN
+    IF NEW.view_password NOT LIKE '$2a$%' AND NEW.view_password NOT LIKE '$2b$%' AND NEW.view_password NOT LIKE '$2y$%' THEN
+      NEW.view_password = crypt(NEW.view_password, gen_salt('bf'));
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_hash_deck_password ON public.decks;
+CREATE TRIGGER tr_hash_deck_password
+BEFORE INSERT OR UPDATE ON public.decks
+FOR EACH ROW EXECUTE FUNCTION public.hash_password_trigger();
+
+DROP TRIGGER IF EXISTS tr_hash_room_password ON public.data_rooms;
+CREATE TRIGGER tr_hash_room_password
+BEFORE INSERT OR UPDATE ON public.data_rooms
+FOR EACH ROW EXECUTE FUNCTION public.hash_password_trigger();
+
+-- SECURE PASSWORD CHECKING HELPERS
+CREATE OR REPLACE FUNCTION public.check_rate_limit(p_ip TEXT, p_slug TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_attempts INTEGER;
+    v_last_attempt TIMESTAMPTZ;
+BEGIN
+    SELECT failed_attempts, last_attempt_at INTO v_attempts, v_last_attempt
+    FROM public.auth_rate_limits
+    WHERE ip_address = p_ip AND target_slug = p_slug;
+
+    -- If more than 5 attempts within 5 minutes, block
+    IF FOUND AND v_attempts >= 5 AND (NOW() - v_last_attempt) < INTERVAL '5 minutes' THEN
+        RETURN FALSE;
+    END IF;
+
+    -- Reset if window passed
+    IF FOUND AND (NOW() - v_last_attempt) >= INTERVAL '5 minutes' THEN
+        UPDATE public.auth_rate_limits SET failed_attempts = 0 WHERE ip_address = p_ip AND target_slug = p_slug;
+    END IF;
+
+    RETURN TRUE;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.record_failed_attempt(p_ip TEXT, p_slug TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    INSERT INTO public.auth_rate_limits (ip_address, target_slug, failed_attempts, last_attempt_at)
+    VALUES (p_ip, p_slug, 1, NOW())
+    ON CONFLICT (ip_address, target_slug)
+    DO UPDATE SET failed_attempts = auth_rate_limits.failed_attempts + 1, last_attempt_at = NOW();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.clear_rate_limit(p_ip TEXT, p_slug TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    DELETE FROM public.auth_rate_limits WHERE ip_address = p_ip AND target_slug = p_slug;
+END;
+$$;
+
 -- Secure password validation function for Decks
 CREATE OR REPLACE FUNCTION public.check_deck_password(p_slug TEXT, p_password TEXT)
 RETURNS BOOLEAN
@@ -239,11 +340,36 @@ LANGUAGE plpgsql
 SECURITY DEFINER -- runs as owner
 SET search_path = public
 AS $$
+DECLARE
+    v_hashed_pw TEXT;
+    v_ip TEXT := current_setting('request.headers', true)::json->>'x-forwarded-for';
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.decks 
-    WHERE slug = p_slug AND view_password = p_password
-  );
+    SELECT view_password INTO v_hashed_pw FROM public.decks WHERE slug = p_slug;
+
+    -- Return early if no password is set to bypass rate limiting overhead/spam
+    IF v_hashed_pw IS NULL THEN
+        RETURN TRUE;
+    END IF;
+
+    IF v_ip IS NOT NULL AND trim(v_ip) != '' THEN
+        v_ip := trim(split_part(v_ip, ',', 1));
+    END IF;
+    IF v_ip IS NULL OR trim(v_ip) = '' THEN 
+        v_ip := COALESCE(inet_client_addr()::text, 'local'); 
+    END IF;
+
+    IF NOT public.check_rate_limit(v_ip, p_slug) THEN
+        RAISE EXCEPTION 'Too many failed attempts. Please try again later.';
+    END IF;
+
+
+    IF v_hashed_pw = crypt(p_password, v_hashed_pw) THEN
+        PERFORM public.clear_rate_limit(v_ip, p_slug);
+        RETURN TRUE;
+    END IF;
+
+    PERFORM public.record_failed_attempt(v_ip, p_slug);
+    RETURN FALSE;
 END;
 $$;
 
@@ -254,11 +380,100 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+    v_hashed_pw TEXT;
+    v_ip TEXT := current_setting('request.headers', true)::json->>'x-forwarded-for';
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.data_rooms 
-    WHERE slug = p_slug AND view_password = p_password
-  );
+    SELECT view_password INTO v_hashed_pw FROM public.data_rooms WHERE slug = p_slug;
+
+    -- Return early if no password is set to bypass rate limiting overhead/spam
+    IF v_hashed_pw IS NULL THEN
+        RETURN TRUE;
+    END IF;
+
+    IF v_ip IS NOT NULL AND trim(v_ip) != '' THEN
+        v_ip := trim(split_part(v_ip, ',', 1));
+    END IF;
+    IF v_ip IS NULL OR trim(v_ip) = '' THEN 
+        v_ip := COALESCE(inet_client_addr()::text, 'local'); 
+    END IF;
+
+    IF NOT public.check_rate_limit(v_ip, p_slug) THEN
+        RAISE EXCEPTION 'Too many failed attempts. Please try again later.';
+    END IF;
+
+    IF v_hashed_pw = crypt(p_password, v_hashed_pw) THEN
+        PERFORM public.clear_rate_limit(v_ip, p_slug);
+        RETURN TRUE;
+    END IF;
+
+    PERFORM public.record_failed_attempt(v_ip, p_slug);
+    RETURN FALSE;
+END;
+$$;
+
+-- SECURE PAYLOAD RPCS
+CREATE OR REPLACE FUNCTION public.get_deck_payload(p_slug TEXT, p_password TEXT)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_deck RECORD;
+BEGIN
+    SELECT * INTO v_deck FROM public.decks WHERE slug = p_slug;
+    -- Enforce exact password check via RPC helper (shared error prevents slug enumeration)
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Unauthorized';
+    ELSIF v_deck.require_password AND NOT public.check_deck_password(p_slug, p_password) THEN
+        RAISE EXCEPTION 'Unauthorized';
+    END IF;
+
+    RETURN json_build_object(
+        'file_url', v_deck.file_url,
+        'pages', v_deck.pages
+    )::jsonb;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_data_room_payload(p_slug TEXT, p_password TEXT)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_room RECORD;
+    v_documents jsonb;
+BEGIN
+    SELECT * INTO v_room FROM public.data_rooms WHERE slug = p_slug;
+    -- Shared error prevents slug enumeration
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Unauthorized';
+    ELSIF v_room.require_password AND NOT public.check_data_room_password(p_slug, p_password) THEN
+        RAISE EXCEPTION 'Unauthorized';
+    END IF;
+
+    -- Fetch documents and payloads for this room
+    SELECT COALESCE(jsonb_agg(
+        jsonb_build_object(
+            'id', d.id,
+            'title', d.title,
+            'slug', d.slug,
+            'description', d.description,
+            'status', d.status,
+            'file_type', d.file_type,
+            'display_mode', d.display_mode,
+            'file_url', d.file_url,
+            'pages', d.pages
+        ) ORDER BY drd.display_order ASC
+    ), '[]'::jsonb) INTO v_documents
+    FROM public.data_room_documents drd
+    JOIN public.decks d ON d.id = drd.deck_id
+    WHERE drd.data_room_id = v_room.id;
+
+    RETURN v_documents;
 END;
 $$;
 
@@ -279,17 +494,39 @@ DECLARE
     v_deck_owner_id UUID;
     v_recent_view_id UUID;
     v_is_unique BOOLEAN;
+    v_email_count INTEGER;
 BEGIN
+    -- Input Validations
+    IF p_time_spent < 0 THEN p_time_spent := 0; END IF;
+    p_time_spent := LEAST(p_time_spent, 300); -- hard cap at 5 mins per ping
+    
+    -- Ensure visitor_id doesn't exceed 100 chars instead of silently dropping
+    IF LENGTH(p_visitor_id) > 100 THEN 
+        p_visitor_id := LEFT(p_visitor_id, 100); 
+    END IF;
+
+    -- Enforce email uniqueness spam limit per visitor
+    IF p_viewer_email IS NOT NULL THEN
+        SELECT COUNT(DISTINCT viewer_email) INTO v_email_count
+        FROM public.deck_page_views
+        WHERE visitor_id = p_visitor_id AND deck_id = p_deck_id AND viewer_email IS NOT NULL;
+
+        IF v_email_count >= 3 THEN
+           -- Ignore the injected email, do not process it
+           p_viewer_email := NULL;
+        END IF;
+    END IF;
+
     -- 1. Get the deck owner
     SELECT user_id INTO v_deck_owner_id FROM public.decks WHERE id = p_deck_id;
     IF NOT FOUND THEN RETURN; END IF;
 
     -- 2. Check for unique view in last 24 hours
-    SELECT id INTO v_recent_view_id 
-    FROM public.deck_page_views 
-    WHERE deck_id = p_deck_id 
-      AND page_number = p_page_number 
-      AND visitor_id = p_visitor_id 
+    SELECT id INTO v_recent_view_id
+    FROM public.deck_page_views
+    WHERE deck_id = p_deck_id
+      AND page_number = p_page_number
+      AND visitor_id = p_visitor_id
       AND viewed_at > (NOW() - INTERVAL '24 hours')
     LIMIT 1;
 
@@ -300,26 +537,27 @@ BEGIN
         INSERT INTO public.deck_page_views (deck_id, page_number, visitor_id, time_spent, viewer_email)
         VALUES (p_deck_id, p_page_number, p_visitor_id, p_time_spent, p_viewer_email);
     ELSE
+        -- Also refresh viewed_at so the 24-hour window advances correctly,
+        -- and keep viewer_email up-to-date ONLY if it was previously null.
         UPDATE public.deck_page_views
-        SET time_spent = time_spent + p_time_spent,
-            viewed_at  = NOW(),
-            viewer_email = COALESCE(p_viewer_email, viewer_email)
+        SET time_spent   = LEAST(time_spent + p_time_spent, 86400), -- Daily cap of 24 hrs
+            viewed_at    = NOW(),
+            viewer_email = COALESCE(viewer_email, p_viewer_email)
         WHERE id = v_recent_view_id;
     END IF;
 
     -- 4. Sync deck_stats (Aggregate)
     INSERT INTO public.deck_stats (deck_id, page_number, user_id, total_views, total_time_seconds)
     VALUES (
-        p_deck_id, 
-        p_page_number, 
-        v_deck_owner_id, 
+        p_deck_id, p_page_number, v_deck_owner_id, 
         CASE WHEN v_is_unique THEN 1 ELSE 0 END, 
         ROUND(p_time_spent::numeric)::INTEGER
     )
-    ON CONFLICT (deck_id, page_number) DO UPDATE SET
-        total_views = deck_stats.total_views + (CASE WHEN v_is_unique THEN 1 ELSE 0 END),
+    ON CONFLICT (deck_id, page_number)
+    DO UPDATE SET
+        total_views        = deck_stats.total_views + (CASE WHEN v_is_unique THEN 1 ELSE 0 END),
         total_time_seconds = deck_stats.total_time_seconds + ROUND(p_time_spent::numeric)::INTEGER,
-        updated_at = NOW();
+        updated_at         = NOW();
 END;
 $$;
 

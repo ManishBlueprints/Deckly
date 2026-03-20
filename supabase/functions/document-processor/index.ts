@@ -1,6 +1,6 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { decode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import { createClient } from "@supabase/supabase-js";
+import { serve } from "@std/http/server";
+import { decode } from "@std/encoding/base64";
 
 // document-processor Edge Function
 // Handles conversion of PPTX, DOCX, XLSX, and PDF to interactive JPG slides
@@ -137,7 +137,7 @@ serve(async (req: Request) => {
       try {
         const errorJson = JSON.parse(errorText);
         errorMessage = errorJson.Message || errorMessage;
-      } catch (_) {
+      } catch {
         errorMessage = errorText || errorMessage;
       }
       throw new Error(errorMessage);

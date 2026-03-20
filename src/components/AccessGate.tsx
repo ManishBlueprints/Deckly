@@ -6,7 +6,7 @@ import { deckService } from "../services/deckService";
 
 interface AccessGateProps {
   deck: Deck;
-  onAccessGranted: (email?: string) => void;
+  onAccessGranted: (email?: string, password?: string) => void;
   onVerifyPassword?: (password: string) => Promise<boolean>;
   sessionEmail?: string; // pre-fill from logged-in user or undefined
 }
@@ -56,8 +56,9 @@ const AccessGate: React.FC<AccessGateProps> = ({
     const needsPassword = !!deck.require_password;
 
     if ((!needsEmail || hasEmail) && !needsPassword) {
-      onAccessGranted(hasEmail ? email : undefined);
+      onAccessGranted(hasEmail ? email : undefined, undefined);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deck.id]);
 
   const saveEmailToCache = (resolvedEmail: string) => {
@@ -91,7 +92,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
         setStep("password");
       } else {
         saveEmailToCache(email);
-        onAccessGranted(email);
+        onAccessGranted(email, undefined);
       }
     } else {
       try {
@@ -102,11 +103,11 @@ const AccessGate: React.FC<AccessGateProps> = ({
 
         if (isValid) {
           if (email) saveEmailToCache(email);
-          onAccessGranted(email || undefined);
+          onAccessGranted(email || undefined, password);
         } else {
           setError("Incorrect password. Please try again.");
         }
-      } catch (err) {
+      } catch {
         setError("Failed to verify password. Please try again.");
       } finally {
         setIsVerifying(false);

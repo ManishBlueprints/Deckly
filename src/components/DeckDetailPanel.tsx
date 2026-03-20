@@ -40,7 +40,7 @@ interface DeckDetailPanelProps {
   onUpdate: (deck: Deck) => void;
 }
 
-const SectionHeader = ({ children, icon: Icon, color = "primary" }: any) => (
+const SectionHeader = ({ children, icon: Icon, color = "primary" }: { children: React.ReactNode, icon?: React.ElementType, color?: "primary" | "secondary" }) => (
   <div className="flex flex-col gap-1.5 px-1 mb-6">
     <h3
       className={cn(
@@ -93,9 +93,10 @@ function DeckDetailPanel({
       setViewPassword(deck.view_password || "");
       loadStats(deck.id);
       setNewFile(null);
-      setUploadProgress("");
     }
-  }, [deck]);
+    // loadStats is intentionally not in the dependency array to avoid infinite loop from function identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deck, isPro, userId]);
 
   const loadStats = async (deckId: string) => {
     try {
@@ -136,6 +137,7 @@ function DeckDetailPanel({
 
       canvas.height = viewport.height;
       canvas.width = viewport.width;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (page as any).render({ canvasContext: context, viewport }).promise;
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, "image/webp", 0.8),
@@ -183,7 +185,7 @@ function DeckDetailPanel({
         }));
       }
 
-      const updates: any = {
+      const updates: Partial<Deck> = {
         title: editValues.title,
         slug: editValues.slug,
         file_url: finalFileUrl,
@@ -207,8 +209,8 @@ function DeckDetailPanel({
         onClose();
         setUploadProgress("");
       }, 1000);
-    } catch (err: any) {
-      alert("Failed to update deck: " + err.message);
+    } catch (err: unknown) {
+      alert("Failed to update deck: " + (err instanceof Error ? err.message : String(err)));
       setUploadProgress("");
     } finally {
       setIsSaving(false);
@@ -293,7 +295,7 @@ function DeckDetailPanel({
                     ? deck.pages[0]
                     : null;
 
-                const pageCandidate = firstPage as any;
+                const pageCandidate = firstPage as unknown as Record<string, unknown> | string;
                 if (
                   typeof pageCandidate === "string" &&
                   (pageCandidate.startsWith("{") ||
@@ -311,8 +313,8 @@ function DeckDetailPanel({
                   imgSrc =
                     typeof firstPage === "string"
                       ? firstPage
-                      : (firstPage as any).image_url ||
-                        (firstPage as any).url ||
+                      : (firstPage as unknown as Record<string, string>).image_url ||
+                        (firstPage as unknown as Record<string, string>).url ||
                         "";
                 }
 
@@ -324,8 +326,8 @@ function DeckDetailPanel({
                     alt={deck.title}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
-                    onError={(e: any) => {
-                      e.target.style.display = "none";
+                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                      e.currentTarget.style.display = "none";
                     }}
                   />
                 );

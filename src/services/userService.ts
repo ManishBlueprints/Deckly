@@ -55,9 +55,9 @@ export const userService = {
                 return await userService.updateProfile(userId, {
                   handle: finalHandle,
                 });
-              } catch (updateError: any) {
+              } catch (updateError: unknown) {
                 // 23505 is the PostgreSQL Unique Violation error code
-                if (updateError?.code === "23505") {
+                if ((updateError as { code?: string })?.code === "23505") {
                   suffix++;
                   finalHandle = `${generatedHandle}${suffix}`;
                   attempts++;

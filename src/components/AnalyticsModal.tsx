@@ -58,8 +58,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
         const pageStats = await analyticsService.getDeckStats(
           deck.id,
           isPro,
-          userId,
-          refreshTrigger > 0, // Force refresh if triggered manually
+          userId
         );
         if (mounted) {
           setStats(pageStats || []);
@@ -82,7 +81,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
       mounted = false;
       clearTimeout(timeoutId);
     };
-  }, [deck.id, session, isPro, refreshTrigger]);
+  }, [deck.id, session, isPro, refreshTrigger, userId]);
 
   const handleRetry = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -251,7 +250,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                   </h4>
                   <Tabs
                     value={activeTab}
-                    onValueChange={(v) => setActiveTab(v as any)}
+                    onValueChange={(v) => setActiveTab(v as "views" | "time" | "retention")}
                   >
                     <TabsList className="bg-white/5 p-1 h-auto rounded-xl gap-1">
                       {(["views", "time", "retention"] as const).map((tab) => (
@@ -305,14 +304,14 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                       )}
 
                     {(activeTab === "retention" ? dropOffStats : stats).map(
-                      (s: any) => {
+                      (s: DeckStats & { dropOffPercent?: number }) => {
                         const avgTime =
                           s.total_views > 0
                             ? s.total_time_seconds / s.total_views
                             : 0;
                         const viewPercent = (s.total_views / maxViews) * 100;
                         const timePercent = (avgTime / maxTime) * 100;
-                        const retentionPercent = s.dropOffPercent;
+                        const retentionPercent = s.dropOffPercent || 0;
 
                         const percentage =
                           activeTab === "views"
@@ -357,7 +356,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                                     ? s.total_views
                                     : activeTab === "time"
                                       ? `${avgTime.toFixed(1)}s`
-                                      : `${s.dropOffPercent.toFixed(0)}%`}
+                                      : `${(s.dropOffPercent || 0).toFixed(0)}%`}
                                 </span>
                               </motion.div>
                             </div>

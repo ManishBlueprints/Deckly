@@ -267,9 +267,10 @@ function ManageDataRoom() {
       queryClient.invalidateQueries({
         queryKey: ["user-total-stats", profile?.id],
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to save", err);
-      setError(err?.message || "Failed to save data room");
+      const e = err as { message?: string };
+      setError(e?.message || "Failed to save data room");
     } finally {
       setSaving(false);
     }

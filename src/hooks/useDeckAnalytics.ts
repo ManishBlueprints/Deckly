@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { analyticsService } from '../services/analyticsService';
 import { Deck } from '../types';
 
@@ -14,13 +14,13 @@ export function useDeckAnalytics(deck: Deck | null, pageNumber: number, numPages
   }, [deck, isOwner]);
 
   // Function to track time spent on the current page
-  const trackCurrentPage = () => {
+  const trackCurrentPage = useCallback(() => {
     if (!pageNumber || !deck || isOwner) return;
     const timeSpent = Math.floor((Date.now() - pageStartTime.current) / 1000);
     analyticsService.trackPageView(deck, pageNumber, timeSpent);
     analyticsService.syncSlideStats(deck, pageNumber, timeSpent);
     setViewedPages(prev => new Set(prev).add(pageNumber));
-  };
+  }, [pageNumber, deck, isOwner]);
 
   // Effect to track page changes and reset the timer
   useEffect(() => {
@@ -30,7 +30,7 @@ export function useDeckAnalytics(deck: Deck | null, pageNumber: number, numPages
     return () => {
       trackCurrentPage();
     };
-  }, [pageNumber, deck]);
+  }, [trackCurrentPage]);
 
   // Effect to check if the entire deck has been viewed
   useEffect(() => {
