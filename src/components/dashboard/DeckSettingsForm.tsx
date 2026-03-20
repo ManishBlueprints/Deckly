@@ -67,6 +67,7 @@ export function DeckSettingsForm({
 
       canvas.height = viewport.height;
       canvas.width = viewport.width;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (page as any).render({ canvasContext: context, viewport }).promise;
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, "image/webp", 0.8),
@@ -119,7 +120,7 @@ export function DeckSettingsForm({
         }));
       }
 
-      const updates: any = {
+      const updates: Partial<Deck> = {
         title,
         slug,
         file_url: finalFileUrl,
@@ -142,9 +143,10 @@ export function DeckSettingsForm({
         navigate("/content");
       }, 800);
       setNewFile(null);
-    } catch (err: any) {
-      console.error("Sync error:", err);
-      alert(err.message || "Failed to update asset settings");
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("Sync error:", error);
+      alert(error.message || "Failed to update asset settings");
       setUploadProgress("");
     } finally {
       setIsSaving(false);

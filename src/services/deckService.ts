@@ -48,6 +48,16 @@ export const deckService = {
     return !!data;
   },
 
+  // NEW: Securely fetch deck payload (file_url, pages)
+  async getDeckPayload(slug: string, password?: string): Promise<{ file_url: string; pages: SlidePage[] }> {
+    const { data, error } = await supabase.rpc("get_deck_payload", {
+      p_slug: slug,
+      p_password: password || null,
+    });
+    if (error) throw error;
+    return data as { file_url: string; pages: SlidePage[] };
+  },
+
   // Get single deck by ID (management use)
   async getDeckById(id: string, providedUserId?: string): Promise<Deck> {
     let userId = providedUserId;

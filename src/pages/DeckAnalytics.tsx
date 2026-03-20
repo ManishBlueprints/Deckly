@@ -29,6 +29,13 @@ import {
   useUniqueVisitorCount,
 } from "../hooks/useDeckAnalyticsData";
 
+interface BookmarkData {
+  created_at: string;
+  profiles?: {
+    full_name?: string;
+  };
+}
+
 export default function DeckAnalytics() {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
@@ -265,7 +272,7 @@ export default function DeckAnalytics() {
                   value={activeTab}
                   onValueChange={(v) => {
                     const tab = tabs.find((t) => t.id === v);
-                    if (tab) setActiveTab(v as any);
+                    if (tab) setActiveTab(v as "VISITS" | "TIME" | "DROPOFF" | "SAVES");
                   }}
                   className="w-full md:w-auto"
                 >
@@ -298,7 +305,7 @@ export default function DeckAnalytics() {
 
               {/* Chart Content */}
               <div className="space-y-6 max-w-4xl mx-auto w-full pt-8">
-                {activeTab === ("SAVES" as any) ? (
+                {activeTab === "SAVES" ? (
                   bookmarks.length === 0 ? (
                     <div className="py-20 text-center space-y-6">
                       <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
@@ -310,23 +317,26 @@ export default function DeckAnalytics() {
                     </div>
                   ) : (
                     <div className="grid gap-4">
-                      {bookmarks.map((b: any, i: number) => (
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      {bookmarks.map((b: unknown, i: number) => {
+                        const bm = b as BookmarkData;
+                        return (
                         <div
                           key={i}
                           className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#141414] border border-[#222] rounded-md group/item hover:bg-[#1a1a1a] hover:border-[#333] transition-all duration-200 gap-4 sm:gap-0"
                         >
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-md bg-[#111] border border-[#333] flex items-center justify-center text-deckly-primary font-bold text-sm shrink-0">
-                              {b.profiles?.full_name?.[0] || "?"}
+                              {bm.profiles?.full_name?.[0] || "?"}
                             </div>
                             <div>
                               <p className="text-sm font-bold text-white tracking-wider">
-                                {b.profiles?.full_name?.toLowerCase() ||
+                                {bm.profiles?.full_name?.toLowerCase() ||
                                   "Anonymous Investor"}
                               </p>
                               <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
                                 Saved on{" "}
-                                {new Date(b.created_at).toLocaleDateString()}
+                                {new Date(bm.created_at).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
@@ -339,7 +349,8 @@ export default function DeckAnalytics() {
                             </Badge>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )
                 ) : stats.length === 0 ? (
@@ -381,6 +392,7 @@ export default function DeckAnalytics() {
 
                     <div className="space-y-4">
                       {(activeTab === "DROPOFF" ? dropOffStats : stats).map(
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         (s: any) => {
                           const avgTime =
                             s.total_views > 0

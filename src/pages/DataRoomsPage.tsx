@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { useDataRoomsWithMeta } from "../hooks/useDataRooms";
 import { cn } from "@/lib/utils";
+import { DataRoom } from "../types";
 
 function DataRoomsPage() {
   const navigate = useNavigate();
@@ -148,7 +149,7 @@ function DataRoomsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room: any) => (
+            {rooms.map((room: DataRoom & { docCount?: number, visitors?: number }) => (
               <DataRoomCard
                 key={room.id}
                 room={room}

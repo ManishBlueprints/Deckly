@@ -1,5 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { deckService } from "../services/deckService";
+import { Deck } from "../types";
+
+export interface SavedDeck extends Deck {
+  investor_note?: string;
+  saved_at: string;
+  user_handle: string;
+  updated_at: string;
+  last_viewed_at: string | null;
+}
 import { noteService } from "../services/noteService";
 import { useAuth } from "../contexts/AuthContext";
 import { DashboardCard } from "./ui/DashboardCard";
@@ -27,10 +36,10 @@ import { ConfirmModal } from "./common/ConfirmModal";
 
 export function SavedDecksView() {
   const { session } = useAuth();
-  const [decks, setDecks] = useState<any[]>([]);
+  const [decks, setDecks] = useState<SavedDeck[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [unsaveTarget, setUnsaveTarget] = useState<any>(null);
+  const [unsaveTarget, setUnsaveTarget] = useState<SavedDeck | null>(null);
   const [isUnsavingInProgress, setIsUnsavingInProgress] = useState(false);
 
   // Editing state
@@ -43,7 +52,7 @@ export function SavedDecksView() {
     setIsRefreshing(true);
     try {
       const savedDecks = await deckService.getSavedDecks();
-      setDecks(savedDecks);
+      setDecks(savedDecks as SavedDeck[]);
     } catch (err) {
       console.error("Failed to fetch saved decks:", err);
     } finally {
@@ -71,11 +80,11 @@ export function SavedDecksView() {
     }
   };
 
-  const handleUnsaveClick = (deck: any) => {
+  const handleUnsaveClick = (deck: SavedDeck) => {
     setUnsaveTarget(deck);
   };
 
-  const startEditing = (deck: any) => {
+  const startEditing = (deck: SavedDeck) => {
     setEditingId(deck.id);
     setEditContent(deck.investor_note || "");
   };

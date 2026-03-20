@@ -71,23 +71,33 @@ function DataRoomViewer() {
 
       setRoom(data);
 
-      const docs = await dataRoomService.getDocuments(data.id);
-      setDocuments(docs);
-
-      // Auto-select first document
-      if (docs.length > 0 && docs[0].deck) {
-        setSelectedDeck(docs[0].deck);
-      }
-
       // Check if current user is the owner
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const isOwner = session?.user?.id === data.user_id;
 
-      // Skip access gate if no protection or user is owner
-      if ((!data.require_email && !data.require_password) || isOwner) {
+      let docsToSet: DataRoomDocument[] = [];
+
+      if (isOwner) {
+        docsToSet = await dataRoomService.getDocuments(data.id);
         setIsUnlocked(true);
+      } else if (!data.require_email && !data.require_password) {
+        // Free public
+        try {
+          const payloadDocs = await dataRoomService.getDataRoomPayload(data.slug);
+          docsToSet = payloadDocs.map((deckObj: unknown) => ({
+            deck: deckObj as Deck,
+          } as DataRoomDocument));
+          setIsUnlocked(true);
+        } catch {
+          throw new Error("Failed to load documents payload.");
+        }
+      }
+
+      setDocuments(docsToSet);
+      if (docsToSet.length > 0 && docsToSet[0].deck) {
+        setSelectedDeck(docsToSet[0].deck);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load data room.");
@@ -176,9 +186,24 @@ function DataRoomViewer() {
         ) : !isUnlocked && roomAsDeck && room ? (
           <AccessGate
             deck={roomAsDeck}
-            onAccessGranted={(email) => {
-              setIsUnlocked(true);
-              if (email) setViewerEmail(email);
+            onAccessGranted={async (email, password) => {
+              try {
+                const payloadDocs = await dataRoomService.getDataRoomPayload(room.slug, password);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const docsToSet = payloadDocs.map((deckObj: any) => ({
+                  deck: deckObj as Deck,
+                } as DataRoomDocument));
+                
+                setDocuments(docsToSet);
+                if (docsToSet.length > 0 && docsToSet[0].deck) {
+                  setSelectedDeck(docsToSet[0].deck);
+                }
+                
+                setIsUnlocked(true);
+                if (email) setViewerEmail(email);
+              } catch {
+                setError("Failed to unlock data room payload.");
+              }
             }}
             onVerifyPassword={(pass) =>
               dataRoomService.checkDataRoomPassword(room.slug, pass)

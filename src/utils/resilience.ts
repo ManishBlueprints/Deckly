@@ -15,27 +15,30 @@ export async function withRetry<T>(
 ): Promise<T> {
   const { maxRetries = 3, initialDelay = 1000, backoffFactor = 2 } = options;
 
-  let lastError: any;
+  let lastError: unknown;
   let delay = initialDelay;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
-    } catch (err: any) {
+    } catch (err: unknown) {
       lastError = err;
       
+      const e = err as Record<string, unknown>;
+      const message = typeof e?.message === 'string' ? e.message : '';
+      
       const isNetworkError = 
-        err?.message?.includes('NetworkError') || 
-        err?.message?.includes('fetch') ||
-        err?.message?.includes('Failed to fetch') ||
-        err?.name === 'TypeError' ||
-        err?.status === 0;
+        message.includes('NetworkError') || 
+        message.includes('fetch') ||
+        message.includes('Failed to fetch') ||
+        e?.name === 'TypeError' ||
+        e?.status === 0;
 
       if (!isNetworkError || attempt === maxRetries) {
         throw err;
       }
 
-      console.warn(`[Resilience] Attempt ${attempt + 1} failed. Retrying in ${delay}ms...`, err.message);
+      console.warn(`[Resilience] Attempt ${attempt + 1} failed. Retrying in ${delay}ms...`, message);
       
       await new Promise(resolve => setTimeout(resolve, delay));
       delay *= backoffFactor;

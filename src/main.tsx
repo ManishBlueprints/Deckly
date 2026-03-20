@@ -28,7 +28,8 @@ ReactDOM.createRoot(rootElement).render(
           api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
           defaults: {
             release_date: "2025-05-24",
-          } as any, // Cast to any because PostHog types might be strict or mismatched
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
           capture_exceptions: true,
           debug: false,
         }}
