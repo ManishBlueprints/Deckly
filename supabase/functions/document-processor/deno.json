@@ -1,7 +1,8 @@
 {
   "imports": {
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
-    "std/": "https://deno.land/std@0.168.0/",
+    "@std/http": "jsr:@std/http@0.224.5",
+    "@std/encoding": "jsr:@std/encoding@0.224.3",
     "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.0.379"
   }
 }

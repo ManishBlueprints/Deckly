@@ -144,9 +144,9 @@ export function DeckSettingsForm({
       }, 800);
       setNewFile(null);
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error("Sync error:", error);
-      alert(error.message || "Failed to update asset settings");
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("Sync error:", err);
+      alert(message || "Failed to update asset settings");
       setUploadProgress("");
     } finally {
       setIsSaving(false);

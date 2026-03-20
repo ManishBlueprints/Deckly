@@ -1,14 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { deckService } from "../services/deckService";
-import { Deck } from "../types";
-
-export interface SavedDeck extends Deck {
-  investor_note?: string;
-  saved_at: string;
-  user_handle: string;
-  updated_at: string;
-  last_viewed_at: string | null;
-}
+import { SavedDeck } from "../types";
 import { noteService } from "../services/noteService";
 import { useAuth } from "../contexts/AuthContext";
 import { DashboardCard } from "./ui/DashboardCard";
@@ -52,7 +44,7 @@ export function SavedDecksView() {
     setIsRefreshing(true);
     try {
       const savedDecks = await deckService.getSavedDecks();
-      setDecks(savedDecks as SavedDeck[]);
+      setDecks(savedDecks);
     } catch (err) {
       console.error("Failed to fetch saved decks:", err);
     } finally {

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { serve } from "std/http/server.ts";
-import { decode } from "std/encoding/base64.ts";
+import { serve } from "@std/http/server";
+import { decode } from "@std/encoding/base64";
 
 // document-processor Edge Function
 // Handles conversion of PPTX, DOCX, XLSX, and PDF to interactive JPG slides

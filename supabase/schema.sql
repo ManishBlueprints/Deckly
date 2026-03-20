@@ -351,7 +351,12 @@ BEGIN
         RETURN TRUE;
     END IF;
 
-    IF v_ip IS NULL THEN v_ip := 'unknown'; END IF;
+    IF v_ip IS NOT NULL AND trim(v_ip) != '' THEN
+        v_ip := trim(split_part(v_ip, ',', 1));
+    END IF;
+    IF v_ip IS NULL OR trim(v_ip) = '' THEN 
+        v_ip := COALESCE(inet_client_addr()::text, 'local'); 
+    END IF;
 
     IF NOT public.check_rate_limit(v_ip, p_slug) THEN
         RAISE EXCEPTION 'Too many failed attempts. Please try again later.';
@@ -386,7 +391,12 @@ BEGIN
         RETURN TRUE;
     END IF;
 
-    IF v_ip IS NULL THEN v_ip := 'unknown'; END IF;
+    IF v_ip IS NOT NULL AND trim(v_ip) != '' THEN
+        v_ip := trim(split_part(v_ip, ',', 1));
+    END IF;
+    IF v_ip IS NULL OR trim(v_ip) = '' THEN 
+        v_ip := COALESCE(inet_client_addr()::text, 'local'); 
+    END IF;
 
     IF NOT public.check_rate_limit(v_ip, p_slug) THEN
         RAISE EXCEPTION 'Too many failed attempts. Please try again later.';
@@ -413,10 +423,10 @@ DECLARE
     v_deck RECORD;
 BEGIN
     SELECT * INTO v_deck FROM public.decks WHERE slug = p_slug;
-    IF NOT FOUND THEN RETURN NULL; END IF;
-
-    -- Enforce exact password check via RPC helper
-    IF v_deck.require_password AND NOT public.check_deck_password(p_slug, p_password) THEN
+    -- Enforce exact password check via RPC helper (shared error prevents slug enumeration)
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Unauthorized';
+    ELSIF v_deck.require_password AND NOT public.check_deck_password(p_slug, p_password) THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 
@@ -438,9 +448,10 @@ DECLARE
     v_documents jsonb;
 BEGIN
     SELECT * INTO v_room FROM public.data_rooms WHERE slug = p_slug;
-    IF NOT FOUND THEN RETURN NULL; END IF;
-
-    IF v_room.require_password AND NOT public.check_data_room_password(p_slug, p_password) THEN
+    -- Shared error prevents slug enumeration
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Unauthorized';
+    ELSIF v_room.require_password AND NOT public.check_data_room_password(p_slug, p_password) THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 
@@ -483,17 +494,18 @@ DECLARE
     v_deck_owner_id UUID;
     v_recent_view_id UUID;
     v_is_unique BOOLEAN;
-    v_ip TEXT := current_setting('request.headers', true)::json->>'x-forwarded-for';
     v_email_count INTEGER;
 BEGIN
-    IF v_ip IS NULL THEN v_ip := 'unknown'; END IF;
-
     -- Input Validations
     IF p_time_spent < 0 THEN p_time_spent := 0; END IF;
     p_time_spent := LEAST(p_time_spent, 300); -- hard cap at 5 mins per ping
-    IF LENGTH(p_visitor_id) > 100 THEN RETURN; END IF;
+    
+    -- Ensure visitor_id doesn't exceed 100 chars instead of silently dropping
+    IF LENGTH(p_visitor_id) > 100 THEN 
+        p_visitor_id := LEFT(p_visitor_id, 100); 
+    END IF;
 
-    -- Enforce email uniqueness spam limit per IP
+    -- Enforce email uniqueness spam limit per visitor
     IF p_viewer_email IS NOT NULL THEN
         SELECT COUNT(DISTINCT viewer_email) INTO v_email_count
         FROM public.deck_page_views
@@ -528,10 +540,10 @@ BEGIN
         -- Also refresh viewed_at so the 24-hour window advances correctly,
         -- and keep viewer_email up-to-date ONLY if it was previously null.
         UPDATE public.deck_page_views
-        SET time_spent   = time_spent + p_time_spent,
+        SET time_spent   = LEAST(time_spent + p_time_spent, 86400), -- Daily cap of 24 hrs
             viewed_at    = NOW(),
             viewer_email = COALESCE(viewer_email, p_viewer_email)
-        WHERE id = v_recent_view_id AND time_spent < 86400; -- Daily cap of 24 hrs
+        WHERE id = v_recent_view_id;
     END IF;
 
     -- 4. Sync deck_stats (Aggregate)

@@ -317,7 +317,6 @@ export default function DeckAnalytics() {
                     </div>
                   ) : (
                     <div className="grid gap-4">
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       {bookmarks.map((b: unknown, i: number) => {
                         const bm = b as BookmarkData;
                         return (
