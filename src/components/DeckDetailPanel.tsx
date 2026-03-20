@@ -21,6 +21,7 @@ import { useAuth } from "../contexts/AuthContext";
 import * as pdfjsLib from "pdfjs-dist";
 import { Deck, DeckWithExpiry } from "../types";
 import { cn } from "../utils/cn";
+import { getDeckPath } from "../utils/url";
 
 // Common Components
 import Button from "./common/Button";
@@ -273,7 +274,7 @@ function DeckDetailPanel({
             </h2>
           </div>
           <a
-            href={`/${profile?.handle}/${deck.slug}`}
+            href={getDeckPath(profile?.handle || "investor", deck.slug)}
             target="_blank"
             rel="noreferrer"
           >

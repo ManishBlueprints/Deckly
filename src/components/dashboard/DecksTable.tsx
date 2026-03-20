@@ -10,6 +10,7 @@ import {
 } from "../ui/table";
 import { BarChart3, Pencil, Trash2, FileText, Check } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getDeckShareUrl, getDeckPath } from "../../utils/url";
 
 interface Deck {
   id: string;
@@ -42,7 +43,7 @@ export function DecksTable({
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleCopyLink = (slug: string, id: string) => {
-    const url = `${window.location.origin}/${userHandle}/${slug}`;
+    const url = getDeckShareUrl(userHandle, slug);
     navigator.clipboard.writeText(url);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -98,7 +99,7 @@ export function DecksTable({
               </div>
               <div className="flex-1 min-w-0">
                 <Link
-                  to={`/${userHandle}/${deck.slug}`}
+                  to={getDeckPath(userHandle, deck.slug)}
                   target="_blank"
                   className="font-medium text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
                 >
@@ -231,7 +232,7 @@ export function DecksTable({
                 >
                   <TableCell className="px-6 py-4">
                     <Link
-                      to={`/${userHandle}/${deck.slug}`}
+                      to={getDeckPath(userHandle, deck.slug)}
                       target="_blank"
                       className="flex items-center gap-3 transition-all group/title"
                     >
