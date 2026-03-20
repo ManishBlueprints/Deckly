@@ -44,7 +44,7 @@ function ImageDeckViewer({
   }, []);
 
   // Helper to resolve image URL from potentially stringified slide data
-  const resolveSlideImage = useCallback((pageData: any) => {
+  const resolveSlideImage = useCallback((pageData: unknown) => {
     if (!pageData) return "";
 
     let processedData = pageData;
@@ -54,13 +54,14 @@ function ImageDeckViewer({
     ) {
       try {
         processedData = JSON.parse(processedData);
-      } catch (e) {
+      } catch {
         // Fallback for malformed JSON
       }
     }
 
     if (typeof processedData === "string") return processedData;
-    return processedData.image_url || processedData.url || "";
+    const obj = processedData as Record<string, string>;
+    return obj.image_url || obj.url || "";
   }, []);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { BrandingSettings, Deck, SlidePage } from "../types";
+import { BrandingSettings, Deck, SlidePage, SavedDeck } from "../types";
 import { withRetry } from "../utils/resilience";
 
 export const deckService = {
@@ -48,6 +48,18 @@ export const deckService = {
     return !!data;
   },
 
+  async getDeckPayload(
+    slug: string,
+    password?: string,
+  ): Promise<{ file_url: string; pages: SlidePage[] }> {
+    const { data, error } = await supabase.rpc("get_deck_payload", {
+      p_slug: slug,
+      p_password: password ?? null,
+    });
+    if (error) throw error;
+    if (!data) throw new Error("Deck not found or access denied");
+    return data as { file_url: string; pages: SlidePage[] };
+  },
   // Get single deck by ID (management use)
   async getDeckById(id: string, providedUserId?: string): Promise<Deck> {
     let userId = providedUserId;
@@ -132,15 +144,20 @@ export const deckService = {
     if (!storagePath) {
       console.warn(
         `[deckService.deleteDeck] Unexpected fileUrl format — could not parse storage path. ` +
-        `Deck DB row will NOT be deleted to avoid orphaning data. fileUrl: ${fileUrl}`,
+          `Deck DB row will NOT be deleted to avoid orphaning data. fileUrl: ${fileUrl}`,
       );
       return; // Abort: do not remove the DB row if we can't clean up storage
     }
 
     await withRetry(async () => {
-      const { error } = await supabase.storage.from("decks").remove([storagePath]);
+      const { error } = await supabase.storage.from("decks").remove([
+        storagePath,
+      ]);
       // Treat 404/ObjectNotFound as success — file is already gone
-      if (error && !error.message?.includes("not found") && error.message !== "Object not found") {
+      if (
+        error && !error.message?.includes("not found") &&
+        error.message !== "Object not found"
+      ) {
         throw error;
       }
     });
@@ -152,14 +169,19 @@ export const deckService = {
         .list(`${userId}/deck-images/${slug}`);
 
       // 404 on the folder means no images exist — treat as success
-      if (listError && !listError.message?.includes("not found")) throw listError;
+      if (listError && !listError.message?.includes("not found")) {
+        throw listError;
+      }
 
       if (files && files.length > 0) {
         const filesToDelete = files.map(
           (f) => `${userId}/deck-images/${slug}/${f.name}`,
         );
-        const { error: removeError } = await supabase.storage.from("decks").remove(filesToDelete);
-        if (removeError && !removeError.message?.includes("not found")) throw removeError;
+        const { error: removeError } = await supabase.storage.from("decks")
+          .remove(filesToDelete);
+        if (removeError && !removeError.message?.includes("not found")) {
+          throw removeError;
+        }
       }
     });
 
@@ -370,7 +392,7 @@ export const deckService = {
   },
 
   // Get all decks with aggregated stats for Content management
-  async getDecksWithAnalytics(providedUserId?: string): Promise<any[]> {
+  async getDecksWithAnalytics(providedUserId?: string): Promise<Deck[]> {
     return withRetry(async () => {
       let userId = providedUserId;
       if (!userId) {
@@ -416,14 +438,16 @@ export const deckService = {
 
       // Count unique visitors per deck
       const viewsMap: Record<string, Set<string>> = {};
-      (pageViews || []).forEach((pv: any) => {
-        if (!viewsMap[pv.deck_id]) viewsMap[pv.deck_id] = new Set();
-        viewsMap[pv.deck_id].add(pv.visitor_id);
-      });
+      (pageViews || []).forEach(
+        (pv: { deck_id: string; visitor_id: string }) => {
+          if (!viewsMap[pv.deck_id]) viewsMap[pv.deck_id] = new Set();
+          viewsMap[pv.deck_id].add(pv.visitor_id);
+        },
+      );
 
       // Count saves per deck
       const savesMap: Record<string, number> = {};
-      (saves || []).forEach((s: any) => {
+      (saves || []).forEach((s: { deck_id: string }) => {
         savesMap[s.deck_id] = (savesMap[s.deck_id] || 0) + 1;
       });
 
@@ -445,7 +469,7 @@ export const deckService = {
         total_views: viewsMap[deck.id]?.size || 0,
         save_count: savesMap[deck.id] || 0,
         last_viewed_at: lastActiveMap[deck.id] || null,
-      }));
+      })) as Deck[];
     });
   },
 
@@ -505,7 +529,7 @@ export const deckService = {
   },
 
   // NEW: Get all saved decks for the logged-in user
-  async getSavedDecks(): Promise<Deck[]> {
+  async getSavedDecks(): Promise<SavedDeck[]> {
     return withRetry(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return [];
@@ -538,7 +562,9 @@ export const deckService = {
 
       // Extract unique user IDs from decks to fetch handles
       const ownerIds = [
-        ...new Set((data || []).map((item) => (item.deck as any).user_id)),
+        ...new Set(
+          (data || []).map((item) => (item.deck as unknown as Deck).user_id),
+        ),
       ];
 
       const { data: profilesData, error: profilesError } = await supabase
@@ -556,7 +582,9 @@ export const deckService = {
       }, {} as Record<string, string>);
 
       // Fetch notes for these decks in parallel
-      const deckIds = (data || []).map((item) => (item.deck as any).id);
+      const deckIds = (data || []).map((item) =>
+        (item.deck as unknown as Deck).id
+      );
       const { data: notesData, error: notesError } = await supabase
         .from("investor_notes")
         .select("deck_id, content")
@@ -576,14 +604,17 @@ export const deckService = {
       }, {} as Record<string, string>);
 
       // Flatten the response so it looks like an array of decks (with extra library metadata if needed)
-      return (data || []).map((item: any) => ({
-        ...item.deck,
-        user_handle: handlesMap[item.deck?.user_id] || "username",
-        saved_at: item.created_at,
-        last_viewed_at: item.last_viewed_at,
-        library_id: item.id,
-        investor_note: notesMap[item.deck.id] || "",
-      })) as Deck[];
+      return (data || []).map((item) => {
+        const deck = item.deck as unknown as Deck;
+        return {
+          ...deck,
+          user_handle: handlesMap[deck.user_id] || "username",
+          saved_at: item.created_at,
+          last_viewed_at: item.last_viewed_at,
+          library_id: item.id,
+          investor_note: notesMap[deck.id] || "",
+        };
+      }) as SavedDeck[];
     });
   },
 

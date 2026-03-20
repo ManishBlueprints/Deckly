@@ -59,6 +59,18 @@ function Viewer() {
 
       // If no protection OR user is the owner, track view immediately and unlock
       if ((!data.require_email && !data.require_password) || userIsOwner) {
+        if (userIsOwner) {
+          const fullDeck = await deckService.getDeckById(data.id);
+          setDeck(fullDeck);
+        } else {
+          try {
+            const payload = await deckService.getDeckPayload(data.slug);
+            setDeck({ ...data, ...payload });
+          } catch {
+            throw new Error("Failed to load document content.");
+          }
+        }
+
         setIsUnlocked(true);
         if (!userIsOwner) {
           analyticsService.trackDeckView(data);
@@ -178,13 +190,19 @@ function Viewer() {
         ) : !isUnlocked ? (
           <AccessGate
             deck={deck}
-            onAccessGranted={(email) => {
-              setIsUnlocked(true);
-              if (email) {
-                setViewerEmail(email);
-                analyticsService.trackDeckView(deck, { email_captured: email });
-              } else {
-                analyticsService.trackDeckView(deck);
+            onAccessGranted={async (email, password) => {
+              try {
+                const payload = await deckService.getDeckPayload(deck.slug, password);
+                setDeck((prev) => prev ? { ...prev, ...payload } : prev);
+                setIsUnlocked(true);
+                if (email) {
+                  setViewerEmail(email);
+                  analyticsService.trackDeckView(deck, { email_captured: email });
+                } else {
+                  analyticsService.trackDeckView(deck);
+                }
+              } catch {
+                setError("Failed to unlock document payload.");
               }
             }}
           />

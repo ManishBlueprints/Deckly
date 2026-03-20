@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { deckService } from "../services/deckService";
+import { SavedDeck } from "../types";
 import { noteService } from "../services/noteService";
 import { useAuth } from "../contexts/AuthContext";
 import { DashboardCard } from "./ui/DashboardCard";
@@ -27,10 +28,10 @@ import { ConfirmModal } from "./common/ConfirmModal";
 
 export function SavedDecksView() {
   const { session } = useAuth();
-  const [decks, setDecks] = useState<any[]>([]);
+  const [decks, setDecks] = useState<SavedDeck[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [unsaveTarget, setUnsaveTarget] = useState<any>(null);
+  const [unsaveTarget, setUnsaveTarget] = useState<SavedDeck | null>(null);
   const [isUnsavingInProgress, setIsUnsavingInProgress] = useState(false);
 
   // Editing state
@@ -71,11 +72,11 @@ export function SavedDecksView() {
     }
   };
 
-  const handleUnsaveClick = (deck: any) => {
+  const handleUnsaveClick = (deck: SavedDeck) => {
     setUnsaveTarget(deck);
   };
 
-  const startEditing = (deck: any) => {
+  const startEditing = (deck: SavedDeck) => {
     setEditingId(deck.id);
     setEditContent(deck.investor_note || "");
   };

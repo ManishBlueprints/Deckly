@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { serve } from 'std/http'
+import { serve } from "@std/http/server";
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 
 // Set up PDF.js worker source from the imported package

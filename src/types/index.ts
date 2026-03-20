@@ -13,6 +13,7 @@ export interface Deck {
   display_order: number;
   pages: SlidePage[];
   created_at: string;
+  updated_at?: string;
   description?: string;
   file_size?: number;
   require_email?: boolean;
@@ -26,6 +27,15 @@ export interface Deck {
 }
 
 export type DeckWithExpiry = Deck;
+
+export interface SavedDeck extends Deck {
+  library_id?: string;
+  investor_note?: string;
+  saved_at: string;
+  user_handle: string;
+  updated_at: string;
+  last_viewed_at: string | null;
+}
 
 export interface BrandingSettings {
   id: string;

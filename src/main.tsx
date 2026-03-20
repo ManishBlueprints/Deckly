@@ -26,9 +26,7 @@ ReactDOM.createRoot(rootElement).render(
         apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
         options={{
           api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-          defaults: {
-            release_date: "2025-05-24",
-          } as any, // Cast to any because PostHog types might be strict or mismatched
+          defaults: "2025-05-24",
           capture_exceptions: true,
           debug: false,
         }}

@@ -334,6 +334,6 @@ export function DecksTable({
   );
 }
 
-function clsx(...classes: any[]) {
+function clsx(...classes: (string | undefined | null | false)[]) {
   return classes.filter(Boolean).join(" ");
 }

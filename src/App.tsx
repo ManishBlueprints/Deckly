@@ -81,7 +81,7 @@ const AppContent = () => {
       setShowSlowMessage(false);
     }
     return () => clearTimeout(timeout);
-  }, [loading, initializationError, !!session]);
+  }, [loading]);
 
   if (loading) {
     return (

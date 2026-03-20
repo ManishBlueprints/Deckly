@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { DataRoom, DataRoomDocument } from "../types";
+import { DataRoom, DataRoomDocument, Deck } from "../types";
 import { withRetry } from "../utils/resilience";
 
 async function resolveUserId(providedUserId?: string): Promise<string | null> {
@@ -131,7 +131,7 @@ export const dataRoomService = {
 
       if (error) throw error;
 
-      return (data || []).map((d: any) => ({
+      return (data || []).map((d: DataRoomDocument & { deck?: Deck | null }) => ({
         ...d,
         deck: d.deck || undefined,
       })) as DataRoomDocument[];
@@ -290,6 +290,15 @@ export const dataRoomService = {
     });
     if (error) throw error;
     return !!data;
+  },
+
+  async getDataRoomPayload(slug: string, password?: string): Promise<Deck[]> {
+    const { data, error } = await supabase.rpc("get_data_room_payload", {
+      p_slug: slug,
+      p_password: password || null,
+    });
+    if (error) throw error;
+    return data as Deck[];
   },
 
   async getDataRoomBySlugOnly(
