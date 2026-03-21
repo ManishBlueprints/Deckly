@@ -249,6 +249,10 @@ CREATE TABLE IF NOT EXISTS public.auth_rate_limits (
     PRIMARY KEY (ip_address, target_slug)
 );
 
+-- Enable RLS for security monitoring best practices. 
+-- Direct access remains denied; managed via SECURITY DEFINER functions.
+ALTER TABLE public.auth_rate_limits ENABLE ROW LEVEL SECURITY;
+
 CREATE INDEX IF NOT EXISTS idx_auth_rate_limits_last_attempt ON public.auth_rate_limits(last_attempt_at);
 
 -- PASSWORD HASHING SETUP
