@@ -80,7 +80,7 @@ export function DocumentRow({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.98 }}
       className={cn(
-        "bg-[#161616] border border-white/5 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 group hover:border-[#54e98a]/20 transition-all",
+        "bg-[#161616] border border-white/5 p-6 flex flex-col md:flex-row items-center gap-6 group hover:border-[#54e98a]/20 transition-all",
         isUnsaving && "opacity-50 pointer-events-none"
       )}
     >
@@ -130,7 +130,7 @@ export function DocumentRow({
               onKeyDown={handleNoteKeyDown}
               rows={2}
               placeholder="Write a note..."
-              className="w-full bg-[#0e0e0e] border border-[#54e98a]/30 rounded-lg px-3 py-2 text-xs text-[#e5e2e1] placeholder:text-[#bbcbbb]/20 resize-none focus:outline-none focus:border-[#54e98a]/60 transition-colors"
+              className="w-full bg-[#0e0e0e] border border-[#54e98a]/30 px-3 py-2 text-xs text-[#e5e2e1] placeholder:text-[#bbcbbb]/20 resize-none focus:outline-none focus:border-[#54e98a]/60 transition-colors"
             />
           ) : (
             <button

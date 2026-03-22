@@ -103,7 +103,7 @@ export function SavedDecksView() {
   // --- Loading / empty states ---
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-20 bg-[#131313] h-full min-h-[calc(100vh-140px)]">
+      <div className="flex items-center justify-center p-20 bg-background h-full min-h-[calc(100vh-140px)]">
         <Loader2 className="animate-spin text-[#54e98a]" size={32} />
       </div>
     );
@@ -111,7 +111,7 @@ export function SavedDecksView() {
 
   if (decks.length === 0 && folders.length === 0) {
     return (
-      <div className="min-h-[calc(100vh-140px)] bg-[#131313] overflow-hidden">
+      <div className="min-h-[calc(100vh-140px)] bg-background overflow-hidden">
         <SavedDeckEmptyState onCreateFolder={() => setIsCreateFolderModalOpen(true)} />
         <CreateFolderModal
           isOpen={isCreateFolderModalOpen}
@@ -132,7 +132,7 @@ export function SavedDecksView() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-140px)] bg-deckly-background">
+    <div className="min-h-[calc(100vh-140px)] bg-background">
       <main className="overflow-y-auto custom-scrollbar">
         <div className="p-6 md:p-12 space-y-16 w-full max-w-[1600px] mx-auto pb-32">
 
@@ -151,7 +151,7 @@ export function SavedDecksView() {
               <button
                 onClick={() => setIsFilterOpen((v) => !v)}
                 className={cn(
-                  "flex items-center gap-3 px-6 py-3 border rounded-xl text-xs font-bold transition-all",
+                  "flex items-center gap-3 px-6 py-3 border text-xs font-bold transition-all",
                   isFilterOpen
                     ? "bg-[#54e98a]/10 border-[#54e98a]/20 text-[#54e98a]"
                     : "bg-white/5 border-white/10 text-[#bbcbbb]/60 hover:text-white"
@@ -162,7 +162,7 @@ export function SavedDecksView() {
               </button>
               <button
                 onClick={() => setIsManageTagsModalOpen(true)}
-                className="flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all"
+                className="flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all"
               >
                 <Tag size={14} />
                 Manage Tags
@@ -179,7 +179,7 @@ export function SavedDecksView() {
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
-                <div className="p-6 bg-[#1a1a1a] border border-white/5 rounded-2xl flex flex-col md:flex-row gap-6">
+                <div className="p-6 bg-surface-low border border-white/5 flex flex-col md:flex-row gap-6">
                   {/* Search */}
                   <div className="flex-1 relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#bbcbbb]/40" />
@@ -188,7 +188,7 @@ export function SavedDecksView() {
                       placeholder="Search documents by title..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-12 pr-10 py-3 bg-[#131313] border border-white/10 rounded-xl text-[#e5e2e1] placeholder:text-[#bbcbbb]/40 focus:outline-none focus:border-[#54e98a]/50 transition-colors"
+                      className="w-full pl-12 pr-10 py-3 bg-surface-container border border-white/10 text-[#e5e2e1] placeholder:text-[#bbcbbb]/40 focus:outline-none focus:border-[#54e98a]/50 transition-colors"
                     />
                     {searchQuery && (
                       <button
@@ -213,10 +213,10 @@ export function SavedDecksView() {
                             key={tag.id}
                             onClick={() => setSelectedTagId(isSelected ? null : tag.id)}
                             className={cn(
-                              "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border",
+                              "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all border",
                               isSelected
                                 ? "border-transparent text-[#131313]"
-                                : "bg-[#131313] border-white/10 hover:border-white/20"
+                                : "bg-surface-container border-white/10 hover:border-white/20"
                             )}
                             style={{
                               backgroundColor: isSelected ? tag.color : undefined,
@@ -230,7 +230,7 @@ export function SavedDecksView() {
                       {selectedTagId && (
                         <button
                           onClick={() => setSelectedTagId(null)}
-                          className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-[#131313] border border-red-500/20 text-red-400 hover:bg-red-500/10"
+                          className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all bg-surface-container border border-red-500/20 text-red-400 hover:bg-red-500/10"
                         >
                           Clear
                         </button>
@@ -303,7 +303,7 @@ export function SavedDecksView() {
                     animate={{ opacity: 1 }}
                     className="py-32 text-center"
                   >
-                    <div className="w-20 h-20 bg-[#161616] rounded-3xl flex items-center justify-center text-[#54e98a]/20 mx-auto border border-white/5 mb-6">
+                    <div className="w-20 h-20 bg-surface-low flex items-center justify-center text-[#54e98a]/20 mx-auto border border-white/5 mb-6">
                       <span className="material-symbols-outlined text-4xl">inventory_2</span>
                     </div>
                     <p className="text-[#bbcbbb]/40 font-bold">

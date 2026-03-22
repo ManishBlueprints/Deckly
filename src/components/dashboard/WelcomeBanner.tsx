@@ -1,60 +1,77 @@
-import { Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useUserTotalStats } from "../../hooks/useUserTotalStats";
+import { useDecks } from "../../hooks/useDecks";
+import { Loader2 } from "lucide-react";
 
 export function WelcomeBanner() {
-  const { profile } = useAuth();
-  const firstName = profile?.full_name?.split(" ")[0] || "Founder";
+  const { profile, session } = useAuth();
+  const firstName = profile?.full_name?.split(" ")[0] || "Manish";
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  };
+  const { data: stats, isLoading: statsLoading } = useUserTotalStats(
+    session?.user?.id,
+  );
+  const { data: decks, isLoading: decksLoading } = useDecks(session?.user?.id);
+
+  const isLoading = statsLoading || decksLoading;
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-[#222] bg-[#10120f] p-6 md:p-8 mb-8 mt-2">
-      {/* Subtle Green Grid Pattern */}
+    <div className="relative overflow-hidden bg-surface-lowest border border-white/5 p-10 md:p-12 md:py-14 group">
+      {/* Mesh grid pattern overlay */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.20]"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: `
-            linear-gradient(to right, #22c55e 1px, transparent 1px),
-            linear-gradient(to bottom, #22c55e 1px, transparent 1px)
-          `,
-          backgroundSize: "32px 32px",
-          maskImage:
-            "linear-gradient(to bottom right, black 20%, transparent 80%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom right, black 20%, transparent 80%)",
+          backgroundImage:
+            "linear-gradient(to right, rgba(84,233,138,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(84,233,138,0.06) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
         }}
       />
-
-      <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-white tracking-tight">
-            {getGreeting()}, {firstName}
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Here's what's happening with your decks today.
+      <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <div className="space-y-4">
+          <h2 className="text-5xl font-bold tracking-tighter leading-none text-foreground">
+            Welcome, {firstName}.
+          </h2>
+          <p className="text-slate-400 text-lg max-w-xl font-light h-14">
+            {isLoading ? (
+              <span className="flex items-center gap-2 text-sm text-slate-500 mt-2">
+                <Loader2 size={14} className="animate-spin" />
+                Analyzing your portfolio...
+              </span>
+            ) : (
+              <>
+                Your portfolio has reached{" "}
+                <span className="text-primary font-medium">
+                  {stats?.totalViews || 0} views
+                </span>{" "}
+                and{" "}
+                <span className="text-primary font-medium">
+                  {stats?.totalSaves || 0} saves
+                </span>{" "}
+                across{" "}
+                <span className="text-primary font-medium">
+                  {decks?.length || 0} active decks
+                </span>
+                . Keep reaching out to investors.
+              </>
+            )}
           </p>
         </div>
-
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <Link to="/rooms" className="flex-1 md:flex-none">
-            <button className="w-full md:w-auto h-9 px-4 bg-[#10120f] border border-[#333] text-slate-200 text-sm font-medium rounded-md hover:bg-[#1a1a1a] transition-colors flex items-center justify-center gap-2">
+        <div className="flex gap-4">
+          <Link to="/rooms">
+            <button className="px-6 py-3 border border-white/10 text-slate-200 text-xs font-bold uppercase tracking-widest hover:bg-surface-bright transition-all">
               View Rooms
             </button>
           </Link>
-          <Link to="/upload" className="flex-1 md:flex-none">
-            <button className="w-full md:w-auto h-9 px-4 bg-deckly-primary text-slate-950 text-sm font-medium rounded-md hover:bg-emerald-400 transition-colors flex items-center justify-center gap-2 shadow-sm">
-              <Upload size={14} />
+          <Link to="/upload">
+            <button className="px-6 py-3 bg-primary text-black text-xs font-bold uppercase tracking-widest hover:brightness-110 shadow-[0_0_20px_rgba(84,233,138,0.2)] transition-all">
               New Deck
             </button>
           </Link>
         </div>
       </div>
+
+      {/* Abstract visual element */}
+      <div className="absolute -right-20 -top-20 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
     </div>
   );
 }

@@ -4,48 +4,64 @@
 
 @layer base {
   :root {
-    --brand-neutral: 0 0% 5.1%; /* #0D0D0D */
-    --brand-primary: 145 56% 49%; /* #2ECC71 */
-    --brand-secondary: 0 0% 15%; /* #262626 */
-    --brand-tertiary: 15 100% 73%; /* #FF9875 */
+    --background: 0 0% 5.5%; /* #0e0e0e - Surface Lowest */
+    --foreground: 0 0% 90%; /* #e5e2e1 */
+    --card: 0 0% 11%; /* #1c1b1b - Surface Low */
+    --card-foreground: 0 0% 90%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 90%;
+    
+    /* Global Tiers (Digital Curator) */
+    --surface-lowest: 0 0% 5.5%;    /* #0e0e0e - page background */
+    --surface-low: 0 0% 8.6%;       /* #161616 - main card surface */
+    --surface-container: 0 0% 11%;  /* #1c1c1c - nested panels */
+    --surface-high: 0 0% 16.5%;     /* #2a2a2a - elevated / hover */
+    --surface-highest: 0 0% 20.8%;  /* #353534 - highest elevation */
+    --surface-bright: 0 0% 22.7%;   /* #3a3939 */
 
-    --background: var(--brand-neutral);
-    --foreground: 0 0% 100%;
-    --muted: var(--brand-secondary);
-    --muted-foreground: 0 0% 60%;
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 100%;
-    --border: var(--brand-secondary);
-    --input: var(--brand-secondary);
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 100%;
-    --primary: var(--brand-primary);
-    --primary-foreground: 0 0% 10%;
-    --secondary: var(--brand-secondary);
-    --secondary-foreground: 0 0% 100%;
-    --accent: var(--brand-tertiary);
-    --accent-foreground: 0 0% 10%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --ring: 145 56% 49%;
-    --radius: 0.75rem;
+
+    --primary: 142 76% 62%;       /* #54e98a */
+    --primary-foreground: 148 100% 11%; /* #003919 */
+    
+    --secondary: 0 0% 78%;        /* #c8c6c5 */
+    --secondary-foreground: 0 0% 19%;
+    
+    --muted: 0 0% 21%;
+    --muted-foreground: 120 7% 55%; /* #869486 (outline) */
+    
+    --accent: 142 76% 62%;
+    --accent-foreground: 148 100% 11%;
+    
+    --destructive: 0 84% 83%;     /* #ffb4ab (error) */
+    --destructive-foreground: 0 100% 21%;
+    
+    --border: 120 7% 26%;        /* #3d4a3e (outline-variant) */
+    --input: 120 7% 26%;
+    --ring: 142 76% 62%;
+
+    /* Sharp Corners (Digital Curator Enforcement) */
+    --radius: 0px;
+    --radius-sm: 0px;
+    --radius-md: 0px;
+    --radius-lg: 0px;
+    --radius-xl: 0px;
   }
 
   .dark {
     --background: var(--brand-neutral);
-    --foreground: 0 0% 100%;
+    --foreground: 0 0% 90%;
     --muted: var(--brand-secondary);
     --muted-foreground: 0 0% 60%;
     --accent: var(--brand-secondary);
     --accent-foreground: 0 0% 100%;
-    --popover: 0 0% 7%;
+    --popover: var(--surface-highest);
     --popover-foreground: 0 0% 100%;
-    --border: var(--brand-secondary);
-    --input: var(--brand-secondary);
-    --card: 0 0% 7%;
+    --border: hsla(0, 0%, 100%, 0.05);
+    --input: var(--surface-low);
+    --card: var(--surface-low);
     --card-foreground: 0 0% 100%;
     --primary: var(--brand-primary);
-    --primary-foreground: 0 0% 10%;
+    --primary-foreground: 0 0% 0%;
     --secondary: var(--brand-secondary);
     --secondary-foreground: 0 0% 100%;
     --destructive: 0 63% 31%;
@@ -68,6 +84,19 @@
 }
 
 @layer utilities {
+  .bg-grid-kinetic {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, hsla(145, 80%, 62%, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, hsla(145, 80%, 62%, 0.05) 1px, transparent 1px);
+  }
+  
+  .bg-glass {
+    background-color: hsla(var(--surface-highest), 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -76,10 +105,10 @@
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: hsla(0, 0%, 100%, 0.1);
     border-radius: 10px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(34, 197, 94, 0.5);
+    background: hsla(145, 80%, 62%, 0.5);
   }
 }

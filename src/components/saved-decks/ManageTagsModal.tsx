@@ -102,7 +102,7 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-md bg-[#232323] rounded-[24px] border border-white/5 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden pointer-events-auto flex flex-col max-h-[85vh]"
+              className="w-full max-w-md bg-[#232323] border border-white/5 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden pointer-events-auto flex flex-col max-h-[85vh]"
             >
               <div className="p-8 space-y-8 flex-1 overflow-y-auto custom-scrollbar">
                 
@@ -116,13 +116,13 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
                       Create and manage custom tags to categorize your folders and documents.
                     </p>
                   </div>
-                  <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-colors">
+                  <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-colors">
                     <X size={18} />
                   </button>
                 </div>
 
                 {/* Form to Create/Edit */}
-                <div className="bg-[#161616] border border-white/5 rounded-2xl p-6 space-y-6">
+                <div className="bg-[#161616] border border-white/5 p-6 space-y-6">
                   <div className="space-y-2.5">
                     <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#bbcbbb]/40 ml-1">
                       {editingTagId ? "EDIT TAG" : "NEW TAG NAME"}
@@ -133,7 +133,7 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
                       onChange={(e) => setName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                       placeholder="e.g. SAAS, Q3 2024..."
-                      className="w-full bg-[#232323] border border-white/5 rounded-xl px-4 py-3.5 text-sm text-white placeholder-[#bbcbbb]/20 focus:outline-none focus:ring-1 focus:ring-white/10 transition-all font-medium"
+                      className="w-full bg-[#232323] border border-white/5 px-4 py-3.5 text-sm text-white placeholder-[#bbcbbb]/20 focus:outline-none focus:ring-1 focus:ring-white/10 transition-all font-medium"
                     />
                   </div>
 
@@ -162,7 +162,7 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
                     {editingTagId && (
                       <button
                         onClick={resetForm}
-                        className="px-4 py-3 bg-white/5 text-[#bbcbbb]/60 rounded-xl font-bold text-xs hover:text-white hover:bg-white/10 transition-colors"
+                        className="px-4 py-3 bg-white/5 text-[#bbcbbb]/60 font-bold text-xs hover:text-white hover:bg-white/10 transition-colors"
                       >
                         Cancel
                       </button>
@@ -170,7 +170,7 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
                     <button
                       onClick={handleSave}
                       disabled={isLoading || !name.trim()}
-                      className="flex-1 px-4 py-3 bg-[#54e98a] text-[#003919] rounded-xl font-black text-xs tracking-wide flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100"
+                      className="flex-1 px-4 py-3 bg-[#54e98a] text-[#003919] font-black text-xs tracking-wide flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100"
                     >
                       {isLoading ? <Loader2 size={16} className="animate-spin" /> : editingTagId ? "Save Tag" : "Create Tag"}
                     </button>
@@ -186,7 +186,7 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
                     <div className="space-y-2">
                       {tags.map(tag => (
                         <div key={tag.id} className={cn(
-                          "flex items-center justify-between p-3 rounded-xl border transition-colors",
+                          "flex items-center justify-between p-3 border transition-colors",
                           editingTagId === tag.id ? "bg-[#54e98a]/5 border-[#54e98a]/20" : "bg-white/5 border-white/5 hover:border-white/10"
                         )}>
                           <div className="flex items-center gap-3">
@@ -196,14 +196,14 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleEdit(tag)}
-                              className="p-2 text-[#bbcbbb]/30 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                              className="p-2 text-[#bbcbbb]/30 hover:text-white hover:bg-white/5 transition-all"
                             >
                               <Edit2 size={14} />
                             </button>
                             <button
                               onClick={() => handleDelete(tag.id)}
                               disabled={deletingId === tag.id}
-                              className="p-2 text-[#bbcbbb]/30 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all disabled:opacity-50"
+                              className="p-2 text-[#bbcbbb]/30 hover:text-red-400 hover:bg-red-400/10 transition-all disabled:opacity-50"
                             >
                               {deletingId === tag.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                             </button>

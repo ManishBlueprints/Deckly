@@ -91,7 +91,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-md bg-[#232323] rounded-[24px] border border-white/5 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden pointer-events-auto"
+              className="w-full max-w-md bg-[#232323] border border-white/5 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden pointer-events-auto"
             >
               <div className="p-8 space-y-8">
                 {/* Header */}
@@ -116,7 +116,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g., Q1 FinTech Research"
-                      className="w-full bg-[#161616] border border-white/5 rounded-xl px-4 py-3.5 text-sm text-[#e5e2e1] placeholder-[#bbcbbb]/20 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/30 transition-all font-medium"
+                      className="w-full bg-[#161616] border border-white/5 px-4 py-3.5 text-sm text-[#e5e2e1] placeholder-[#bbcbbb]/20 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/30 transition-all font-medium"
                       autoFocus
                     />
                   </div>
@@ -131,7 +131,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                         <button
                           key={color.id}
                           onClick={() => setSelectedColor(color.value)}
-                          className={`w-8 h-8 rounded-lg transition-all relative ${
+                          className={`w-8 h-8 transition-all relative ${
                             selectedColor === color.value 
                               ? "ring-2 ring-white/10 ring-offset-4 ring-offset-[#232323] scale-110" 
                               : "hover:scale-105 opacity-80 hover:opacity-100"
@@ -141,7 +141,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                           {selectedColor === color.value && (
                             <motion.div 
                               layoutId="activeColor"
-                              className="absolute inset-0 rounded-lg border-2 border-white/20"
+                              className="absolute inset-0 border-2 border-white/20"
                             />
                           )}
                         </button>
@@ -161,7 +161,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                         return (
                           <div 
                             key={tagName}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg group border transition-colors"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 group border transition-colors"
                             style={{
                               backgroundColor: `${baseColor}15`,
                               borderColor: `${baseColor}30`,
@@ -197,7 +197,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                         onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
                         onKeyDown={(e) => e.key === 'Enter' && addTag()}
                         placeholder="Add more tags..."
-                        className="w-full bg-[#161616] border border-white/5 rounded-xl px-4 py-3.5 text-xs text-[#e5e2e1] placeholder-[#bbcbbb]/10 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/20 transition-all font-medium pr-10"
+                        className="w-full bg-[#161616] border border-white/5 px-4 py-3.5 text-xs text-[#e5e2e1] placeholder-[#bbcbbb]/10 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/20 transition-all font-medium pr-10"
                       />
                       <button 
                         onClick={() => addTag()}
@@ -213,7 +213,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                             initial={{ opacity: 0, y: 5 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 5 }}
-                            className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#2a2a2a] border border-white/10 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto custom-scrollbar"
+                            className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#2a2a2a] border border-white/10 shadow-xl overflow-hidden max-h-48 overflow-y-auto custom-scrollbar"
                           >
                             {filteredSuggestions.map((suggestion) => (
                               <div
@@ -246,7 +246,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                   <button
                     onClick={handleCreate}
                     disabled={isLoading || !name.trim()}
-                    className="px-8 py-3.5 bg-[#54e98a] text-[#003919] rounded-xl font-black text-sm tracking-tight flex items-center gap-2 hover:shadow-[0_0_20px_rgba(84,233,138,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none"
+                    className="px-8 py-3.5 bg-[#54e98a] text-[#003919] font-black text-sm tracking-tight flex items-center gap-2 hover:shadow-[0_0_20px_rgba(84,233,138,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none"
                   >
                     {isLoading ? (
                       <Loader2 size={16} className="animate-spin" />

@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
-import { DashboardCard } from "../ui/DashboardCard";
 import { AnalyticsChart } from "./AnalyticsChart";
-import { AnalyticsStatsSection } from "./AnalyticsStatsSection";
 import { useUserTotalStats } from "../../hooks/useUserTotalStats";
 import { useDailyMetrics } from "../../hooks/useDailyMetrics";
+import { TrendingUp, Timer, Bookmark } from "lucide-react";
 
 export function AnalyticsDashboard() {
   const { session } = useAuth();
@@ -27,25 +26,24 @@ export function AnalyticsDashboard() {
   const overviewItems = useMemo(() => {
     const formatTime = (seconds: number) => {
       const mins = Math.floor(seconds / 60);
-      const secs = Math.round(seconds % 60);
-      return `${mins}m ${secs}s`;
+      return `${mins}m`;
     };
 
     return [
       {
-        label: "Total Visit",
+        label: "Total Visits",
         value: (stats?.totalViews || 0).toLocaleString(),
-        sub: "",
+        icon: TrendingUp,
       },
       {
-        label: "Total Time Spent",
+        label: "Time Spent",
         value: formatTime(stats?.totalTimeSeconds || 0),
-        sub: "",
+        icon: Timer,
       },
       {
         label: "Total Saves",
         value: (stats?.totalSaves || 0).toLocaleString(),
-        sub: "",
+        icon: Bookmark,
       },
     ];
   }, [stats]);
@@ -58,82 +56,128 @@ export function AnalyticsDashboard() {
   };
 
   return (
-    <DashboardCard
-      className="min-h-[400px] md:min-h-[600px] border-[#222]"
-      contentClassName="flex flex-col md:flex-row border-t-0 h-full relative"
-    >
-      {isRefreshing && !loading && (
-        <div className="absolute top-6 right-10 flex items-center gap-3 z-10 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 backdrop-blur-md">
-          <div className="w-2 h-2 bg-deckly-primary rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-            Syncing
-          </span>
-        </div>
-      )}
-      <AnalyticsStatsSection items={overviewItems} loading={loading} />
-
-      <div className="flex-1 flex flex-col bg-[#10120f] border-l border-[#222]">
-        <Tabs defaultValue="VISITS" className="flex-1 flex flex-col">
-          <div className="flex items-center justify-center h-[53px] bg-[#10120f] border-b border-[#222] rounded-tr-lg">
-            <TabsList className="bg-[#10120f] border border-[#333] p-1 h-auto rounded-md gap-1">
-              <TabsTrigger
-                value="VISITS"
-                className="rounded text-xs font-medium px-4 py-1 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200"
-              >
-                Visits
-              </TabsTrigger>
-              <TabsTrigger
-                value="TIME"
-                className="rounded text-xs font-medium px-4 py-1 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200"
-              >
-                <span className="md:hidden">Time</span>
-                <span className="hidden md:inline">Duration</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="BOOKMARKS"
-                className="rounded text-xs font-medium px-4 py-1 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200"
-              >
-                <span className="md:hidden">Saved</span>
-                <span className="hidden md:inline">Bookmarks</span>
-              </TabsTrigger>
-            </TabsList>
+    <div className="space-y-8">
+      {/* Section Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold tracking-tighter text-foreground uppercase">
+          Engagement Trends
+        </h2>
+        {isRefreshing && !loading && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20">
+            <div className="w-1.5 h-1.5 bg-primary animate-pulse" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-primary">
+              Live
+            </span>
           </div>
-
-          <TabsContent
-            value="VISITS"
-            className="flex-1 m-0 p-0 flex flex-col justify-end"
-          >
-            <AnalyticsChart
-              labels={dailyData.labels}
-              data={dailyData.visits}
-              loading={loading}
-            />
-          </TabsContent>
-
-          <TabsContent
-            value="TIME"
-            className="flex-1 m-0 p-0 flex flex-col justify-end"
-          >
-            <AnalyticsChart
-              labels={dailyData.labels}
-              data={dailyData.timeSpent}
-              loading={loading}
-              isTime
-            />
-          </TabsContent>
-
-          <TabsContent
-            value="BOOKMARKS"
-            className="flex-1 m-0 p-0 flex flex-col justify-end"
-          >
-            <AnalyticsChart
-              labels={dailyData.labels}
-              data={dailyData.bookmarks}
-              loading={loading}
-            />
-          </TabsContent>
-        </Tabs>
+        )}
       </div>
-    </DashboardCard>
+
+      {/* 2-column layout: stats left, chart right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* Stats column — left, stacked vertically */}
+        <div className="lg:col-span-4 grid grid-rows-3 gap-6">
+          {overviewItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.label}
+                className="bg-surface-low border border-white/5 p-6 flex flex-col justify-between group hover:brightness-110 transition-all"
+              >
+                <div className="flex justify-between items-start">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500">
+                    {item.label}
+                  </p>
+                  <Icon size={16} className="text-primary" />
+                </div>
+                {loading ? (
+                  <div className="h-8 w-20 bg-surface-highest animate-pulse mt-4" />
+                ) : (
+                  <h3 className="text-4xl font-bold mt-4 tracking-tighter text-foreground">
+                    {item.value}
+                  </h3>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Chart — right */}
+        <div className="lg:col-span-8 bg-surface-low border border-white/5 flex flex-col min-h-[380px]">
+          <Tabs defaultValue="VISITS" className="flex-1 flex flex-col h-full">
+            {/* Header: title+subtitle left, tabs right */}
+            <div className="flex items-center justify-between px-8 py-5 border-b border-white/5">
+              <div>
+                <h4 className="text-base font-bold text-foreground tracking-tight">
+                  Engagement Trends
+                </h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  Visitor activity over the last 7 days
+                </p>
+              </div>
+              <TabsList className="bg-transparent gap-3 p-0">
+                <TabsTrigger
+                  value="VISITS"
+                  className="rounded-none text-[10px] font-bold uppercase tracking-widest px-3 py-1.5
+                    text-slate-500 bg-transparent border border-transparent
+                    data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary
+                    transition-all"
+                >
+                  Visits
+                </TabsTrigger>
+                <TabsTrigger
+                  value="TIME"
+                  className="rounded-none text-[10px] font-bold uppercase tracking-widest px-3 py-1.5
+                    text-slate-500 bg-transparent border border-transparent
+                    data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary
+                    transition-all"
+                >
+                  Duration
+                </TabsTrigger>
+                <TabsTrigger
+                  value="BOOKMARKS"
+                  className="rounded-none text-[10px] font-bold uppercase tracking-widest px-3 py-1.5
+                    text-slate-500 bg-transparent border border-transparent
+                    data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary
+                    transition-all"
+                >
+                  Saves
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent
+              value="VISITS"
+              className="flex-1 m-0 p-0 flex flex-col"
+            >
+              <AnalyticsChart
+                labels={dailyData.labels}
+                data={dailyData.visits}
+                loading={loading}
+              />
+            </TabsContent>
+
+            <TabsContent value="TIME" className="flex-1 m-0 p-0 flex flex-col">
+              <AnalyticsChart
+                labels={dailyData.labels}
+                data={dailyData.timeSpent}
+                loading={loading}
+                isTime
+              />
+            </TabsContent>
+
+            <TabsContent
+              value="BOOKMARKS"
+              className="flex-1 m-0 p-0 flex flex-col"
+            >
+              <AnalyticsChart
+                labels={dailyData.labels}
+                data={dailyData.bookmarks}
+                loading={loading}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </div>
   );
 }

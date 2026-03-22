@@ -22,9 +22,9 @@ export function FolderCard({ folder, isNew, onClick, isActive, onEdit, onDelete 
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
-        className="h-[240px] w-full bg-transparent border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center gap-4 group hover:border-[#54e98a]/30 transition-all cursor-pointer"
+        className="h-[240px] w-full bg-transparent border-2 border-dashed border-white/5 flex flex-col items-center justify-center gap-4 group hover:border-[#54e98a]/30 transition-all cursor-pointer"
       >
-        <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-[#bbcbbb]/20 group-hover:text-[#54e98a] group-hover:bg-[#54e98a]/10 transition-all">
+        <div className="w-12 h-12 bg-white/5 flex items-center justify-center text-[#bbcbbb]/20 group-hover:text-[#54e98a] group-hover:bg-[#54e98a]/10 transition-all">
           <span className="material-symbols-outlined text-2xl">create_new_folder</span>
         </div>
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#bbcbbb]/30 group-hover:text-[#54e98a]/60">
@@ -44,7 +44,7 @@ export function FolderCard({ folder, isNew, onClick, isActive, onEdit, onDelete 
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
-        "h-[240px] w-full bg-[#161616] border border-white/5 rounded-2xl p-8 flex flex-col items-start text-left group transition-all relative overflow-hidden cursor-pointer",
+        "h-[240px] w-full bg-[#161616] border border-white/5 p-8 flex flex-col items-start text-left group transition-all relative overflow-hidden cursor-pointer",
         isActive && "ring-2 ring-[#54e98a]/40 border-[#54e98a]/20 shadow-[0_0_40px_rgba(84,233,138,0.1)]"
       )}
     >
@@ -66,7 +66,7 @@ export function FolderCard({ folder, isNew, onClick, isActive, onEdit, onDelete 
             e.stopPropagation();
             onEdit?.(folder);
           }}
-          className="p-2 rounded-md bg-white/5 hover:bg-white/10 text-[#bbcbbb]/40 hover:text-white transition-colors"
+          className="p-2 bg-white/5 hover:bg-white/10 text-[#bbcbbb]/40 hover:text-white transition-colors"
         >
           <Edit2 size={14} />
         </button>
@@ -75,7 +75,7 @@ export function FolderCard({ folder, isNew, onClick, isActive, onEdit, onDelete 
             e.stopPropagation();
             onDelete?.(folder);
           }}
-          className="p-2 rounded-md bg-white/5 hover:bg-red-500/20 text-[#bbcbbb]/40 hover:text-red-400 transition-colors"
+          className="p-2 bg-white/5 hover:bg-red-500/20 text-[#bbcbbb]/40 hover:text-red-400 transition-colors"
         >
           <Trash2 size={14} />
         </button>
