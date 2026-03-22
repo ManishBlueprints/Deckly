@@ -19,7 +19,7 @@ import { analyticsService } from "../services/analyticsService";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import * as pdfjsLib from "pdfjs-dist";
-import { Deck, DeckWithExpiry } from "../types";
+import { Deck } from "../types";
 import { cn } from "../utils/cn";
 import { getDeckPath } from "../utils/url";
 
@@ -33,7 +33,7 @@ import Card from "./common/Card";
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 interface DeckDetailPanelProps {
-  deck: DeckWithExpiry;
+  deck: Deck;
   isPro: boolean;
   onClose: () => void;
   onDelete: (deck: Deck) => void;

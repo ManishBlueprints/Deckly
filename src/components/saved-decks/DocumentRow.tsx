@@ -1,10 +1,16 @@
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GripVertical, FolderPlus } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { SavedDeckOrganized, LibraryFolder, LibraryTag } from "../../types";
 import { TagChip } from "./TagChip";
 import { DeckActionMenu } from "./DeckActionMenu";
+import { noteService } from "../../services/noteService";
 import { cn } from "../../utils/cn";
+
+function formatSavedDate(date: Date): string {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase();
+}
 
 interface DocumentRowProps {
   deck: SavedDeckOrganized;
@@ -16,17 +22,56 @@ interface DocumentRowProps {
   isUnsaving?: boolean;
 }
 
-export function DocumentRow({ 
-  deck, 
-  folders, 
-  tags, 
-  onMoveToFolder, 
-  onUpdateTags, 
+export function DocumentRow({
+  deck,
+  folders,
+  tags,
+  onMoveToFolder,
+  onUpdateTags,
   onUnsave,
-  isUnsaving 
+  isUnsaving,
 }: DocumentRowProps) {
   const savedDate = new Date(deck.saved_at);
-  const timeAgo = formatTimeAgo(savedDate);
+  const savedDateStr = formatSavedDate(savedDate);
+
+  const [note, setNote] = useState(deck.investor_note || "");
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleNoteClick = () => {
+    setIsEditingNote(true);
+    // Focus on next tick after render
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+
+  const handleNoteSave = async () => {
+    if (note === (deck.investor_note || "")) {
+      setIsEditingNote(false);
+      return;
+    }
+    setIsSavingNote(true);
+    try {
+      await noteService.saveNote(deck.deck_id, note);
+    } catch (err) {
+      console.error("Failed to save note:", err);
+      setNote(deck.investor_note || ""); // revert on error
+    } finally {
+      setIsSavingNote(false);
+      setIsEditingNote(false);
+    }
+  };
+
+  const handleNoteKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleNoteSave();
+    }
+    if (e.key === "Escape") {
+      setNote(deck.investor_note || "");
+      setIsEditingNote(false);
+    }
+  };
 
   return (
     <motion.div
@@ -48,13 +93,13 @@ export function DocumentRow({
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
-             <Link
-                to={`/${deck.user_handle}/${deck.slug}`}
-                target="_blank"
-                className="text-lg font-headline font-bold text-[#e5e2e1] hover:text-[#54e98a] transition-colors truncate"
-              >
-                {deck.title}
-              </Link>
+            <Link
+              to={`/${deck.user_handle}/${deck.slug}`}
+              target="_blank"
+              className="text-lg font-headline font-bold text-[#e5e2e1] hover:text-[#54e98a] transition-colors truncate"
+            >
+              {deck.title}
+            </Link>
           </div>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[10px] font-black uppercase text-[#bbcbbb]/30 tracking-widest">
@@ -69,31 +114,45 @@ export function DocumentRow({
 
         {/* Tags */}
         <div className="hidden lg:flex flex-wrap gap-2 max-w-[200px]">
-          {deck.tags.map(tag => (
+          {deck.tags.map((tag) => (
             <TagChip key={tag.id} tag={tag} />
           ))}
         </div>
 
-        {/* Note Snippet */}
+        {/* Note Snippet — inline editable */}
         <div className="hidden xl:block flex-1 max-w-[300px]">
-          <p className="text-xs text-[#bbcbbb]/40 font-medium italic line-clamp-1 leading-relaxed">
-            {deck.investor_note || "No analysis committed yet..."}
-          </p>
-          <p className="text-[9px] font-black uppercase text-[#bbcbbb]/20 tracking-[0.1em] mt-1">
-            SAVED {timeAgo}
-          </p>
+          {isEditingNote ? (
+            <textarea
+              ref={textareaRef}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onBlur={handleNoteSave}
+              onKeyDown={handleNoteKeyDown}
+              rows={2}
+              placeholder="Write a note..."
+              className="w-full bg-[#0e0e0e] border border-[#54e98a]/30 rounded-lg px-3 py-2 text-xs text-[#e5e2e1] placeholder:text-[#bbcbbb]/20 resize-none focus:outline-none focus:border-[#54e98a]/60 transition-colors"
+            />
+          ) : (
+            <button
+              onClick={handleNoteClick}
+              title="Click to edit note"
+              className="text-left w-full group/note"
+            >
+              <p className={cn(
+                "text-xs font-medium italic line-clamp-1 leading-relaxed transition-colors",
+                note ? "text-[#bbcbbb]/60 group-hover/note:text-[#bbcbbb]/90" : "text-[#bbcbbb]/20 group-hover/note:text-[#bbcbbb]/40"
+              )}>
+                {note || "Add a note..."}
+              </p>
+              <p className="text-[9px] font-black uppercase text-[#bbcbbb]/20 tracking-[0.1em] mt-1">
+                {isSavingNote ? "SAVING..." : `SAVED ${savedDateStr}`}
+              </p>
+            </button>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-3 shrink-0 ml-auto">
-          <button
-            onClick={() => onMoveToFolder(null)}
-            className="flex items-center gap-2 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-[#bbcbbb]/60 hover:text-[#54e98a] hover:bg-[#54e98a]/10 hover:border-[#54e98a]/20 transition-all"
-          >
-            <FolderPlus size={14} />
-            MOVE
-          </button>
-          
           <DeckActionMenu
             deck={deck}
             folders={folders}
@@ -106,20 +165,4 @@ export function DocumentRow({
       </div>
     </motion.div>
   );
-}
-
-function formatTimeAgo(date: Date): string {
-  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-  let interval = seconds / 31536000;
-
-  if (interval > 1) return Math.floor(interval) + " YEARS AGO";
-  interval = seconds / 2592000;
-  if (interval > 1) return Math.floor(interval) + " MONTHS AGO";
-  interval = seconds / 86400;
-  if (interval > 1) return Math.floor(interval) + " DAYS AGO";
-  interval = seconds / 3600;
-  if (interval > 1) return Math.floor(interval) + " HOURS AGO";
-  interval = seconds / 60;
-  if (interval > 1) return Math.floor(interval) + " MINUTES AGO";
-  return "JUST NOW";
 }

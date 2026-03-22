@@ -32,7 +32,6 @@ export interface DeckWithAnalytics extends Deck {
   last_viewed_at: string | null;
 }
 
-export type DeckWithExpiry = Deck;
 
 export interface LibraryTag {
   id: string;
@@ -69,11 +68,6 @@ export interface SavedDeckOrganized {
   updated_at: string;
 }
 
-export interface OrganizerState {
-  selectedFolderId: string | 'all';
-  selectedTagId: string | null;
-  searchQuery: string;
-}
 
 export interface SavedDeck extends Deck {
   library_id?: string;

@@ -44,7 +44,7 @@ export function DeckActionMenu({
         </DropdownMenuLabel>
         
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="text-[#e5e2e1] focus:bg-[#54e98a]/10 focus:text-[#54e98a] cursor-pointer rounded-xl px-4 py-3 transition-colors flex items-center gap-3">
+          <DropdownMenuSubTrigger className="text-[#e5e2e1] data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] data-[state=open]:bg-[#54e98a]/10 cursor-pointer rounded-xl px-4 py-3 transition-colors flex items-center gap-3">
             <span className="material-symbols-outlined text-lg opacity-40">drive_file_move</span>
             <span className="font-bold text-sm">Transfer to Collection</span>
           </DropdownMenuSubTrigger>
@@ -53,7 +53,7 @@ export function DeckActionMenu({
               <DropdownMenuItem 
                 onClick={() => onMoveToFolder(null)}
                 className={cn(
-                  "text-[#bbcbbb]/60 focus:bg-[#54e98a]/10 focus:text-[#54e98a] cursor-pointer flex items-center justify-between rounded-xl px-4 py-3 transition-colors",
+                  "text-[#bbcbbb]/60 data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] cursor-pointer flex items-center justify-between rounded-xl px-4 py-3 transition-colors",
                   !deck.folder_id && "text-[#54e98a] bg-[#54e98a]/5 font-bold"
                 )}
               >
@@ -66,7 +66,7 @@ export function DeckActionMenu({
                   key={folder.id}
                   onClick={() => onMoveToFolder(folder.id)}
                   className={cn(
-                    "text-[#bbcbbb]/60 focus:bg-[#54e98a]/10 focus:text-[#54e98a] cursor-pointer flex items-center justify-between rounded-xl px-4 py-3 transition-colors",
+                    "text-[#bbcbbb]/60 data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] cursor-pointer flex items-center justify-between rounded-xl px-4 py-3 transition-colors",
                     deck.folder_id === folder.id && "text-[#54e98a] bg-[#54e98a]/5 font-bold"
                   )}
                 >
@@ -85,7 +85,7 @@ export function DeckActionMenu({
         </DropdownMenuSub>
 
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="text-[#e5e2e1] focus:bg-[#54e98a]/10 focus:text-[#54e98a] cursor-pointer rounded-xl px-4 py-3 transition-colors flex items-center gap-3">
+          <DropdownMenuSubTrigger className="text-[#e5e2e1] data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] data-[state=open]:bg-[#54e98a]/10 cursor-pointer rounded-xl px-4 py-3 transition-colors flex items-center gap-3">
             <span className="material-symbols-outlined text-lg opacity-40">sell</span>
             <span className="font-bold text-sm">Manage Categorization</span>
           </DropdownMenuSubTrigger>
@@ -103,8 +103,8 @@ export function DeckActionMenu({
                         : deck.tags.filter(t => t.id !== tag.id).map(t => t.id);
                       onUpdateTags(newTagIds);
                     }}
-                    onSelect={(e: Event) => e.preventDefault()} // Keep menu open for multiple selection
-                    className="text-[#bbcbbb]/60 focus:bg-[#1c1b1b] focus:text-white cursor-pointer rounded-xl px-4 py-3 transition-colors"
+                    onSelect={(e: Event) => e.preventDefault()}
+                    className="text-[#bbcbbb]/60 data-[highlighted]:bg-[#1c1b1b] data-[highlighted]:text-white cursor-pointer rounded-xl px-4 py-3 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                        <span 
@@ -129,10 +129,10 @@ export function DeckActionMenu({
         
         <DropdownMenuItem 
           onClick={onUnsave}
-          className="text-[#ff4d4d]/60 focus:bg-[#ff4d4d]/10 focus:text-[#ff4d4d] cursor-pointer rounded-xl px-4 py-3 transition-colors flex items-center gap-3"
+          className="text-[#ff4d4d]/60 data-[highlighted]:bg-[#ff4d4d]/10 data-[highlighted]:text-[#ff4d4d] cursor-pointer rounded-xl px-4 py-3 transition-colors flex items-center gap-3"
         >
           <span className="material-symbols-outlined text-lg">bookmark_remove</span>
-          <span className="font-bold text-sm">Remove from Curation</span>
+          <span className="font-bold text-sm">Remove from Saved</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

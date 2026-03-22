@@ -48,11 +48,6 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
     try {
       await onCreate(name, selectedColor, tags);
       onClose();
-      // Reset state
-      setName("");
-      setSelectedColor(FOLDER_COLORS[0].value);
-      setTags([]);
-      setTagInput("");
     } catch (err) {
       console.error("Failed to create folder:", err);
     } finally {
