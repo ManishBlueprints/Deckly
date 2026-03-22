@@ -44,9 +44,9 @@ export function SavedDecksView() {
     try {
       // Use Promise.allSettled to prevent one failure from breaking the whole view
       const results = await Promise.allSettled([
-        organizerService.getSavedDecksOrganized(),
-        organizerService.getFolders(),
-        organizerService.getTags()
+        organizerService.getSavedDecksOrganized(session.user.id),
+        organizerService.getFolders(session.user.id),
+        organizerService.getTags(session.user.id)
       ]);
 
       if (results[0].status === 'fulfilled') setDecks(results[0].value);

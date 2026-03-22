@@ -19,17 +19,15 @@ interface DeckJoinResult {
   id: string;
   deck_id: string;
   folder_id: string | null;
-  saved_at: string;
+  created_at: string;
   last_viewed_at: string | null;
-  updated_at: string;
-  investor_note: string | null;
   decks: {
     title: string;
     slug: string;
     file_type: string;
     status: string;
     description: string | null;
-    profiles: { handle: string };
+    user_id: string;
   } | null;
   library_deck_tags: { library_tags: LibraryTag }[];
 }
@@ -37,10 +35,14 @@ interface DeckJoinResult {
 export const organizerService = {
   // --- FOLDERS ---
 
-  async getFolders(): Promise<LibraryFolder[]> {
+  async getFolders(optionalUserId?: string): Promise<LibraryFolder[]> {
     return withRetry(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return [];
+      let uid = optionalUserId;
+      if (!uid) {
+        const { data: { session } } = await supabase.auth.getSession();
+        uid = session?.user?.id;
+      }
+      if (!uid) return [];
 
       const { data, error } = await supabase
         .from("library_folders")
@@ -51,7 +53,7 @@ export const organizerService = {
           ),
           investor_library (count)
         `)
-        .eq("user_id", session.user.id)
+        .eq("user_id", uid)
         .order("name");
 
       if (error) {
@@ -59,7 +61,7 @@ export const organizerService = {
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("library_folders")
           .select("*")
-          .eq("user_id", session.user.id)
+          .eq("user_id", uid)
           .order("name");
 
         if (fallbackError) throw fallbackError;
@@ -311,15 +313,19 @@ export const organizerService = {
 
   // --- TAGS ---
 
-  async getTags(): Promise<LibraryTag[]> {
+  async getTags(optionalUserId?: string): Promise<LibraryTag[]> {
     return withRetry(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return [];
+      let uid = optionalUserId;
+      if (!uid) {
+        const { data: { session } } = await supabase.auth.getSession();
+        uid = session?.user?.id;
+      }
+      if (!uid) return [];
 
       const { data, error } = await supabase
         .from("library_tags")
         .select("*")
-        .eq("user_id", session.user.id)
+        .eq("user_id", uid)
         .order("name");
 
       if (error) throw error;
@@ -415,10 +421,14 @@ export const organizerService = {
 
   // --- MAIN FETCH ---
 
-  async getSavedDecksOrganized(): Promise<SavedDeckOrganized[]> {
+  async getSavedDecksOrganized(optionalUserId?: string): Promise<SavedDeckOrganized[]> {
     return withRetry(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return [];
+      let uid = optionalUserId;
+      if (!uid) {
+        const { data: { session } } = await supabase.auth.getSession();
+        uid = session?.user?.id;
+      }
+      if (!uid) return [];
 
       const { data, error } = await supabase
         .from("investor_library")
@@ -426,48 +436,73 @@ export const organizerService = {
           id,
           deck_id,
           folder_id,
-          saved_at,
+          created_at,
           last_viewed_at,
-          updated_at,
-          investor_note,
           decks (
             title,
             slug,
             file_type,
             status,
             description,
-            profiles (handle)
+            user_id
           ),
           library_deck_tags (
             library_tags (*)
           )
         `)
-        .eq("user_id", session.user.id)
-        .order("saved_at", { ascending: false });
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
+      // Extract unique user IDs from decks to fetch handles safely since decks->profiles has no explicit FK
+      const ownerIds = [...new Set((data as unknown as DeckJoinResult[] || []).map(item => {
+        const d = Array.isArray(item.decks) ? item.decks[0] : item.decks;
+        return d?.user_id;
+      }).filter(Boolean))] as string[];
+
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, handle")
+        .in("id", ownerIds);
+
+      const handlesMap = (profilesData || []).reduce((acc, curr) => {
+        acc[curr.id] = curr.handle;
+        return acc;
+      }, {} as Record<string, string>);
+
+      // Fetch notes for these decks sequentially after library query (parallel ok but library has deck ids)
+      const deckIds = (data as unknown as DeckJoinResult[] || []).map((item) => item.deck_id);
+      
+      const { data: notesData } = await supabase
+        .from("investor_notes")
+        .select("deck_id, content")
+        .eq("user_id", uid)
+        .in("deck_id", deckIds);
+
+      const notesMap = (notesData || []).reduce((acc, curr) => {
+        acc[curr.deck_id] = curr.content;
+        return acc;
+      }, {} as Record<string, string>);
+
       return (data as unknown as DeckJoinResult[] || []).map((item) => {
         const deckData = Array.isArray(item.decks) ? item.decks[0] : item.decks;
-        const handleData = deckData?.profiles;
-        const userHandle = Array.isArray(handleData)
-          ? handleData[0]?.handle
-          : (handleData as { handle: string })?.handle;
+        const userHandle = deckData?.user_id ? handlesMap[deckData.user_id] : "unknown";
 
         return {
           library_id: item.id,
           deck_id: item.deck_id,
           folder_id: item.folder_id,
-          saved_at: item.saved_at,
+          saved_at: item.created_at,
           last_viewed_at: item.last_viewed_at,
-          updated_at: item.updated_at,
+          updated_at: item.last_viewed_at || item.created_at,
           title: deckData?.title || "Deleted Document",
           slug: deckData?.slug || "",
           file_type: deckData?.file_type || "",
           status: deckData?.status || "DELETED",
           user_handle: userHandle || "unknown",
           description: deckData?.description || null,
-          investor_note: item.investor_note,
+          investor_note: notesMap[item.deck_id] || "",
           is_available: !!deckData,
           tags: (item.library_deck_tags || []).map((dt) => dt.library_tags),
         };

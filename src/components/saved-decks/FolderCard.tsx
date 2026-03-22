@@ -16,11 +16,13 @@ interface FolderCardProps {
 export function FolderCard({ folder, isNew, onClick, isActive, onEdit, onDelete }: FolderCardProps) {
   if (isNew) {
     return (
-      <motion.button
+      <motion.div
+        role="button"
+        tabIndex={0}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
-        className="h-[240px] w-full bg-transparent border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center gap-4 group hover:border-[#54e98a]/30 transition-all"
+        className="h-[240px] w-full bg-transparent border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center gap-4 group hover:border-[#54e98a]/30 transition-all cursor-pointer"
       >
         <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center text-[#bbcbbb]/20 group-hover:text-[#54e98a] group-hover:bg-[#54e98a]/10 transition-all">
           <span className="material-symbols-outlined text-2xl">create_new_folder</span>
@@ -28,19 +30,21 @@ export function FolderCard({ folder, isNew, onClick, isActive, onEdit, onDelete 
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#bbcbbb]/30 group-hover:text-[#54e98a]/60">
           New Collection
         </span>
-      </motion.button>
+      </motion.div>
     );
   }
 
   if (!folder) return null;
 
   return (
-    <motion.button
+    <motion.div
+      role="button"
+      tabIndex={0}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={cn(
-        "h-[240px] w-full bg-[#161616] border border-white/5 rounded-2xl p-8 flex flex-col items-start text-left group transition-all relative overflow-hidden",
+        "h-[240px] w-full bg-[#161616] border border-white/5 rounded-2xl p-8 flex flex-col items-start text-left group transition-all relative overflow-hidden cursor-pointer",
         isActive && "ring-2 ring-[#54e98a]/40 border-[#54e98a]/20 shadow-[0_0_40px_rgba(84,233,138,0.1)]"
       )}
     >
@@ -99,6 +103,6 @@ export function FolderCard({ folder, isNew, onClick, isActive, onEdit, onDelete 
           {folder.deck_count} Artifact{folder.deck_count !== 1 ? 's' : ''}
         </span>
       </div>
-    </motion.button>
+    </motion.div>
   );
 }
