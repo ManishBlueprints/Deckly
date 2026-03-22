@@ -131,17 +131,22 @@ export const analyticsService = {
     // 1. Get time stats from deck_stats
     const { data: statsData, error: statsError } = await supabase
       .from("deck_stats")
-      .select("deck_id, total_time_seconds, decks(title)")
+      .select("deck_id, total_time_seconds, decks(title, updated_at, created_at)")
       .eq("user_id", userId);
 
     if (statsError) throw statsError;
 
     // Aggregate time by deck_id and collect titles
-    const deckInfo: Record<string, { title: string; time: number }> = {};
+    const deckInfo: Record<string, { title: string; time: number; updated_at?: string; created_at?: string }> = {};
     for (const row of statsData as any[]) {
       const id = row.deck_id;
       if (!deckInfo[id]) {
-        deckInfo[id] = { title: row.decks?.title || "Untitled", time: 0 };
+        deckInfo[id] = { 
+          title: row.decks?.title || "Untitled", 
+          time: 0,
+          updated_at: row.decks?.updated_at,
+          created_at: row.decks?.created_at,
+        };
       }
       deckInfo[id].time += row.total_time_seconds;
     }
@@ -172,6 +177,8 @@ export const analyticsService = {
         title: deckInfo[id].title,
         views: visitorsByDeck.get(id)?.size || 0,
         time: deckInfo[id].time,
+        updated_at: deckInfo[id].updated_at,
+        created_at: deckInfo[id].created_at,
       }))
       .sort((a, b) => b.views - a.views)
       .slice(0, limit);

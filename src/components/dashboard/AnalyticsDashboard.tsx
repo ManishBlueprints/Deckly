@@ -108,7 +108,7 @@ export function AnalyticsDashboard() {
             <div className="flex items-center justify-between px-8 py-5 border-b border-white/5">
               <div>
                 <h4 className="text-base font-bold text-foreground tracking-tight">
-                  Engagement Trends
+                  Engagement Over Time
                 </h4>
                 <p className="text-[10px] text-slate-500 mt-0.5">
                   Visitor activity over the last 7 days

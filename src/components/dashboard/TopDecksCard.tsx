@@ -11,6 +11,21 @@ export function TopDecksCard() {
   const { session } = useAuth();
   const userId = session?.user?.id;
 
+  // Local helper to display relative time (X ago)
+  const formatRelativeTime = (dateString?: string | null) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return "just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
+    return `${Math.floor(diffInSeconds / 31536000)}y ago`;
+  };
+
   const {
     data: stats = [],
     isLoading,
@@ -47,7 +62,7 @@ export function TopDecksCard() {
               </span>
             </div>
           )}
-          <Link to="content">
+          <Link to="/content">
             <button className="text-[10px] font-bold text-primary uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-1.5">
               View All Decks <ArrowRight size={11} />
             </button>
@@ -111,9 +126,11 @@ export function TopDecksCard() {
                   <h4 className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
                     {deck.title}
                   </h4>
-                  <p className="text-[10px] text-slate-600 mt-0.5">
-                    Updated {index === 0 ? "2h" : "5h"} ago
-                  </p>
+                  {(deck.updated_at || deck.created_at) && (
+                    <p className="text-[10px] text-slate-600 mt-0.5">
+                      Updated {formatRelativeTime(deck.updated_at || deck.created_at)}
+                    </p>
+                  )}
                 </div>
 
                 {/* Stats: VIEWERS / TOTAL VIEWS */}

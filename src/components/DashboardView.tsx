@@ -10,15 +10,14 @@ export function DashboardView() {
 
       <div className="space-y-12">
         <AnalyticsDashboard />
-
-        <div className="lg:grid lg:grid-cols-12 gap-12 items-stretch">
+        <div className="flex flex-col gap-12 lg:grid lg:grid-cols-12 items-stretch">
           <div className="lg:col-span-8 h-full min-h-[500px]">
             <TopDecksCard />
           </div>
           <div className="lg:col-span-4 h-full min-h-[500px]">
             <CommentsCard />
           </div>
-        </div>
+        </div>{" "}
       </div>
     </div>
   );

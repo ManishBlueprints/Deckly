@@ -1,10 +1,6 @@
 import { supabase } from "./supabase";
 import { withRetry } from "../utils/resilience";
-import {
-  LibraryFolder,
-  LibraryTag,
-  SavedDeckOrganized,
-} from "../types";
+import { LibraryFolder, LibraryTag, SavedDeckOrganized } from "../types";
 
 interface FolderJoinResult {
   id: string;
@@ -57,7 +53,10 @@ export const organizerService = {
         .order("name");
 
       if (error) {
-        console.warn("Complex getFolders query failed, falling back to simple select:", error);
+        console.warn(
+          "Complex getFolders query failed, falling back to simple select:",
+          error,
+        );
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("library_folders")
           .select("*")
@@ -69,7 +68,7 @@ export const organizerService = {
         return (fallbackData || []).map((f) => ({
           id: f.id,
           name: f.name,
-          color: f.color || '#54e98a',
+          color: f.color || "#666666",
           created_at: f.created_at,
           deck_count: 0,
           tags: [],
@@ -79,7 +78,7 @@ export const organizerService = {
       return (data as FolderJoinResult[] || []).map((f) => ({
         id: f.id,
         name: f.name,
-        color: f.color || '#54e98a',
+        color: f.color || "#666666",
         created_at: f.created_at,
         deck_count: f.investor_library?.[0]?.count || 0,
         tags: (f.library_folder_tags || []).map((ft) => ft.library_tags),
@@ -87,17 +86,21 @@ export const organizerService = {
     });
   },
 
-  async createFolder(name: string, color?: string, tagNames: string[] = []): Promise<LibraryFolder> {
+  async createFolder(
+    name: string,
+    color?: string,
+    tagNames: string[] = [],
+  ): Promise<LibraryFolder> {
     return withRetry(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
       const { data: folderData, error: folderError } = await supabase
         .from("library_folders")
-        .insert([{ 
-          name, 
-          color: color || '#54e98a', 
-          user_id: session.user.id 
+        .insert([{
+          name,
+          color: color || "#666666",
+          user_id: session.user.id,
         }])
         .select()
         .single();
@@ -124,18 +127,23 @@ export const organizerService = {
       // Link tags
       if (tagNames && tagNames.length > 0) {
         for (const tagName of tagNames) {
+          let tagData: LibraryTag | null = null;
           try {
-            let { data: tagData } = await supabase
+            ({ data: tagData } = await supabase
               .from("library_tags")
               .select("*")
               .eq("user_id", session.user.id)
               .ilike("name", tagName)
-              .single();
+              .single());
 
             if (!tagData) {
               const { data: newTag, error: tagErr } = await supabase
                 .from("library_tags")
-                .insert([{ name: tagName.toUpperCase(), color: '#666666', user_id: session.user.id }])
+                .insert([{
+                  name: tagName.toUpperCase(),
+                  color: "#666666",
+                  user_id: session.user.id,
+                }])
                 .select()
                 .single();
               if (!tagErr && newTag) {
@@ -148,18 +156,37 @@ export const organizerService = {
               const { error: linkErr } = await supabase
                 .from("library_folder_tags")
                 .insert([{ folder_id: finalData.id, tag_id: tagData.id }]);
-                
+
               if (linkErr) {
-                console.error(`Failed to link tag ${tagName}:`, { folder_id: finalData.id, tag_id: tagData.id, error: linkErr });
+                console.error(`Failed to link tag ${tagName}:`, {
+                  folder_id: finalData.id,
+                  tag_id: tagData.id,
+                  error: linkErr,
+                });
                 // Cleanup the folder so we don't end up with partial/broken states
-                await supabase.from("library_folders").delete().eq("id", finalData.id);
-                throw new Error(`Failed to link tag ${tagName}: ${linkErr.message}`);
+                await supabase.from("library_folders").delete().eq(
+                  "id",
+                  finalData.id,
+                );
+                throw new Error(
+                  `Failed to link tag ${tagName}: ${linkErr.message}`,
+                );
               } else {
                 createdTags.push(tagData);
               }
             }
           } catch (err) {
             console.error(`Failed to process tag ${tagName}:`, err);
+            // Rollback any tag we created in this iteration
+            if (tagData && !createdTags.some((t) => t.id === tagData!.id)) {
+              await supabase.from("library_tags").delete().eq("id", tagData.id);
+            }
+            // Cleanup the folder so we don't end up with partial/broken state
+            await supabase.from("library_folders").delete().eq(
+              "id",
+              finalData.id,
+            );
+            throw err;
           }
         }
       }
@@ -183,7 +210,12 @@ export const organizerService = {
     });
   },
 
-  async updateFolder(folderId: string, name: string, color?: string, tagNames: string[] = []): Promise<LibraryFolder> {
+  async updateFolder(
+    folderId: string,
+    name: string,
+    color?: string,
+    tagNames: string[] = [],
+  ): Promise<LibraryFolder> {
     return withRetry(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
@@ -191,15 +223,15 @@ export const organizerService = {
       let updatedFolderData;
       const { data, error: folderError } = await supabase
         .from("library_folders")
-        .update({ 
-          name, 
-          color: color || '#54e98a',
-          updated_at: new Date().toISOString()
+        .update({
+          name,
+          color: color || "#666666",
+          updated_at: new Date().toISOString(),
         })
         .eq("id", folderId)
         .select("created_at")
         .single();
-        
+
       updatedFolderData = data;
 
       if (folderError && folderError.message?.includes("color")) {
@@ -244,7 +276,11 @@ export const organizerService = {
             if (!tagData) {
               const { data: newTag, error: tagErr } = await supabase
                 .from("library_tags")
-                .insert([{ name: tagName.toUpperCase(), color: '#666666', user_id: session.user.id }])
+                .insert([{
+                  name: tagName.toUpperCase(),
+                  color: "#666666",
+                  user_id: session.user.id,
+                }])
                 .select()
                 .single();
               if (!tagErr && newTag) {
@@ -256,9 +292,13 @@ export const organizerService = {
               const { error: insertErr } = await supabase
                 .from("library_folder_tags")
                 .insert([{ folder_id: folderId, tag_id: tagData.id }]);
-                
+
               if (insertErr) {
-                console.error(`Failed to link tag ${tagName}:`, { folder_id: folderId, tag_id: tagData.id, error: insertErr });
+                console.error(`Failed to link tag ${tagName}:`, {
+                  folder_id: folderId,
+                  tag_id: tagData.id,
+                  error: insertErr,
+                });
                 linkingFailed = true;
                 break;
               }
@@ -275,27 +315,41 @@ export const organizerService = {
 
       // Rollback if any tag link failed
       if (linkingFailed) {
-        await supabase
-          .from("library_folder_tags")
-          .delete()
-          .eq("folder_id", folderId);
-          
-        if (previousLinks && previousLinks.length > 0) {
+        try {
           await supabase
             .from("library_folder_tags")
-            .insert(previousLinks.map(link => ({ folder_id: folderId, tag_id: link.tag_id })));
+            .delete()
+            .eq("folder_id", folderId);
+
+          if (previousLinks && previousLinks.length > 0) {
+            await supabase
+              .from("library_folder_tags")
+              .insert(
+                previousLinks.map((link) => ({
+                  folder_id: folderId,
+                  tag_id: link.tag_id,
+                })),
+              );
+          }
+        } catch (rollbackErr) {
+          console.error(
+            "Rollback failed - folder tags may be in inconsistent state:",
+            { folderId, rollbackErr },
+          );
         }
-        
-        throw new Error("Failed to link folder tags. Rolled back to previous state.");
+
+        throw new Error(
+          "Failed to link folder tags. Rolled back to previous state.",
+        );
       }
 
       return {
         id: folderId,
         name,
-        color: color || '#54e98a',
+        color: color || "#666666",
         created_at: updatedFolderData?.created_at || new Date().toISOString(),
         tags: createdTags,
-        deck_count: 0 // simplified
+        deck_count: 0, // simplified
       };
     });
   },
@@ -373,7 +427,10 @@ export const organizerService = {
 
   // --- ORGANIZATION ACTIONS ---
 
-  async updateDeckFolder(libraryId: string, folderId: string | null): Promise<void> {
+  async updateDeckFolder(
+    libraryId: string,
+    folderId: string | null,
+  ): Promise<void> {
     return withRetry(async () => {
       const { error } = await supabase
         .from("investor_library")
@@ -395,9 +452,9 @@ export const organizerService = {
       if (fetchError) throw fetchError;
 
       const currentTagIds = (currentTags || []).map((t) => t.tag_id);
-      
-      const toAdd = tagIds.filter(id => !currentTagIds.includes(id));
-      const toRemove = currentTagIds.filter(id => !tagIds.includes(id));
+
+      const toAdd = tagIds.filter((id) => !currentTagIds.includes(id));
+      const toRemove = currentTagIds.filter((id) => !tagIds.includes(id));
 
       // 2. Remove tags
       if (toRemove.length > 0) {
@@ -413,7 +470,9 @@ export const organizerService = {
       if (toAdd.length > 0) {
         const { error: addError } = await supabase
           .from("library_deck_tags")
-          .insert(toAdd.map(tagId => ({ library_id: libraryId, tag_id: tagId })));
+          .insert(
+            toAdd.map((tagId) => ({ library_id: libraryId, tag_id: tagId })),
+          );
         if (addError) throw addError;
       }
     });
@@ -421,7 +480,9 @@ export const organizerService = {
 
   // --- MAIN FETCH ---
 
-  async getSavedDecksOrganized(optionalUserId?: string): Promise<SavedDeckOrganized[]> {
+  async getSavedDecksOrganized(
+    optionalUserId?: string,
+  ): Promise<SavedDeckOrganized[]> {
     return withRetry(async () => {
       let uid = optionalUserId;
       if (!uid) {
@@ -456,10 +517,14 @@ export const organizerService = {
       if (error) throw error;
 
       // Extract unique user IDs from decks to fetch handles safely since decks->profiles has no explicit FK
-      const ownerIds = [...new Set((data as unknown as DeckJoinResult[] || []).map(item => {
-        const d = Array.isArray(item.decks) ? item.decks[0] : item.decks;
-        return d?.user_id;
-      }).filter(Boolean))] as string[];
+      const ownerIds = [
+        ...new Set(
+          (data as unknown as DeckJoinResult[] || []).map((item) => {
+            const d = Array.isArray(item.decks) ? item.decks[0] : item.decks;
+            return d?.user_id;
+          }).filter(Boolean),
+        ),
+      ] as string[];
 
       const { data: profilesData } = await supabase
         .from("profiles")
@@ -472,8 +537,10 @@ export const organizerService = {
       }, {} as Record<string, string>);
 
       // Fetch notes for these decks sequentially after library query (parallel ok but library has deck ids)
-      const deckIds = (data as unknown as DeckJoinResult[] || []).map((item) => item.deck_id);
-      
+      const deckIds = (data as unknown as DeckJoinResult[] || []).map((item) =>
+        item.deck_id
+      );
+
       const { data: notesData } = await supabase
         .from("investor_notes")
         .select("deck_id, content")
@@ -487,7 +554,9 @@ export const organizerService = {
 
       return (data as unknown as DeckJoinResult[] || []).map((item) => {
         const deckData = Array.isArray(item.decks) ? item.decks[0] : item.decks;
-        const userHandle = deckData?.user_id ? handlesMap[deckData.user_id] : "unknown";
+        const userHandle = deckData?.user_id
+          ? handlesMap[deckData.user_id]
+          : "unknown";
 
         return {
           library_id: item.id,

@@ -11,6 +11,7 @@ interface CreateFolderModalProps {
 }
 
 const FOLDER_COLORS = [
+  { id: "grey", value: "#666666" },
   { id: "green", value: "#54e98a" },
   { id: "blue", value: "#3b82f6" },
   { id: "purple", value: "#a855f7" },
@@ -223,7 +224,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                               >
                                 <div 
                                   className="w-2 h-2 rounded-full" 
-                                  style={{ backgroundColor: suggestion.color || '#54e98a' }} 
+                                  style={{ backgroundColor: suggestion.color || '#666666' }} 
                                 />
                                 <span className="text-sm font-medium text-[#e5e2e1]">{suggestion.name}</span>
                               </div>

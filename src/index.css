@@ -92,7 +92,7 @@
   }
   
   .bg-glass {
-    background-color: hsla(var(--surface-highest), 0.6);
+    background-color: hsl(var(--surface-highest) / 0.6);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }

@@ -1,10 +1,10 @@
 import {
-  LayoutDashboard,
-  FileText,
-  Monitor,
-  BarChart3,
+  LayoutGrid,
+  Folder,
+  DoorOpen,
+  LineChart,
   Bookmark,
-  MessageCircle,
+  MessageSquare,
   LogOut,
   ChevronLeft,
   Settings,
@@ -18,17 +18,17 @@ import { createPortal } from "react-dom";
 import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
 
 const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: FileText, label: "Content", href: "/content" },
-  { icon: Monitor, label: "Rooms", href: "/rooms" },
+  { icon: LayoutGrid, label: "Dashboard", href: "/" },
+  { icon: Folder, label: "Content", href: "/content" },
+  { icon: DoorOpen, label: "Rooms", href: "/rooms" },
   { icon: Bookmark, label: "Saved Decks", href: "/saved-decks" },
   {
-    icon: BarChart3,
+    icon: LineChart,
     label: "Full Analytics",
     href: "/analytics",
     disabled: true,
   },
-  { icon: MessageCircle, label: "Messages", href: "/requests", disabled: true },
+  { icon: MessageSquare, label: "Messages", href: "/requests", disabled: true },
 ];
 
 function getInitialCollapsed(): boolean {
@@ -95,7 +95,7 @@ export function Sidebar() {
               className="w-full h-full object-contain p-1"
             />
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <Settings size={14} className="text-white" />
+              <Settings size={14} className="text-white fill-white" />
             </div>
           </button>
 
@@ -138,11 +138,19 @@ export function Sidebar() {
               
               <div
                 className={cn(
-                  "flex shrink-0 transition-colors",
-                  isActive ? "text-primary bg-primary/10 p-1" : "text-slate-500 group-hover:text-slate-300",
+                  "flex shrink-0 transition-all",
+                  isActive ? "text-primary bg-primary/10 p-1 scale-110" : "text-slate-500 group-hover:text-slate-200",
                 )}
               >
-                <item.icon size={isCollapsed ? 20 : 18} strokeWidth={isActive ? 2 : 1.5} />
+                <item.icon 
+                  size={isCollapsed ? 20 : 18} 
+                  strokeWidth={isActive ? 2 : 1.5} 
+                  fill="currentColor"
+                  className={cn(
+                    "transition-all",
+                    !isActive && "opacity-40 group-hover:opacity-100"
+                  )}
+                />
               </div>
               {!isCollapsed && (
                 <span className={cn(
@@ -194,7 +202,7 @@ export function Sidebar() {
                   className="p-1.5 text-slate-500 hover:text-slate-200 transition-colors shrink-0"
                   title="Sign Out"
                 >
-                  <LogOut size={16} strokeWidth={1.5} />
+                  <LogOut size={16} strokeWidth={1.5} fill="currentColor" />
                 </button>
               </>
             )}

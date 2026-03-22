@@ -14,6 +14,13 @@ interface FolderCardProps {
 }
 
 export function FolderCard({ folder, isNew, onClick, isActive, onEdit, onDelete }: FolderCardProps) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+      e.preventDefault();
+      onClick?.();
+    }
+  };
+
   if (isNew) {
     return (
       <motion.div
@@ -22,6 +29,7 @@ export function FolderCard({ folder, isNew, onClick, isActive, onEdit, onDelete 
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
+        onKeyDown={handleKeyDown}
         className="h-[240px] w-full bg-transparent border-2 border-dashed border-white/5 flex flex-col items-center justify-center gap-4 group hover:border-[#54e98a]/30 transition-all cursor-pointer"
       >
         <div className="w-12 h-12 bg-white/5 flex items-center justify-center text-[#bbcbbb]/20 group-hover:text-[#54e98a] group-hover:bg-[#54e98a]/10 transition-all">
@@ -43,6 +51,7 @@ export function FolderCard({ folder, isNew, onClick, isActive, onEdit, onDelete 
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
       className={cn(
         "h-[240px] w-full bg-[#161616] border border-white/5 p-8 flex flex-col items-start text-left group transition-all relative overflow-hidden cursor-pointer",
         isActive && "ring-2 ring-[#54e98a]/40 border-[#54e98a]/20 shadow-[0_0_40px_rgba(84,233,138,0.1)]"

@@ -58,11 +58,11 @@ export function useLibrary(userId: string | undefined) {
 
   // ---- Deck mutations ----
   const unsaveMutation = useMutation({
-    mutationFn: (libraryId: string) => deckService.removeFromLibrary(libraryId),
-    onSuccess: (_data, libraryId) => {
+    mutationFn: (deckId: string) => deckService.removeFromLibrary(deckId),
+    onSuccess: (_data, deckId) => {
       if (!userId) return;
       qc.setQueryData<SavedDeckOrganized[]>(KEYS.decks(userId), (prev) =>
-        (prev ?? []).filter((d) => d.library_id !== libraryId)
+        (prev ?? []).filter((d) => d.deck_id !== deckId)
       );
     },
   });
@@ -208,7 +208,7 @@ export function useLibrary(userId: string | undefined) {
   // ---- Stable action wrappers ----
   const actions = {
     refetch,
-    unsaveDeck: (libraryId: string) => unsaveMutation.mutateAsync(libraryId),
+    unsaveDeck: (deckId: string) => unsaveMutation.mutateAsync(deckId),
     moveDeck: (libraryId: string, folderId: string | null) =>
       moveMutation.mutateAsync({ libraryId, folderId }),
     updateDeckTags: (libraryId: string, tagIds: string[]) =>

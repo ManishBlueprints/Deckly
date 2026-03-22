@@ -6,6 +6,7 @@ import {
   Navigate,
   useParams,
 } from "react-router-dom";
+import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { deckService } from "./services/deckService";
 import "./App.css";
@@ -189,6 +190,7 @@ function App() {
     <AuthProvider>
       <Router>
         <AppContent />
+        <Toaster theme="dark" richColors />
       </Router>
     </AuthProvider>
   );

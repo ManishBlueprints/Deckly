@@ -6,8 +6,7 @@ import { Loader2 } from "lucide-react";
 
 export function WelcomeBanner() {
   const { profile, session } = useAuth();
-  const firstName = profile?.full_name?.split(" ")[0] || "Manish";
-
+  const firstName = profile?.full_name?.split(" ")[0] || "there";
   const { data: stats, isLoading: statsLoading } = useUserTotalStats(
     session?.user?.id,
   );

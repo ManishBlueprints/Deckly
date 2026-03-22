@@ -57,7 +57,7 @@ export function SavedDecksView() {
     if (!unsaveTarget) return;
     setIsUnsavingInProgress(true);
     try {
-      await actions.unsaveDeck(unsaveTarget.library_id);
+      await actions.unsaveDeck(unsaveTarget.deck_id);
       setUnsaveTarget(null);
     } catch (err) {
       console.error("Failed to unsave deck:", err);

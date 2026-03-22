@@ -3,7 +3,6 @@ import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { Plus, Upload, Home as RoomIcon } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Bell, Settings } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -58,22 +57,7 @@ export function DashboardLayout({
               {currentLabel}
             </span>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-4">
-              <button
-                className="text-slate-400 hover:bg-surface-high p-2 transition-all active:scale-95"
-                title="Notifications"
-              >
-                <Bell size={18} />
-              </button>
-              <button
-                className="text-slate-400 hover:bg-surface-high p-2 transition-all active:scale-95"
-                title="Settings"
-              >
-                <Settings size={18} />
-              </button>
-            </div>
-          </div>
+          <div className="flex items-center gap-6"></div>
         </header>
 
         {/* Content Area */}

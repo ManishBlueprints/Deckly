@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { GripVertical } from "lucide-react";
@@ -6,6 +6,7 @@ import { SavedDeckOrganized, LibraryFolder, LibraryTag } from "../../types";
 import { TagChip } from "./TagChip";
 import { DeckActionMenu } from "./DeckActionMenu";
 import { noteService } from "../../services/noteService";
+import { toast } from "sonner";
 import { cn } from "../../utils/cn";
 
 function formatSavedDate(date: Date): string {
@@ -39,6 +40,12 @@ export function DocumentRow({
   const [isSavingNote, setIsSavingNote] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  useEffect(() => {
+    if (!isEditingNote) {
+      setNote(deck.investor_note || "");
+    }
+  }, [deck.investor_note, isEditingNote]);
+
   const handleNoteClick = () => {
     setIsEditingNote(true);
     // Focus on next tick after render
@@ -54,8 +61,10 @@ export function DocumentRow({
     try {
       await noteService.saveNote(deck.deck_id, note);
     } catch (err) {
-      console.error("Failed to save note:", err);
-      setNote(deck.investor_note || ""); // revert on error
+      toast.error("Failed to save note", {
+        description: err instanceof Error ? err.message : String(err),
+      });
+      setNote(deck.investor_note || "");
     } finally {
       setIsSavingNote(false);
       setIsEditingNote(false);
