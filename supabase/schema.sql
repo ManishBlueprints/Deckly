@@ -1,6 +1,9 @@
 -- DECKLY DATABASE SCHEMA
 -- Copy and paste this into your Supabase SQL Editor
 
+-- Ensure UUID extension exists
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- 0. PROFILES TABLE
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -630,9 +633,6 @@ CREATE INDEX IF NOT EXISTS idx_decks_user ON public.decks(user_id);
 CREATE INDEX IF NOT EXISTS idx_investor_notes_deck ON public.investor_notes(deck_id);
 
 -- 11. LIBRARY ORGANIZATION (INVESTOR ORGANIZER)
-
--- Ensure UUID extension exists
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Folders
 CREATE TABLE IF NOT EXISTS public.library_folders (

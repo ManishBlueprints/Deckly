@@ -294,13 +294,17 @@ function ManageDataRoom() {
 
   // Copy link
   const handleCopyLink = () => {
-    const url = getDataRoomShareUrl(profile?.handle || "investor", slug);
+    if (!profile?.handle) {
+      alert("Please set a handle in your profile settings before sharing.");
+      return;
+    }
+    const url = getDataRoomShareUrl(profile.handle, slug);
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const shareUrl = getDataRoomShareUrl(profile?.handle || "investor", slug);
+  const shareUrl = profile?.handle ? getDataRoomShareUrl(profile.handle, slug) : "Set a handle in profile to enable sharing";
 
   if (loading) {
     return (

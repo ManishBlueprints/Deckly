@@ -6,7 +6,9 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   Loader2,
   Filter,
-  Tag
+  Tag,
+  Search,
+  X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ConfirmModal } from "./common/ConfirmModal";
@@ -15,6 +17,7 @@ import { CreateFolderModal } from "./saved-decks/CreateFolderModal";
 import { FolderCard } from "./saved-decks/FolderCard";
 import { DocumentRow } from "./saved-decks/DocumentRow";
 import { ManageTagsModal } from "./saved-decks/ManageTagsModal";
+import { cn } from "../utils/cn";
 
 export function SavedDecksView() {
   const { session } = useAuth();
@@ -32,8 +35,9 @@ export function SavedDecksView() {
 
   // Filter State
   const [selectedFolderId, setSelectedFolderId] = useState<string | 'all'>('all');
-  const [selectedTagId, _setSelectedTagId] = useState<string | null>(null);
-  const [searchQuery, _setSearchQuery] = useState("");
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const fetchLibraryData = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -174,34 +178,49 @@ export function SavedDecksView() {
   };
 
   const handleCreateTag = async (name: string, color: string) => {
-    await organizerService.createTag(name, color);
-    await updateTagsList();
+    try {
+      await organizerService.createTag(name, color);
+      await updateTagsList();
+    } catch (err) {
+      console.error("Failed to create tag:", err);
+      alert("Failed to create tag. Please try again.");
+    }
   };
 
   const handleUpdateTag = async (id: string, name: string, color: string) => {
-    await organizerService.updateTag(id, name, color);
-    await updateTagsList();
-    setFolders(prev => prev.map(f => ({
-      ...f,
-      tags: f.tags.map(t => t.id === id ? { ...t, name, color } : t)
-    })));
-    setDecks(prev => prev.map(d => ({
-      ...d,
-      tags: d.tags ? d.tags.map(t => t.id === id ? { ...t, name, color } : t) : []
-    })));
+    try {
+      await organizerService.updateTag(id, name, color);
+      await updateTagsList();
+      setFolders(prev => prev.map(f => ({
+        ...f,
+        tags: f.tags.map(t => t.id === id ? { ...t, name, color } : t)
+      })));
+      setDecks(prev => prev.map(d => ({
+        ...d,
+        tags: d.tags ? d.tags.map(t => t.id === id ? { ...t, name, color } : t) : []
+      })));
+    } catch (err) {
+      console.error("Failed to update tag:", err);
+      alert("Failed to update tag. Please try again.");
+    }
   };
 
   const handleDeleteTag = async (id: string) => {
-    await organizerService.deleteTag(id);
-    await updateTagsList();
-    setFolders(prev => prev.map(f => ({
-      ...f,
-      tags: f.tags.filter(t => t.id !== id)
-    })));
-    setDecks(prev => prev.map(d => ({
-      ...d,
-      tags: d.tags ? d.tags.filter(t => t.id !== id) : []
-    })));
+    try {
+      await organizerService.deleteTag(id);
+      await updateTagsList();
+      setFolders(prev => prev.map(f => ({
+        ...f,
+        tags: f.tags.filter(t => t.id !== id)
+      })));
+      setDecks(prev => prev.map(d => ({
+        ...d,
+        tags: d.tags ? d.tags.filter(t => t.id !== id) : []
+      })));
+    } catch (err) {
+      console.error("Failed to delete tag:", err);
+      alert("Failed to delete tag. Please try again.");
+    }
   };
 
   const handleMoveDeck = async (deckId: string, folderId: string | null) => {
@@ -256,7 +275,15 @@ export function SavedDecksView() {
             </div>
 
             <div className="flex items-center gap-4">
-              <button className="flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all">
+              <button 
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={cn(
+                  "flex items-center gap-3 px-6 py-3 border rounded-xl text-xs font-bold transition-all",
+                  isFilterOpen 
+                    ? "bg-[#54e98a]/10 border-[#54e98a]/20 text-[#54e98a]" 
+                    : "bg-white/5 border-white/10 text-[#bbcbbb]/60 hover:text-white"
+                )}
+              >
                 <Filter size={14} />
                 Filter By
               </button>
@@ -269,6 +296,76 @@ export function SavedDecksView() {
               </button>
             </div>
           </div>
+
+          {/* Filter UI Expandable Section */}
+          <AnimatePresence>
+            {isFilterOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="p-6 bg-[#1a1a1a] border border-white/5 rounded-2xl flex flex-col md:flex-row gap-6">
+                  {/* Search Input */}
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#bbcbbb]/40" />
+                    <input
+                      type="text"
+                      placeholder="Search documents by title..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-12 pr-10 py-3 bg-[#131313] border border-white/10 rounded-xl text-[#e5e2e1] placeholder:text-[#bbcbbb]/40 focus:outline-none focus:border-[#54e98a]/50 transition-colors"
+                    />
+                    {searchQuery && (
+                      <button 
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#bbcbbb]/40 hover:text-white"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Tag Filters */}
+                  {tags.length > 0 && (
+                    <div className="flex-1 flex gap-2 flex-wrap items-center">
+                      <span className="text-xs font-bold text-[#bbcbbb]/40 uppercase tracking-wider mr-2">Tags:</span>
+                      {tags.map((tag) => {
+                        const isSelected = selectedTagId === tag.id;
+                        return (
+                          <button
+                            key={tag.id}
+                            onClick={() => setSelectedTagId(isSelected ? null : tag.id)}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border",
+                              isSelected
+                                ? "border-transparent text-[#131313]"
+                                : "bg-[#131313] border-white/10 hover:border-white/20"
+                            )}
+                            style={{ 
+                              backgroundColor: isSelected ? tag.color : undefined,
+                              color: isSelected ? '#131313' : tag.color 
+                            }}
+                          >
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+                      {selectedTagId && (
+                        <button 
+                          onClick={() => setSelectedTagId(null)}
+                          className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all bg-[#131313] border border-red-500/20 text-red-400 hover:bg-red-500/10"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Active Folders Section */}
           <div className="space-y-8">

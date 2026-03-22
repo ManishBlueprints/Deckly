@@ -142,11 +142,19 @@ export const organizerService = {
             }
 
             if (tagData) {
-              createdTags.push(tagData);
               // Link
-              await supabase
+              const { error: linkErr } = await supabase
                 .from("library_folder_tags")
                 .insert([{ folder_id: finalData.id, tag_id: tagData.id }]);
+                
+              if (linkErr) {
+                console.error(`Failed to link tag ${tagName}:`, { folder_id: finalData.id, tag_id: tagData.id, error: linkErr });
+                // Cleanup the folder so we don't end up with partial/broken states
+                await supabase.from("library_folders").delete().eq("id", finalData.id);
+                throw new Error(`Failed to link tag ${tagName}: ${linkErr.message}`);
+              } else {
+                createdTags.push(tagData);
+              }
             }
           } catch (err) {
             console.error(`Failed to process tag ${tagName}:`, err);
@@ -178,33 +186,47 @@ export const organizerService = {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
-      const { error: folderError } = await supabase
+      let updatedFolderData;
+      const { data, error: folderError } = await supabase
         .from("library_folders")
         .update({ 
           name, 
           color: color || '#54e98a',
           updated_at: new Date().toISOString()
         })
-        .eq("id", folderId);
+        .eq("id", folderId)
+        .select("created_at")
+        .single();
+        
+      updatedFolderData = data;
 
       if (folderError && folderError.message?.includes("color")) {
         console.warn("Falling back to update folder without color...");
-        const { error: fbError } = await supabase
+        const { data: fbData, error: fbError } = await supabase
           .from("library_folders")
           .update({ name, updated_at: new Date().toISOString() })
-          .eq("id", folderId);
+          .eq("id", folderId)
+          .select("created_at")
+          .single();
         if (fbError) throw fbError;
+        updatedFolderData = fbData;
       } else if (folderError) {
         throw folderError;
       }
 
-      // Delete existing tags linking then recreate
+      // Delete existing tags linking then recreate (with rollback emulation)
+      const { data: previousLinks } = await supabase
+        .from("library_folder_tags")
+        .select("tag_id")
+        .eq("folder_id", folderId);
+
       await supabase
         .from("library_folder_tags")
         .delete()
         .eq("folder_id", folderId);
 
       const createdTags: LibraryTag[] = [];
+      let linkingFailed = false;
 
       // Link tags
       if (tagNames && tagNames.length > 0) {
@@ -229,22 +251,47 @@ export const organizerService = {
             }
 
             if (tagData) {
-              createdTags.push(tagData);
-              await supabase
+              const { error: insertErr } = await supabase
                 .from("library_folder_tags")
                 .insert([{ folder_id: folderId, tag_id: tagData.id }]);
+                
+              if (insertErr) {
+                console.error(`Failed to link tag ${tagName}:`, { folder_id: folderId, tag_id: tagData.id, error: insertErr });
+                linkingFailed = true;
+                break;
+              }
+
+              createdTags.push(tagData);
             }
           } catch (err) {
             console.error(`Failed to process tag ${tagName}:`, err);
+            linkingFailed = true;
+            break;
           }
         }
+      }
+
+      // Rollback if any tag link failed
+      if (linkingFailed) {
+        await supabase
+          .from("library_folder_tags")
+          .delete()
+          .eq("folder_id", folderId);
+          
+        if (previousLinks && previousLinks.length > 0) {
+          await supabase
+            .from("library_folder_tags")
+            .insert(previousLinks.map(link => ({ folder_id: folderId, tag_id: link.tag_id })));
+        }
+        
+        throw new Error("Failed to link folder tags. Rolled back to previous state.");
       }
 
       return {
         id: folderId,
         name,
         color: color || '#54e98a',
-        created_at: new Date().toISOString(),
+        created_at: updatedFolderData?.created_at || new Date().toISOString(),
         tags: createdTags,
         deck_count: 0 // simplified
       };

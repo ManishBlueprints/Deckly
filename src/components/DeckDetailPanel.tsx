@@ -274,7 +274,13 @@ function DeckDetailPanel({
             </h2>
           </div>
           <a
-            href={getDeckPath(profile?.handle || "investor", deck.slug)}
+            href={profile?.handle ? getDeckPath(profile.handle, deck.slug) : "#"}
+            onClick={(e) => {
+              if (!profile?.handle) {
+                e.preventDefault();
+                alert("Please set a handle in your profile settings to view this.");
+              }
+            }}
             target="_blank"
             rel="noreferrer"
           >

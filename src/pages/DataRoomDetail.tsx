@@ -101,7 +101,11 @@ function DataRoomDetail() {
 
   /* ── actions ── */
   const handleCopyLink = () => {
-    if (!room || !profile?.handle) return;
+    if (!room) return;
+    if (!profile?.handle) {
+      alert("Please set a handle in your profile settings before sharing.");
+      return;
+    }
     const url = getDataRoomShareUrl(profile.handle, room.slug);
     navigator.clipboard.writeText(url);
     setCopied(true);
@@ -226,7 +230,13 @@ function DataRoomDetail() {
               </button>
 
               <a
-                href={getDataRoomShareUrl(profile?.handle || "investor", room.slug)}
+                href={profile?.handle ? getDataRoomShareUrl(profile.handle, room.slug) : "#"}
+                onClick={(e) => {
+                  if (!profile?.handle) {
+                    e.preventDefault();
+                    alert("Please set a handle in your profile settings to view this room.");
+                  }
+                }}
                 target="_blank"
                 rel="noreferrer"
                 className="p-2 bg-[#222] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"

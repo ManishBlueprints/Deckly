@@ -8,10 +8,10 @@ export default {
     extend: {
       colors: {
         deckly: {
-          primary: "hsl(var(--brand-primary))",
-          secondary: "hsl(var(--brand-secondary))",
-          accent: "hsl(var(--brand-tertiary))",
-          background: "hsl(var(--brand-neutral))",
+          primary: "hsl(var(--brand-primary) / <alpha-value>)",
+          secondary: "hsl(var(--brand-secondary) / <alpha-value>)",
+          accent: "hsl(var(--brand-tertiary) / <alpha-value>)",
+          background: "hsl(var(--brand-neutral) / <alpha-value>)",
           card: "rgba(38, 38, 38, 0.7)", /* #262626 at 0.7 */
         },
         background: "hsl(var(--background))",
