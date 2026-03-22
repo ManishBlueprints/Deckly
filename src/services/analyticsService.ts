@@ -9,7 +9,7 @@ const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
 
 export const analyticsService = {
   // Track when someone views a deck
-  trackDeckView(deck: Deck, metadata: Record<string, any> = {}) {
+  trackDeckView(deck: Deck, metadata: Record<string, unknown> = {}) {
     if (!posthogKey) return;
 
     posthog.capture("deck_viewed", {
@@ -49,7 +49,7 @@ export const analyticsService = {
   },
 
   // Identify user
-  identifyUser(userId: string, traits?: Record<string, any>) {
+  identifyUser(userId: string, traits?: Record<string, unknown>) {
     if (!posthogKey) return;
     posthog.identify(userId, traits);
   },
@@ -138,7 +138,7 @@ export const analyticsService = {
 
     // Aggregate time by deck_id and collect titles
     const deckInfo: Record<string, { title: string; time: number; updated_at?: string; created_at?: string }> = {};
-    for (const row of statsData as any[]) {
+    for (const row of statsData as unknown as { deck_id: string; total_time_seconds: number; decks: { title: string; updated_at: string; created_at: string } | null }[]) {
       const id = row.deck_id;
       if (!deckInfo[id]) {
         deckInfo[id] = { 
@@ -293,7 +293,7 @@ export const analyticsService = {
       return { totalViews: 0, totalTimeSeconds: 0, totalSaves: 0 };
     }
 
-    const deckIds = deckId ? [deckId] : userDecks.map((d: any) => d.id);
+    const deckIds = deckId ? [deckId] : userDecks.map((d) => d.id);
 
     // 2. Fetch everything in parallel
     const [timeResult, viewResult, saveResult] = await Promise.all([
@@ -360,7 +360,7 @@ export const analyticsService = {
 
     if (error || !data) return 0;
 
-    const uniqueVisitors = new Set(data.map((r: any) => r.visitor_id));
+    const uniqueVisitors = new Set(data.map((r: { visitor_id: string }) => r.visitor_id));
     return uniqueVisitors.size;
   },
 
@@ -409,7 +409,7 @@ export const analyticsService = {
       }
 
       const profilesMap = new Map(
-        (profilesData || []).map((p: any) => [p.id, p]),
+        (profilesData || []).map((p: { id: string; full_name: string | null; avatar_url: string | null }) => [p.id, p]),
       );
 
       return basicData.map((b) => ({
