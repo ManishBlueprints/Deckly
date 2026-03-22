@@ -30,7 +30,7 @@ export function DashboardLayout({
   const isRefreshing = false;
 
   return (
-    <div className="flex h-screen bg-[#10120f] overflow-hidden font-outfit selection:bg-deckly-primary/30 text-slate-200">
+    <div className="flex h-screen bg-deckly-background overflow-hidden font-outfit selection:bg-deckly-primary/20 text-slate-200">
       {/* Sidebar - desktop only */}
       <div className="hidden md:block relative z-20 shrink-0">
         <Sidebar />
@@ -38,7 +38,7 @@ export function DashboardLayout({
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
         {/* Top Header */}
-        <header className="h-16 flex items-center justify-between px-6 border-b border-[#222] bg-[#10120f] shrink-0 z-20">
+        <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-deckly-background shrink-0 z-20">
           <div className="flex items-center gap-4 flex-1">
             <h1 className="text-lg font-semibold text-slate-100 flex items-center gap-2 md:gap-3 tracking-tight">
               <img
@@ -87,10 +87,10 @@ export function DashboardLayout({
 
             {/* Popout Options */}
             {fabOpen && (
-              <div className="absolute bottom-full right-0 mb-3 flex flex-col gap-2 w-48 bg-[#1a1a1a] border border-[#333] p-1.5 rounded-lg shadow-xl z-[100]">
+              <div className="absolute bottom-full right-0 mb-3 flex flex-col gap-2 w-48 bg-deckly-background border border-white/5 p-1.5 rounded-lg shadow-xl z-[100]">
                 <button
                   onClick={() => handleFabAction("/rooms/new")}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#222] transition-colors text-slate-200"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-white/5 transition-colors text-slate-200"
                 >
                   <RoomIcon size={16} />
                   <span className="text-sm font-medium">New Room</span>
@@ -98,7 +98,7 @@ export function DashboardLayout({
 
                 <button
                   onClick={() => handleFabAction("/upload")}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-[#222] transition-colors text-slate-200"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-white/5 transition-colors text-slate-200"
                 >
                   <Upload size={16} />
                   <span className="text-sm font-medium">New Deck</span>
@@ -109,8 +109,8 @@ export function DashboardLayout({
             {/* FAB Button */}
             <button
               onClick={() => setFabOpen(!fabOpen)}
-              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 z-[100] relative border border-[#333] shadow-md
-                ${fabOpen ? "bg-[#111] text-white" : "bg-deckly-primary text-slate-950 hover:bg-emerald-400"}
+              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 z-[100] relative border border-white/10 shadow-md
+                ${fabOpen ? "bg-deckly-background text-white" : "bg-deckly-primary text-slate-950 hover:bg-emerald-400"}
               `}
             >
               <div

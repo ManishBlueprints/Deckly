@@ -58,12 +58,12 @@ export function Sidebar() {
   return (
     <aside
       style={{ width: isCollapsed ? 64 : 240 }}
-      className="bg-[#10120f] flex flex-col h-screen border-r border-[#222] shrink-0 relative z-20 transition-all duration-300"
+      className="bg-deckly-background flex flex-col h-screen border-r border-white/5 shrink-0 relative z-20 transition-all duration-300"
     >
       {/* Collapse toggle */}
       <button
         onClick={toggleCollapsed}
-        className="absolute top-5 -right-3.5 z-30 w-7 h-7 rounded-full bg-[#10120f] border border-[#333] flex items-center justify-center text-slate-400 hover:text-slate-200 shadow-xl transition-all active:scale-90"
+        className="absolute top-5 -right-3.5 z-30 w-7 h-7 rounded-full bg-deckly-background border border-white/10 flex items-center justify-center text-slate-400 hover:text-slate-200 shadow-xl transition-all active:scale-90"
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         <ChevronLeft
@@ -87,7 +87,7 @@ export function Sidebar() {
           <button
             onClick={() => setShowSettings(true)}
             title="Workspace Settings"
-            className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center shrink-0 hover:border-deckly-primary transition-colors overflow-hidden relative group"
+            className="w-8 h-8 rounded-md bg-deckly-secondary border border-white/10 flex items-center justify-center shrink-0 hover:border-deckly-primary transition-colors overflow-hidden relative group"
           >
             <img
               src={branding?.logo_url || penguinMascot}
@@ -168,8 +168,8 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
                 isActive
-                  ? "bg-[#1a1a1a] text-deckly-primary"
-                  : "text-slate-400 hover:bg-[#1a1a1a] hover:text-slate-200",
+                  ? "bg-white/5 text-deckly-primary"
+                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200",
                 isCollapsed && "justify-center px-0",
               )}
             >
@@ -192,7 +192,7 @@ export function Sidebar() {
       </nav>
 
       {/* ── User Profile Footer ── */}
-      <div className={cn("p-3 shrink-0 border-t border-[#222] bg-[#10120f]")}>
+      <div className={cn("p-3 shrink-0 border-t border-white/5 bg-deckly-background")}>
         <div
           className={cn(
             "flex items-center gap-3 p-2 rounded-md transition-colors group",

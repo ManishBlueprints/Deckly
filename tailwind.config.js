@@ -8,11 +8,11 @@ export default {
     extend: {
       colors: {
         deckly: {
-          primary: "#2AD485",
-          secondary: "#a78bfa",
-          accent: "#f43f5e",
-          background: "#12121a",
-          card: "rgba(30, 41, 59, 0.7)",
+          primary: "hsl(var(--brand-primary))",
+          secondary: "hsl(var(--brand-secondary))",
+          accent: "hsl(var(--brand-tertiary))",
+          background: "hsl(var(--brand-neutral))",
+          card: "rgba(38, 38, 38, 0.7)", /* #262626 at 0.7 */
         },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",

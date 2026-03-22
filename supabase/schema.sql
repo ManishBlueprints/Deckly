@@ -628,3 +628,80 @@ CREATE INDEX IF NOT EXISTS idx_data_room_documents_deck ON public.data_room_docu
 CREATE INDEX IF NOT EXISTS idx_deck_stats_user ON public.deck_stats(user_id);
 CREATE INDEX IF NOT EXISTS idx_decks_user ON public.decks(user_id);
 CREATE INDEX IF NOT EXISTS idx_investor_notes_deck ON public.investor_notes(deck_id);
+
+-- 11. LIBRARY ORGANIZATION (INVESTOR ORGANIZER)
+
+-- Ensure UUID extension exists
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Folders
+CREATE TABLE IF NOT EXISTS public.library_folders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tags
+CREATE TABLE IF NOT EXISTS public.library_tags (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL CHECK (char_length(name) <= 30),
+    color TEXT NOT NULL DEFAULT '#666666',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, name)
+);
+
+-- Folder tags junction
+CREATE TABLE IF NOT EXISTS public.library_folder_tags (
+    folder_id UUID NOT NULL REFERENCES public.library_folders(id) ON DELETE CASCADE,
+    tag_id UUID NOT NULL REFERENCES public.library_tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (folder_id, tag_id)
+);
+
+-- Deck tags junction
+CREATE TABLE IF NOT EXISTS public.library_deck_tags (
+    library_id UUID NOT NULL REFERENCES public.investor_library(id) ON DELETE CASCADE,
+    tag_id UUID NOT NULL REFERENCES public.library_tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (library_id, tag_id)
+);
+
+-- Add folder_id to investor_library
+ALTER TABLE public.investor_library 
+    ADD COLUMN IF NOT EXISTS folder_id UUID 
+    REFERENCES public.library_folders(id) ON DELETE SET NULL;
+
+-- Enable RLS
+ALTER TABLE public.library_folders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.library_tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.library_folder_tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.library_deck_tags ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Owner only" ON public.library_folders
+    FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Owner only" ON public.library_tags
+    FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Owner only" ON public.library_folder_tags
+    FOR ALL USING (EXISTS (
+        SELECT 1 FROM public.library_folders 
+        WHERE id = folder_id AND user_id = auth.uid()
+    ));
+
+CREATE POLICY "Owner only" ON public.library_deck_tags
+    FOR ALL USING (EXISTS (
+        SELECT 1 FROM public.investor_library 
+        WHERE id = library_id AND user_id = auth.uid()
+    ));
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_library_folders_user ON public.library_folders(user_id);
+CREATE INDEX IF NOT EXISTS idx_library_tags_user ON public.library_tags(user_id);
+CREATE INDEX IF NOT EXISTS idx_investor_library_folder ON public.investor_library(folder_id);
+CREATE INDEX IF NOT EXISTS idx_library_folder_tags_folder ON public.library_folder_tags(folder_id);
+CREATE INDEX IF NOT EXISTS idx_library_folder_tags_tag ON public.library_folder_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_library_deck_tags_library ON public.library_deck_tags(library_id);
+CREATE INDEX IF NOT EXISTS idx_library_deck_tags_tag ON public.library_deck_tags(tag_id);

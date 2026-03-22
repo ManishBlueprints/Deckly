@@ -28,8 +28,8 @@ const SavedDecks = lazy(() => import("./pages/SavedDecks"));
 const LoadingFallback = () => (
   <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
     <div className="w-12 h-12 mb-4 relative">
-      <div className="absolute inset-0 border-4 border-deckly-primary/10 rounded-full"></div>
-      <div className="absolute inset-0 border-4 border-t-deckly-primary rounded-full animate-spin"></div>
+      <div className="absolute inset-0 border-4 border-[#54e98a]/10 rounded-full"></div>
+      <div className="absolute inset-0 border-4 border-t-[#54e98a] rounded-full animate-spin"></div>
     </div>
   </div>
 );
@@ -87,8 +87,8 @@ const AppContent = () => {
     return (
       <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 mb-8 relative">
-          <div className="absolute inset-0 border-4 border-deckly-primary/10 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-t-deckly-primary rounded-full animate-spin"></div>
+          <div className="absolute inset-0 border-4 border-[#54e98a]/10 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-t-[#54e98a] rounded-full animate-spin"></div>
         </div>
 
         <h2 className="text-xl font-bold text-white mb-2">
