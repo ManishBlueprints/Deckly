@@ -11,26 +11,15 @@ import {
 import { BarChart3, Pencil, Trash2, FileText, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getDeckShareUrl, getDeckPath } from "../../utils/url";
-
-interface Deck {
-  id: string;
-  title: string;
-  slug: string;
-  created_at: string;
-  total_views: number;
-  last_viewed_at: string | null;
-  file_url: string;
-  save_count: number;
-}
+import { DeckWithAnalytics } from "../../types";
+import { ConfirmModal } from "../common/ConfirmModal";
 
 interface DecksTableProps {
-  decks: Deck[];
+  decks: DeckWithAnalytics[];
   userHandle: string;
   loading?: boolean;
-  onDelete?: (deck: Deck) => Promise<void>;
+  onDelete?: (deck: DeckWithAnalytics) => Promise<void>;
 }
-
-import { ConfirmModal } from "../common/ConfirmModal";
 
 export function DecksTable({
   decks,
@@ -39,7 +28,7 @@ export function DecksTable({
   onDelete,
 }: DecksTableProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = React.useState<Deck | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<DeckWithAnalytics | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleCopyLink = (slug: string, id: string) => {
@@ -63,7 +52,7 @@ export function DecksTable({
     }
   };
 
-  const handleDeleteClick = (deck: Deck) => {
+  const handleDeleteClick = (deck: DeckWithAnalytics) => {
     setDeleteTarget(deck);
   };
 

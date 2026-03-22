@@ -26,6 +26,12 @@ export interface Deck {
   user_handle?: string;
 }
 
+export interface DeckWithAnalytics extends Deck {
+  total_views: number;
+  save_count: number;
+  last_viewed_at: string | null;
+}
+
 export type DeckWithExpiry = Deck;
 
 export interface SavedDeck extends Deck {
