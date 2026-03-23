@@ -16,7 +16,7 @@ export function TopDecksCard() {
     if (!dateString) return null;
     const date = new Date(dateString);
     const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    const diffInSeconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
 
     if (diffInSeconds < 60) return "just now";
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
@@ -92,8 +92,6 @@ export function TopDecksCard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {stats.map((deck, index) => {
             const leads = signalCounts[deck.id] || 0;
-            const badges = ["Series A", "Seed", "Pre-Seed", "Series B"];
-            const badge = badges[index % badges.length];
             const isFeatured = index === 0;
 
             return (
@@ -110,15 +108,11 @@ export function TopDecksCard() {
                       <Users size={18} className="text-slate-500" />
                     )}
                   </div>
-                  <span
-                    className={`text-[9px] font-bold px-2 py-0.5 uppercase tracking-wider ${
-                      isFeatured
-                        ? "bg-primary/10 text-primary border border-primary/20"
-                        : "bg-white/5 text-slate-500 border border-white/5"
-                    }`}
-                  >
-                    {badge}
-                  </span>
+                  {isFeatured && (
+                    <span className="text-[9px] font-bold px-2 py-0.5 uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                      Top Performer
+                    </span>
+                  )}
                 </div>
 
                 {/* Deck title + updated time */}
@@ -128,7 +122,7 @@ export function TopDecksCard() {
                   </h4>
                   {(deck.updated_at || deck.created_at) && (
                     <p className="text-[10px] text-slate-600 mt-0.5">
-                      Updated {formatRelativeTime(deck.updated_at || deck.created_at)}
+                      {deck.updated_at ? "Updated" : "Created"} {formatRelativeTime(deck.updated_at || deck.created_at)}
                     </p>
                   )}
                 </div>

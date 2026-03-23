@@ -47,7 +47,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
     if (!name.trim()) return;
     setIsLoading(true);
     try {
-      await onCreate(name, selectedColor, tags);
+      await onCreate(name.trim(), selectedColor, tags);
       onClose();
     } catch (err) {
       console.error("Failed to create folder:", err);

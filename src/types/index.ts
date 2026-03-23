@@ -62,7 +62,7 @@ export interface SavedDeckOrganized {
   status: string;
   user_handle: string;
   description: string | null;
-  investor_note: string | null;
+  investor_note: string;
   // Availability
   is_available: boolean;
   updated_at: string;

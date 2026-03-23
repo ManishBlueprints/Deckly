@@ -39,6 +39,15 @@ export function DocumentRow({
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isEditingNote) {
@@ -48,8 +57,13 @@ export function DocumentRow({
 
   const handleNoteClick = () => {
     setIsEditingNote(true);
+    if (focusTimeoutRef.current) {
+      clearTimeout(focusTimeoutRef.current);
+    }
     // Focus on next tick after render
-    setTimeout(() => textareaRef.current?.focus(), 0);
+    focusTimeoutRef.current = setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 0);
   };
 
   const handleNoteSave = async () => {

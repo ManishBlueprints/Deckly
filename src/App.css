@@ -1,11 +1,5 @@
 /* === 1. General Reset & Design Tokens === */
 :root {
-  /* --- Brand Design Palette (Centralized) --- */
-  --brand-primary: 145 56% 49%;
-  --brand-secondary: 0 0% 15%;
-  --brand-tertiary: 15 100% 73%;
-  --brand-neutral: 0 0% 5.1%;
-
   /* Semantic Mappings */
   --bg-primary: hsl(var(--brand-neutral));
   --bg-secondary: hsl(var(--brand-secondary));

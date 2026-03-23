@@ -17,7 +17,7 @@ export function SavedDecksView() {
   const { decks, folders, tags, isLoading, actions } = useLibrary(session?.user?.id);
 
   // --- UI state only ---
-  const [selectedFolderId, setSelectedFolderId] = useState<string | "all">("all");
+  const [selectedFolderId, setSelectedFolderId] = useState<string | "uncategorized">("uncategorized");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -37,9 +37,9 @@ export function SavedDecksView() {
   const filteredDecks = useMemo(
     () =>
       decks.filter((deck) => {
-        // When 'all' is selected only show truly uncategorized decks (no folder)
+        // When 'uncategorized' is selected show decks with no folder assigned
         const matchesFolder =
-          selectedFolderId === "all"
+          selectedFolderId === "uncategorized"
             ? deck.folder_id === null
             : deck.folder_id === selectedFolderId;
         const matchesTag =
@@ -72,7 +72,7 @@ export function SavedDecksView() {
     setIsDeletingInProgress(true);
     try {
       await actions.deleteFolder(deletingFolder);
-      if (selectedFolderId === deletingFolder.id) setSelectedFolderId("all");
+      if (selectedFolderId === deletingFolder.id) setSelectedFolderId("uncategorized");
       setDeletingFolder(null);
     } catch (err) {
       console.error("Failed to delete folder:", err);
@@ -262,7 +262,7 @@ export function SavedDecksView() {
                   folder={folder}
                   isActive={selectedFolderId === folder.id}
                   onClick={() =>
-                    setSelectedFolderId(selectedFolderId === folder.id ? "all" : folder.id)
+                    setSelectedFolderId(selectedFolderId === folder.id ? "uncategorized" : folder.id)
                   }
                   onEdit={(f) => {
                     setEditingFolder(f);
@@ -280,7 +280,7 @@ export function SavedDecksView() {
               <div className="flex items-center gap-4">
                 <div className="w-8 h-1 bg-[#54e98a] rounded-full opacity-40" />
                 <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
-                  {selectedFolderId === "all"
+                  {selectedFolderId === "uncategorized"
                     ? "Uncategorized Docs"
                     : folders.find((f) => f.id === selectedFolderId)?.name}
                 </h2>

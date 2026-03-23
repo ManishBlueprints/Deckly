@@ -123,6 +123,7 @@ export const organizerService = {
       if (finalError) throw finalError;
 
       const createdTags: LibraryTag[] = [];
+      const newlyCreatedTagIds = new Set<string>();
 
       // Link tags
       if (tagNames && tagNames.length > 0) {
@@ -148,6 +149,7 @@ export const organizerService = {
                 .single();
               if (!tagErr && newTag) {
                 tagData = newTag;
+                newlyCreatedTagIds.add(newTag.id);
               }
             }
 
@@ -178,7 +180,7 @@ export const organizerService = {
           } catch (err) {
             console.error(`Failed to process tag ${tagName}:`, err);
             // Rollback any tag we created in this iteration
-            if (tagData && !createdTags.some((t) => t.id === tagData!.id)) {
+            if (tagData && newlyCreatedTagIds.has(tagData.id)) {
               await supabase.from("library_tags").delete().eq("id", tagData.id);
             }
             // Cleanup the folder so we don't end up with partial/broken state
@@ -473,7 +475,20 @@ export const organizerService = {
           .insert(
             toAdd.map((tagId) => ({ library_id: libraryId, tag_id: tagId })),
           );
-        if (addError) throw addError;
+        if (addError) {
+          // Rollback: re-add removed tags
+          if (toRemove.length > 0) {
+            await supabase
+              .from("library_deck_tags")
+              .insert(
+                toRemove.map((tagId) => ({
+                  library_id: libraryId,
+                  tag_id: tagId,
+                })),
+              );
+          }
+          throw addError;
+        }
       }
     });
   },
