@@ -56,16 +56,18 @@ export function WelcomeBanner() {
           </p>
         </div>
         <div className="flex gap-4">
-          <Link to="/rooms">
-            <button className="px-6 py-3 border border-white/10 text-slate-200 text-xs font-bold uppercase tracking-widest hover:bg-surface-bright transition-all">
-              View Rooms
-            </button>
+          <Link
+            to="/rooms"
+            className="px-6 py-3 border border-white/10 text-slate-200 text-xs font-bold uppercase tracking-widest hover:bg-surface-bright transition-all"
+          >
+            View Rooms
           </Link>
-          <Link to="/upload">
-            <button className="px-6 py-3 bg-primary text-black text-xs font-bold uppercase tracking-widest hover:brightness-110 shadow-[0_0_20px_rgba(84,233,138,0.2)] transition-all">
-              New Deck
-            </button>
-          </Link>
+          <Link
+            to="/upload"
+            className="px-6 py-3 bg-primary text-black text-xs font-bold uppercase tracking-widest hover:brightness-110 shadow-[0_0_20px_rgba(84,233,138,0.2)] transition-all"
+          >
+            New Deck
+          </Link>{" "}
         </div>
       </div>
 

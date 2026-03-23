@@ -32,7 +32,6 @@ export interface DeckWithAnalytics extends Deck {
   last_viewed_at: string | null;
 }
 
-
 export interface LibraryTag {
   id: string;
   name: string;
@@ -62,12 +61,11 @@ export interface SavedDeckOrganized {
   status: string;
   user_handle: string;
   description: string | null;
-  investor_note: string;
+  investor_note: string | null;
   // Availability
   is_available: boolean;
   updated_at: string;
 }
-
 
 export interface SavedDeck extends Deck {
   library_id?: string;

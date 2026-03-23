@@ -116,8 +116,10 @@ export function useLibrary(userId: string | undefined) {
     ) => organizerService.updateDeckTags(libraryId, tagIds),
     onSuccess: (_data, { libraryId, tagIds }) => {
       if (!userId) return;
-      const currentTags = tagsQ.data ?? [];
-      const newTags = currentTags.filter((t) => tagIds.includes(t.id));
+      const cachedTags = qc.getQueryData<LibraryTag[]>(KEYS.tags(userId));
+      if (!cachedTags) return;
+
+      const newTags = cachedTags.filter((t) => tagIds.includes(t.id));
       qc.setQueryData<SavedDeckOrganized[]>(
         KEYS.decks(userId),
         (prev) =>
