@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { BrandingSettings, Deck, SlidePage, SavedDeck } from "../types";
+import { BrandingSettings, Deck, SlidePage, SavedDeck, DeckWithAnalytics } from "../types";
 import { withRetry } from "../utils/resilience";
 
 export const deckService = {
@@ -392,7 +392,7 @@ export const deckService = {
   },
 
   // Get all decks with aggregated stats for Content management
-  async getDecksWithAnalytics(providedUserId?: string): Promise<Deck[]> {
+  async getDecksWithAnalytics(providedUserId?: string): Promise<DeckWithAnalytics[]> {
     return withRetry(async () => {
       let userId = providedUserId;
       if (!userId) {
@@ -469,7 +469,7 @@ export const deckService = {
         total_views: viewsMap[deck.id]?.size || 0,
         save_count: savesMap[deck.id] || 0,
         last_viewed_at: lastActiveMap[deck.id] || null,
-      })) as Deck[];
+      })) as DeckWithAnalytics[];
     });
   },
 

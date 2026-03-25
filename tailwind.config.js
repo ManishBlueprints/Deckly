@@ -8,11 +8,11 @@ export default {
     extend: {
       colors: {
         deckly: {
-          primary: "#2AD485",
-          secondary: "#a78bfa",
-          accent: "#f43f5e",
-          background: "#12121a",
-          card: "rgba(30, 41, 59, 0.7)",
+          primary: "hsl(var(--brand-primary) / <alpha-value>)",
+          secondary: "hsl(var(--brand-secondary) / <alpha-value>)",
+          accent: "hsl(var(--brand-tertiary) / <alpha-value>)",
+          background: "hsl(var(--brand-neutral) / <alpha-value>)",
+          card: "rgba(38, 38, 38, 0.7)", /* #262626 at 0.7 */
         },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
@@ -43,6 +43,14 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+        },
+        surface: {
+          lowest: "#0e0e0e",
+          low: "#161616",
+          container: "#1c1c1c",
+          high: "#2a2a2a",
+          highest: "#353534",
+          bright: "#3a3939",
         },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

@@ -1,11 +1,10 @@
 import {
-  LayoutDashboard,
-  FileText,
-  Monitor,
+  LayoutGrid,
+  Folder,
+  DoorOpen,
   Bookmark,
   Plus,
   Upload,
-  Home as RoomIcon,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "../../utils/cn";
@@ -13,12 +12,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Home", href: "/" },
-  { icon: FileText, label: "Content", href: "/content" },
+  { icon: LayoutGrid, label: "Home", href: "/" },
+  { icon: Folder, label: "Content", href: "/content" },
 ];
 
 const rightNavItems = [
-  { icon: Monitor, label: "Rooms", href: "/rooms" },
+  { icon: DoorOpen, label: "Rooms", href: "/rooms" },
   { icon: Bookmark, label: "Saved", href: "/saved-decks" },
 ];
 
@@ -61,7 +60,11 @@ export function BottomNav() {
                   isActive ? "text-deckly-primary" : "text-slate-500",
                 )}
               >
-                <item.icon size={isActive ? 20 : 18} />
+                <item.icon 
+                  size={isActive ? 20 : 18} 
+                  fill="currentColor"
+                  className={cn("transition-all", !isActive && "opacity-40")}
+                />
                 <span className="text-[9px] font-bold uppercase tracking-tight truncate w-full px-1 text-center">
                   {item.label}
                 </span>
@@ -91,7 +94,7 @@ export function BottomNav() {
                   className="w-full flex items-center gap-3 px-4 py-3 bg-[#09090b]/90 backdrop-blur-3xl border border-white/10 rounded-2xl text-white shadow-2xl group hover:border-deckly-primary/30 transition-all active:scale-95"
                 >
                   <div className="w-8 h-8 rounded-lg bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20 group-hover:bg-deckly-primary/20 transition-all text-deckly-primary">
-                    <RoomIcon size={16} />
+                    <DoorOpen size={16} fill="currentColor" />
                   </div>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
                     New Room
@@ -103,7 +106,7 @@ export function BottomNav() {
                   className="w-full flex items-center gap-3 px-4 py-3 bg-[#09090b]/90 backdrop-blur-3xl border border-white/10 rounded-2xl text-white shadow-2xl group hover:border-deckly-primary/30 transition-all active:scale-95"
                 >
                   <div className="w-8 h-8 rounded-lg bg-deckly-primary/10 flex items-center justify-center border border-deckly-primary/20 group-hover:bg-deckly-primary/20 transition-all text-deckly-primary">
-                    <Upload size={16} />
+                    <Upload size={16} fill="currentColor" />
                   </div>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-200 group-hover:text-white transition-colors">
                     New Deck
@@ -140,7 +143,11 @@ export function BottomNav() {
                   isActive ? "text-deckly-primary" : "text-slate-500",
                 )}
               >
-                <item.icon size={isActive ? 20 : 18} />
+                <item.icon 
+                  size={isActive ? 20 : 18} 
+                  fill="currentColor"
+                  className={isActive ? "" : "opacity-40"}
+                />
                 <span className="text-[9px] font-bold uppercase tracking-tight truncate w-full px-1 text-center">
                   {item.label}
                 </span>
