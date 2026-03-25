@@ -6,25 +6,11 @@ import { useUserTotalStats } from "../../hooks/useUserTotalStats";
 import { useAuth } from "../../contexts/AuthContext";
 import { BarChart3, Users, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { formatRelativeTime } from "../../utils/date";
 
 export function TopDecksCard() {
   const { session } = useAuth();
   const userId = session?.user?.id;
-
-  // Local helper to display relative time (X ago)
-  const formatRelativeTime = (dateString?: string | null) => {
-    if (!dateString) return null;
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
-
-    if (diffInSeconds < 60) return "just now";
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
-    return `${Math.floor(diffInSeconds / 31536000)}y ago`;
-  };
 
   const {
     data: stats = [],

@@ -57,8 +57,8 @@ export interface SavedDeckOrganized {
   // Deck metadata
   title: string;
   slug: string;
-  file_type: string;
-  status: string;
+  file_type?: string;
+  status: "PENDING" | "PROCESSED";
   user_handle: string;
   description: string | null;
   investor_note: string | null;

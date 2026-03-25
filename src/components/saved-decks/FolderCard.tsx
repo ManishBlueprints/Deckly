@@ -89,6 +89,7 @@ export function FolderCard({
             e.stopPropagation();
             onEdit?.(folder);
           }}
+          aria-label="Edit folder"
           className="p-2 bg-white/5 hover:bg-white/10 text-[#bbcbbb]/40 hover:text-white transition-colors"
         >
           <Edit2 size={14} />
@@ -98,6 +99,7 @@ export function FolderCard({
             e.stopPropagation();
             onDelete?.(folder);
           }}
+          aria-label="Delete folder"
           className="p-2 bg-white/5 hover:bg-red-500/20 text-[#bbcbbb]/40 hover:text-red-400 transition-colors"
         >
           <Trash2 size={14} />

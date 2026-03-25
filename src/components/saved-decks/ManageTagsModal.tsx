@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X, Loader2, Edit2, Trash2, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LibraryTag } from "../../types";
@@ -21,7 +21,7 @@ interface ManageTagsModalProps {
   isOpen: boolean;
   onClose: () => void;
   tags: LibraryTag[];
-  onCreate: (name: string, color: string) => Promise<void>;
+  onCreate: (name: string, color: string) => Promise<LibraryTag>;
   onUpdate: (id: string, name: string, color: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
@@ -33,18 +33,18 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
   const [isLoading, setIsLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const resetForm = useCallback(() => {
+    setName("");
+    setSelectedColor(TAG_COLORS[0].value);
+    setEditingTagId(null);
+  }, []);
+
   // Reset when opened/closed
   useEffect(() => {
     if (isOpen) {
       resetForm();
     }
-  }, [isOpen]);
-
-  const resetForm = () => {
-    setName("");
-    setSelectedColor(TAG_COLORS[0].value);
-    setEditingTagId(null);
-  };
+  }, [isOpen, resetForm]);
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -116,7 +116,7 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
                       Create and manage custom tags to categorize your folders and documents.
                     </p>
                   </div>
-                  <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+                  <button onClick={onClose} aria-label="Close" className="p-2 bg-white/5 hover:bg-white/10 text-white/40 hover:text-white transition-colors">
                     <X size={18} />
                   </button>
                 </div>
@@ -196,6 +196,7 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleEdit(tag)}
+                              aria-label={`Edit tag ${tag.name}`}
                               className="p-2 text-[#bbcbbb]/30 hover:text-white hover:bg-white/5 transition-all"
                             >
                               <Edit2 size={14} />
@@ -203,6 +204,7 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
                             <button
                               onClick={() => handleDelete(tag.id)}
                               disabled={deletingId === tag.id}
+                              aria-label={`Delete tag ${tag.name}`}
                               className="p-2 text-[#bbcbbb]/30 hover:text-red-400 hover:bg-red-400/10 transition-all disabled:opacity-50"
                             >
                               {deletingId === tag.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}

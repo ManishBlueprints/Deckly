@@ -12,7 +12,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({
   children,
-  title: _initialTitle = "Dashboard",
+  title = "Dashboard",
   showFab = true,
 }: DashboardLayoutProps) {
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ export function DashboardLayout({
       path === "/"
         ? location.pathname === "/"
         : location.pathname.startsWith(path),
-    )?.[1] ?? "Dashboard";
+    )?.[1] ?? title;
 
   const handleFabAction = (href: string) => {
     setFabOpen(false);

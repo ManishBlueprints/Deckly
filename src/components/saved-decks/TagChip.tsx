@@ -1,5 +1,6 @@
 import { LibraryTag } from "../../types";
 import { cn } from "../../utils/cn";
+import { hexWithAlpha } from "../../utils/colorHelpers";
 
 interface TagChipProps {
   tag: LibraryTag;
@@ -16,9 +17,9 @@ export function TagChip({ tag, className, size = 'sm' }: TagChipProps) {
         className
       )}
       style={{
-        backgroundColor: `${tag.color}15`, // 15% opacity
+        backgroundColor: hexWithAlpha(tag.color, 0.15),
         color: tag.color,
-        border: `1px solid ${tag.color}30`, // 30% opacity
+        border: `1px solid ${hexWithAlpha(tag.color, 0.30)}`,
       }}
     >
       {tag.name}

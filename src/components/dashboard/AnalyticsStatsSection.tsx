@@ -1,9 +1,10 @@
-import { TrendingUp, Timer, Bookmark } from "lucide-react";
+import { TrendingUp, Timer, Bookmark, type LucideIcon } from "lucide-react";
 
 interface StatItem {
   label: string;
   value: string;
   sub?: string;
+  icon?: LucideIcon;
 }
 
 interface AnalyticsStatsSectionProps {
@@ -15,12 +16,12 @@ export function AnalyticsStatsSection({
   items,
   loading,
 }: AnalyticsStatsSectionProps) {
-  const icons = [TrendingUp, Timer, Bookmark];
+  const defaultIcons = [TrendingUp, Timer, Bookmark];
 
   return (
     <div className="lg:col-span-4 grid grid-cols-1 gap-6">
       {items.map((item, i) => {
-        const Icon = icons[i] || TrendingUp;
+        const Icon = item.icon || defaultIcons[i] || TrendingUp;
         return (
           <div 
             key={item.label}

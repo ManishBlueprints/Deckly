@@ -115,17 +115,10 @@ export function SavedDecksView() {
         <SavedDeckEmptyState onCreateFolder={() => setIsCreateFolderModalOpen(true)} />
         <CreateFolderModal
           isOpen={isCreateFolderModalOpen}
-          onClose={() => {
-            setIsCreateFolderModalOpen(false);
-            setEditingFolder(null);
-          }}
-          onCreate={editingFolder ? handleSaveEditFolder : handleCreateFolder}
+          onClose={() => setIsCreateFolderModalOpen(false)}
+          onCreate={handleCreateFolder}
           existingTags={tags}
-          initialData={
-            editingFolder
-              ? { name: editingFolder.name, color: editingFolder.color, tags: editingFolder.tags.map((t) => t.name) }
-              : null
-          }
+          initialData={null}
         />
       </div>
     );
@@ -362,7 +355,7 @@ export function SavedDecksView() {
         isOpen={isManageTagsModalOpen}
         onClose={() => setIsManageTagsModalOpen(false)}
         tags={tags}
-        onCreate={(name, color) => actions.createTag(name, color).then(() => undefined)}
+        onCreate={actions.createTag}
         onUpdate={actions.updateTag}
         onDelete={actions.deleteTag}
       />

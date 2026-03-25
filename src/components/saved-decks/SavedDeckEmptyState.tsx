@@ -112,7 +112,7 @@ export function SavedDeckEmptyState({
             </span>
             <h4 className="text-sm font-bold text-[#e5e2e1]">Vault Privacy</h4>
             <p className="text-xs text-[#bbcbbb] font-medium leading-relaxed">
-              Folders are protected with strong encryption and access controls
+              Folders are encrypted to protect deck data
             </p>
           </div>
         </motion.div>
@@ -137,7 +137,8 @@ export function SavedDeckEmptyState({
               {/* Close Button */}
               <button
                 onClick={() => setShowTip(false)}
-                className="absolute -top-2 -right-2 w-6 h-6 bg-[#0e0e0e] border border-[#3d4a3e]/20 rounded-full flex items-center justify-center text-[#bbcbbb]/40 hover:text-[#54e98a] transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+                aria-label="Dismiss tip"
+                className="absolute -top-2 -right-2 w-6 h-6 bg-[#0e0e0e] border border-[#3d4a3e]/20 rounded-full flex items-center justify-center text-[#bbcbbb]/40 hover:text-[#54e98a] transition-colors shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#54e98a]"
               >
                 <span className="material-symbols-outlined text-xs">close</span>
               </button>

@@ -6,18 +6,32 @@
  *   Rooms: /:handle/room/:slug
  */
 
+/**
+ * Safely resolves the origin for SSR/test environments.
+ * Falls back to process.env.BASE_URL or localhost in non-browser contexts.
+ */
+function resolveOrigin(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  // Fallback for SSR/tests - use env var or localhost
+  return process.env.BASE_URL || 'http://localhost:5173';
+}
+
 export const getDeckShareUrl = (handle: string, slug: string): string => {
-  return `${window.location.origin}${getDeckPath(handle, slug)}`;
+  return `${resolveOrigin()}${getDeckPath(handle, slug)}`;
 };
 
 export const getDataRoomShareUrl = (handle: string, slug: string): string => {
-  return `${window.location.origin}${getDataRoomPath(handle, slug)}`;
+  return `${resolveOrigin()}${getDataRoomPath(handle, slug)}`;
 };
 
 export const getDeckPath = (handle: string, slug: string): string => {
-  return `/${handle}/${slug}`;
+  // Encode path segments to handle reserved characters
+  return `/${encodeURIComponent(handle)}/${encodeURIComponent(slug)}`;
 };
 
 export const getDataRoomPath = (handle: string, slug: string): string => {
-  return `/${handle}/room/${slug}`;
+  // Encode handle and slug, preserve literal "/room/" segment
+  return `/${encodeURIComponent(handle)}/room/${encodeURIComponent(slug)}`;
 };

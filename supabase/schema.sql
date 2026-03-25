@@ -638,7 +638,7 @@ CREATE INDEX IF NOT EXISTS idx_investor_notes_deck ON public.investor_notes(deck
 CREATE TABLE IF NOT EXISTS public.library_folders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL CHECK (char_length(name) <= 30),
     color TEXT NOT NULL DEFAULT '#666666',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -706,6 +706,3 @@ CREATE INDEX IF NOT EXISTS idx_library_folder_tags_folder ON public.library_fold
 CREATE INDEX IF NOT EXISTS idx_library_folder_tags_tag ON public.library_folder_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_library_deck_tags_library ON public.library_deck_tags(library_id);
 CREATE INDEX IF NOT EXISTS idx_library_deck_tags_tag ON public.library_deck_tags(tag_id);
-
--- Migrations
-ALTER TABLE public.library_folders ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT '#666666';

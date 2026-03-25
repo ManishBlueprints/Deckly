@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Plus, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 
 interface CreateFolderModalProps {
   isOpen: boolean;
@@ -51,6 +52,9 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
       onClose();
     } catch (err) {
       console.error("Failed to create folder:", err);
+      toast.error("Failed to create folder", {
+        description: err instanceof Error ? err.message : "Please try again",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -195,7 +199,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                           setShowTagSuggestions(true);
                         }}
                         onFocus={() => setShowTagSuggestions(true)}
-                        onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
+                        onBlur={() => setShowTagSuggestions(false)}
                         onKeyDown={(e) => e.key === 'Enter' && addTag()}
                         placeholder="Add more tags..."
                         className="w-full bg-[#161616] border border-white/5 px-4 py-3.5 text-xs text-[#e5e2e1] placeholder-[#bbcbbb]/10 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/20 transition-all font-medium pr-10"
@@ -219,7 +223,10 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                             {filteredSuggestions.map((suggestion) => (
                               <div
                                 key={suggestion.id}
-                                onClick={() => addTag(suggestion.name)}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  addTag(suggestion.name);
+                                }}
                                 className="px-4 py-2 hover:bg-white/5 cursor-pointer flex items-center gap-2"
                               >
                                 <div 

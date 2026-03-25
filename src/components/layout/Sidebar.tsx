@@ -127,6 +127,8 @@ export function Sidebar() {
               key={item.label}
               to={item.href}
               title={isCollapsed ? item.label : undefined}
+              tabIndex={item.disabled ? -1 : undefined}
+              aria-disabled={item.disabled ? true : undefined}
               className={cn(
                 "flex items-center gap-3 px-6 py-3 transition-all relative group",
                 isActive
@@ -145,7 +147,6 @@ export function Sidebar() {
                 <item.icon 
                   size={isCollapsed ? 20 : 18} 
                   strokeWidth={isActive ? 2 : 1.5} 
-                  fill="currentColor"
                   className={cn(
                     "transition-all",
                     !isActive && "opacity-40 group-hover:opacity-100"

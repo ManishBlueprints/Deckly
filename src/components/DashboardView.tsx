@@ -17,7 +17,7 @@ export function DashboardView() {
           <div className="lg:col-span-4 h-full min-h-[500px]">
             <CommentsCard />
           </div>
-        </div>{" "}
+        </div>
       </div>
     </div>
   );

@@ -120,6 +120,7 @@ export function DocumentRow({
             <Link
               to={`/${deck.user_handle}/${deck.slug}`}
               target="_blank"
+              rel="noopener noreferrer"
               className="text-lg font-headline font-bold text-[#e5e2e1] hover:text-[#54e98a] transition-colors truncate"
             >
               {deck.title}

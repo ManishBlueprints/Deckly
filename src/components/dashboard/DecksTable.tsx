@@ -13,6 +13,7 @@ import { Link } from "react-router-dom";
 import { getDeckShareUrl, getDeckPath } from "../../utils/url";
 import { DeckWithAnalytics } from "../../types";
 import { ConfirmModal } from "../common/ConfirmModal";
+import { cn } from "../../utils/cn";
 
 interface DecksTableProps {
   decks: DeckWithAnalytics[];
@@ -77,7 +78,7 @@ export function DecksTable({
           decks.map((deck) => (
             <div
               key={deck.id}
-              className={clsx(
+              className={cn(
                 "p-4 flex items-center gap-3",
                 deleteTarget?.id === deck.id &&
                   "opacity-50 pointer-events-none",
@@ -104,7 +105,7 @@ export function DecksTable({
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => handleCopyLink(deck.slug, deck.id)}
-                  className={clsx(
+                  className={cn(
                     "p-2.5 rounded-md transition-all border",
                     copiedId === deck.id
                       ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
@@ -213,7 +214,7 @@ export function DecksTable({
               decks.map((deck) => (
                 <TableRow
                   key={deck.id}
-                  className={clsx(
+                  className={cn(
                     "group hover:bg-[#141414] border-[#222] transition-colors",
                     deleteTarget?.id === deck.id &&
                       "opacity-50 pointer-events-none",
@@ -245,7 +246,7 @@ export function DecksTable({
                   <TableCell className="py-4 text-center">
                     <button
                       onClick={() => handleCopyLink(deck.slug, deck.id)}
-                      className={clsx(
+                      className={cn(
                         "text-xs px-4 py-2 rounded-md transition-all flex items-center gap-2 mx-auto border",
                         copiedId === deck.id
                           ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
@@ -322,8 +323,4 @@ export function DecksTable({
       />
     </DashboardCard>
   );
-}
-
-function clsx(...classes: (string | undefined | null | false)[]) {
-  return classes.filter(Boolean).join(" ");
 }

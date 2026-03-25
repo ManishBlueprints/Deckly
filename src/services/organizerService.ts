@@ -570,31 +570,37 @@ export const organizerService = {
         ),
       ] as string[];
 
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, handle")
-        .in("id", ownerIds);
+      let handlesMap: Record<string, string> = {};
+      if (ownerIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, handle")
+          .in("id", ownerIds);
 
-      const handlesMap = (profilesData || []).reduce((acc, curr) => {
-        acc[curr.id] = curr.handle;
-        return acc;
-      }, {} as Record<string, string>);
+        handlesMap = (profilesData || []).reduce((acc, curr) => {
+          acc[curr.id] = curr.handle;
+          return acc;
+        }, {} as Record<string, string>);
+      }
 
       // Fetch notes for these decks sequentially after library query (parallel ok but library has deck ids)
       const deckIds = (data as unknown as DeckJoinResult[] || []).map((item) =>
         item.deck_id
       );
 
-      const { data: notesData } = await supabase
-        .from("investor_notes")
-        .select("deck_id, content")
-        .eq("user_id", uid)
-        .in("deck_id", deckIds);
+      let notesMap: Record<string, string> = {};
+      if (deckIds.length > 0) {
+        const { data: notesData } = await supabase
+          .from("investor_notes")
+          .select("deck_id, content")
+          .eq("user_id", uid)
+          .in("deck_id", deckIds);
 
-      const notesMap = (notesData || []).reduce((acc, curr) => {
-        acc[curr.deck_id] = curr.content;
-        return acc;
-      }, {} as Record<string, string>);
+        notesMap = (notesData || []).reduce((acc, curr) => {
+          acc[curr.deck_id] = curr.content;
+          return acc;
+        }, {} as Record<string, string>);
+      }
 
       return (data as unknown as DeckJoinResult[] || []).map((item) => {
         const deckData = Array.isArray(item.decks) ? item.decks[0] : item.decks;
