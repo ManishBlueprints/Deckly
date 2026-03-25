@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { serve } from "@std/http/server";
-import { decode } from "@std/encoding/base64";
+import { decodeBase64 } from "@std/encoding/base64";
 
 // document-processor Edge Function
 // Handles conversion of PPTX, DOCX, XLSX, and PDF to interactive JPG slides
@@ -186,7 +186,7 @@ serve(async (req: Request) => {
             i + 1
           }/${convertedFiles.length} from base64...`,
         );
-        imageBuffer = decode(base64Data);
+        imageBuffer = decodeBase64(base64Data);
       } else {
         console.error(
           `[Page ${i + 1}] Missing URL and FileData in fileInfo:`,

@@ -68,7 +68,7 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#080808] p-4 md:p-6 gap-4 md:gap-6 overflow-y-auto">
+    <div className="min-h-screen flex flex-col md:flex-row bg-deckly-background p-4 md:p-6 gap-4 md:gap-6 overflow-y-auto">
       {/* Left Panel - Hero - Hidden on Mobile */}
       <div className="hidden md:flex md:w-5/12 bg-deckly-primary p-8 flex-col items-center justify-center text-center rounded-xl overflow-hidden shadow-2xl">
         <motion.div
@@ -93,7 +93,7 @@ function Login() {
         </div>
       </div>
 
-      <div className="w-full md:w-7/12 bg-[#10120f] p-8 md:p-12 lg:p-16 flex flex-col items-center justify-center rounded-xl border border-white/5 shadow-2xl relative z-10">
+      <div className="w-full md:w-7/12 bg-deckly-background p-8 md:p-12 lg:p-16 flex flex-col items-center justify-center rounded-xl border border-white/5 shadow-2xl relative z-10">
         <div className="w-full max-w-[400px]">
           <div className="flex flex-col items-center text-center mb-6">
             <div className="w-20 h-20 mb-6 flex items-center justify-center">

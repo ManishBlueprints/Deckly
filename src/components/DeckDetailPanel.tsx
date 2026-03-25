@@ -19,8 +19,9 @@ import { analyticsService } from "../services/analyticsService";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import * as pdfjsLib from "pdfjs-dist";
-import { Deck, DeckWithExpiry } from "../types";
+import { Deck } from "../types";
 import { cn } from "../utils/cn";
+import { getDeckPath } from "../utils/url";
 
 // Common Components
 import Button from "./common/Button";
@@ -32,7 +33,7 @@ import Card from "./common/Card";
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 interface DeckDetailPanelProps {
-  deck: DeckWithExpiry;
+  deck: Deck;
   isPro: boolean;
   onClose: () => void;
   onDelete: (deck: Deck) => void;
@@ -273,7 +274,13 @@ function DeckDetailPanel({
             </h2>
           </div>
           <a
-            href={`/${profile?.handle}/${deck.slug}`}
+            href={profile?.handle ? getDeckPath(profile.handle, deck.slug) : "#"}
+            onClick={(e) => {
+              if (!profile?.handle) {
+                e.preventDefault();
+                alert("Please set a handle in your profile settings to view this.");
+              }
+            }}
             target="_blank"
             rel="noreferrer"
           >
