@@ -24,6 +24,7 @@ import { cn } from "../utils/cn";
 import Button from "./common/Button";
 import { useAuth } from "../contexts/AuthContext";
 import { ConfirmModal } from "./common/ConfirmModal";
+import { getDeckShareUrl, getDeckPath } from "../utils/url";
 
 interface DeckListProps {
   decks: Deck[];
@@ -164,8 +165,11 @@ function DeckList({
   const handleCopyLink = (e: React.MouseEvent, deck: Deck) => {
     e.preventDefault();
     e.stopPropagation();
-    const handle = profile?.handle;
-    const url = `${window.location.origin}/${handle}/${deck.slug}`;
+    if (!profile?.handle) {
+      alert("Please set a handle in your profile settings to share decks.");
+      return;
+    }
+    const url = getDeckShareUrl(profile.handle, deck.slug);
     navigator.clipboard.writeText(url);
     setCopiedId(deck.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -448,7 +452,13 @@ function DeckList({
                 }}
               >
                 <Link
-                  to={`/${profile?.handle}/${deck.slug}`}
+                  to={profile?.handle ? getDeckPath(profile.handle, deck.slug) : "#"}
+                  onClick={(e) => {
+                    if (!profile?.handle) {
+                      e.preventDefault();
+                      alert("Please set a handle in your profile to view decks.");
+                    }
+                  }}
                   className="group relative flex flex-col bg-slate-900 border border-white/5 rounded-2xl overflow-hidden hover:border-deckly-primary/30 transition-all duration-300 shadow-xl hover:shadow-2xl"
                 >
                   {/* Thumbnail area */}

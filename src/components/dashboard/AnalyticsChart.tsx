@@ -44,14 +44,14 @@ export function AnalyticsChart({
   };
 
   return (
-    <div className="w-full h-full flex flex-col justify-end p-6 md:p-10">
-      <div className="flex items-stretch h-72 md:h-80 relative">
+    <div className="w-full h-full flex flex-col justify-end p-8 md:p-10">
+      <div className="flex items-stretch h-64 md:h-72 relative">
         {/* Y-Axis Labels */}
-        <div className="w-16 flex flex-col justify-between py-0 pr-4 text-right">
+        <div className="w-12 flex flex-col justify-between py-0 pr-4 text-right">
           {[1, 0.75, 0.5, 0.25, 0].map((ratio) => (
             <span
               key={ratio}
-              className="text-[10px] font-bold text-slate-700 leading-none h-0 flex items-center justify-end uppercase tracking-tighter"
+              className="text-[9px] font-bold text-slate-600 leading-none h-0 flex items-center justify-end uppercase tracking-widest"
             >
               {formatYLabel(Math.round(niceMax * ratio))}
             </span>
@@ -59,12 +59,12 @@ export function AnalyticsChart({
         </div>
 
         {/* Chart Grid Area */}
-        <div className="flex-1 border-l border-b border-white/5 relative flex items-end justify-between gap-2 px-3">
+        <div className="flex-1 border-l border-white/5 relative flex items-end justify-between gap-3 px-2">
           {/* Horizontal Grid Lines */}
-          {[0.25, 0.5, 0.75].map((ratio) => (
+          {[0.25, 0.5, 0.75, 1.0].map((ratio) => (
             <div
               key={ratio}
-              className="absolute inset-x-0 border-t border-white/[0.02] pointer-events-none"
+              className="absolute inset-x-0 border-t border-white/[0.03] pointer-events-none"
               style={{ bottom: `${ratio * 100}%` }}
             />
           ))}
@@ -77,7 +77,7 @@ export function AnalyticsChart({
                     key={i}
                     className="flex-1 max-w-16 h-full flex flex-col justify-end pb-2"
                   >
-                    <div className="w-full bg-white/5 rounded-2xl h-32 animate-pulse" />
+                    <div className="w-full bg-surface-high animate-pulse h-24" />
                   </div>
                 ))
             : data.map((val, i) => (
@@ -86,16 +86,16 @@ export function AnalyticsChart({
                   className="flex-1 max-w-16 h-full group relative flex flex-col justify-end"
                 >
                   <div
-                    className="w-full relative z-10 bg-gradient-to-t from-deckly-primary/40 to-deckly-primary rounded-t-2xl cursor-pointer group-hover:from-deckly-primary/60 group-hover:to-deckly-primary transition-colors duration-300"
+                    className="w-full relative z-10 bg-primary/40 group-hover:bg-primary transition-all duration-500 shadow-[0_0_20px_rgba(84,233,138,0.1)] group-hover:shadow-[0_0_30px_rgba(84,233,138,0.3)]"
                     style={{ height: `${(val / niceMax) * 100}%` }}
                   />
 
                   {/* Tooltip */}
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-[#09090b] text-white text-[10px] font-bold px-4 py-2.5 rounded-xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-20 shadow-[0_10px_40px_rgba(0,0,0,0.8)] scale-90 group-hover:scale-100 origin-bottom border border-white/10 uppercase tracking-widest">
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-surface-highest text-white text-[10px] font-bold px-4 py-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-20 shadow-2xl scale-90 group-hover:scale-100 border border-white/10 uppercase tracking-widest">
                     {isTime
                       ? `${Math.floor(val / 60)}m ${Math.round(val % 60)}s`
                       : `${val} Visits`}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-[#09090b]" />
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-surface-highest rotate-45 -translate-y-1/2 border-r border-b border-white/10" />
                   </div>
                 </div>
               ))}
@@ -103,14 +103,14 @@ export function AnalyticsChart({
       </div>
 
       {/* X-Axis Labels */}
-      <div className="flex items-start mt-4 pl-16 h-8">
-        <div className="flex-1 flex justify-between gap-2 px-3">
+      <div className="flex items-start mt-6 pl-12">
+        <div className="flex-1 flex justify-between gap-3 px-2">
           {labels.map((label, i) => (
             <div
               key={i}
-              className="flex-1 max-w-16 text-center group overflow-hidden"
+              className="flex-1 max-w-16 text-center group"
             >
-              <span className="text-[10px] font-bold text-slate-700 group-hover:text-deckly-primary transition-colors block truncate uppercase tracking-tighter">
+              <span className="text-[9px] font-bold text-slate-600 group-hover:text-primary transition-colors block truncate uppercase tracking-widest">
                 {label}
               </span>
             </div>
