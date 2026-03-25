@@ -7,6 +7,7 @@ export interface DeckStat {
     title: string;
     views: number;
     time: number;
+    avgSession: number;
     updated_at?: string;
     created_at?: string;
 }
@@ -22,6 +23,7 @@ export function useTopPerformingDecks(userId: string | undefined) {
                 title: d.title,
                 views: d.views,
                 time: d.time,
+                avgSession: d.avgSession,
                 updated_at: d.updated_at,
                 created_at: d.created_at,
             }));

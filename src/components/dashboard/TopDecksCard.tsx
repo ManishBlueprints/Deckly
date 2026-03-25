@@ -1,6 +1,6 @@
 import {
   useTopPerformingDecks,
-  useDeckSignalCounts,
+  DeckStat,
 } from "../../hooks/useTopPerformingDecks";
 import { useUserTotalStats } from "../../hooks/useUserTotalStats";
 import { useAuth } from "../../contexts/AuthContext";
@@ -18,15 +18,19 @@ export function TopDecksCard() {
     isFetching,
   } = useTopPerformingDecks(userId);
 
-  const deckIds = stats.map((s) => s.id);
-  const { data: signalCounts = {} } = useDeckSignalCounts(deckIds);
-
   const { data: userStats } = useUserTotalStats(userId);
   const totalUserViews = userStats?.totalViews || 0;
 
   const loading = isLoading;
   const isRefreshing = isFetching;
 
+  const formatTime = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds < 0) return "—";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.round(seconds % 60);
+    if (mins === 0) return `${secs}s`;
+    return `${mins}m ${secs}s`;
+  };
   return (
     <div className="flex flex-col h-full">
       {/* Section heading — same style as screen.png */}
@@ -48,10 +52,11 @@ export function TopDecksCard() {
               </span>
             </div>
           )}
-          <Link to="/content">
-            <button className="text-[10px] font-bold text-primary uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-1.5">
-              View All Decks <ArrowRight size={11} />
-            </button>
+          <Link
+            to="/content"
+            className="text-[10px] font-bold text-primary uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-1.5"
+          >
+            View All Decks <ArrowRight size={11} />
           </Link>
         </div>
       </div>
@@ -76,14 +81,13 @@ export function TopDecksCard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {stats.map((deck, index) => {
-            const leads = signalCounts[deck.id] || 0;
+          {stats.map((deck: DeckStat, index: number) => {
             const isFeatured = index === 0;
 
             return (
               <div
                 key={deck.id}
-                className="bg-surface-low border border-white/5 p-6 group hover:border-white/10 transition-all cursor-pointer"
+                className="bg-surface-low border border-white/5 p-6"
               >
                 {/* Top row: icon + badge */}
                 <div className="flex items-start justify-between mb-6">
@@ -103,12 +107,13 @@ export function TopDecksCard() {
 
                 {/* Deck title + updated time */}
                 <div className="mb-6">
-                  <h4 className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                  <h4 className="text-sm font-bold text-foreground truncate">
                     {deck.title}
                   </h4>
                   {(deck.updated_at || deck.created_at) && (
                     <p className="text-[10px] text-slate-600 mt-0.5">
-                      {deck.updated_at ? "Updated" : "Created"} {formatRelativeTime(deck.updated_at || deck.created_at)}
+                      {deck.updated_at ? "Updated" : "Created"}{" "}
+                      {formatRelativeTime(deck.updated_at || deck.created_at)}
                     </p>
                   )}
                 </div>
@@ -117,10 +122,10 @@ export function TopDecksCard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">
-                      Viewers
+                      Avg Session
                     </p>
                     <p className="text-xl font-bold text-foreground tracking-tight">
-                      {leads}
+                      {formatTime(deck.avgSession)}
                     </p>
                   </div>
                   <div>

@@ -122,37 +122,24 @@ export function Sidebar() {
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname === item.href;
 
-          return (
-            <Link
-              key={item.label}
-              to={item.href}
-              title={isCollapsed ? item.label : undefined}
-              tabIndex={item.disabled ? -1 : undefined}
-              aria-disabled={item.disabled ? true : undefined}
-              className={cn(
-                "flex items-center gap-3 px-6 py-3 transition-all relative group",
-                isActive
-                  ? "bg-[#3a3939] text-primary border-l-2 border-primary"
-                  : item.disabled ? "opacity-30 pointer-events-none" : "text-slate-500 hover:text-white hover:bg-[#1c1c1c]",
-                isCollapsed && "justify-center px-0",
-              )}
+          const Content = (
+            <div
+              className={isActive ? "text-primary bg-primary/10 p-1 scale-110 flex shrink-0 transition-all" : "text-slate-500 group-hover:text-slate-200 flex shrink-0 transition-all"}
             >
-              
-              <div
+              <item.icon 
+                size={isCollapsed ? 20 : 18} 
+                strokeWidth={isActive ? 2 : 1.5} 
                 className={cn(
-                  "flex shrink-0 transition-all",
-                  isActive ? "text-primary bg-primary/10 p-1 scale-110" : "text-slate-500 group-hover:text-slate-200",
+                  "transition-all",
+                  !isActive && "opacity-40 group-hover:opacity-100"
                 )}
-              >
-                <item.icon 
-                  size={isCollapsed ? 20 : 18} 
-                  strokeWidth={isActive ? 2 : 1.5} 
-                  className={cn(
-                    "transition-all",
-                    !isActive && "opacity-40 group-hover:opacity-100"
-                  )}
-                />
-              </div>
+              />
+            </div>
+          );
+
+          const inner = (
+            <>
+              {Content}
               {!isCollapsed && (
                 <span className={cn(
                   "text-sm font-medium tracking-wide truncate flex-1 uppercase",
@@ -161,6 +148,39 @@ export function Sidebar() {
                   {item.label}
                 </span>
               )}
+            </>
+          );
+
+          const className = cn(
+            "flex items-center gap-3 px-6 py-3 transition-all relative group",
+            isActive
+              ? "bg-[#3a3939] text-primary border-l-2 border-primary"
+              : item.disabled ? "opacity-30 pointer-events-none" : "text-slate-500 hover:text-white hover:bg-[#1c1c1c]",
+            isCollapsed && "justify-center px-0",
+          );
+
+          if (item.disabled) {
+            return (
+              <div 
+                key={item.label}
+                title={isCollapsed ? item.label : undefined}
+                aria-disabled="true"
+                className={className}
+                tabIndex={-1}
+              >
+                {inner}
+              </div>
+            );
+          }
+
+          return (
+            <Link 
+              key={item.label}
+              to={item.href} 
+              title={isCollapsed ? item.label : undefined}
+              className={className}
+            >
+              {inner}
             </Link>
           );
         })}

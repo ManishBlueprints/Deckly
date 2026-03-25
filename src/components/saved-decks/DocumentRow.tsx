@@ -75,6 +75,9 @@ export function DocumentRow({
     setIsSavingNote(true);
     try {
       await onSaveNote(note);
+      // Optimistically update prop to prevent useEffect from reverting state 
+      // before parent rerenders with new data
+      deck.investor_note = note;
     } catch (err) {
       toast.error("Failed to save note", {
         description: err instanceof Error ? err.message : String(err),
