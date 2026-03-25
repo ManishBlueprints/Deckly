@@ -41,10 +41,17 @@ export function ContentView() {
   };
 
   return (
-    <div className="space-y-8 pb-12 animate-in fade-in duration-700 relative">
-      <p className="text-slate-400 text-sm font-medium -mb-4">
-        Manage your assets and track engagement across all your decks.
-      </p>
+    <div className="space-y-12 pb-12 animate-in fade-in duration-700 relative">
+      {/* Header Section */}
+      <div className="flex flex-col gap-2">
+        <span className="text-primary text-[10px] font-bold uppercase tracking-[0.3em]">
+          Manage your assets and track engagement across all your decks.
+        </span>
+        <h1 className="text-5xl font-bold tracking-tight text-white mb-2">
+          Content Library
+        </h1>
+      </div>
+
       {/* Subtle refresh indicator */}
       {isRefreshing && !loading && (
         <div className="absolute top-0 right-0 py-2 flex items-center gap-2">

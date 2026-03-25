@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deckService } from "../services/deckService";
 import { organizerService } from "../services/organizerService";
+import { noteService } from "../services/noteService";
 import { LibraryFolder, LibraryTag, SavedDeckOrganized } from "../types";
 
 // Query keys
@@ -62,10 +63,31 @@ export function useLibrary(userId: string | undefined) {
     mutationFn: (deckId: string) => deckService.removeFromLibrary(deckId),
     onSuccess: (_data, deckId) => {
       if (!userId) return;
+      
+      // Find the deck's folder before removing from cache
+      const currentDecks =
+        qc.getQueryData<SavedDeckOrganized[]>(KEYS.decks(userId)) ?? [];
+      const removedDeck = currentDecks.find((d) => d.deck_id === deckId);
+      const folderId = removedDeck?.folder_id ?? null;
+
+      // 1. Remove deck from decks cache
       qc.setQueryData<SavedDeckOrganized[]>(
         KEYS.decks(userId),
         (prev) => (prev ?? []).filter((d) => d.deck_id !== deckId),
       );
+
+      // 2. Decrement deck_count on the folder if deck was in a folder
+      if (folderId !== null) {
+        qc.setQueryData<LibraryFolder[]>(
+          KEYS.folders(userId),
+          (prev) =>
+            (prev ?? []).map((f) =>
+              f.id === folderId
+                ? { ...f, deck_count: Math.max(0, f.deck_count - 1) }
+                : f
+            ),
+        );
+      }
     },
   });
 
@@ -93,20 +115,22 @@ export function useLibrary(userId: string | undefined) {
           ),
       );
 
-      // 2. Update deck_count on folders in the folders cache
-      qc.setQueryData<LibraryFolder[]>(
-        KEYS.folders(userId),
-        (prev) =>
-          (prev ?? []).map((f) => {
-            if (f.id === oldFolderId && oldFolderId !== null) {
-              return { ...f, deck_count: Math.max(0, f.deck_count - 1) };
-            }
-            if (f.id === folderId && folderId !== null) {
-              return { ...f, deck_count: f.deck_count + 1 };
-            }
-            return f;
-          }),
-      );
+      // 2. Update deck_count on folders only if folder changed
+      if (oldFolderId !== folderId) {
+        qc.setQueryData<LibraryFolder[]>(
+          KEYS.folders(userId),
+          (prev) =>
+            (prev ?? []).map((f) => {
+              if (f.id === oldFolderId && oldFolderId !== null) {
+                return { ...f, deck_count: Math.max(0, f.deck_count - 1) };
+              }
+              if (f.id === folderId && folderId !== null) {
+                return { ...f, deck_count: f.deck_count + 1 };
+              }
+              return f;
+            }),
+        );
+      }
     },
   });
 
@@ -126,6 +150,22 @@ export function useLibrary(userId: string | undefined) {
           (prev ?? []).map((
             d,
           ) => (d.library_id === libraryId ? { ...d, tags: newTags } : d)),
+      );
+    },
+  });
+
+  const saveNoteMutation = useMutation({
+    mutationFn: (
+      { deckId, content }: { deckId: string; content: string },
+    ) => noteService.saveNote(deckId, content),
+    onSuccess: (_data, { deckId, content }) => {
+      if (!userId) return;
+      qc.setQueryData<SavedDeckOrganized[]>(
+        KEYS.decks(userId),
+        (prev) =>
+          (prev ?? []).map((d) =>
+            d.deck_id === deckId ? { ...d, investor_note: content } : d
+          ),
       );
     },
   });
@@ -305,6 +345,8 @@ export function useLibrary(userId: string | undefined) {
       moveMutation.mutateAsync({ libraryId, folderId }),
     updateDeckTags: (libraryId: string, tagIds: string[]) =>
       updateTagsMutation.mutateAsync({ libraryId, tagIds }),
+    saveNote: (deckId: string, content: string) =>
+      saveNoteMutation.mutateAsync({ deckId, content }),
     createFolder: (name: string, color: string, tagNames: string[]) =>
       createFolderMutation.mutateAsync({ name, color, tagNames }),
     updateFolder: (

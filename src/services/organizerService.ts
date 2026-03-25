@@ -91,114 +91,114 @@ export const organizerService = {
     color?: string,
     tagNames: string[] = [],
   ): Promise<LibraryFolder> {
-    return withRetry(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
+    // Note: No withRetry here - this is a multi-step non-idempotent operation.
+    // Retrying could create duplicate folders since there's no unique constraint on (user_id, name).
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
 
-      const { data: folderData, error: folderError } = await supabase
+    const { data: folderData, error: folderError } = await supabase
+      .from("library_folders")
+      .insert([{
+        name,
+        color: color || "#666666",
+        user_id: session.user.id,
+      }])
+      .select()
+      .single();
+
+    let finalData = folderData;
+    let finalError = folderError;
+
+    // Fallback if 'color' column doesn't exist yet
+    if (folderError && folderError.message?.includes("color")) {
+      console.warn("Falling back to insert folder without color...");
+      const { data: fbData, error: fbError } = await supabase
         .from("library_folders")
-        .insert([{
-          name,
-          color: color || "#666666",
-          user_id: session.user.id,
-        }])
+        .insert([{ name, user_id: session.user.id }])
         .select()
         .single();
+      finalData = fbData;
+      finalError = fbError;
+    }
 
-      let finalData = folderData;
-      let finalError = folderError;
+    if (finalError) throw finalError;
 
-      // Fallback if 'color' column doesn't exist yet
-      if (folderError && folderError.message?.includes("color")) {
-        console.warn("Falling back to insert folder without color...");
-        const { data: fbData, error: fbError } = await supabase
-          .from("library_folders")
-          .insert([{ name, user_id: session.user.id }])
-          .select()
-          .single();
-        finalData = fbData;
-        finalError = fbError;
-      }
+    const createdTags: LibraryTag[] = [];
+    const newlyCreatedTagIds = new Set<string>();
 
-      if (finalError) throw finalError;
+    // Link tags
+    if (tagNames && tagNames.length > 0) {
+      for (const tagName of tagNames) {
+        let tagData: LibraryTag | null = null;
+        try {
+          ({ data: tagData } = await supabase
+            .from("library_tags")
+            .select("*")
+            .eq("user_id", session.user.id)
+            .ilike("name", tagName)
+            .single());
 
-      const createdTags: LibraryTag[] = [];
-      const newlyCreatedTagIds = new Set<string>();
-
-      // Link tags
-      if (tagNames && tagNames.length > 0) {
-        for (const tagName of tagNames) {
-          let tagData: LibraryTag | null = null;
-          try {
-            ({ data: tagData } = await supabase
+          if (!tagData) {
+            const { data: newTag, error: tagErr } = await supabase
               .from("library_tags")
-              .select("*")
-              .eq("user_id", session.user.id)
-              .ilike("name", tagName)
-              .single());
-
-            if (!tagData) {
-              const { data: newTag, error: tagErr } = await supabase
-                .from("library_tags")
-                .insert([{
-                  name: tagName.toUpperCase(),
-                  color: "#666666",
-                  user_id: session.user.id,
-                }])
-                .select()
-                .single();
-              if (!tagErr && newTag) {
-                tagData = newTag;
-                newlyCreatedTagIds.add(newTag.id);
-              }
+              .insert([{
+                name: tagName.toUpperCase(),
+                color: "#666666",
+                user_id: session.user.id,
+              }])
+              .select()
+              .single();
+            if (!tagErr && newTag) {
+              tagData = newTag;
+              newlyCreatedTagIds.add(newTag.id);
             }
-
-            if (tagData) {
-              // Link
-              const { error: linkErr } = await supabase
-                .from("library_folder_tags")
-                .insert([{ folder_id: finalData.id, tag_id: tagData.id }]);
-
-              if (linkErr) {
-                console.error(`Failed to link tag ${tagName}:`, {
-                  folder_id: finalData.id,
-                  tag_id: tagData.id,
-                  error: linkErr,
-                });
-                // Cleanup the folder so we don't end up with partial/broken states
-                await supabase.from("library_folders").delete().eq(
-                  "id",
-                  finalData.id,
-                );
-                throw new Error(
-                  `Failed to link tag ${tagName}: ${linkErr.message}`,
-                );
-              } else {
-                createdTags.push(tagData);
-              }
-            }
-          } catch (err) {
-            console.error(`Failed to process tag ${tagName}:`, err);
-            // Rollback any tag we created in this iteration
-            if (tagData && newlyCreatedTagIds.has(tagData.id)) {
-              await supabase.from("library_tags").delete().eq("id", tagData.id);
-            }
-            // Cleanup the folder so we don't end up with partial/broken state
-            await supabase.from("library_folders").delete().eq(
-              "id",
-              finalData.id,
-            );
-            throw err;
           }
+
+          if (tagData) {
+            // Link
+            const { error: linkErr } = await supabase
+              .from("library_folder_tags")
+              .insert([{ folder_id: finalData.id, tag_id: tagData.id }]);
+
+            if (linkErr) {
+              console.error(`Failed to link tag ${tagName}:`, {
+                folder_id: finalData.id,
+                tag_id: tagData.id,
+                error: linkErr,
+              });
+              // Cleanup the folder so we don't end up with partial/broken states
+              await supabase.from("library_folders").delete().eq(
+                "id",
+                finalData.id,
+              );
+              throw new Error(
+                `Failed to link tag ${tagName}: ${linkErr.message}`,
+              );
+            } else {
+              createdTags.push(tagData);
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to process tag ${tagName}:`, err);
+          // Rollback any tag we created in this iteration
+          if (tagData && newlyCreatedTagIds.has(tagData.id)) {
+            await supabase.from("library_tags").delete().eq("id", tagData.id);
+          }
+          // Cleanup the folder so we don't end up with partial/broken state
+          await supabase.from("library_folders").delete().eq(
+            "id",
+            finalData.id,
+          );
+          throw err;
         }
       }
+    }
 
-      return {
-        ...finalData,
-        tags: createdTags,
-        deck_count: 0,
-      };
-    });
+    return {
+      ...finalData,
+      tags: createdTags,
+      deck_count: 0,
+    };
   },
 
   async renameFolder(folderId: string, name: string): Promise<void> {
@@ -218,142 +218,166 @@ export const organizerService = {
     color?: string,
     tagNames: string[] = [],
   ): Promise<LibraryFolder> {
-    return withRetry(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
+    // Note: No withRetry here - this is a multi-step operation with compensating rollback.
+    // The caller can handle network errors and retry if needed.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
 
-      let updatedFolderData;
-      const { data, error: folderError } = await supabase
+    // 1. Fetch original folder data for potential rollback
+    const { data: originalFolder } = await supabase
+      .from("library_folders")
+      .select("name, color, created_at")
+      .eq("id", folderId)
+      .single();
+
+    const originalName = originalFolder?.name;
+    const originalColor = originalFolder?.color;
+
+    // 2. Update folder
+    let updatedFolderData;
+    const { data, error: folderError } = await supabase
+      .from("library_folders")
+      .update({
+        name,
+        color: color || "#666666",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", folderId)
+      .select("created_at")
+      .single();
+
+    updatedFolderData = data;
+
+    if (folderError && folderError.message?.includes("color")) {
+      console.warn("Falling back to update folder without color...");
+      const { data: fbData, error: fbError } = await supabase
         .from("library_folders")
-        .update({
-          name,
-          color: color || "#666666",
-          updated_at: new Date().toISOString(),
-        })
+        .update({ name, updated_at: new Date().toISOString() })
         .eq("id", folderId)
         .select("created_at")
         .single();
+      if (fbError) throw fbError;
+      updatedFolderData = fbData;
+    } else if (folderError) {
+      throw folderError;
+    }
 
-      updatedFolderData = data;
+    // 3. Delete existing tags linking then recreate (with rollback emulation)
+    const { data: previousLinks } = await supabase
+      .from("library_folder_tags")
+      .select("tag_id")
+      .eq("folder_id", folderId);
 
-      if (folderError && folderError.message?.includes("color")) {
-        console.warn("Falling back to update folder without color...");
-        const { data: fbData, error: fbError } = await supabase
-          .from("library_folders")
-          .update({ name, updated_at: new Date().toISOString() })
-          .eq("id", folderId)
-          .select("created_at")
-          .single();
-        if (fbError) throw fbError;
-        updatedFolderData = fbData;
-      } else if (folderError) {
-        throw folderError;
-      }
+    await supabase
+      .from("library_folder_tags")
+      .delete()
+      .eq("folder_id", folderId);
 
-      // Delete existing tags linking then recreate (with rollback emulation)
-      const { data: previousLinks } = await supabase
-        .from("library_folder_tags")
-        .select("tag_id")
-        .eq("folder_id", folderId);
+    const createdTags: LibraryTag[] = [];
+    let linkingFailed = false;
 
-      await supabase
-        .from("library_folder_tags")
-        .delete()
-        .eq("folder_id", folderId);
+    // 4. Link tags
+    if (tagNames && tagNames.length > 0) {
+      for (const tagName of tagNames) {
+        try {
+          let { data: tagData } = await supabase
+            .from("library_tags")
+            .select("*")
+            .eq("user_id", session.user.id)
+            .ilike("name", tagName)
+            .single();
 
-      const createdTags: LibraryTag[] = [];
-      let linkingFailed = false;
-
-      // Link tags
-      if (tagNames && tagNames.length > 0) {
-        for (const tagName of tagNames) {
-          try {
-            let { data: tagData } = await supabase
+          if (!tagData) {
+            const { data: newTag, error: tagErr } = await supabase
               .from("library_tags")
-              .select("*")
-              .eq("user_id", session.user.id)
-              .ilike("name", tagName)
+              .insert([{
+                name: tagName.toUpperCase(),
+                color: "#666666",
+                user_id: session.user.id,
+              }])
+              .select()
               .single();
-
-            if (!tagData) {
-              const { data: newTag, error: tagErr } = await supabase
-                .from("library_tags")
-                .insert([{
-                  name: tagName.toUpperCase(),
-                  color: "#666666",
-                  user_id: session.user.id,
-                }])
-                .select()
-                .single();
-              if (!tagErr && newTag) {
-                tagData = newTag;
-              }
+            if (!tagErr && newTag) {
+              tagData = newTag;
             }
-
-            if (tagData) {
-              const { error: insertErr } = await supabase
-                .from("library_folder_tags")
-                .insert([{ folder_id: folderId, tag_id: tagData.id }]);
-
-              if (insertErr) {
-                console.error(`Failed to link tag ${tagName}:`, {
-                  folder_id: folderId,
-                  tag_id: tagData.id,
-                  error: insertErr,
-                });
-                linkingFailed = true;
-                break;
-              }
-
-              createdTags.push(tagData);
-            }
-          } catch (err) {
-            console.error(`Failed to process tag ${tagName}:`, err);
-            linkingFailed = true;
-            break;
           }
+
+          if (tagData) {
+            const { error: insertErr } = await supabase
+              .from("library_folder_tags")
+              .insert([{ folder_id: folderId, tag_id: tagData.id }]);
+
+            if (insertErr) {
+              console.error(`Failed to link tag ${tagName}:`, {
+                folder_id: folderId,
+                tag_id: tagData.id,
+                error: insertErr,
+              });
+              linkingFailed = true;
+              break;
+            }
+
+            createdTags.push(tagData);
+          }
+        } catch (err) {
+          console.error(`Failed to process tag ${tagName}:`, err);
+          linkingFailed = true;
+          break;
         }
       }
+    }
 
-      // Rollback if any tag link failed
-      if (linkingFailed) {
-        try {
+    // 5. Rollback if any tag link failed - restore BOTH tags AND folder row
+    if (linkingFailed) {
+      try {
+        // Restore tag links
+        await supabase
+          .from("library_folder_tags")
+          .delete()
+          .eq("folder_id", folderId);
+
+        if (previousLinks && previousLinks.length > 0) {
           await supabase
             .from("library_folder_tags")
-            .delete()
-            .eq("folder_id", folderId);
-
-          if (previousLinks && previousLinks.length > 0) {
-            await supabase
-              .from("library_folder_tags")
-              .insert(
-                previousLinks.map((link) => ({
-                  folder_id: folderId,
-                  tag_id: link.tag_id,
-                })),
-              );
-          }
-        } catch (rollbackErr) {
-          console.error(
-            "Rollback failed - folder tags may be in inconsistent state:",
-            { folderId, rollbackErr },
-          );
+            .insert(
+              previousLinks.map((link) => ({
+                folder_id: folderId,
+                tag_id: link.tag_id,
+              })),
+            );
         }
 
-        throw new Error(
-          "Failed to link folder tags. Rolled back to previous state.",
+        // Restore folder row to original state
+        if (originalName !== undefined) {
+          await supabase
+            .from("library_folders")
+            .update({
+              name: originalName,
+              color: originalColor || "#666666",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", folderId);
+        }
+      } catch (rollbackErr) {
+        console.error(
+          "Rollback failed - folder and tags may be in inconsistent state:",
+          { folderId, rollbackErr },
         );
       }
 
-      return {
-        id: folderId,
-        name,
-        color: color || "#666666",
-        created_at: updatedFolderData?.created_at || new Date().toISOString(),
-        tags: createdTags,
-        deck_count: 0, // simplified
-      };
-    });
+      throw new Error(
+        "Failed to link folder tags. Rolled back to previous state.",
+      );
+    }
+
+    return {
+      id: folderId,
+      name,
+      color: color || "#666666",
+      created_at: updatedFolderData?.created_at || new Date().toISOString(),
+      tags: createdTags,
+      deck_count: 0, // simplified
+    };
   },
 
   async deleteFolder(folderId: string): Promise<void> {
@@ -390,13 +414,18 @@ export const organizerService = {
   },
 
   async createTag(name: string, color: string): Promise<LibraryTag> {
+    // Uses upsert for idempotency - safe to retry since UNIQUE(user_id, name) constraint
+    // prevents duplicates. On conflict, updates the existing tag's color.
     return withRetry(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
       const { data, error } = await supabase
         .from("library_tags")
-        .insert([{ name, color, user_id: session.user.id }])
+        .upsert(
+          [{ name, color, user_id: session.user.id }],
+          { onConflict: "user_id,name" }
+        )
         .select()
         .single();
 

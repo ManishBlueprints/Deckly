@@ -319,6 +319,7 @@ export function SavedDecksView() {
                       tags={tags}
                       onMoveToFolder={(folderId) => actions.moveDeck(deck.library_id, folderId)}
                       onUpdateTags={(tagIds) => actions.updateDeckTags(deck.library_id, tagIds)}
+                      onSaveNote={(note) => actions.saveNote(deck.deck_id, note)}
                       onUnsave={() => setUnsaveTarget(deck)}
                       isUnsaving={unsaveTarget?.library_id === deck.library_id}
                     />

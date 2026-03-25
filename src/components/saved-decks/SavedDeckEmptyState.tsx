@@ -61,8 +61,8 @@ export function SavedDeckEmptyState({
             No documents yet
           </h2>
           <p className="text-[#bbcbbb]/80 text-base md:text-lg font-light leading-relaxed mb-10 max-w-md mx-auto">
-            Your investment pipeline is clear. Start by saving your first deck
-            or dragging documents anywhere.
+            Your pipeline is clear. Start by saving your first deck or dragging
+            documents anywhere.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -89,10 +89,10 @@ export function SavedDeckEmptyState({
             <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[#54e98a]">
               Curation
             </span>
-            <h4 className="text-sm font-bold text-[#e5e2e1]">Auto-Sorting</h4>
+            <h4 className="text-sm font-bold text-[#e5e2e1]">Sorting</h4>
             <p className="text-xs text-[#bbcbbb] font-medium leading-relaxed">
-              Decks are automatically grouped by sector and funding stage once
-              uploaded.
+              You can sort decks by sector and funding stage or any custom way
+              you want.
             </p>
           </div>
           <div className="space-y-2">
@@ -112,7 +112,7 @@ export function SavedDeckEmptyState({
             </span>
             <h4 className="text-sm font-bold text-[#e5e2e1]">Vault Privacy</h4>
             <p className="text-xs text-[#bbcbbb] font-medium leading-relaxed">
-              Folders utilize military-grade encryption for sensitive deck data.
+              Folders are protected with strong encryption and access controls
             </p>
           </div>
         </motion.div>
@@ -151,9 +151,7 @@ export function SavedDeckEmptyState({
                     Quick Tip
                   </p>
                   <p className="text-[11px] text-[#bbcbbb] leading-tight font-medium">
-                    Drag and drop PDF files anywhere on the screen to instantly
-                    create an <span className="text-[#54e98a]">Unsorted</span>{" "}
-                    collection.
+                    You can create custom tags and search files based of tags.
                   </p>
                 </div>
               </div>

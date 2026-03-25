@@ -5,7 +5,6 @@ import { GripVertical } from "lucide-react";
 import { SavedDeckOrganized, LibraryFolder, LibraryTag } from "../../types";
 import { TagChip } from "./TagChip";
 import { DeckActionMenu } from "./DeckActionMenu";
-import { noteService } from "../../services/noteService";
 import { toast } from "sonner";
 import { cn } from "../../utils/cn";
 
@@ -19,6 +18,7 @@ interface DocumentRowProps {
   tags: LibraryTag[];
   onMoveToFolder: (folderId: string | null) => void;
   onUpdateTags: (tagIds: string[]) => void;
+  onSaveNote: (note: string) => Promise<void>;
   onUnsave: () => void;
   isUnsaving?: boolean;
 }
@@ -29,6 +29,7 @@ export function DocumentRow({
   tags,
   onMoveToFolder,
   onUpdateTags,
+  onSaveNote,
   onUnsave,
   isUnsaving,
 }: DocumentRowProps) {
@@ -73,7 +74,7 @@ export function DocumentRow({
     }
     setIsSavingNote(true);
     try {
-      await noteService.saveNote(deck.deck_id, note);
+      await onSaveNote(note);
     } catch (err) {
       toast.error("Failed to save note", {
         description: err instanceof Error ? err.message : String(err),
