@@ -133,12 +133,14 @@ export const organizerService = {
           let tagData: LibraryTag | null = null;
           
           // 1. Try to find existing tag
-          const { data: existingTag } = await supabase
+          const { data: existingTag, error: existingTagErr } = await supabase
             .from("library_tags")
             .select("*")
             .eq("user_id", session.user.id)
             .ilike("name", tagName)
-            .single();
+            .maybeSingle();
+
+          if (existingTagErr) throw existingTagErr;
           
           tagData = existingTag;
 
@@ -282,17 +284,21 @@ export const organizerService = {
     const createdTags: LibraryTag[] = [];
     const newlyCreatedTagIds = new Set<string>();
     let updateFailed = false;
+    let originalError: unknown = null;
 
     // 4. Link tags
     try {
       if (tagNames && tagNames.length > 0) {
         for (const tagName of tagNames) {
-          let { data: tagData } = await supabase
+          const { data: existingTag, error: lookupErr } = await supabase
             .from("library_tags")
             .select("*")
             .eq("user_id", session.user.id)
             .ilike("name", tagName)
-            .single();
+            .maybeSingle();
+
+          if (lookupErr) throw lookupErr;
+          let tagData = existingTag;
 
           if (!tagData) {
             const { data: newTag, error: tagErr } = await supabase
@@ -333,6 +339,7 @@ export const organizerService = {
     } catch (err) {
       console.error(`Update failed during tag processing:`, err);
       updateFailed = true;
+      originalError = err;
     }
 
     // 5. Rollback if process failed - restore BOTH tags AND folder row, cleanup orphans
@@ -381,6 +388,7 @@ export const organizerService = {
 
       throw new Error(
         "Failed to update folder tags. Rolled back to previous state and cleaned up orphaned tags.",
+        { cause: originalError },
       );
     }
 

@@ -1,4 +1,7 @@
-import { useTopPerformingDecks, DeckStat } from "../../hooks/useTopPerformingDecks";
+import {
+  useTopPerformingDecks,
+  DeckStat,
+} from "../../hooks/useTopPerformingDecks";
 import { useUserTotalStats } from "../../hooks/useUserTotalStats";
 import { useAuth } from "../../contexts/AuthContext";
 import { BarChart3, Users, ArrowRight } from "lucide-react";
@@ -22,12 +25,12 @@ export function TopDecksCard() {
   const isRefreshing = isFetching;
 
   const formatTime = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds < 0) return "—";
     const mins = Math.floor(seconds / 60);
     const secs = Math.round(seconds % 60);
     if (mins === 0) return `${secs}s`;
     return `${mins}m ${secs}s`;
   };
-
   return (
     <div className="flex flex-col h-full">
       {/* Section heading — same style as screen.png */}
@@ -49,7 +52,7 @@ export function TopDecksCard() {
               </span>
             </div>
           )}
-          <Link 
+          <Link
             to="/content"
             className="text-[10px] font-bold text-primary uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-1.5"
           >
@@ -109,7 +112,8 @@ export function TopDecksCard() {
                   </h4>
                   {(deck.updated_at || deck.created_at) && (
                     <p className="text-[10px] text-slate-600 mt-0.5">
-                      {deck.updated_at ? "Updated" : "Created"} {formatRelativeTime(deck.updated_at || deck.created_at)}
+                      {deck.updated_at ? "Updated" : "Created"}{" "}
+                      {formatRelativeTime(deck.updated_at || deck.created_at)}
                     </p>
                   )}
                 </div>
