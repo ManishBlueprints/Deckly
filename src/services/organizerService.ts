@@ -126,18 +126,23 @@ export const organizerService = {
     const createdTags: LibraryTag[] = [];
     const newlyCreatedTagIds = new Set<string>();
 
-    // Link tags
-    if (tagNames && tagNames.length > 0) {
-      for (const tagName of tagNames) {
-        let tagData: LibraryTag | null = null;
-        try {
-          ({ data: tagData } = await supabase
+    try {
+      // Link tags
+      if (tagNames && tagNames.length > 0) {
+        for (const tagName of tagNames) {
+          let tagData: LibraryTag | null = null;
+          
+          // 1. Try to find existing tag
+          const { data: existingTag } = await supabase
             .from("library_tags")
             .select("*")
             .eq("user_id", session.user.id)
             .ilike("name", tagName)
-            .single());
+            .single();
+          
+          tagData = existingTag;
 
+          // 2. Create if it doesn't exist
           if (!tagData) {
             const { data: newTag, error: tagErr } = await supabase
               .from("library_tags")
@@ -148,14 +153,16 @@ export const organizerService = {
               }])
               .select()
               .single();
-            if (!tagErr && newTag) {
+            
+            if (tagErr) throw tagErr;
+            if (newTag) {
               tagData = newTag;
               newlyCreatedTagIds.add(newTag.id);
             }
           }
 
           if (tagData) {
-            // Link
+            // 3. Link tag to folder
             const { error: linkErr } = await supabase
               .from("library_folder_tags")
               .insert([{ folder_id: finalData.id, tag_id: tagData.id }]);
@@ -166,32 +173,31 @@ export const organizerService = {
                 tag_id: tagData.id,
                 error: linkErr,
               });
-              // Cleanup the folder so we don't end up with partial/broken states
-              await supabase.from("library_folders").delete().eq(
-                "id",
-                finalData.id,
-              );
-              throw new Error(
-                `Failed to link tag ${tagName}: ${linkErr.message}`,
-              );
-            } else {
-              createdTags.push(tagData);
+              throw linkErr;
             }
+            createdTags.push(tagData);
           }
-        } catch (err) {
-          console.error(`Failed to process tag ${tagName}:`, err);
-          // Rollback any tag we created in this iteration
-          if (tagData && newlyCreatedTagIds.has(tagData.id)) {
-            await supabase.from("library_tags").delete().eq("id", tagData.id);
-          }
-          // Cleanup the folder so we don't end up with partial/broken state
-          await supabase.from("library_folders").delete().eq(
-            "id",
-            finalData.id,
-          );
-          throw err;
         }
       }
+    } catch (err) {
+      console.error("Critical failure during folder creation process, rolling back:", err);
+      // Centralized cleanup: remove all tags created during this process
+      for (const tagId of newlyCreatedTagIds) {
+        try {
+          await supabase.from("library_tags").delete().eq("id", tagId);
+        } catch (cleanupErr) {
+          console.error(`Cleanup failed for tag ${tagId}:`, cleanupErr);
+        }
+      }
+      // Cleanup the folder so we don't end up with partial/broken states
+      if (finalData?.id) {
+        try {
+          await supabase.from("library_folders").delete().eq("id", finalData.id);
+        } catch (cleanupErr) {
+          console.error(`Cleanup failed for folder ${finalData.id}:`, cleanupErr);
+        }
+      }
+      throw err;
     }
 
     return {
@@ -274,12 +280,13 @@ export const organizerService = {
       .eq("folder_id", folderId);
 
     const createdTags: LibraryTag[] = [];
-    let linkingFailed = false;
+    const newlyCreatedTagIds = new Set<string>();
+    let updateFailed = false;
 
     // 4. Link tags
-    if (tagNames && tagNames.length > 0) {
-      for (const tagName of tagNames) {
-        try {
+    try {
+      if (tagNames && tagNames.length > 0) {
+        for (const tagName of tagNames) {
           let { data: tagData } = await supabase
             .from("library_tags")
             .select("*")
@@ -297,8 +304,11 @@ export const organizerService = {
               }])
               .select()
               .single();
-            if (!tagErr && newTag) {
+            
+            if (tagErr) throw tagErr;
+            if (newTag) {
               tagData = newTag;
+              newlyCreatedTagIds.add(newTag.id);
             }
           }
 
@@ -313,29 +323,33 @@ export const organizerService = {
                 tag_id: tagData.id,
                 error: insertErr,
               });
-              linkingFailed = true;
-              break;
+              throw insertErr;
             }
 
             createdTags.push(tagData);
           }
-        } catch (err) {
-          console.error(`Failed to process tag ${tagName}:`, err);
-          linkingFailed = true;
-          break;
         }
       }
+    } catch (err) {
+      console.error(`Update failed during tag processing:`, err);
+      updateFailed = true;
     }
 
-    // 5. Rollback if any tag link failed - restore BOTH tags AND folder row
-    if (linkingFailed) {
+    // 5. Rollback if process failed - restore BOTH tags AND folder row, cleanup orphans
+    if (updateFailed) {
       try {
-        // Restore tag links
+        // Cleanup newly created orphaned tags
+        for (const tagId of newlyCreatedTagIds) {
+          await supabase.from("library_tags").delete().eq("id", tagId);
+        }
+
+        // Wipe broken links
         await supabase
           .from("library_folder_tags")
           .delete()
           .eq("folder_id", folderId);
 
+        // Restore original tag links
         if (previousLinks && previousLinks.length > 0) {
           await supabase
             .from("library_folder_tags")
@@ -366,7 +380,7 @@ export const organizerService = {
       }
 
       throw new Error(
-        "Failed to link folder tags. Rolled back to previous state.",
+        "Failed to update folder tags. Rolled back to previous state and cleaned up orphaned tags.",
       );
     }
 

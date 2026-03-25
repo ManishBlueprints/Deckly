@@ -1,18 +1,16 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useUserTotalStats } from "../../hooks/useUserTotalStats";
-import { useDecks } from "../../hooks/useDecks";
 import { Loader2 } from "lucide-react";
 
 export function WelcomeBanner() {
   const { profile, session } = useAuth();
   const firstName = profile?.full_name?.split(" ")[0] || "there";
-  const { data: stats, isLoading: statsLoading } = useUserTotalStats(
-    session?.user?.id,
-  );
-  const { data: decks, isLoading: decksLoading } = useDecks(session?.user?.id);
-
-  const isLoading = statsLoading || decksLoading;
+  const {
+    data: stats,
+    isLoading,
+    isError,
+  } = useUserTotalStats(session?.user?.id);
 
   return (
     <div className="relative overflow-hidden bg-surface-lowest border border-white/5 p-10 md:p-12 md:py-14 group">
@@ -36,6 +34,10 @@ export function WelcomeBanner() {
                 <Loader2 size={14} className="animate-spin" />
                 Analyzing your portfolio...
               </span>
+            ) : isError ? (
+              <span className="text-sm font-medium text-red-400">
+                Failed to load portfolio stats. Please refresh the page.
+              </span>
             ) : (
               <>
                 Your portfolio has reached{" "}
@@ -48,7 +50,7 @@ export function WelcomeBanner() {
                 </span>{" "}
                 across{" "}
                 <span className="text-primary font-medium">
-                  {decks?.length || 0} active decks
+                  {stats?.deckCount || 0} active decks
                 </span>
                 . Keep reaching out to investors.
               </>

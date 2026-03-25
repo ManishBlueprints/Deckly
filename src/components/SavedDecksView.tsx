@@ -14,7 +14,7 @@ import { cn } from "../utils/cn";
 
 export function SavedDecksView() {
   const { session } = useAuth();
-  const { decks, folders, tags, isLoading, actions } = useLibrary(session?.user?.id);
+  const { decks, folders, tags, isLoading, isError, actions } = useLibrary(session?.user?.id);
 
   // --- UI state only ---
   const [selectedFolderId, setSelectedFolderId] = useState<string | "uncategorized">("uncategorized");
@@ -100,7 +100,29 @@ export function SavedDecksView() {
     [editingFolder, actions]
   );
 
-  // --- Loading / empty states ---
+  // --- Loading / error / empty states ---
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 bg-background h-full min-h-[calc(100vh-140px)] gap-6">
+        <div className="w-16 h-16 bg-red-500/10 flex items-center justify-center text-red-500 rounded-full">
+          <Filter size={32} />
+        </div>
+        <div className="text-center space-y-2">
+          <h3 className="text-xl font-bold text-white">Failed to load library</h3>
+          <p className="text-slate-400 max-w-sm">
+            There was a problem connecting to the server. Please check your connection and try again.
+          </p>
+        </div>
+        <button
+          onClick={() => actions.refetch()}
+          className="px-8 py-3 bg-primary text-black font-bold hover:bg-primary/90 transition-all"
+        >
+          Retry Connection
+        </button>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-20 bg-background h-full min-h-[calc(100vh-140px)]">
@@ -186,6 +208,7 @@ export function SavedDecksView() {
                     {searchQuery && (
                       <button
                         onClick={() => setSearchQuery("")}
+                        aria-label="Clear search"
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-[#bbcbbb]/40 hover:text-white"
                       >
                         <X size={16} />

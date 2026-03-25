@@ -172,14 +172,19 @@ export const analyticsService = {
 
     // 3. Merge and sort
     const result = deckIds
-      .map((id) => ({
-        id,
-        title: deckInfo[id].title,
-        views: visitorsByDeck.get(id)?.size || 0,
-        time: deckInfo[id].time,
-        updated_at: deckInfo[id].updated_at,
-        created_at: deckInfo[id].created_at,
-      }))
+      .map((id) => {
+        const views = visitorsByDeck.get(id)?.size || 0;
+        const time = deckInfo[id].time;
+        return {
+          id,
+          title: deckInfo[id].title,
+          views,
+          time,
+          avgSession: views > 0 ? time / views : 0,
+          updated_at: deckInfo[id].updated_at,
+          created_at: deckInfo[id].created_at,
+        };
+      })
       .sort((a, b) => b.views - a.views)
       .slice(0, limit);
 
@@ -290,7 +295,7 @@ export const analyticsService = {
       .eq("user_id", userId);
 
     if (!userDecks || userDecks.length === 0) {
-      return { totalViews: 0, totalTimeSeconds: 0, totalSaves: 0 };
+      return { totalViews: 0, totalTimeSeconds: 0, totalSaves: 0, deckCount: 0 };
     }
 
     const deckIds = deckId ? [deckId] : userDecks.map((d) => d.id);
@@ -348,7 +353,7 @@ export const analyticsService = {
 
     const totalSaves = saveResult.count || 0;
 
-    return { totalViews, totalTimeSeconds, totalSaves };
+    return { totalViews, totalTimeSeconds, totalSaves, deckCount: userDecks.length };
   },
 
   // Get unique visitor count for a deck (distinct people, not slide views)
