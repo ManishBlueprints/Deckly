@@ -83,14 +83,14 @@ export function FolderCard({
         />
       </div>
 
-      <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+      <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-10">
         <button
           onClick={(e) => {
             e.stopPropagation();
             onEdit?.(folder);
           }}
           aria-label="Edit folder"
-          className="p-2 bg-white/5 hover:bg-white/10 text-[#bbcbbb]/40 hover:text-white transition-colors"
+          className="p-2 bg-white/5 hover:bg-white/10 text-[#bbcbbb]/40 hover:text-white focus-visible:text-white focus-visible:bg-white/10 transition-colors"
         >
           <Edit2 size={14} />
         </button>
@@ -100,7 +100,7 @@ export function FolderCard({
             onDelete?.(folder);
           }}
           aria-label="Delete folder"
-          className="p-2 bg-white/5 hover:bg-red-500/20 text-[#bbcbbb]/40 hover:text-red-400 transition-colors"
+          className="p-2 bg-white/5 hover:bg-red-500/20 text-[#bbcbbb]/40 hover:text-red-400 focus-visible:text-red-400 focus-visible:bg-red-500/20 transition-colors"
         >
           <Trash2 size={14} />
         </button>

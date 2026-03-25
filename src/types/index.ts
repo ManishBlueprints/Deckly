@@ -58,7 +58,7 @@ export interface SavedDeckOrganized {
   title: string;
   slug: string;
   file_type?: string;
-  status: "PENDING" | "PROCESSED";
+  status: "PENDING" | "PROCESSED" | "DELETED";
   user_handle: string;
   description: string | null;
   investor_note: string | null;

@@ -43,11 +43,14 @@ export function useLibrary(userId: string | undefined) {
   const decks: SavedDeckOrganized[] = decksQ.data ?? [];
   const folders: LibraryFolder[] = foldersQ.data ?? [];
   const tags: LibraryTag[] = tagsQ.data ?? [];
+  
+  const isError = decksQ.isError || foldersQ.isError || tagsQ.isError;
   const isLoading =
     (decksQ.isLoading || foldersQ.isLoading || tagsQ.isLoading) &&
     decks.length === 0 &&
     folders.length === 0 &&
-    tags.length === 0;
+    tags.length === 0 &&
+    !isError;
 
   const refetch = useCallback(() => {
     if (!userId) return Promise.resolve();
@@ -364,5 +367,5 @@ export function useLibrary(userId: string | undefined) {
     deleteTag: (id: string) => deleteTagMutation.mutateAsync(id),
   };
 
-  return { decks, folders, tags, isLoading, actions };
+  return { decks, folders, tags, isLoading, isError, actions };
 }
