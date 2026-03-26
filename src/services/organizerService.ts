@@ -117,7 +117,7 @@ export const organizerService = {
         .insert([{ name, user_id: session.user.id }])
         .select()
         .single();
-      finalData = fbData;
+      finalData = fbData ? { ...fbData, color: color || "#666666" } : fbData;
       finalError = fbError;
     }
 
@@ -235,14 +235,18 @@ export const organizerService = {
     if (!session) throw new Error("Not authenticated");
 
     // 1. Fetch original folder data for potential rollback
-    const { data: originalFolder } = await supabase
+    const { data: originalFolder, error: snapErr } = await supabase
       .from("library_folders")
       .select("name, color, created_at")
       .eq("id", folderId)
       .single();
 
-    const originalName = originalFolder?.name;
-    const originalColor = originalFolder?.color;
+    if (snapErr || !originalFolder) {
+      throw snapErr || new Error("Failed to fetch folder snapshot for update");
+    }
+
+    const originalName = originalFolder.name;
+    const originalColor = originalFolder.color;
 
     // 2. Update folder
     let updatedFolderData;
@@ -651,6 +655,11 @@ export const organizerService = {
           ? handlesMap[deckData.user_id]
           : "unknown";
 
+        const rawStatus = deckData?.status;
+        const mappedStatus = (rawStatus === "PENDING" || rawStatus === "PROCESSED" || rawStatus === "DELETED") 
+          ? rawStatus as "PENDING" | "PROCESSED" | "DELETED"
+          : "DELETED";
+
         return {
           library_id: item.id,
           deck_id: item.deck_id,
@@ -661,7 +670,7 @@ export const organizerService = {
           title: deckData?.title || "Deleted Document",
           slug: deckData?.slug || "",
           file_type: deckData?.file_type || "",
-          status: deckData?.status || "DELETED",
+          status: mappedStatus,
           user_handle: userHandle || "unknown",
           description: deckData?.description || null,
           investor_note: notesMap[item.deck_id] || "",
