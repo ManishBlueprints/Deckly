@@ -69,12 +69,12 @@ export function TopDecksCard() {
             .map((_, i) => (
               <div
                 key={i}
-                className="bg-surface-low border border-white/5 p-6 h-48 animate-pulse"
+                className="bg-surface-card border border-white/5 p-6 h-48 animate-pulse"
               />
             ))}
         </div>
       ) : stats.length === 0 ? (
-        <div className="bg-surface-low border border-white/5 flex-1 flex items-center justify-center p-12">
+        <div className="bg-surface-card border border-white/5 flex-1 flex items-center justify-center p-12">
           <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest text-center">
             No deck data yet
           </p>
@@ -87,11 +87,11 @@ export function TopDecksCard() {
             return (
               <div
                 key={deck.id}
-                className="bg-surface-low border border-white/5 p-6"
+                className="bg-surface-card border border-white/5 p-6"
               >
                 {/* Top row: icon + badge */}
                 <div className="flex items-start justify-between mb-6">
-                  <div className="bg-surface-lowest w-10 h-10 flex items-center justify-center shrink-0 border border-white/5">
+                  <div className="bg-surface-card w-10 h-10 flex items-center justify-center shrink-0 border border-white/5">
                     {isFeatured ? (
                       <BarChart3 size={18} className="text-primary" />
                     ) : (

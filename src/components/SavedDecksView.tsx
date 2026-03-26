@@ -194,7 +194,7 @@ export function SavedDecksView() {
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
-                <div className="p-6 bg-surface-low border border-white/5 flex flex-col md:flex-row gap-6">
+                <div className="p-6 bg-surface-card border border-white/5 flex flex-col md:flex-row gap-6">
                   {/* Search */}
                   <div className="flex-1 relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#bbcbbb]/40" />
@@ -319,7 +319,7 @@ export function SavedDecksView() {
                     animate={{ opacity: 1 }}
                     className="py-32 text-center"
                   >
-                    <div className="w-20 h-20 bg-surface-low flex items-center justify-center text-[#54e98a]/20 mx-auto border border-white/5 mb-6">
+                    <div className="w-20 h-20 bg-surface-card flex items-center justify-center text-[#54e98a]/20 mx-auto border border-white/5 mb-6">
                       <span className="material-symbols-outlined text-4xl">inventory_2</span>
                     </div>
                     <p className="text-[#bbcbbb]/40 font-bold">

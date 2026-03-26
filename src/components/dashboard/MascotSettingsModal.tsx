@@ -146,17 +146,17 @@ export function MascotSettingsModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           />
 
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="relative w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+            className="relative w-full max-w-md bg-surface-card border border-white/5 rounded-none overflow-hidden shadow-2xl"
           >
             {/* Header */}
-            <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-surface-card">
               <div>
                 <h2 className="text-lg font-bold text-white">
                   Workspace Settings
@@ -167,14 +167,14 @@ export function MascotSettingsModal({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-none transition-colors"
                 disabled={uploading || saving}
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-none">
+            <div className="p-5 sm:p-6 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-none">
               {/* Workspace Identity Section */}
               <div className="space-y-6">
                 <div>
@@ -185,7 +185,7 @@ export function MascotSettingsModal({
                     type="text"
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-deckly-primary/30 transition-all shadow-inner"
+                    className="w-full px-4 py-3 bg-surface-low border border-white/5 rounded-none text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary/30 transition-all shadow-inner"
                     placeholder="e.g. Acme Corp"
                   />
                 </div>
@@ -195,7 +195,7 @@ export function MascotSettingsModal({
                     Workspace Slug (URL)
                   </label>
                   <div className="relative">
-                    <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden focus-within:border-deckly-primary/30 transition-all shadow-inner">
+                    <div className="flex items-center bg-surface-low border border-white/5 rounded-none overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary/30 focus-within:border-deckly-primary/30 transition-all shadow-inner">
                       <span className="pl-4 pr-1 text-xs text-slate-600 select-none">
                         /
                       </span>
@@ -205,7 +205,7 @@ export function MascotSettingsModal({
                         onChange={(e) =>
                           setWorkspaceSlug(normalizeSlug(e.target.value))
                         }
-                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-white focus:outline-none"
+                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-700"
                         placeholder="workspace-slug"
                       />
                       <div className="pr-4">
@@ -227,7 +227,7 @@ export function MascotSettingsModal({
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex gap-3"
+                      className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-none flex gap-3"
                     >
                       <AlertCircle
                         size={16}
@@ -241,20 +241,12 @@ export function MascotSettingsModal({
                 </div>
 
                 <button
-                  onClick={handleSaveWorkspace}
-                  disabled={
-                    saving ||
-                    (workspaceSlug !== userProfile?.handle && !isSlugAvailable)
-                  }
-                  className="w-full py-3.5 bg-white text-slate-950 font-black uppercase tracking-[0.2em] text-[10px] rounded-xl hover:bg-slate-200 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-surface-low hover:bg-surface-high text-white text-[10px] font-bold uppercase tracking-widest rounded-none border border-white/5 transition-all disabled:opacity-50"
                 >
-                  {saving ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <>
-                      Save Workspace <Check size={14} />
-                    </>
-                  )}
+                  <Upload size={14} className="text-primary" />
+                  Upload Logo
                 </button>
               </div>
 
@@ -263,7 +255,7 @@ export function MascotSettingsModal({
               {/* Logo / Mascot Section */}
               <div className="flex flex-col items-center">
                 <div className="relative group/mascot">
-                  <div className="w-32 h-32 bg-slate-800 rounded-2xl border border-white/5 overflow-hidden flex items-center justify-center p-4">
+                  <div className="w-32 h-32 bg-surface-low rounded-none border border-white/5 overflow-hidden flex items-center justify-center p-4">
                     <img
                       src={currentLogo}
                       alt="Mascot Preview"
@@ -271,7 +263,7 @@ export function MascotSettingsModal({
                     />
 
                     {uploading && (
-                      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
                         <Loader2
                           size={24}
                           className="text-deckly-primary animate-spin"
@@ -283,7 +275,7 @@ export function MascotSettingsModal({
                   {!uploading && (
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="absolute -bottom-2 -right-2 w-9 h-9 bg-deckly-primary text-slate-950 rounded-full flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all border-4 border-slate-900"
+                      className="absolute -bottom-2 -right-2 w-9 h-9 bg-deckly-primary text-slate-950 rounded-none flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all border-4 border-surface-card"
                       title="Upload New"
                     >
                       <Camera size={16} />
@@ -292,7 +284,7 @@ export function MascotSettingsModal({
                 </div>
 
                 <div className="mt-8 w-full space-y-4">
-                  <div className="bg-slate-800/50 rounded-2xl p-4 border border-white/5 flex gap-3">
+                  <div className="bg-surface-low rounded-none p-4 border border-white/5 flex gap-3">
                     <Info
                       size={16}
                       className="text-deckly-primary shrink-0 mt-0.5"
@@ -303,24 +295,34 @@ export function MascotSettingsModal({
                     </p>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="space-y-3">
                     <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl border border-white/10 transition-all disabled:opacity-50"
+                      onClick={handleSaveWorkspace}
+                      disabled={
+                        saving ||
+                        (workspaceSlug !== userProfile?.handle &&
+                          !isSlugAvailable)
+                      }
+                      className="w-full py-3.5 bg-deckly-primary text-slate-950 font-black uppercase tracking-[0.2em] text-[10px] rounded-none hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
                     >
-                      <Upload size={14} />
-                      Upload Logo
+                      {saving ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <>
+                          Save Workspace <Check size={14} />
+                        </>
+                      )}
                     </button>
 
                     {branding?.logo_url && (
                       <button
                         onClick={handleResetLogo}
                         disabled={uploading}
-                        className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl border border-red-500/20 transition-all disabled:opacity-50"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-none border border-red-500/20 transition-all disabled:opacity-50 text-[10px] font-bold uppercase tracking-widest"
                         title="Reset to Default"
                       >
                         <Trash2 size={16} />
+                        Reset
                       </button>
                     )}
                   </div>
@@ -328,7 +330,7 @@ export function MascotSettingsModal({
               </div>
 
               {error && (
-                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 text-center animate-shake">
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-none text-[10px] font-bold uppercase tracking-widest text-red-400 text-center animate-shake">
                   {error}
                 </div>
               )}

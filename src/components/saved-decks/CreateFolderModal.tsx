@@ -121,7 +121,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g., Q1 FinTech Research"
-                      className="w-full bg-[#161616] border border-white/5 px-4 py-3.5 text-sm text-[#e5e2e1] placeholder-[#bbcbbb]/20 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/30 transition-all font-medium"
+                      className="w-full bg-surface-card border border-white/5 px-4 py-3.5 text-sm text-[#e5e2e1] placeholder-[#bbcbbb]/20 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/30 transition-all font-medium"
                       autoFocus
                     />
                   </div>
@@ -202,7 +202,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                         onBlur={() => setShowTagSuggestions(false)}
                         onKeyDown={(e) => e.key === 'Enter' && addTag()}
                         placeholder="Add more tags..."
-                        className="w-full bg-[#161616] border border-white/5 px-4 py-3.5 text-xs text-[#e5e2e1] placeholder-[#bbcbbb]/10 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/20 transition-all font-medium pr-10"
+                        className="w-full bg-surface-card border border-white/5 px-4 py-3.5 text-xs text-[#e5e2e1] placeholder-[#bbcbbb]/10 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/20 transition-all font-medium pr-10"
                       />
                       <button 
                         onClick={() => addTag()}

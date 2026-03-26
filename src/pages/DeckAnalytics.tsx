@@ -544,7 +544,7 @@ export default function DeckAnalytics() {
                       className={cn(
                         "rounded-md border transition-all duration-200 overflow-hidden cursor-pointer",
                         expandedVisitor === visitor.visitorId
-                          ? "bg-[#161616] border-deckly-primary/50"
+                          ? "bg-surface-card border-deckly-primary/50"
                           : "bg-[#141414] border-[#222] hover:border-[#333] hover:bg-[#1a1a1a]",
                       )}
                       onClick={() =>
