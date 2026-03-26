@@ -155,6 +155,9 @@ function DeckDetailPanel({
       let finalFileUrl = deck.file_url;
       let finalPages = deck.pages;
       let fileSize = deck.file_size;
+      const finalViewPassword = requirePassword
+        ? viewPassword.trim() || null
+        : null;
 
       if (!userId) throw new Error("Not authenticated");
 
@@ -194,7 +197,7 @@ function DeckDetailPanel({
         file_size: fileSize,
         require_email: requireEmail,
         require_password: requirePassword,
-        view_password: viewPassword,
+        view_password: finalViewPassword ?? undefined,
       };
 
       if (expiryEnabled && expiryDate) {
