@@ -253,7 +253,11 @@ export function useLibrary(userId: string | undefined) {
       if (!userId) return;
       qc.setQueryData<LibraryTag[]>(
         KEYS.tags(userId),
-        (prev) => [...(prev ?? []), newTag],
+        (prev) => {
+          if (!prev) return [newTag];
+          if (prev.some(t => t.id === newTag.id)) return prev;
+          return [...prev, newTag];
+        },
       );
     },
   });

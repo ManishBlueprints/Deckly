@@ -128,8 +128,11 @@ export const organizerService = {
 
     try {
       // Link tags
-      if (tagNames && tagNames.length > 0) {
-        for (const tagName of tagNames) {
+      const canonicalTags = tagNames 
+        ? Array.from(new Set(tagNames.map(t => t.trim().toUpperCase()).filter(Boolean)))
+        : [];
+      if (canonicalTags.length > 0) {
+        for (const tagName of canonicalTags) {
           let tagData: LibraryTag | null = null;
           
           // 1. Try to find existing tag
@@ -137,7 +140,7 @@ export const organizerService = {
             .from("library_tags")
             .select("*")
             .eq("user_id", session.user.id)
-            .ilike("name", tagName)
+            .eq("name", tagName)
             .maybeSingle();
 
           if (existingTagErr) throw existingTagErr;
@@ -149,7 +152,7 @@ export const organizerService = {
             const { data: newTag, error: tagErr } = await supabase
               .from("library_tags")
               .insert([{
-                name: tagName.toUpperCase(),
+                name: tagName,
                 color: "#666666",
                 user_id: session.user.id,
               }])
@@ -271,15 +274,19 @@ export const organizerService = {
     }
 
     // 3. Delete existing tags linking then recreate (with rollback emulation)
-    const { data: previousLinks } = await supabase
+    const { data: previousLinks, error: linkErr } = await supabase
       .from("library_folder_tags")
       .select("tag_id")
       .eq("folder_id", folderId);
 
-    await supabase
+    if (linkErr) throw linkErr;
+
+    const { error: delErr } = await supabase
       .from("library_folder_tags")
       .delete()
       .eq("folder_id", folderId);
+
+    if (delErr) throw delErr;
 
     const createdTags: LibraryTag[] = [];
     const newlyCreatedTagIds = new Set<string>();
@@ -288,13 +295,16 @@ export const organizerService = {
 
     // 4. Link tags
     try {
-      if (tagNames && tagNames.length > 0) {
-        for (const tagName of tagNames) {
+      const canonicalTags = tagNames 
+        ? Array.from(new Set(tagNames.map(t => t.trim().toUpperCase()).filter(Boolean)))
+        : [];
+      if (canonicalTags.length > 0) {
+        for (const tagName of canonicalTags) {
           const { data: existingTag, error: lookupErr } = await supabase
             .from("library_tags")
             .select("*")
             .eq("user_id", session.user.id)
-            .ilike("name", tagName)
+            .eq("name", tagName)
             .maybeSingle();
 
           if (lookupErr) throw lookupErr;
@@ -304,7 +314,7 @@ export const organizerService = {
             const { data: newTag, error: tagErr } = await supabase
               .from("library_tags")
               .insert([{
-                name: tagName.toUpperCase(),
+                name: tagName,
                 color: "#666666",
                 user_id: session.user.id,
               }])
@@ -442,10 +452,11 @@ export const organizerService = {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
+      const canonicalName = name.trim().toUpperCase();
       const { data, error } = await supabase
         .from("library_tags")
         .upsert(
-          [{ name, color, user_id: session.user.id }],
+          [{ name: canonicalName, color, user_id: session.user.id }],
           { onConflict: "user_id,name" }
         )
         .select()
@@ -529,7 +540,7 @@ export const organizerService = {
         if (addError) {
           // Rollback: re-add removed tags
           if (toRemove.length > 0) {
-            await supabase
+            const { error: rollbackErr } = await supabase
               .from("library_deck_tags")
               .insert(
                 toRemove.map((tagId) => ({
@@ -537,6 +548,10 @@ export const organizerService = {
                   tag_id: tagId,
                 })),
               );
+              
+            if (rollbackErr) {
+              console.error("CRITICAL: Failed to rollback tag removal in updateDeckTags", { libraryId, toRemove, rollbackErr });
+            }
           }
           throw addError;
         }
@@ -594,10 +609,14 @@ export const organizerService = {
 
       let handlesMap: Record<string, string> = {};
       if (ownerIds.length > 0) {
-        const { data: profilesData } = await supabase
+        const { data: profilesData, error: profilesErr } = await supabase
           .from("profiles")
           .select("id, handle")
           .in("id", ownerIds);
+
+        if (profilesErr) {
+          console.error("Failed to fetch user profiles for library handles:", profilesErr);
+        }
 
         handlesMap = (profilesData || []).reduce((acc, curr) => {
           acc[curr.id] = curr.handle;
@@ -612,11 +631,13 @@ export const organizerService = {
 
       let notesMap: Record<string, string> = {};
       if (deckIds.length > 0) {
-        const { data: notesData } = await supabase
+        const { data: notesData, error: notesErr } = await supabase
           .from("investor_notes")
           .select("deck_id, content")
           .eq("user_id", uid)
           .in("deck_id", deckIds);
+
+        if (notesErr) throw notesErr;
 
         notesMap = (notesData || []).reduce((acc, curr) => {
           acc[curr.deck_id] = curr.content;
