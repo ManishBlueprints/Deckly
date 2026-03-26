@@ -17,10 +17,7 @@ const placeholderComments = [
 
 export function CommentsCard() {
   return (
-    <div
-      style={{ backgroundColor: "#161616" }}
-      className="bg-surface-low border border-white/5 flex flex-col h-full group min-h-[280px]"
-    >
+    <div className="bg-surface-card border border-white/5 flex flex-col h-full group min-h-[280px]">
       {/* Header */}
       <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between">
         <div className="flex items-center gap-3">

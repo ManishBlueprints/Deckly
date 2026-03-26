@@ -47,6 +47,7 @@ export default {
         surface: {
           lowest: "var(--surface-lowest, #0e0e0e)",
           low: "var(--surface-low, #161616)",
+          card: "hsl(var(--surface-card) / <alpha-value>)",
           container: "var(--surface-container, #1c1c1c)",
           high: "var(--surface-high, #2a2a2a)",
           highest: "var(--surface-highest, #353534)",

@@ -3,6 +3,7 @@ import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { Plus, Upload, Home as RoomIcon } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -17,6 +18,7 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { branding, profile } = useAuth();
   const [fabOpen, setFabOpen] = React.useState(false);
 
   const pageLabels: Record<string, string> = {
@@ -36,6 +38,8 @@ export function DashboardLayout({
         ? location.pathname === "/"
         : location.pathname.startsWith(path),
     )?.[1] ?? title;
+  const workspaceName = branding?.room_name || profile?.full_name || "Workspace";
+  const workspaceInitial = workspaceName.charAt(0).toUpperCase() || "W";
 
   const handleFabAction = (href: string) => {
     setFabOpen(false);
@@ -51,13 +55,42 @@ export function DashboardLayout({
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
         {/* Top Header */}
-        <header className="w-full h-16 sticky top-0 z-40 bg-background flex items-center justify-between px-8">
-          <div className="flex items-center gap-4">
-            <span className="text-primary text-[10px] font-bold uppercase tracking-[0.3em]">
+        <header className="w-full h-16 sticky top-0 z-40 bg-background flex items-center justify-between px-4 sm:px-8">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="md:hidden flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-surface-low border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
+                {branding?.logo_url ? (
+                  <img
+                    src={branding.logo_url}
+                    alt={workspaceName}
+                    className="w-full h-full object-contain p-1"
+                  />
+                ) : (
+                  <span className="text-[11px] font-bold text-primary">
+                    {workspaceInitial}
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-1">
+                  Workspace
+                </p>
+                <p className="text-sm font-bold text-slate-100 truncate leading-tight">
+                  {workspaceName}
+                </p>
+              </div>
+            </div>
+
+            <span className="hidden md:inline-flex text-primary text-[10px] font-bold uppercase tracking-[0.3em]">
               {currentLabel}
             </span>
           </div>
-          <div className="flex items-center gap-6"></div>
+
+          <div className="md:hidden flex items-center">
+            <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-[0.25em] text-primary">
+              {currentLabel}
+            </span>
+          </div>
         </header>
 
         {/* Content Area */}

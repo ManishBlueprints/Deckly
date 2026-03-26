@@ -62,8 +62,8 @@ export function FolderCard({
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       onKeyDown={handleKeyDown}
-      className={cn(
-        "h-[240px] w-full bg-[#161616] border border-white/5 p-8 flex flex-col items-start text-left group transition-all relative overflow-hidden cursor-pointer",
+        className={cn(
+        "h-[240px] w-full bg-surface-card border border-white/5 p-8 flex flex-col items-start text-left group transition-all relative overflow-hidden cursor-pointer",
         isActive &&
           "ring-2 ring-[#54e98a]/40 border-[#54e98a]/20 shadow-[0_0_40px_rgba(84,233,138,0.1)]",
       )}
