@@ -28,6 +28,7 @@ import { TIER_CONFIG } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
 import { useAuth } from "../contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import { extractPdfLinkHotspots } from "../utils/pdfLinks";
 
 // Layout
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -174,13 +175,14 @@ function ManageDeck() {
     const arrayBuffer = await pdfFile.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const numPages = pdf.numPages;
-    const imageBlobs: Blob[] = [];
+    const imageAssets: Array<{ blob: Blob; links: SlidePage["links"] }> = [];
 
     for (let i = 1; i <= numPages; i++) {
       setProgress(`Processing page ${i} of ${numPages}...`);
       setProgressPercent(Math.round((i / numPages) * 50));
       const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 1.5 });
+      const viewport = page.getViewport({ scale: 2 });
+      const links = await extractPdfLinkHotspots(page).catch(() => []);
 
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
@@ -193,12 +195,12 @@ function ManageDeck() {
       await (page as any).render({ canvasContext: context, viewport }).promise;
 
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, "image/webp", 0.8),
+        canvas.toBlob(resolve, "image/webp", 1),
       );
-      if (blob) imageBlobs.push(blob);
+      if (blob) imageAssets.push({ blob, links });
     }
 
-    return imageBlobs;
+    return imageAssets;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,6 +220,9 @@ function ManageDeck() {
       let finalFileUrl = existingDeck?.file_url;
       let finalPages: SlidePage[] = existingDeck?.pages || [];
       let finalStatus = "PROCESSED"; // Default to processed if it's raw non-pdf
+      const finalViewPassword = requirePassword
+        ? viewPassword.trim() || null
+        : null;
 
       const {
         data: { session },
@@ -257,12 +262,12 @@ function ManageDeck() {
         // Processing Logic
         if (fileType === "pdf") {
           // Keep existing PDF client-side processing
-          const imageBlobs = await processPdfToImages(file);
-          setProgress(`Uploading slide 1 of ${imageBlobs.length}...`);
+          const imageAssets = await processPdfToImages(file);
+          setProgress(`Uploading slide 1 of ${imageAssets.length}...`);
           const imageUrls = await deckService.uploadSlideImages(
             userId,
             slug,
-            imageBlobs,
+            imageAssets.map((asset) => asset.blob),
             (current, total) => {
               setProgress(`Uploading slide ${current} of ${total}...`);
               setProgressPercent(50 + Math.round((current / total) * 45));
@@ -271,11 +276,10 @@ function ManageDeck() {
           finalPages = imageUrls.map((url, idx) => ({
             image_url: url,
             page_number: idx + 1,
+            links: imageAssets[idx]?.links || [],
           }));
           finalStatus = "PROCESSED";
         } else if (conversionMode === "interactive") {
-          // TODO: Trigger backend conversion for PPTX/DOCX
-          // For now, mark as pending and we will handle it via Edge Function later
           finalStatus = "PENDING";
           finalPages = [];
         } else {
@@ -301,7 +305,7 @@ function ManageDeck() {
             file_type: fileType,
             require_email: requireEmail,
             require_password: requirePassword,
-            view_password: viewPassword,
+            view_password: finalViewPassword ?? undefined,
             expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
           })
           .eq("id", editId);
@@ -348,7 +352,7 @@ function ManageDeck() {
               user_id: userId,
               require_email: requireEmail,
               require_password: requirePassword,
-              view_password: viewPassword,
+              view_password: finalViewPassword ?? undefined,
               expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
             },
           ])
@@ -405,7 +409,7 @@ function ManageDeck() {
       );
     } catch (err: unknown) {
       console.error("Upload error:", err);
-      const e = err as { message?: string, code?: string };
+      const e = err as { message?: string; code?: string };
       let errorMsg = e.message || "Something went wrong. Please try again.";
       if (e.code === "23505" && e.message?.includes("slug")) {
         errorMsg =

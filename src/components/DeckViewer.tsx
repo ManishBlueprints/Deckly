@@ -135,7 +135,7 @@ function DeckViewer({ deck, isOwner = false }: DeckViewerProps) {
                 <Page
                   pageNumber={pageNumber}
                   renderTextLayer={false}
-                  renderAnnotationLayer={false}
+                  renderAnnotationLayer={true}
                   width={(() => {
                     if (!containerWidth || !containerHeight) return undefined;
                     const targetAspect = 16 / 9;

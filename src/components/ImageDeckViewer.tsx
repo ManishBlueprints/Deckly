@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useKeyboardControls } from "../hooks/useKeyboardControls";
 import { analyticsService } from "../services/analyticsService";
-import { Deck } from "../types";
+import { Deck, SlidePage } from "../types";
 
 interface ImageDeckViewerProps {
   deck: Deck;
@@ -130,6 +130,8 @@ function ImageDeckViewer({
   }
 
   const currentImage = resolveSlideImage(pages[currentPage - 1]);
+  const currentPageData = pages[currentPage - 1] as SlidePage | undefined;
+  const linkHotspots = currentPageData?.links || [];
 
   return (
     <div className="flex flex-col h-full bg-[#0d0f14] overflow-hidden">
@@ -165,19 +167,46 @@ function ImageDeckViewer({
                 height: finalHeight,
               };
             })()}
-            className="bg-white shadow-[0_32px_128px_-12px_rgba(0,0,0,1)] rounded-sm flex items-center justify-center overflow-hidden"
+            className="relative z-20 bg-white shadow-[0_32px_128px_-12px_rgba(0,0,0,1)] rounded-sm flex items-center justify-center overflow-hidden"
           >
             {(() => {
               const imgSrc =
                 currentImage ||
                 "https://images.unsplash.com/photo-1620121692029-d088224ddc74?q=80&w=2000";
               return (
-                <img
-                  src={imgSrc}
-                  alt={`Slide ${currentPage}`}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-contain"
-                />
+                <>
+                  <img
+                    src={imgSrc}
+                    alt={`Slide ${currentPage}`}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-contain"
+                  />
+
+                  {linkHotspots.length > 0 && (
+                    <div className="absolute inset-0 z-20">
+                      {linkHotspots.map((link, index) => (
+                        <a
+                          key={`${currentPage}-${index}-${link.href}`}
+                          href={link.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`Open link ${link.href}`}
+                          title={link.href}
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute block cursor-pointer"
+                          style={{
+                            left: `${link.rect.x * 100}%`,
+                            top: `${link.rect.y * 100}%`,
+                            width: `${link.rect.width * 100}%`,
+                            height: `${link.rect.height * 100}%`,
+                          }}
+                        >
+                          <span className="sr-only">{link.href}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </>
               );
             })()}
           </motion.div>
