@@ -122,7 +122,7 @@ export function ManageTagsModal({ isOpen, onClose, tags, onCreate, onUpdate, onD
                 </div>
 
                 {/* Form to Create/Edit */}
-                <div className="bg-[#161616] border border-white/5 p-6 space-y-6">
+                <div className="bg-surface-card border border-white/5 p-6 space-y-6">
                   <div className="space-y-2.5">
                     <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#bbcbbb]/40 ml-1">
                       {editingTagId ? "EDIT TAG" : "NEW TAG NAME"}

@@ -25,7 +25,7 @@ export function AnalyticsStatsSection({
         return (
           <div 
             key={item.label}
-            className="bg-surface-low p-6 flex flex-col justify-between hover:bg-surface-high transition-colors group h-[140px]"
+            className="bg-surface-card p-6 flex flex-col justify-between hover:bg-surface-high transition-colors group h-[140px]"
           >
             <div className="flex justify-between items-start">
               <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500">{item.label}</p>

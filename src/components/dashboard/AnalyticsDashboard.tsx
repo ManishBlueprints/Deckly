@@ -81,7 +81,7 @@ export function AnalyticsDashboard() {
             return (
               <div
                 key={item.label}
-                className="bg-surface-low border border-white/5 p-6 flex flex-col justify-between group hover:brightness-110 transition-all"
+                className="bg-surface-card border border-white/5 p-6 flex flex-col justify-between group hover:brightness-110 transition-all"
               >
                 <div className="flex justify-between items-start">
                   <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-500">
@@ -102,7 +102,7 @@ export function AnalyticsDashboard() {
         </div>
 
         {/* Chart — right */}
-        <div className="lg:col-span-8 bg-surface-low border border-white/5 flex flex-col min-h-[380px]">
+        <div className="lg:col-span-8 bg-surface-card border border-white/5 flex flex-col min-h-[380px]">
           <Tabs defaultValue="VISITS" className="flex-1 flex flex-col h-full">
             {/* Header: title+subtitle left, tabs right */}
             <div className="flex items-center justify-between px-8 py-5 border-b border-white/5">

@@ -128,7 +128,7 @@ export function Sidebar() {
             >
               <item.icon 
                 size={isCollapsed ? 20 : 18} 
-                strokeWidth={isActive ? 2 : 1.5} 
+                fill="currentColor"
                 className={cn(
                   "transition-all",
                   !isActive && "opacity-40 group-hover:opacity-100"
