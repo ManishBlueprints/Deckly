@@ -7,6 +7,7 @@ import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
 import { normalizeSlug } from "../../utils/slug";
 import { useAuth } from "../../contexts/AuthContext";
+import { extractPdfLinkHotspots } from "../../utils/pdfLinks";
 
 // Sub-components
 import { ManagementSection } from "./form-sections/ManagementSection";
@@ -55,12 +56,13 @@ export function DeckSettingsForm({
     const arrayBuffer = await pdfFile.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const numPages = pdf.numPages;
-    const imageBlobs: Blob[] = [];
+    const imageAssets: Array<{ blob: Blob; links: Deck["pages"][number]["links"] }> = [];
 
     for (let i = 1; i <= numPages; i++) {
       setUploadProgress(`Optimizing ${i}/${numPages}...`);
       const page = await pdf.getPage(i);
       const viewport = page.getViewport({ scale: 1.5 });
+      const links = await extractPdfLinkHotspots(page).catch(() => []);
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
       if (!context) continue;
@@ -72,25 +74,28 @@ export function DeckSettingsForm({
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, "image/webp", 0.8),
       );
-      if (blob) imageBlobs.push(blob);
+      if (blob) imageAssets.push({ blob, links });
     }
-    return imageBlobs;
+    return imageAssets;
   };
 
   // Main Save Handler
-  const handleSave = async () => {
-    setIsSaving(true);
-    setUploadProgress("Syncing changes...");
-    try {
+    const handleSave = async () => {
+      setIsSaving(true);
+      setUploadProgress("Syncing changes...");
+      try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) throw new Error("Authentication required");
       const userId = session.user.id;
 
-      let finalFileUrl = deck.file_url;
-      let finalPages = deck.pages;
-      let fileSize = deck.file_size;
+        let finalFileUrl = deck.file_url;
+        let finalPages = deck.pages;
+        let fileSize = deck.file_size;
+        const finalViewPassword = requirePassword
+          ? viewPassword.trim() || null
+          : null;
 
       if (newFile) {
         setUploadProgress("Uploading source...");
@@ -107,33 +112,34 @@ export function DeckSettingsForm({
         finalFileUrl = publicUrl;
         fileSize = newFile.size;
 
-        const imageBlobs = await processPdfToImages(newFile);
-        setUploadProgress(`Updating ${imageBlobs.length} slides...`);
+        const imageAssets = await processPdfToImages(newFile);
+        setUploadProgress(`Updating ${imageAssets.length} slides...`);
         const imageUrls = await deckService.uploadSlideImages(
           userId,
           slug,
-          imageBlobs,
+          imageAssets.map((asset) => asset.blob),
         );
         finalPages = imageUrls.map((url, idx) => ({
           image_url: url,
           page_number: idx + 1,
+          links: imageAssets[idx]?.links || [],
         }));
       }
 
-      const updates: Partial<Deck> = {
-        title,
-        slug,
-        file_url: finalFileUrl,
-        pages: finalPages,
-        file_size: fileSize,
-        require_email: requireEmail,
-        require_password: requirePassword,
-        view_password: viewPassword,
-        expires_at:
-          expiryEnabled && expiryDate
-            ? new Date(expiryDate).toISOString()
-            : null,
-      };
+        const updates: Partial<Deck> = {
+          title,
+          slug,
+          file_url: finalFileUrl,
+          pages: finalPages,
+          file_size: fileSize,
+          require_email: requireEmail,
+          require_password: requirePassword,
+          view_password: finalViewPassword ?? undefined,
+          expires_at:
+            expiryEnabled && expiryDate
+              ? new Date(expiryDate).toISOString()
+              : null,
+        };
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
       onUpdate(updated);

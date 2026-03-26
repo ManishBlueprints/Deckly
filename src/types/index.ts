@@ -1,6 +1,17 @@
+export interface PdfLinkHotspot {
+  href: string;
+  rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
 export interface SlidePage {
   image_url: string;
   page_number: number;
+  links?: PdfLinkHotspot[];
 }
 
 export interface Deck {
