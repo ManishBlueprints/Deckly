@@ -26,7 +26,7 @@ export function WelcomeBanner() {
       <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 md:gap-8">
         <div className="space-y-3 md:space-y-4">
           <div className="flex items-center gap-3 md:hidden">
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
               Workspace
             </span>
             <span className="h-px flex-1 bg-white/10" />
@@ -34,7 +34,7 @@ export function WelcomeBanner() {
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tighter leading-none text-foreground">
             Welcome, {firstName}.
           </h2>
-          <p className="text-slate-400 text-sm sm:text-base md:text-lg max-w-xl font-light leading-relaxed md:min-h-14">
+          <p className="text-slate-400 text-sm sm:text-base md:text-lg max-w-xl font-light leading-relaxed min-h-12 md:min-h-14">
             {isLoading ? (
               <span className="flex items-center gap-2 text-sm text-slate-500 mt-2">
                 <Loader2 size={14} className="animate-spin" />

@@ -127,7 +127,7 @@ export function WorkspaceSetupModal({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Acme Corp"
-                    className="w-full px-4 py-3 bg-surface-low border border-white/5 rounded-none text-sm sm:text-base text-white font-bold tracking-tight placeholder:text-slate-700 focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary/30 transition-all shadow-inner"
+                    className="w-full px-4 py-3 bg-surface-low border border-white/5 rounded-none text-sm sm:text-base text-white font-bold tracking-tight placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-deckly-primary/30 focus:border-deckly-primary/30 transition-all shadow-inner"
                   />
                 </div>
 
@@ -137,7 +137,7 @@ export function WorkspaceSetupModal({
                     Workspace URL Handle
                   </label>
                   <div className="relative">
-                    <div className="flex items-center bg-surface-low border border-white/5 rounded-none overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary/30 focus-within:border-deckly-primary/30 transition-all shadow-inner">
+                    <div className="flex items-center bg-surface-low border border-white/5 rounded-none overflow-hidden focus-within:ring-2 focus-within:ring-deckly-primary/30 focus-within:border-deckly-primary/30 transition-all shadow-inner">
                       <span className="pl-4 pr-1 text-sm font-bold text-slate-600 select-none">
                         deckly.com/
                       </span>
@@ -185,7 +185,7 @@ export function WorkspaceSetupModal({
                   disabled={
                     !name.trim() || !slug.trim() || !isAvailable || isSaving
                   }
-                  className="w-full py-4 bg-deckly-primary text-slate-950 font-black uppercase tracking-[0.2em] text-[10px] rounded-none hover:bg-opacity-90 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-2xl shadow-deckly-primary/20 mt-4 flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-deckly-primary text-slate-950 font-black uppercase tracking-[0.2em] text-xs rounded-none hover:bg-opacity-90 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-2xl shadow-deckly-primary/20 mt-4 flex items-center justify-center gap-2"
                 >
                   {isSaving ? (
                     <Loader2 size={18} className="animate-spin" />

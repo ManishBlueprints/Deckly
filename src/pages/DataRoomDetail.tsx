@@ -298,8 +298,8 @@ function DataRoomDetail() {
         {/* ── MAIN: 2-col on large screens ── */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* LEFT: Room Assets (3/5) */}
-          <div className="lg:col-span-3 space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="lg:col-span-3 space-y-4 h-full flex flex-col">
+            <div className="flex flex-col gap-3 min-h-[72px] justify-between">
               <div className="flex items-center gap-2">
                 <FileText size={14} className="text-deckly-primary" />
                 <h2 className="text-xs font-semibold text-slate-400">
@@ -309,7 +309,7 @@ function DataRoomDetail() {
                   {documents.length}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 justify-end">
                 <button
                   onClick={() => setPickerOpen(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-[#222] border border-[#333] rounded-md text-xs font-medium text-slate-400 hover:text-white hover:border-[#444] transition-all active:scale-95"
@@ -325,7 +325,7 @@ function DataRoomDetail() {
               </div>
             </div>
 
-            <div className="bg-[#1a1a1a] border border-[#222] rounded-lg overflow-hidden">
+            <div className="bg-[#1a1a1a] border border-[#222] rounded-lg overflow-hidden flex-1">
               {documents.length === 0 ? (
                 <div className="py-12 flex flex-col items-center gap-3 text-center">
                   <div className="w-12 h-12 rounded-lg bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-slate-600">
@@ -357,8 +357,8 @@ function DataRoomDetail() {
           </div>
 
           {/* RIGHT: Visitor Signals (2/5) */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="lg:col-span-2 space-y-4 h-full flex flex-col">
+            <div className="flex items-center justify-between min-h-[72px]">
               <div className="flex items-center gap-2">
                 <Users size={14} className="text-deckly-primary" />
                 <h2 className="text-xs font-semibold text-slate-400">
@@ -373,7 +373,7 @@ function DataRoomDetail() {
               )}
             </div>
 
-            <div className="bg-[#1a1a1a] border border-[#222] rounded-lg overflow-hidden">
+            <div className="bg-[#1a1a1a] border border-[#222] rounded-lg overflow-hidden flex-1">
               {signalsLoading ? (
                 <div className="py-12 flex flex-col items-center gap-4 text-slate-600">
                   <div className="w-8 h-8 border-2 border-white/5 border-t-deckly-primary rounded-full animate-spin" />
