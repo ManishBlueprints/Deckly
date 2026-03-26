@@ -20,6 +20,7 @@
     /* Global Tiers (Digital Curator) */
     --surface-lowest: 0 0% 5.5%; /* #0e0e0e - page background */
     --surface-low: 0 0% 8.6%; /* #161616 - main card surface */
+    --surface-card: 0 0% 8.6%; /* #161616 - unified card surface */
     --surface-container: 0 0% 11%; /* #1c1c1c - nested panels */
     --surface-high: 0 0% 16.5%; /* #2a2a2a - elevated / hover */
     --surface-highest: 0 0% 20.8%; /* #353534 - highest elevation */
