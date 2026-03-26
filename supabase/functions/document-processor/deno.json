@@ -3,6 +3,8 @@
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
     "@std/http": "jsr:@std/http@0.224.5",
     "@std/encoding": "jsr:@std/encoding@0.224.3",
-    "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.0.379"
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.0.379",
+    "jszip": "npm:jszip@^3.10.1",
+    "fast-xml-parser": "npm:fast-xml-parser@^4.5.3"
   }
 }
