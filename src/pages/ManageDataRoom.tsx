@@ -26,6 +26,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
 import { useQueryClient } from "@tanstack/react-query";
+import { getDataRoomShareUrl } from "../utils/url";
 
 function ManageDataRoom() {
   const { roomId } = useParams();
@@ -293,13 +294,17 @@ function ManageDataRoom() {
 
   // Copy link
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/room/${slug}`;
+    if (!profile?.handle) {
+      alert("Please set a handle in your profile settings before sharing.");
+      return;
+    }
+    const url = getDataRoomShareUrl(profile.handle, slug);
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const shareUrl = `${window.location.origin}/room/${slug}`;
+  const shareUrl = profile?.handle ? getDataRoomShareUrl(profile.handle, slug) : "Set a handle in profile to enable sharing";
 
   if (loading) {
     return (

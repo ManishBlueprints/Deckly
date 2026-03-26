@@ -9,6 +9,7 @@ import { dataRoomService } from "../services/dataRoomService";
 import { analyticsService } from "../services/analyticsService";
 import { supabase } from "../services/supabase";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
+import { getDataRoomPath } from "../utils/url";
 
 function DataRoomViewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
@@ -52,7 +53,7 @@ function DataRoomViewer() {
           const fallback = await dataRoomService.getDataRoomBySlugOnly(slug);
           if (fallback && fallback.handle !== handle) {
             window.location.replace(
-              `/${fallback.handle}/room/${fallback.slug}`,
+              getDataRoomPath(fallback.handle, fallback.slug),
             );
             return;
           }

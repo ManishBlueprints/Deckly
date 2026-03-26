@@ -26,7 +26,46 @@ export interface Deck {
   user_handle?: string;
 }
 
-export type DeckWithExpiry = Deck;
+export interface DeckWithAnalytics extends Deck {
+  total_views: number;
+  save_count: number;
+  last_viewed_at: string | null;
+}
+
+export interface LibraryTag {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface LibraryFolder {
+  id: string;
+  name: string;
+  color: string;
+  tags: LibraryTag[];
+  deck_count: number;
+  created_at: string;
+}
+
+export interface SavedDeckOrganized {
+  library_id: string;
+  deck_id: string;
+  folder_id: string | null;
+  tags: LibraryTag[];
+  saved_at: string;
+  last_viewed_at: string | null;
+  // Deck metadata
+  title: string;
+  slug: string;
+  file_type?: string;
+  status: "PENDING" | "PROCESSED" | "DELETED";
+  user_handle: string;
+  description: string | null;
+  investor_note: string | null;
+  // Availability
+  is_available: boolean;
+  updated_at: string;
+}
 
 export interface SavedDeck extends Deck {
   library_id?: string;

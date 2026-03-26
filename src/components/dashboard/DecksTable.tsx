@@ -10,26 +10,17 @@ import {
 } from "../ui/table";
 import { BarChart3, Pencil, Trash2, FileText, Check } from "lucide-react";
 import { Link } from "react-router-dom";
-
-interface Deck {
-  id: string;
-  title: string;
-  slug: string;
-  created_at: string;
-  total_views: number;
-  last_viewed_at: string | null;
-  file_url: string;
-  save_count: number;
-}
+import { getDeckShareUrl, getDeckPath } from "../../utils/url";
+import { DeckWithAnalytics } from "../../types";
+import { ConfirmModal } from "../common/ConfirmModal";
+import { cn } from "../../utils/cn";
 
 interface DecksTableProps {
-  decks: Deck[];
+  decks: DeckWithAnalytics[];
   userHandle: string;
   loading?: boolean;
-  onDelete?: (deck: Deck) => Promise<void>;
+  onDelete?: (deck: DeckWithAnalytics) => Promise<void>;
 }
-
-import { ConfirmModal } from "../common/ConfirmModal";
 
 export function DecksTable({
   decks,
@@ -38,11 +29,11 @@ export function DecksTable({
   onDelete,
 }: DecksTableProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = React.useState<Deck | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<DeckWithAnalytics | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleCopyLink = (slug: string, id: string) => {
-    const url = `${window.location.origin}/${userHandle}/${slug}`;
+    const url = getDeckShareUrl(userHandle, slug);
     navigator.clipboard.writeText(url);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -62,7 +53,7 @@ export function DecksTable({
     }
   };
 
-  const handleDeleteClick = (deck: Deck) => {
+  const handleDeleteClick = (deck: DeckWithAnalytics) => {
     setDeleteTarget(deck);
   };
 
@@ -87,7 +78,7 @@ export function DecksTable({
           decks.map((deck) => (
             <div
               key={deck.id}
-              className={clsx(
+              className={cn(
                 "p-4 flex items-center gap-3",
                 deleteTarget?.id === deck.id &&
                   "opacity-50 pointer-events-none",
@@ -98,7 +89,7 @@ export function DecksTable({
               </div>
               <div className="flex-1 min-w-0">
                 <Link
-                  to={`/${userHandle}/${deck.slug}`}
+                  to={getDeckPath(userHandle, deck.slug)}
                   target="_blank"
                   className="font-medium text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
                 >
@@ -114,7 +105,7 @@ export function DecksTable({
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => handleCopyLink(deck.slug, deck.id)}
-                  className={clsx(
+                  className={cn(
                     "p-2.5 rounded-md transition-all border",
                     copiedId === deck.id
                       ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
@@ -223,7 +214,7 @@ export function DecksTable({
               decks.map((deck) => (
                 <TableRow
                   key={deck.id}
-                  className={clsx(
+                  className={cn(
                     "group hover:bg-[#141414] border-[#222] transition-colors",
                     deleteTarget?.id === deck.id &&
                       "opacity-50 pointer-events-none",
@@ -231,7 +222,7 @@ export function DecksTable({
                 >
                   <TableCell className="px-6 py-4">
                     <Link
-                      to={`/${userHandle}/${deck.slug}`}
+                      to={getDeckPath(userHandle, deck.slug)}
                       target="_blank"
                       className="flex items-center gap-3 transition-all group/title"
                     >
@@ -255,7 +246,7 @@ export function DecksTable({
                   <TableCell className="py-4 text-center">
                     <button
                       onClick={() => handleCopyLink(deck.slug, deck.id)}
-                      className={clsx(
+                      className={cn(
                         "text-xs px-4 py-2 rounded-md transition-all flex items-center gap-2 mx-auto border",
                         copiedId === deck.id
                           ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
@@ -332,8 +323,4 @@ export function DecksTable({
       />
     </DashboardCard>
   );
-}
-
-function clsx(...classes: (string | undefined | null | false)[]) {
-  return classes.filter(Boolean).join(" ");
 }

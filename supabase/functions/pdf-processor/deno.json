@@ -1,7 +1,0 @@
-{
-  "imports": {
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
-    "@std/http": "jsr:@std/http@0.224.5",
-    "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.0.379"
-  }
-}
