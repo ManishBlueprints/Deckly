@@ -426,6 +426,11 @@ function ManageDeck() {
       if (editId) {
         setProgress("Updating record...");
         setProgressPercent(95);
+
+        // Capture previous state for rollback
+        const previousPages = existingDeck?.pages || [];
+        const previousStatus = existingDeck?.status || "PENDING";
+
         const { error: dbError } = await supabase
           .from("decks")
           .update({
@@ -447,7 +452,19 @@ function ManageDeck() {
 
         // Trigger conversion on update if file changed and mode is interactive
         if (file && fileType !== "pdf" && conversionMode === "interactive") {
-          await triggerAndProcessConversion(editId);
+          try {
+            await triggerAndProcessConversion(editId);
+          } catch (conversionErr) {
+            // Rollback on failure
+            await supabase
+              .from("decks")
+              .update({
+                pages: previousPages,
+                status: previousStatus,
+              })
+              .eq("id", editId);
+            throw conversionErr;
+          }
         }
       } else {
         setProgress("Finalizing...");
