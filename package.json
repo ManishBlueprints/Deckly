@@ -11,8 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "invoke": "supabase functions invoke pdf-processor --payload-file ./payload.json",
-    "invoke:direct": ".\\node_modules\\.bin\\supabase functions invoke pdf-processor --payload-file ./payload.json",
+    "invoke": "supabase functions invoke document-processor --payload-file ./payload.json",
+    "invoke:direct": ".\\node_modules\\.bin\\supabase functions invoke document-processor --payload-file ./payload.json",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"

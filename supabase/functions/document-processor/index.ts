@@ -1,18 +1,27 @@
 import { createClient } from "@supabase/supabase-js";
-import { serve } from "@std/http/server";
 import { decodeBase64 } from "@std/encoding/base64";
 
 // document-processor Edge Function
-// Handles conversion of PPTX, DOCX, XLSX, and PDF to interactive JPG slides
+// Converts PPTX, DOCX, XLSX to PDF and returns a signed URL
+// Client downloads PDF, processes it (images + link extraction), and cleans up
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   console.log("--- Function Invoked ---");
+
+  const siteUrl = Deno.env.get("SITE_URL");
+  if (!siteUrl) {
+    return new Response(
+      JSON.stringify({ error: "Server Configuration Error: SITE_URL missing" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+  const allowedOrigin = siteUrl;
 
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       headers: {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": allowedOrigin,
         "Access-Control-Allow-Headers":
           "authorization, x-client-info, apikey, content-type",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -94,12 +103,15 @@ serve(async (req: Request) => {
     }
 
     // Extract file path from URL
-    const urlParts = deck.file_url.split("/public/decks/");
-    if (urlParts.length < 2) {
-      throw new Error(`Could not parse file path from URL: ${deck.file_url}`);
+    const storageBaseUrl = `${supabaseUrl}/storage/v1/object/public/decks/`;
+    if (!deck.file_url.startsWith(storageBaseUrl)) {
+      throw new Error(
+        `[SECURITY] Deck ${deckId} file_url "${deck.file_url}" is external or invalid. Processing rejected.`,
+      );
     }
+    const filePath = deck.file_url.replace(storageBaseUrl, "");
 
-    const filePath = urlParts[1];
+    if (!filePath) throw new Error("Could not parse storage path from file_url");
     const fileName = filePath.split("/").pop() || "document.pptx";
     console.log(`[Step 2] Downloading file: ${filePath}`);
 
@@ -117,10 +129,9 @@ serve(async (req: Request) => {
 
     const fileExt = fileName.split(".").pop()?.toLowerCase() || "pdf";
 
-    // Convert directly to JPG via ConvertAPI
-    console.log(`[Step 3] Sending to ConvertAPI (${fileExt} to jpg)...`);
-    const convertUrl =
-      `https://v2.convertapi.com/convert/${fileExt}/to/jpg?Secret=${apiKey}`;
+    // Convert to PDF via ConvertAPI (instead of JPG to preserve links)
+    console.log(`[Step 3] Sending to ConvertAPI (${fileExt} to pdf)...`);
+    const convertUrl = `https://v2.convertapi.com/convert/${fileExt}/to/pdf`;
 
     const formData = new FormData();
     // We use a clean fileName without path slashes for the API
@@ -128,6 +139,9 @@ serve(async (req: Request) => {
 
     const convertResponse = await fetch(convertUrl, {
       method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+      },
       body: formData,
     });
 
@@ -151,97 +165,92 @@ serve(async (req: Request) => {
       convertedFiles.length === 0
     ) {
       console.error("ConvertAPI Result:", JSON.stringify(convertResult));
-      throw new Error("ConvertAPI successful but returned no files/images");
+      throw new Error("ConvertAPI successful but returned no PDF file");
+    }
+
+    // PPTX→PDF returns a single PDF file
+    const pdfFileInfo = convertedFiles[0];
+    const pdfUrl = pdfFileInfo.Url || pdfFileInfo.url || pdfFileInfo.URL;
+    const pdfBase64Data = pdfFileInfo.FileData || pdfFileInfo.filedata;
+
+    let pdfBuffer: ArrayBuffer | Uint8Array;
+
+    if (pdfUrl) {
+      console.log(`[Step 4] Downloading converted PDF from URL...`);
+      const pdfResponse = await fetch(pdfUrl);
+      if (!pdfResponse.ok) {
+        throw new Error("Failed to download converted PDF from URL");
+      }
+      pdfBuffer = await pdfResponse.arrayBuffer();
+    } else if (pdfBase64Data) {
+      console.log(`[Step 4] Decoding converted PDF from base64...`);
+      pdfBuffer = decodeBase64(pdfBase64Data);
+    } else {
+      console.error(
+        "PDF missing URL and FileData:",
+        JSON.stringify(pdfFileInfo),
+      );
+      throw new Error("ConvertAPI returned PDF without downloadable content");
     }
 
     console.log(
-      `[Step 3 OK] ConvertAPI success: ${convertedFiles.length} images generated`,
+      `[Step 4 OK] PDF conversion successful, size: ${pdfBuffer.byteLength} bytes`,
     );
 
-    const imageUrls = [];
-    const deckSlug = deck.slug;
+    // Upload PDF to temp path (client will download, process, and delete)
+    const tempPath = `${deck.user_id}/temp/${deck.id}.pdf`;
+    console.log(`[Step 5] Uploading temp PDF to: ${tempPath}`);
 
-    // Upload each image to Supabase Storage
-    for (let i = 0; i < convertedFiles.length; i++) {
-      const fileInfo = convertedFiles[i];
-      const fileUrl = fileInfo.Url || fileInfo.url || fileInfo.URL;
-      const base64Data = fileInfo.FileData || fileInfo.filedata;
-
-      let imageBuffer: ArrayBuffer | Uint8Array;
-
-      if (fileUrl) {
-        console.log(
-          `[Step 4] Downloading page ${
-            i + 1
-          }/${convertedFiles.length} from URL...`,
-        );
-        const imageResponse = await fetch(fileUrl);
-        if (!imageResponse.ok) {
-          throw new Error(`Failed to download page ${i + 1} from URL`);
-        }
-        imageBuffer = await imageResponse.arrayBuffer();
-      } else if (base64Data) {
-        console.log(
-          `[Step 4] Decoding page ${
-            i + 1
-          }/${convertedFiles.length} from base64...`,
-        );
-        imageBuffer = decodeBase64(base64Data);
-      } else {
-        console.error(
-          `[Page ${i + 1}] Missing URL and FileData in fileInfo:`,
-          JSON.stringify(fileInfo),
-        );
-        continue;
-      }
-
-      const imagePath = `${deck.user_id}/deck-images/${deckSlug}/page-${
-        i + 1
-      }.jpg`;
-
-      const { error: uploadError } = await supabaseClient.storage
-        .from("decks")
-        .upload(imagePath, imageBuffer, {
-          contentType: "image/jpeg",
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw new Error(
-          `Upload error at page ${i + 1}: ${uploadError.message}`,
-        );
-      }
-
-      const { data: urlData } = supabaseClient.storage.from("decks")
-        .getPublicUrl(imagePath);
-      imageUrls.push({ image_url: urlData.publicUrl, page_number: i + 1 });
-    }
-
-    console.log(`[Step 5] Finalizing database update...`);
-    // Update the deck record
-    const { error: updateError } = await supabaseClient
+    const { error: uploadError } = await supabaseClient.storage
       .from("decks")
-      .update({
-        pages: imageUrls,
-        status: "PROCESSED",
-      })
-      .eq("id", deck.id);
+      .upload(tempPath, pdfBuffer, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
 
-    if (updateError) {
-      throw new Error(`Final update error: ${updateError.message}`);
+    if (uploadError) {
+      throw new Error(`Temp PDF upload error: ${uploadError.message}`);
     }
 
+    // Create signed URL with 5 min TTL (NOT public URL for security)
+    const { data: signedUrlData, error: signedUrlError } =
+      await supabaseClient.storage
+        .from("decks")
+        .createSignedUrl(tempPath, 300); // 5 min TTL
+
+    if (signedUrlError || !signedUrlData) {
+      throw new Error(
+        `Failed to create signed URL: ${signedUrlError?.message}`,
+      );
+    }
+
+    console.log(`[Step 5 OK] Temp PDF uploaded, signed URL created`);
+
+    // Update status to CONVERTING
+    console.log(`[Step 6] Updating deck status to CONVERTING: ${deckId}`);
+    try {
+      const { error: updateError } = await supabaseClient
+        .from("decks")
+        .update({ status: "CONVERTING" })
+        .eq("id", deckId);
+      if (updateError) throw updateError;
+    } catch (updateErr) {
+      const msg = updateErr instanceof Error ? updateErr.message : String(updateErr);
+      console.error(`[CRITICAL] Failed to update deck status to CONVERTING for deck ${deckId}: ${msg}`);
+      throw new Error(`Failed to update deck status: ${msg}`);
+    }
+
+    // Return signed PDF URL - client will handle PDF→images + link extraction
     console.log("--- Function Successful ---");
     return new Response(
       JSON.stringify({
         success: true,
-        count: imageUrls.length,
-        message: "Processing completed",
+        pdf_url: signedUrlData.signedUrl,
       }),
       {
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
         },
         status: 200,
       },
@@ -263,10 +272,10 @@ serve(async (req: Request) => {
         message: "An unexpected error occurred while processing the document.",
       }),
       {
-        status: 200, // Return 200 so the frontend can read the JSON error message
+        status: 500,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": allowedOrigin,
         },
       },
     );
