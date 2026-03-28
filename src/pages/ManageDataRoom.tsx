@@ -144,6 +144,7 @@ function ManageDataRoom() {
       if (isEditMode) {
         try {
           await dataRoomService.addDocuments(roomId!, deckIds);
+          queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
           const docs = await dataRoomService.getDocuments(roomId!);
           setDocuments(docs);
         } catch (err) {
@@ -161,7 +162,7 @@ function ManageDataRoom() {
         setDocuments((prev) => [...prev, ...fakeDocs]);
       }
     },
-    [isEditMode, roomId, documents.length],
+    [isEditMode, roomId, documents.length, queryClient],
   );
 
   // Remove document
@@ -170,6 +171,7 @@ function ManageDataRoom() {
       if (isEditMode) {
         try {
           await dataRoomService.removeDocument(roomId!, deckId);
+          queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
           setDocuments((prev) => prev.filter((d) => d.deck_id !== deckId));
         } catch (err) {
           console.error("Failed to remove document", err);
@@ -178,7 +180,7 @@ function ManageDataRoom() {
         setDocuments((prev) => prev.filter((d) => d.deck_id !== deckId));
       }
     },
-    [isEditMode, roomId],
+    [isEditMode, roomId, queryClient],
   );
 
   // Reorder documents
@@ -194,12 +196,13 @@ function ManageDataRoom() {
       if (isEditMode) {
         try {
           await dataRoomService.reorderDocuments(roomId!, orderedDeckIds);
+          queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
         } catch (err) {
           console.error("Failed to reorder", err);
         }
       }
     },
-    [isEditMode, roomId, documents],
+    [isEditMode, roomId, documents, queryClient],
   );
 
   // Save / Create
@@ -232,7 +235,7 @@ function ManageDataRoom() {
               ? new Date(expiryDate).toISOString()
               : null,
         });
-        navigate("/content");
+        navigate("/rooms");
       } else {
         const room = await dataRoomService.createDataRoom({
           name: name.trim(),
@@ -260,7 +263,7 @@ function ManageDataRoom() {
           await dataRoomService.addDocuments(room.id, deckIds);
         }
 
-        navigate("/content");
+        navigate("/rooms");
       }
 
       // Invalidate queries to refresh dashboard/rooms

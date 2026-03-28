@@ -90,6 +90,7 @@ function Viewer() {
 
       setError(err instanceof Error ? err.message : "Failed to load deck.");
       console.error("Error loading deck:", err);
+    } finally {
       if (!silent) setLoading(false);
     }
   }, [slug, handle]);
@@ -168,7 +169,7 @@ function Viewer() {
               <div className="absolute inset-0 w-12 h-12 rounded-full border-t-2 border-deckly-primary animate-spin" />
             </div>
             <p className="text-slate-500 text-xs font-semibold tracking-wider">
-              Loading Room...
+              Loading Presentation...
             </p>
           </motion.div>
         ) : error || !deck ? (
@@ -269,7 +270,7 @@ function Viewer() {
                   <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-[#0d0d0d]">
                     <div className="w-12 h-12 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin mb-6" />
                     <h2 className="text-xl font-bold text-white mb-2">
-                      {deck.status === "CONVERTING" ? "Converting Content" : "Optimizing Room"}
+                      {deck.status === "CONVERTING" ? "Converting Content" : "Preparing Deck"}
                     </h2>
                     <p className="text-slate-400 text-sm max-w-sm">
                       {deck.status === "CONVERTING" 

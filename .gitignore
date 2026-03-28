@@ -18,6 +18,7 @@ dist-ssr
 testsprite_tests
 .kilocode
 .sisyphus
+.claude
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
