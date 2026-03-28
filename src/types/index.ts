@@ -19,7 +19,7 @@ export interface Deck {
   title: string;
   slug: string;
   file_url: string;
-  status: "PENDING" | "PROCESSED";
+  status: "PENDING" | "CONVERTING" | "PROCESSED";
   user_id: string;
   display_order: number;
   pages: SlidePage[];
@@ -69,7 +69,7 @@ export interface SavedDeckOrganized {
   title: string;
   slug: string;
   file_type?: string;
-  status: "PENDING" | "PROCESSED" | "DELETED";
+  status: "PENDING" | "CONVERTING" | "PROCESSED" | "DELETED";
   user_handle: string;
   description: string | null;
   investor_note: string | null;
