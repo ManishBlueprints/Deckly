@@ -17,7 +17,7 @@ dist-ssr
 .VSCodeCounter
 testsprite_tests
 .kilocode
-
+.sisyphus
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -34,4 +34,3 @@ testsprite_tests
 
 # Documentation Hub (Founder Data Room)
 docs/
-report.md

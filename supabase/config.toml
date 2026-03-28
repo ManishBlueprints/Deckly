@@ -358,3 +358,9 @@ entrypoint = "./functions/document-processor/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/document-processor/*.html" ]
+
+[functions.cleanup-temp]
+enabled = true
+verify_jwt = false  # Scheduled function, no JWT required
+import_map = "./functions/cleanup-temp/deno.json"
+entrypoint = "./functions/cleanup-temp/index.ts"
