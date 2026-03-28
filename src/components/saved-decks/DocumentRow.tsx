@@ -150,16 +150,16 @@ export function DocumentRow({
         {/* Note Snippet — inline editable */}
         <div className="hidden xl:block flex-1 max-w-[300px]">
           {isEditingNote ? (
-            <textarea
-              ref={textareaRef}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              onBlur={handleNoteSave}
-              onKeyDown={handleNoteKeyDown}
-              rows={2}
-              placeholder="Write a note..."
-              className="w-full bg-[#0e0e0e] border border-[#54e98a]/30 px-3 py-2 text-xs text-[#e5e2e1] placeholder:text-[#bbcbbb]/20 resize-none focus:outline-none focus:border-[#54e98a]/60 transition-colors"
-            />
+              <textarea
+                ref={textareaRef}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                onBlur={handleNoteSave}
+                onKeyDown={handleNoteKeyDown}
+                rows={2}
+                placeholder="Write a note..."
+                className="w-full bg-surface-lowest border border-deckly-primary/30 px-3 py-2 text-xs text-slate-200 placeholder:text-[#bbcbbb]/20 resize-none focus:outline-none focus:border-deckly-primary/60 transition-colors"
+              />
           ) : (
             <button
               onClick={handleNoteClick}

@@ -21,7 +21,7 @@ export function DashboardCard({
   return (
     <div
       className={cn(
-        "rounded-lg border border-[#222] h-full bg-[#10120f]",
+        "rounded-lg border border-border h-full bg-surface-card",
         !className?.includes("overflow-") && "overflow-hidden",
         className,
       )}
@@ -29,7 +29,7 @@ export function DashboardCard({
       {(title || headerAction) && (
         <div
           className={cn(
-            "px-5 py-4 border-b border-[#222] flex flex-row items-center justify-between bg-[#10120f]",
+            "px-5 py-4 border-b border-border flex flex-row items-center justify-between bg-surface-card",
             headerClassName,
           )}
         >

@@ -557,7 +557,7 @@ function ManageDeck() {
         </div>
 
         {/* Main Form Card */}
-        <DashboardCard className="p-6 md:p-8 border-[#222] bg-[#0f0f0f] relative overflow-hidden">
+        <DashboardCard className="p-6 md:p-8 border-border relative overflow-hidden">
           <form onSubmit={handleSubmit} className="flex flex-col gap-8">
             {/* --- PDF Upload Zone (Section 1) --- */}
             <div className="space-y-4">
@@ -570,20 +570,20 @@ function ManageDeck() {
               <div
                 onClick={() => !loading && fileInputRef.current?.click()}
                 className={cn(
-                  "relative group cursor-pointer border border-[#333] border-dashed rounded-lg p-8 md:p-12 text-center transition-all duration-200",
+                  "relative group cursor-pointer border border-border border-dashed rounded-lg p-8 md:p-12 text-center transition-all duration-200",
                   file
-                    ? "border-deckly-primary/30 bg-[#141414]"
-                    : "bg-[#111] hover:bg-[#141414] hover:border-[#444]",
+                    ? "border-deckly-primary/30 bg-surface-container"
+                    : "bg-surface-low hover:bg-surface-container hover:border-border",
                   loading ? "opacity-30 cursor-not-allowed" : "",
                 )}
               >
                 <div className="flex flex-col items-center gap-3">
                   {file ? (
-                    <div className="w-12 h-12 rounded-lg bg-[#0f0f0f] border border-[#222] flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-lg bg-surface-lowest border border-border flex items-center justify-center">
                       <CheckCircle2 size={24} className="text-deckly-primary" />
                     </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-[#0f0f0f] border border-[#222] flex items-center justify-center group-hover:border-[#333] transition-colors">
+                    <div className="w-12 h-12 rounded-lg bg-surface-lowest border border-border flex items-center justify-center group-hover:border-border transition-colors">
                       <Upload
                         size={24}
                         className="text-slate-500 group-hover:text-deckly-primary transition-colors"
