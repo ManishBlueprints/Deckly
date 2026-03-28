@@ -43,10 +43,10 @@ function Viewer() {
   const { data: isSaved = false } = useIsDeckSaved(deck?.id, session?.user?.id);
   const saveToLibraryMutation = useSaveToLibraryMutation();
 
-  const loadDeck = useCallback(async () => {
+  const loadDeck = useCallback(async (silent = false) => {
     if (!slug || !handle) return;
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await deckService.getDeckByHandleAndSlug(handle, slug);
       setDeck(data);
 
@@ -90,14 +90,24 @@ function Viewer() {
 
       setError(err instanceof Error ? err.message : "Failed to load deck.");
       console.error("Error loading deck:", err);
-    } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [slug, handle]);
 
   useEffect(() => {
     loadDeck();
   }, [loadDeck]);
+
+  // Polling for processing presentation
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    if (deck?.status === "PENDING" || deck?.status === "CONVERTING") {
+      timeoutId = setTimeout(() => {
+        loadDeck(true);
+      }, 5000);
+    }
+    return () => clearTimeout(timeoutId);
+  }, [deck?.status, loadDeck]);
 
   // Handle pending save from guest flow and auto-update last viewed
   useEffect(() => {
