@@ -63,7 +63,7 @@ Deno.serve(async (req: Request) => {
 
     // Batch process user directories in parallel (e.g., 20 at a time)
     const BATCH_SIZE = 20;
-    const userFolders = (users || []).filter((u) => u.name && !u.name.includes("."));
+    const userFolders = (users || []).filter((u) => u.name && !u.id);
     
     for (let i = 0; i < userFolders.length; i += BATCH_SIZE) {
       const batch = userFolders.slice(i, i + BATCH_SIZE);

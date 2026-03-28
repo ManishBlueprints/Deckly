@@ -219,7 +219,7 @@ function ManageDeck() {
 
     // Download with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
     try {
       const pdfResponse = await fetch(pdfUrl, { signal: controller.signal });
@@ -228,7 +228,15 @@ function ManageDeck() {
           `Failed to download converted PDF (${pdfResponse.status})`,
         );
       }
-      const pdfBlob = await pdfResponse.blob();
+      
+      const pdfBlob = await Promise.race([
+        pdfResponse.blob(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Download timed out reading file data")), 60000)
+        )
+      ]);
+      clearTimeout(timeoutId);
+
       const pdfFile = new File([pdfBlob], "converted.pdf", {
         type: "application/pdf",
       });
@@ -299,6 +307,34 @@ function ManageDeck() {
     } finally {
       clearTimeout(timeoutId);
     }
+  };
+
+  const triggerAndProcessConversion = async (deckId: string) => {
+    setProgress("Converting document to PDF...");
+    setProgressPercent(60);
+    const { data: invokeData, error: invokeError } =
+      await supabase.functions.invoke("document-processor", {
+        body: { deckId },
+      });
+
+    if (invokeError) {
+      throw new Error(
+        invokeError.message ||
+          "Processing failed. Check your conversion service.",
+      );
+    }
+
+    if (invokeData?.error) {
+      throw new Error(invokeData.message || "Backend processing failed.");
+    }
+
+    if (!invokeData?.pdf_url) {
+      console.error("Missing pdf_url in invocation response:", invokeData);
+      await supabase.from("decks").update({ status: "PENDING" }).eq("id", deckId);
+      throw new Error("Conversion succeeded but returned no PDF URL. Please try again.");
+    }
+
+    await processConvertedPdf(invokeData.pdf_url, deckId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -411,28 +447,7 @@ function ManageDeck() {
 
         // Trigger conversion on update if file changed and mode is interactive
         if (file && fileType !== "pdf" && conversionMode === "interactive") {
-          setProgress("Converting document to PDF...");
-          setProgressPercent(60);
-          const { data: invokeData, error: invokeError } =
-            await supabase.functions.invoke("document-processor", {
-              body: { deckId: editId },
-            });
-
-          if (invokeError) {
-            throw new Error(
-              invokeError.message ||
-                "Processing failed. Check your conversion service.",
-            );
-          }
-
-          if (invokeData?.error) {
-            throw new Error(invokeData.message || "Backend processing failed.");
-          }
-
-          // Handle pdf_url response - download, process, upload, cleanup
-          if (invokeData?.pdf_url) {
-            await processConvertedPdf(invokeData.pdf_url, editId);
-          }
+          await triggerAndProcessConversion(editId);
         }
       } else {
         setProgress("Finalizing...");
@@ -476,28 +491,7 @@ function ManageDeck() {
           conversionMode === "interactive" &&
           deckRecord
         ) {
-          setProgress("Converting document to PDF...");
-          setProgressPercent(60);
-          const { data: invokeData, error: invokeError } =
-            await supabase.functions.invoke("document-processor", {
-              body: { deckId: deckRecord.id },
-            });
-
-          if (invokeError) {
-            throw new Error(
-              invokeError.message ||
-                "Processing failed. Check your conversion service.",
-            );
-          }
-
-          if (invokeData?.error) {
-            throw new Error(invokeData.message || "Backend processing failed.");
-          }
-
-          // Handle pdf_url response - download, process, upload, cleanup
-          if (invokeData?.pdf_url) {
-            await processConvertedPdf(invokeData.pdf_url, deckRecord.id);
-          }
+          await triggerAndProcessConversion(deckRecord.id);
         }
       }
 
