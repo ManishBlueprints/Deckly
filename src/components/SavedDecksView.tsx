@@ -103,7 +103,7 @@ export function SavedDecksView() {
   // --- Loading / error / empty states ---
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 bg-background h-full min-h-[calc(100vh-140px)] gap-6">
+      <div className="flex flex-col items-center justify-center p-20 bg-deckly-background h-full min-h-[calc(100vh-140px)] gap-6">
         <div className="w-16 h-16 bg-red-500/10 flex items-center justify-center text-red-500 rounded-full">
           <Filter size={32} />
         </div>
@@ -125,7 +125,7 @@ export function SavedDecksView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-20 bg-background h-full min-h-[calc(100vh-140px)]">
+      <div className="flex items-center justify-center p-20 bg-deckly-background h-full min-h-[calc(100vh-140px)]">
         <Loader2 className="animate-spin text-[#54e98a]" size={32} />
       </div>
     );
@@ -133,7 +133,7 @@ export function SavedDecksView() {
 
   if (decks.length === 0 && folders.length === 0) {
     return (
-      <div className="min-h-[calc(100vh-140px)] bg-background overflow-hidden">
+      <div className="min-h-[calc(100vh-140px)] bg-deckly-background overflow-hidden">
         <SavedDeckEmptyState onCreateFolder={() => setIsCreateFolderModalOpen(true)} />
         <CreateFolderModal
           isOpen={isCreateFolderModalOpen}
@@ -147,7 +147,7 @@ export function SavedDecksView() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-140px)] bg-background">
+    <div className="min-h-[calc(100vh-140px)] bg-deckly-background">
       <main className="overflow-y-auto custom-scrollbar">
         <div className="p-6 md:p-12 space-y-16 w-full max-w-[1600px] mx-auto pb-32">
 
@@ -169,7 +169,7 @@ export function SavedDecksView() {
                   "flex items-center gap-3 px-6 py-3 border text-xs font-bold transition-all",
                   isFilterOpen
                     ? "bg-[#54e98a]/10 border-[#54e98a]/20 text-[#54e98a]"
-                    : "bg-white/5 border-white/10 text-[#bbcbbb]/60 hover:text-white"
+                    : "bg-surface-low border-border text-[#bbcbbb]/60 hover:text-white"
                 )}
               >
                 <Filter size={14} />
@@ -177,7 +177,7 @@ export function SavedDecksView() {
               </button>
               <button
                 onClick={() => setIsManageTagsModalOpen(true)}
-                className="flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all"
+                className="flex items-center gap-3 px-6 py-3 bg-surface-low border border-border text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all"
               >
                 <Tag size={14} />
                 Manage Tags
@@ -232,7 +232,7 @@ export function SavedDecksView() {
                               "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all border",
                               isSelected
                                 ? "border-transparent text-[#131313]"
-                                : "bg-surface-container border-white/10 hover:border-white/20"
+                                : "bg-surface-container border-border hover:border-white/20"
                             )}
                             style={{
                               backgroundColor: isSelected ? tag.color : undefined,
