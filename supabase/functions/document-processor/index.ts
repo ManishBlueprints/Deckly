@@ -8,13 +8,14 @@ import { decodeBase64 } from "@std/encoding/base64";
 Deno.serve(async (req: Request) => {
   console.log("--- Function Invoked ---");
 
-  const siteUrl = Deno.env.get("SITE_URL") ?? "";
+  const siteUrl = Deno.env.get("SITE_URL");
+  const allowedOrigin = siteUrl || req.headers.get("origin") || "*";
 
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       headers: {
-        "Access-Control-Allow-Origin": siteUrl,
+        "Access-Control-Allow-Origin": allowedOrigin,
         "Access-Control-Allow-Headers":
           "authorization, x-client-info, apikey, content-type",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -97,9 +98,12 @@ Deno.serve(async (req: Request) => {
 
     // Extract file path from URL
     const storageBaseUrl = `${supabaseUrl}/storage/v1/object/public/decks/`;
-    const filePath = deck.file_url.startsWith(storageBaseUrl)
-      ? deck.file_url.replace(storageBaseUrl, "")
-      : deck.file_url;
+    if (!deck.file_url.startsWith(storageBaseUrl)) {
+      throw new Error(
+        `[SECURITY] Deck ${deckId} file_url "${deck.file_url}" is external or invalid. Processing rejected.`,
+      );
+    }
+    const filePath = deck.file_url.replace(storageBaseUrl, "");
 
     if (!filePath) throw new Error("Could not parse storage path from file_url");
     const fileName = filePath.split("/").pop() || "document.pptx";
@@ -239,7 +243,7 @@ Deno.serve(async (req: Request) => {
       {
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": siteUrl,
+          "Access-Control-Allow-Origin": allowedOrigin,
         },
         status: 200,
       },
@@ -264,7 +268,7 @@ Deno.serve(async (req: Request) => {
         status: 500,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": siteUrl,
+          "Access-Control-Allow-Origin": allowedOrigin,
         },
       },
     );

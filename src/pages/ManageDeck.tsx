@@ -170,7 +170,11 @@ function ManageDeck() {
     }
   };
 
-  const processPdfToImages = async (pdfFile: File) => {
+  const processPdfToImages = async (
+    pdfFile: File,
+    baseOffset = 0,
+    range = 50,
+  ) => {
     setProgress("Loading PDF for processing...");
     const arrayBuffer = await pdfFile.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -179,7 +183,7 @@ function ManageDeck() {
 
     for (let i = 1; i <= numPages; i++) {
       setProgress(`Processing page ${i} of ${numPages}...`);
-      setProgressPercent(Math.round((i / numPages) * 50));
+      setProgressPercent(Math.round(baseOffset + (i / numPages) * range));
       const page = await pdf.getPage(i);
       const viewport = page.getViewport({ scale: 2 });
       const links = await extractPdfLinkHotspots(page).catch(() => []);
@@ -348,7 +352,7 @@ function ManageDeck() {
 
             // Process PDF to images with link extraction
             setProgress("Processing slides...");
-            const imageAssets = await processPdfToImages(pdfFile);
+            const imageAssets = await processPdfToImages(pdfFile, 65, 5);
 
             // Upload slide images
             setProgress(`Uploading slide 1 of ${imageAssets.length}...`);
@@ -372,13 +376,15 @@ function ManageDeck() {
             // Update deck with processed pages
             setProgress("Finalizing slides...");
             setProgressPercent(92);
-            await supabase
+            const { error: updateError } = await supabase
               .from("decks")
               .update({
                 pages: processedPages,
                 status: "PROCESSED",
               })
               .eq("id", editId);
+
+            if (updateError) throw updateError;
 
             // Cleanup temp PDF
             setProgress("Cleaning up...");
@@ -464,7 +470,7 @@ function ManageDeck() {
 
             // Process PDF to images with link extraction
             setProgress("Processing slides...");
-            const imageAssets = await processPdfToImages(pdfFile);
+            const imageAssets = await processPdfToImages(pdfFile, 65, 5);
 
             // Upload slide images
             setProgress(`Uploading slide 1 of ${imageAssets.length}...`);
@@ -488,13 +494,15 @@ function ManageDeck() {
             // Update deck with processed pages
             setProgress("Finalizing slides...");
             setProgressPercent(92);
-            await supabase
+            const { error: updateError } = await supabase
               .from("decks")
               .update({
                 pages: processedPages,
                 status: "PROCESSED",
               })
               .eq("id", deckRecord.id);
+
+            if (updateError) throw updateError;
 
             // Cleanup temp PDF
             setProgress("Cleaning up...");
