@@ -348,13 +348,19 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
 
-[functions.pdf-processor]
+[functions.document-processor]
 enabled = true
 verify_jwt = true
-import_map = "./functions/pdf-processor/deno.json"
+import_map = "./functions/document-processor/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/pdf-processor/index.ts"
+entrypoint = "./functions/document-processor/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/pdf-processor/*.html" ]
+# static_files = [ "./functions/document-processor/*.html" ]
+
+[functions.cleanup-temp]
+enabled = true
+verify_jwt = false  # Scheduled function, no JWT required
+import_map = "./functions/cleanup-temp/deno.json"
+entrypoint = "./functions/cleanup-temp/index.ts"

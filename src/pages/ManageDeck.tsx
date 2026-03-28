@@ -170,7 +170,11 @@ function ManageDeck() {
     }
   };
 
-  const processPdfToImages = async (pdfFile: File) => {
+  const processPdfToImages = async (
+    pdfFile: File,
+    baseOffset = 0,
+    range = 50,
+  ) => {
     setProgress("Loading PDF for processing...");
     const arrayBuffer = await pdfFile.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -179,7 +183,7 @@ function ManageDeck() {
 
     for (let i = 1; i <= numPages; i++) {
       setProgress(`Processing page ${i} of ${numPages}...`);
-      setProgressPercent(Math.round((i / numPages) * 50));
+      setProgressPercent(Math.round(baseOffset + (i / numPages) * range));
       const page = await pdf.getPage(i);
       const viewport = page.getViewport({ scale: 2 });
       const links = await extractPdfLinkHotspots(page).catch(() => []);
@@ -201,6 +205,136 @@ function ManageDeck() {
     }
 
     return imageAssets;
+  };
+
+  const processConvertedPdf = async (pdfUrl: string, targetDeckId: string) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
+    const userId = session.user.id;
+
+    setProgress("Downloading converted PDF...");
+    setProgressPercent(65);
+
+    // Download with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
+    try {
+      const pdfResponse = await fetch(pdfUrl, { signal: controller.signal });
+      if (!pdfResponse.ok) {
+        throw new Error(
+          `Failed to download converted PDF (${pdfResponse.status})`,
+        );
+      }
+      
+      const pdfBlob = await Promise.race([
+        pdfResponse.blob(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Download timed out reading file data")), 60000)
+        )
+      ]);
+      clearTimeout(timeoutId);
+
+      const pdfFile = new File([pdfBlob], "converted.pdf", {
+        type: "application/pdf",
+      });
+
+      // Process PDF to images with link extraction
+      setProgress("Processing slides...");
+      const imageAssets = await processPdfToImages(pdfFile, 65, 5);
+
+      // Upload slide images
+      setProgress(`Uploading slide 1 of ${imageAssets.length}...`);
+      const imageUrls = await deckService.uploadSlideImages(
+        userId,
+        slug,
+        imageAssets.map((asset) => asset.blob),
+        (current, total) => {
+          setProgress(`Uploading slide ${current} of ${total}...`);
+          setProgressPercent(70 + Math.round((current / total) * 20));
+        },
+      );
+
+      // Build finalPages with links
+      const processedPages = imageUrls.map((url, idx) => ({
+        image_url: url,
+        page_number: idx + 1,
+        links: imageAssets[idx]?.links || [],
+      }));
+
+      // Update deck with processed pages
+      setProgress("Finalizing slides...");
+      setProgressPercent(92);
+      const { error: updateError } = await supabase
+        .from("decks")
+        .update({
+          pages: processedPages,
+          status: "PROCESSED",
+        })
+        .eq("id", targetDeckId);
+
+      if (updateError) throw updateError;
+
+      // Cleanup temp PDF - Resilient
+      setProgress("Cleaning up...");
+      setProgressPercent(95);
+      const tempPath = `${userId}/temp/${targetDeckId}.pdf`;
+      try {
+        const { error: cleanupError } = await supabase.storage
+          .from("decks")
+          .remove([tempPath]);
+        if (cleanupError) {
+          console.warn(
+            `[WARNING] Cleanup failed for ${tempPath}:`,
+            cleanupError.message,
+          );
+        }
+      } catch (cleanupErr) {
+        console.warn(
+          `[WARNING] Cleanup failed silently for ${tempPath}`,
+          cleanupErr,
+        );
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new Error(
+          "Download timed out (10s). Your document might be too large or the network is slow.",
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
+  const triggerAndProcessConversion = async (deckId: string) => {
+    setProgress("Converting document to PDF...");
+    setProgressPercent(60);
+    const { data: invokeData, error: invokeError } =
+      await supabase.functions.invoke("document-processor", {
+        body: { deckId },
+      });
+
+    if (invokeError) {
+      throw new Error(
+        invokeError.message ||
+          "Processing failed. Check your conversion service.",
+      );
+    }
+
+    if (invokeData?.error) {
+      throw new Error(invokeData.message || "Backend processing failed.");
+    }
+
+    if (!invokeData?.pdf_url) {
+      console.error("Missing pdf_url in invocation response:", invokeData);
+      await supabase.from("decks").update({ status: "PENDING" }).eq("id", deckId);
+      throw new Error("Conversion succeeded but returned no PDF URL. Please try again.");
+    }
+
+    await processConvertedPdf(invokeData.pdf_url, deckId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -280,7 +414,7 @@ function ManageDeck() {
           }));
           finalStatus = "PROCESSED";
         } else if (conversionMode === "interactive") {
-          finalStatus = "PENDING";
+          finalStatus = "CONVERTING";
           finalPages = [];
         } else {
           // Raw mode for non-PDF
@@ -299,7 +433,7 @@ function ManageDeck() {
             description,
             file_url: finalFileUrl,
             pages: finalPages,
-            status: finalStatus as "PENDING" | "PROCESSED",
+            status: finalStatus as "PENDING" | "CONVERTING" | "PROCESSED",
             display_mode: conversionMode,
             file_size: file ? file.size : existingDeck?.file_size,
             file_type: fileType,
@@ -313,23 +447,7 @@ function ManageDeck() {
 
         // Trigger conversion on update if file changed and mode is interactive
         if (file && fileType !== "pdf" && conversionMode === "interactive") {
-          setProgress("Processing interactive slides...");
-          setProgressPercent(98);
-          const { data: invokeData, error: invokeError } =
-            await supabase.functions.invoke("document-processor", {
-              body: { deckId: editId },
-            });
-
-          if (invokeError) {
-            throw new Error(
-              invokeError.message ||
-                "Processing failed. Check your conversion service.",
-            );
-          }
-
-          if (invokeData?.error) {
-            throw new Error(invokeData.message || "Backend processing failed.");
-          }
+          await triggerAndProcessConversion(editId);
         }
       } else {
         setProgress("Finalizing...");
@@ -345,7 +463,7 @@ function ManageDeck() {
               description,
               file_url: finalFileUrl,
               pages: finalPages,
-              status: finalStatus,
+              status: finalStatus as "PENDING" | "CONVERTING" | "PROCESSED",
               display_mode: conversionMode,
               file_size: file?.size || 0,
               file_type: fileType,
@@ -373,23 +491,7 @@ function ManageDeck() {
           conversionMode === "interactive" &&
           deckRecord
         ) {
-          setProgress("Processing interactive slides...");
-          setProgressPercent(98);
-          const { data: invokeData, error: invokeError } =
-            await supabase.functions.invoke("document-processor", {
-              body: { deckId: deckRecord.id },
-            });
-
-          if (invokeError) {
-            throw new Error(
-              invokeError.message ||
-                "Processing failed. Check your conversion service.",
-            );
-          }
-
-          if (invokeData?.error) {
-            throw new Error(invokeData.message || "Backend processing failed.");
-          }
+          await triggerAndProcessConversion(deckRecord.id);
         }
       }
 
