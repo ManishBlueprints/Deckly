@@ -9,7 +9,13 @@ Deno.serve(async (req: Request) => {
   console.log("--- Function Invoked ---");
 
   const siteUrl = Deno.env.get("SITE_URL");
-  const allowedOrigin = siteUrl || req.headers.get("origin") || "*";
+  if (!siteUrl) {
+    return new Response(
+      JSON.stringify({ error: "Server Configuration Error: SITE_URL missing" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+  const allowedOrigin = siteUrl;
 
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -230,7 +236,8 @@ Deno.serve(async (req: Request) => {
       if (updateError) throw updateError;
     } catch (updateErr) {
       const msg = updateErr instanceof Error ? updateErr.message : String(updateErr);
-      console.warn(`[WARNING] Failed to update deck status to CONVERTING: ${msg}`);
+      console.error(`[CRITICAL] Failed to update deck status to CONVERTING for deck ${deckId}: ${msg}`);
+      throw new Error(`Failed to update deck status: ${msg}`);
     }
 
     // Return signed PDF URL - client will handle PDF→images + link extraction

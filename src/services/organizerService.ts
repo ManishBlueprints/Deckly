@@ -656,8 +656,8 @@ export const organizerService = {
           : "unknown";
 
         const rawStatus = deckData?.status;
-        const mappedStatus = (rawStatus === "PENDING" || rawStatus === "PROCESSED" || rawStatus === "DELETED") 
-          ? rawStatus as "PENDING" | "PROCESSED" | "DELETED"
+        const mappedStatus = (rawStatus === "PENDING" || rawStatus === "CONVERTING" || rawStatus === "PROCESSED" || rawStatus === "DELETED") 
+          ? rawStatus as "PENDING" | "CONVERTING" | "PROCESSED" | "DELETED"
           : "DELETED";
 
         return {

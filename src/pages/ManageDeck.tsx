@@ -207,6 +207,100 @@ function ManageDeck() {
     return imageAssets;
   };
 
+  const processConvertedPdf = async (pdfUrl: string, targetDeckId: string) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
+    const userId = session.user.id;
+
+    setProgress("Downloading converted PDF...");
+    setProgressPercent(65);
+
+    // Download with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+    try {
+      const pdfResponse = await fetch(pdfUrl, { signal: controller.signal });
+      if (!pdfResponse.ok) {
+        throw new Error(
+          `Failed to download converted PDF (${pdfResponse.status})`,
+        );
+      }
+      const pdfBlob = await pdfResponse.blob();
+      const pdfFile = new File([pdfBlob], "converted.pdf", {
+        type: "application/pdf",
+      });
+
+      // Process PDF to images with link extraction
+      setProgress("Processing slides...");
+      const imageAssets = await processPdfToImages(pdfFile, 65, 5);
+
+      // Upload slide images
+      setProgress(`Uploading slide 1 of ${imageAssets.length}...`);
+      const imageUrls = await deckService.uploadSlideImages(
+        userId,
+        slug,
+        imageAssets.map((asset) => asset.blob),
+        (current, total) => {
+          setProgress(`Uploading slide ${current} of ${total}...`);
+          setProgressPercent(70 + Math.round((current / total) * 20));
+        },
+      );
+
+      // Build finalPages with links
+      const processedPages = imageUrls.map((url, idx) => ({
+        image_url: url,
+        page_number: idx + 1,
+        links: imageAssets[idx]?.links || [],
+      }));
+
+      // Update deck with processed pages
+      setProgress("Finalizing slides...");
+      setProgressPercent(92);
+      const { error: updateError } = await supabase
+        .from("decks")
+        .update({
+          pages: processedPages,
+          status: "PROCESSED",
+        })
+        .eq("id", targetDeckId);
+
+      if (updateError) throw updateError;
+
+      // Cleanup temp PDF - Resilient
+      setProgress("Cleaning up...");
+      setProgressPercent(95);
+      const tempPath = `${userId}/temp/${targetDeckId}.pdf`;
+      try {
+        const { error: cleanupError } = await supabase.storage
+          .from("decks")
+          .remove([tempPath]);
+        if (cleanupError) {
+          console.warn(
+            `[WARNING] Cleanup failed for ${tempPath}:`,
+            cleanupError.message,
+          );
+        }
+      } catch (cleanupErr) {
+        console.warn(
+          `[WARNING] Cleanup failed silently for ${tempPath}`,
+          cleanupErr,
+        );
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new Error(
+          "Download timed out (10s). Your document might be too large or the network is slow.",
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!file && !editId) || !title || !slug) return;
@@ -284,7 +378,7 @@ function ManageDeck() {
           }));
           finalStatus = "PROCESSED";
         } else if (conversionMode === "interactive") {
-          finalStatus = "PENDING";
+          finalStatus = "CONVERTING";
           finalPages = [];
         } else {
           // Raw mode for non-PDF
@@ -303,7 +397,7 @@ function ManageDeck() {
             description,
             file_url: finalFileUrl,
             pages: finalPages,
-            status: finalStatus as "PENDING" | "PROCESSED",
+            status: finalStatus as "PENDING" | "CONVERTING" | "PROCESSED",
             display_mode: conversionMode,
             file_size: file ? file.size : existingDeck?.file_size,
             file_type: fileType,
@@ -337,60 +431,7 @@ function ManageDeck() {
 
           // Handle pdf_url response - download, process, upload, cleanup
           if (invokeData?.pdf_url) {
-            setProgress("Downloading converted PDF...");
-            setProgressPercent(65);
-
-            // Download the PDF from signed URL
-            const pdfResponse = await fetch(invokeData.pdf_url);
-            if (!pdfResponse.ok) {
-              throw new Error("Failed to download converted PDF");
-            }
-            const pdfBlob = await pdfResponse.blob();
-            const pdfFile = new File([pdfBlob], "converted.pdf", {
-              type: "application/pdf",
-            });
-
-            // Process PDF to images with link extraction
-            setProgress("Processing slides...");
-            const imageAssets = await processPdfToImages(pdfFile, 65, 5);
-
-            // Upload slide images
-            setProgress(`Uploading slide 1 of ${imageAssets.length}...`);
-            const imageUrls = await deckService.uploadSlideImages(
-              userId,
-              slug,
-              imageAssets.map((asset) => asset.blob),
-              (current, total) => {
-                setProgress(`Uploading slide ${current} of ${total}...`);
-                setProgressPercent(70 + Math.round((current / total) * 20));
-              },
-            );
-
-            // Build finalPages with links
-            const processedPages = imageUrls.map((url, idx) => ({
-              image_url: url,
-              page_number: idx + 1,
-              links: imageAssets[idx]?.links || [],
-            }));
-
-            // Update deck with processed pages
-            setProgress("Finalizing slides...");
-            setProgressPercent(92);
-            const { error: updateError } = await supabase
-              .from("decks")
-              .update({
-                pages: processedPages,
-                status: "PROCESSED",
-              })
-              .eq("id", editId);
-
-            if (updateError) throw updateError;
-
-            // Cleanup temp PDF
-            setProgress("Cleaning up...");
-            setProgressPercent(95);
-            const tempPath = `${userId}/temp/${editId}.pdf`;
-            await supabase.storage.from("decks").remove([tempPath]);
+            await processConvertedPdf(invokeData.pdf_url, editId);
           }
         }
       } else {
@@ -407,7 +448,7 @@ function ManageDeck() {
               description,
               file_url: finalFileUrl,
               pages: finalPages,
-              status: finalStatus,
+              status: finalStatus as "PENDING" | "CONVERTING" | "PROCESSED",
               display_mode: conversionMode,
               file_size: file?.size || 0,
               file_type: fileType,
@@ -455,60 +496,7 @@ function ManageDeck() {
 
           // Handle pdf_url response - download, process, upload, cleanup
           if (invokeData?.pdf_url) {
-            setProgress("Downloading converted PDF...");
-            setProgressPercent(65);
-
-            // Download the PDF from signed URL
-            const pdfResponse = await fetch(invokeData.pdf_url);
-            if (!pdfResponse.ok) {
-              throw new Error("Failed to download converted PDF");
-            }
-            const pdfBlob = await pdfResponse.blob();
-            const pdfFile = new File([pdfBlob], "converted.pdf", {
-              type: "application/pdf",
-            });
-
-            // Process PDF to images with link extraction
-            setProgress("Processing slides...");
-            const imageAssets = await processPdfToImages(pdfFile, 65, 5);
-
-            // Upload slide images
-            setProgress(`Uploading slide 1 of ${imageAssets.length}...`);
-            const imageUrls = await deckService.uploadSlideImages(
-              userId,
-              slug,
-              imageAssets.map((asset) => asset.blob),
-              (current, total) => {
-                setProgress(`Uploading slide ${current} of ${total}...`);
-                setProgressPercent(70 + Math.round((current / total) * 20));
-              },
-            );
-
-            // Build finalPages with links
-            const processedPages = imageUrls.map((url, idx) => ({
-              image_url: url,
-              page_number: idx + 1,
-              links: imageAssets[idx]?.links || [],
-            }));
-
-            // Update deck with processed pages
-            setProgress("Finalizing slides...");
-            setProgressPercent(92);
-            const { error: updateError } = await supabase
-              .from("decks")
-              .update({
-                pages: processedPages,
-                status: "PROCESSED",
-              })
-              .eq("id", deckRecord.id);
-
-            if (updateError) throw updateError;
-
-            // Cleanup temp PDF
-            setProgress("Cleaning up...");
-            setProgressPercent(95);
-            const tempPath = `${userId}/temp/${deckRecord.id}.pdf`;
-            await supabase.storage.from("decks").remove([tempPath]);
+            await processConvertedPdf(invokeData.pdf_url, deckRecord.id);
           }
         }
       }

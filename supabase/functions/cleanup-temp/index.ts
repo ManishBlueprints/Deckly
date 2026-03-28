@@ -9,10 +9,10 @@ Deno.serve(async (req: Request) => {
   console.log("--- Cleanup Function Invoked ---");
 
   // Cron secret authentication - must be first, before any storage operations
-  const cronSecret = Deno.env.get("CLEANUP_CRON_SECRET");
-  const authHeader = req.headers.get("Authorization");
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronHeader = req.headers.get("x-cron-secret");
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || cronHeader !== cronSecret) {
     console.error("[AUTH FAILED] Invalid or missing cron secret");
     return new Response(
       JSON.stringify({
@@ -100,16 +100,26 @@ Deno.serve(async (req: Request) => {
       filesToDelete.push(...batchResults.flat());
     }
 
-    // Delete old files in batch
+    // Delete old files in batches
     if (filesToDelete.length > 0) {
-      console.log(`Deleting ${filesToDelete.length} orphaned temp files...`);
-      const { error: deleteError } = await supabaseClient.storage
-        .from("decks")
-        .remove(filesToDelete);
+      console.log(`Deleting ${filesToDelete.length} orphaned temp files in batches...`);
+      const BATCH_SIZE = 100;
+      const failedBatches = [];
 
-      if (deleteError) {
-        console.error("Delete error:", deleteError.message);
-        throw new Error(`Failed to delete files: ${deleteError.message}`);
+      for (let i = 0; i < filesToDelete.length; i += BATCH_SIZE) {
+        const chunk = filesToDelete.slice(i, i + BATCH_SIZE);
+        const { error: deleteError } = await supabaseClient.storage
+          .from("decks")
+          .remove(chunk);
+
+        if (deleteError) {
+          console.error(`Delete error for chunk ${Math.floor(i / BATCH_SIZE) + 1}:`, deleteError.message);
+          failedBatches.push({ chunk, error: deleteError.message });
+        }
+      }
+
+      if (failedBatches.length > 0) {
+        throw new Error(`Failed to delete ${failedBatches.length} batches. First error: ${failedBatches[0].error}`);
       }
     }
 

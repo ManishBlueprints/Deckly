@@ -255,15 +255,16 @@ function Viewer() {
             <div className="flex-1 w-full relative min-h-0">
               {deck.display_mode === "interactive" ||
               (Array.isArray(deck.pages) && deck.pages.length > 0) ? (
-                deck.status === "PENDING" ? (
+                (deck.status === "PENDING" || deck.status === "CONVERTING") ? (
                   <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-[#0d0d0d]">
                     <div className="w-12 h-12 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin mb-6" />
                     <h2 className="text-xl font-bold text-white mb-2">
-                      Optimizing Room
+                      {deck.status === "CONVERTING" ? "Converting Content" : "Optimizing Room"}
                     </h2>
                     <p className="text-slate-400 text-sm max-w-sm">
-                      We're converting your slides into an interactive
-                      experience. This usually takes less than a minute.
+                      {deck.status === "CONVERTING" 
+                      ? "The server is currently converting your document into an interactive experience. This usually takes less than a minute." 
+                      : "We're setting up the interactive experience for this pitch deck. Please wait a moment while we prepare the slides."}
                     </p>
                   </div>
                 ) : (
