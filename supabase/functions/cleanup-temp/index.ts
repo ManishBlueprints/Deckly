@@ -147,7 +147,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         error: true,
-        message: errorMessage,
+        message: "Internal server error",
       }),
       {
         status: 500,
