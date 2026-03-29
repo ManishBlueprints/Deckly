@@ -9,12 +9,14 @@ interface ImageDeckViewerProps {
   deck: Deck;
   viewerEmail?: string;
   isOwner?: boolean;
+  dataRoomId?: string;
 }
 
 function ImageDeckViewer({
   deck,
   viewerEmail,
   isOwner = false,
+  dataRoomId,
 }: ImageDeckViewerProps) {
   const pages = useMemo(
     () => (Array.isArray(deck?.pages) ? deck.pages : []),
@@ -93,13 +95,14 @@ function ImageDeckViewer({
           currentPage,
           timeSpent,
           viewerEmail,
+          dataRoomId,
         );
         if (currentPage === numPages) {
           analyticsService.trackDeckComplete(deck, numPages);
         }
       }
     };
-  }, [currentPage, deck, numPages, isOwner, viewerEmail]);
+  }, [currentPage, deck, numPages, isOwner, viewerEmail, dataRoomId]);
 
   const goToPrevPage = useCallback(() => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));

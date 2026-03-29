@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { analyticsService } from '../services/analyticsService';
 import { Deck } from '../types';
 
-export function useDeckAnalytics(deck: Deck | null, pageNumber: number, numPages: number, isOwner: boolean = false) {
+export function useDeckAnalytics(deck: Deck | null, pageNumber: number, numPages: number, isOwner: boolean = false, dataRoomId?: string) {
   const [viewedPages, setViewedPages] = useState<Set<number>>(new Set());
   const pageStartTime = useRef<number>(Date.now());
 
@@ -18,9 +18,9 @@ export function useDeckAnalytics(deck: Deck | null, pageNumber: number, numPages
     if (!pageNumber || !deck || isOwner) return;
     const timeSpent = Math.floor((Date.now() - pageStartTime.current) / 1000);
     analyticsService.trackPageView(deck, pageNumber, timeSpent);
-    analyticsService.syncSlideStats(deck, pageNumber, timeSpent);
+    analyticsService.syncSlideStats(deck, pageNumber, timeSpent, undefined, dataRoomId);
     setViewedPages(prev => new Set(prev).add(pageNumber));
-  }, [pageNumber, deck, isOwner]);
+  }, [pageNumber, deck, isOwner, dataRoomId]);
 
   // Effect to track page changes and reset the timer
   useEffect(() => {

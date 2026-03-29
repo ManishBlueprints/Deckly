@@ -194,6 +194,7 @@ export async function getRoomVisitorSignals(
   const { data, error } = await supabase
     .from("deck_page_views")
     .select("visitor_id, page_number, viewed_at, time_spent, viewer_email, deck_id")
+    .eq("data_room_id", roomId)
     .in("deck_id", deckIds)
     .order("viewed_at", { ascending: true });
 

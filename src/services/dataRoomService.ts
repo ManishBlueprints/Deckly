@@ -230,6 +230,7 @@ export const dataRoomService = {
       const { data: viewData, error } = await supabase
         .from("deck_page_views")
         .select("deck_id, visitor_id")
+        .eq("data_room_id", roomId)
         .in("deck_id", deckIds);
 
       if (error) throw error;

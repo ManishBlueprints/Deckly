@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS public.branding (
 CREATE TABLE IF NOT EXISTS public.deck_page_views (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
+    data_room_id UUID REFERENCES public.data_rooms(id) ON DELETE CASCADE,
     page_number INTEGER NOT NULL,
     visitor_id TEXT NOT NULL,
     viewer_email TEXT,
@@ -77,13 +78,17 @@ CREATE TABLE IF NOT EXISTS public.deck_page_views (
 
 CREATE TABLE IF NOT EXISTS public.deck_stats (
     deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
+    data_room_id UUID REFERENCES public.data_rooms(id) ON DELETE CASCADE,
     page_number INTEGER NOT NULL,
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     total_views INTEGER DEFAULT 0,
     total_time_seconds INTEGER DEFAULT 0,
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (deck_id, page_number)
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Unique index to handle per-room aggregation (treating NULL as Global context)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deck_stats_unique_room 
+ON public.deck_stats (deck_id, page_number, (COALESCE(data_room_id, '00000000-0000-0000-0000-000000000000'::uuid)));
 
 -- Optimized index for dashboard retrieval (filtering by deck, owner, and date)
 CREATE INDEX IF NOT EXISTS idx_deck_stats_dashboard ON public.deck_stats(deck_id, user_id, updated_at);
@@ -493,7 +498,8 @@ CREATE OR REPLACE FUNCTION public.record_deck_visit(
     p_page_number INTEGER,
     p_time_spent NUMERIC,
     p_visitor_id TEXT,
-    p_viewer_email TEXT DEFAULT NULL
+    p_viewer_email TEXT DEFAULT NULL,
+    p_data_room_id UUID DEFAULT NULL
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -531,12 +537,16 @@ BEGIN
     SELECT user_id INTO v_deck_owner_id FROM public.decks WHERE id = p_deck_id;
     IF NOT FOUND THEN RETURN; END IF;
 
-    -- 2. Check for unique view in last 24 hours
+    -- 2. Check for unique view in last 24 hours (now context-aware)
     SELECT id INTO v_recent_view_id
     FROM public.deck_page_views
     WHERE deck_id = p_deck_id
       AND page_number = p_page_number
       AND visitor_id = p_visitor_id
+      AND (
+          (p_data_room_id IS NULL AND data_room_id IS NULL) OR 
+          (p_data_room_id IS NOT NULL AND data_room_id = p_data_room_id)
+      )
       AND viewed_at > (NOW() - INTERVAL '24 hours')
     LIMIT 1;
 
@@ -544,8 +554,8 @@ BEGIN
 
     -- 3. Sync deck_page_views
     IF v_is_unique THEN
-        INSERT INTO public.deck_page_views (deck_id, page_number, visitor_id, time_spent, viewer_email)
-        VALUES (p_deck_id, p_page_number, p_visitor_id, p_time_spent, p_viewer_email);
+        INSERT INTO public.deck_page_views (deck_id, page_number, visitor_id, time_spent, viewer_email, data_room_id)
+        VALUES (p_deck_id, p_page_number, p_visitor_id, p_time_spent, p_viewer_email, p_data_room_id);
     ELSE
         -- Also refresh viewed_at so the 24-hour window advances correctly,
         -- and keep viewer_email up-to-date ONLY if it was previously null.
@@ -556,14 +566,14 @@ BEGIN
         WHERE id = v_recent_view_id;
     END IF;
 
-    -- 4. Sync deck_stats (Aggregate)
-    INSERT INTO public.deck_stats (deck_id, page_number, user_id, total_views, total_time_seconds)
+    -- 4. Sync deck_stats (Aggregate - now context-aware)
+    INSERT INTO public.deck_stats (deck_id, page_number, user_id, data_room_id, total_views, total_time_seconds)
     VALUES (
-        p_deck_id, p_page_number, v_deck_owner_id, 
+        p_deck_id, p_page_number, v_deck_owner_id, p_data_room_id,
         CASE WHEN v_is_unique THEN 1 ELSE 0 END, 
         ROUND(p_time_spent::numeric)::INTEGER
     )
-    ON CONFLICT (deck_id, page_number)
+    ON CONFLICT (deck_id, page_number, (COALESCE(data_room_id, '00000000-0000-0000-0000-000000000000'::uuid)))
     DO UPDATE SET
         total_views        = deck_stats.total_views + (CASE WHEN v_is_unique THEN 1 ELSE 0 END),
         total_time_seconds = deck_stats.total_time_seconds + ROUND(p_time_spent::numeric)::INTEGER,

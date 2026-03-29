@@ -72,6 +72,7 @@ export const analyticsService = {
     pageNumber: number,
     timeSpent: number,
     viewerEmail?: string,
+    dataRoomId?: string,
   ): Promise<void> {
     try {
       const visitorId = this.getVisitorId();
@@ -82,6 +83,7 @@ export const analyticsService = {
         p_time_spent: timeSpent,
         p_visitor_id: visitorId,
         p_viewer_email: viewerEmail || null,
+        p_data_room_id: dataRoomId || null,
       });
 
       if (error) throw error;
