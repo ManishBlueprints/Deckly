@@ -22,6 +22,12 @@ export function useDeckAnalytics(
   // Refs for debouncing and rate limiting
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncRef = useRef<{ page: number, time: number } | null>(null);
+  const viewerEmailRef = useRef(viewerEmail);
+
+  // Keep the ref updated with the latest prop value without triggering re-runs
+  useEffect(() => {
+    viewerEmailRef.current = viewerEmail;
+  }, [viewerEmail]);
 
   // Effect to track the initial deck view
   useEffect(() => {
@@ -57,10 +63,10 @@ export function useDeckAnalytics(
 
     // Debounce: wait 500ms before syncing
     debounceTimerRef.current = setTimeout(() => {
-      analyticsService.syncSlideStats(d, pageNum, time, viewerEmail, drId);
+      analyticsService.syncSlideStats(d, pageNum, time, viewerEmailRef.current, drId);
       lastSyncRef.current = { page: pageNum, time: Date.now() };
     }, 500);
-  }, [viewerEmail]);
+  }, []);
 
   // Function to track time spent on the current page
   const trackCurrentPage = useCallback(() => {
@@ -94,10 +100,10 @@ export function useDeckAnalytics(
         analyticsService.trackPageView(deck, pageNumber, timeSpent);
         
         // Sync stats to Supabase
-        syncImmediate(deck, pageNumber, timeSpent, dataRoomId, viewerEmail);
+        syncImmediate(deck, pageNumber, timeSpent, dataRoomId, viewerEmailRef.current);
       }
     };
-  }, [pageNumber, deck, isOwner, dataRoomId, viewerEmail, syncImmediate]);
+  }, [pageNumber, deck, isOwner, dataRoomId, syncImmediate]);
 
   // Effect to check if the entire deck has been viewed
   useEffect(() => {

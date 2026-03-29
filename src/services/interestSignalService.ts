@@ -206,7 +206,8 @@ export async function getRoomVisitorSignals(
     return [];
   }
 
-  const deckIds = roomDocs?.map(d => d.deck_id) || [];
+  const deckIds = roomDocs?.map(d => d.deck_id).filter((id): id is string => !!id) || [];
+  if (deckIds.length === 0) return [];
 
   // 3. Query page views for these visitors and these decks (BROADENED: include null data_room_id)
   const { data, error } = await supabase

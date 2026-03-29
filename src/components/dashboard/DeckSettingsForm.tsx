@@ -112,7 +112,7 @@ export function DeckSettingsForm({
       console.error("PDF Processing error:", err);
       const msg = err instanceof Error ? err.message : "Failed to process PDF";
       setError(msg);
-      throw err;
+      return null;
     } finally {
       setIsProcessing(false);
     }
@@ -120,6 +120,7 @@ export function DeckSettingsForm({
 
   // Main Save Handler
     const handleSave = async () => {
+      setError(null); // Clear previous errors
       setIsSaving(true);
       setUploadProgress("Syncing changes...");
       try {
@@ -152,6 +153,11 @@ export function DeckSettingsForm({
         fileSize = newFile.size;
 
         const imageAssets = await processPdfToImages(newFile);
+        if (!imageAssets) {
+          setUploadProgress("");
+          setIsSaving(false);
+          return;
+        }
         setUploadProgress(`Updating ${imageAssets.length} slides...`);
         const imageUrls = await deckService.uploadSlideImages(
           userId,

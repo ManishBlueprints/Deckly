@@ -467,7 +467,35 @@ function ManageDeck() {
           try {
             await triggerAndProcessConversion(editId);
           } catch (conversionErr) {
-            // Rollback on failure - restore all fields that were updated
+            // Robust cleanup: Query the DB to detect actual uploaded assets before rollback
+            const { data: currentDeck } = await supabase
+              .from("decks")
+              .select("pages")
+              .eq("id", editId)
+              .single();
+
+            const currentPages = (currentDeck?.pages as SlidePage[]) || [];
+            const previousPages = (previousValues.pages as SlidePage[]) || [];
+
+            // Find image URLs newly added to the database but not in our rollback snapshot
+            const newAssetUrls = currentPages
+              .filter(cp => !previousPages.some(pp => pp.image_url === cp.image_url))
+              .map(p => p.image_url);
+
+            if (newAssetUrls.length > 0) {
+              const paths = newAssetUrls
+                .map(url => url.split("/storage/v1/object/public/decks/")[1])
+                .filter(Boolean);
+              
+              if (paths.length > 0) {
+                // Clean up orphaned assets from storage
+                await supabase.storage.from("decks").remove(paths).catch(err => 
+                  console.error("Storage cleanup failed during rollback:", err)
+                );
+              }
+            }
+
+            // Rollback database record state to snapshot
             await supabase
               .from("decks")
               .update({
@@ -486,11 +514,6 @@ function ManageDeck() {
               })
               .eq("id", editId);
 
-            // Cleanup partial assets if any were uploaded during this failed session
-            if (finalPages.length > 0 && finalPages !== previousValues.pages) {
-              const paths = finalPages.map(p => p.image_url.split('/storage/v1/object/public/decks/')[1]).filter(Boolean);
-              if (paths.length > 0) await supabase.storage.from("decks").remove(paths);
-            }
             throw conversionErr;
           }
         }

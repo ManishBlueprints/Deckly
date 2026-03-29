@@ -104,9 +104,22 @@ CREATE POLICY "Users can manage their own data rooms" ON public.data_rooms
 
 -- POLICIES FOR DATA ROOM DOCUMENTS
 CREATE POLICY "Owners can manage data room documents" ON public.data_room_documents
-    FOR ALL USING (EXISTS (
-        SELECT 1 FROM public.data_rooms dr WHERE dr.id = data_room_id AND dr.user_id = (select auth.uid())
-    ));
+    FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.data_rooms dr 
+            WHERE dr.id = data_room_id AND dr.user_id = auth.uid()
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.data_rooms dr 
+            WHERE dr.id = data_room_id AND dr.user_id = auth.uid()
+        ) AND EXISTS (
+            SELECT 1 FROM public.decks d 
+            WHERE d.id = deck_id AND d.user_id = auth.uid()
+        )
+    );
 
 -- 5. ANALYTICS TABLES
 CREATE TABLE IF NOT EXISTS public.deck_page_views (
@@ -135,6 +148,51 @@ CREATE TABLE IF NOT EXISTS public.deck_stats (
     total_time_seconds INTEGER DEFAULT 0,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- =============================================================================
+-- DATA ROOMS OPTIMIZATION
+-- Get all data rooms with doc counts and visitor counts in ONE call
+-- =============================================================================
+CREATE OR REPLACE FUNCTION get_batch_data_room_analytics(p_room_ids UUID[])
+RETURNS TABLE (
+  room_id UUID,
+  doc_count INTEGER,
+  visitors INTEGER
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH doc_counts AS (
+    SELECT 
+      drd.data_room_id,
+      COUNT(*)::INTEGER as d_count
+    FROM public.data_room_documents drd
+    WHERE drd.data_room_id = ANY(p_room_ids)
+    GROUP BY drd.data_room_id
+  ),
+  visitor_counts AS (
+    SELECT 
+      dpv.data_room_id,
+      COUNT(DISTINCT dpv.visitor_id)::INTEGER as v_count
+    FROM public.deck_page_views dpv
+    WHERE dpv.data_room_id = ANY(p_room_ids)
+    GROUP BY dpv.data_room_id
+  )
+  SELECT 
+    rid AS room_id,
+    COALESCE(dc.d_count, 0) AS doc_count,
+    COALESCE(vc.v_count, 0) AS visitors
+  FROM UNNEST(p_room_ids) AS rid
+  LEFT JOIN doc_counts dc ON dc.data_room_id = rid
+  LEFT JOIN visitor_counts vc ON vc.data_room_id = rid;
+END;
+$$;
+
+-- Grant permissions
+GRANT EXECUTE ON FUNCTION get_batch_data_room_analytics(UUID[]) TO authenticated;
 
 -- Unique index to handle per-room aggregation (treating NULL as Global context)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_deck_stats_unique_room 
