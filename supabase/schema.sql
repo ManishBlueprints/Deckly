@@ -165,29 +165,37 @@ SET search_path = public
 AS $$
 BEGIN
   RETURN QUERY
-  WITH doc_counts AS (
-    SELECT 
+  WITH owned_rooms AS (
+    -- Security Filter: Only process rooms owned by the authenticated caller.
+    -- auth.uid() reads from JWT claims and works correctly inside SECURITY DEFINER.
+    SELECT dr.id
+    FROM public.data_rooms dr
+    WHERE dr.id = ANY(p_room_ids)
+      AND dr.user_id = auth.uid()
+  ),
+  doc_counts AS (
+    SELECT
       drd.data_room_id,
-      COUNT(*)::INTEGER as d_count
+      COUNT(*)::INTEGER AS d_count
     FROM public.data_room_documents drd
-    WHERE drd.data_room_id = ANY(p_room_ids)
+    JOIN owned_rooms orm ON orm.id = drd.data_room_id
     GROUP BY drd.data_room_id
   ),
   visitor_counts AS (
-    SELECT 
+    SELECT
       dpv.data_room_id,
-      COUNT(DISTINCT dpv.visitor_id)::INTEGER as v_count
+      COUNT(DISTINCT dpv.visitor_id)::INTEGER AS v_count
     FROM public.deck_page_views dpv
-    WHERE dpv.data_room_id = ANY(p_room_ids)
+    JOIN owned_rooms orm ON orm.id = dpv.data_room_id
     GROUP BY dpv.data_room_id
   )
-  SELECT 
-    rid AS room_id,
+  SELECT
+    orm.id                  AS room_id,
     COALESCE(dc.d_count, 0) AS doc_count,
     COALESCE(vc.v_count, 0) AS visitors
-  FROM UNNEST(p_room_ids) AS rid
-  LEFT JOIN doc_counts dc ON dc.data_room_id = rid
-  LEFT JOIN visitor_counts vc ON vc.data_room_id = rid;
+  FROM owned_rooms orm
+  LEFT JOIN doc_counts dc ON dc.data_room_id = orm.id
+  LEFT JOIN visitor_counts vc ON vc.data_room_id = orm.id;
 END;
 $$;
 

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { dataRoomService } from "../services/dataRoomService";
 import { DataRoom } from "../types";
 
@@ -89,11 +89,9 @@ export function useDataRoomSlug(slug: string) {
   });
 }
 
-export function useDataRoomPassword(slug: string, password: string) {
-  return useQuery({
-    queryKey: ["data-room-password", slug, password],
-    queryFn: () => dataRoomService.checkDataRoomPassword(slug, password),
-    enabled: !!slug && !!password,
-    ...DATA_ROOM_QUERY_CONFIG,
+export function useCheckDataRoomPassword() {
+  return useMutation({
+    mutationFn: ({ slug, password }: { slug: string; password: string }) =>
+      dataRoomService.checkDataRoomPassword(slug, password),
   });
 }

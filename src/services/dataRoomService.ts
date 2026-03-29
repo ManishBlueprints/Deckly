@@ -230,7 +230,8 @@ export const dataRoomService = {
       const { data: viewData, error } = await supabase
         .from("deck_page_views")
         .select("deck_id, visitor_id")
-        .in("deck_id", deckIds); // BROADENED: Include views outside this specifically tagged room for historical context
+        .in("deck_id", deckIds)
+        .eq("data_room_id", roomId); // Scoped to this room for accurate per-room visitor counts
 
       if (error) throw error;
 
@@ -295,16 +296,26 @@ export const dataRoomService = {
     const results = new Map<string, { docCount: number; visitors: number }>();
 
     // Batch fetch document counts
-    const { data: docCounts } = await supabase
+    const { data: docCounts, error: docCountsError } = await supabase
       .from("data_room_documents")
       .select("data_room_id")
       .in("data_room_id", roomIds);
 
+    if (docCountsError) {
+      console.error("[dataRoomService] Failed to fetch document counts:", docCountsError);
+      throw docCountsError;
+    }
+
     // Batch fetch visitor counts
-    const { data: viewData } = await supabase
+    const { data: viewData, error: viewDataError } = await supabase
       .from("deck_page_views")
       .select("data_room_id, visitor_id")
       .in("data_room_id", roomIds);
+
+    if (viewDataError) {
+      console.error("[dataRoomService] Failed to fetch visitor data:", viewDataError);
+      throw viewDataError;
+    }
 
     // Aggregate document counts
     const docCountMap = new Map<string, number>();

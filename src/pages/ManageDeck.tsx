@@ -488,9 +488,20 @@ function ManageDeck() {
                 .filter(Boolean);
               
               if (paths.length > 0) {
-                // Clean up orphaned assets from storage
+                // Clean up orphaned slide image assets from storage
                 await supabase.storage.from("decks").remove(paths).catch(err => 
                   console.error("Storage cleanup failed during rollback:", err)
+                );
+              }
+            }
+
+            // Also clean up the newly uploaded source document if it differs from
+            // the previous file_url (i.e. a new file was uploaded but conversion failed)
+            if (finalFileUrl && finalFileUrl !== previousValues.file_url) {
+              const newDocPath = finalFileUrl.split("/storage/v1/object/public/decks/")[1];
+              if (newDocPath) {
+                await supabase.storage.from("decks").remove([newDocPath]).catch(err =>
+                  console.error("Source document cleanup failed during rollback:", err)
                 );
               }
             }
