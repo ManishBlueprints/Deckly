@@ -181,13 +181,41 @@ export async function getDeckSignalCount(
 export async function getRoomVisitorSignals(
   roomId: string,
 ): Promise<VisitorSignal[]> {
-  // Query page views for this room specifically
+  // 1. First, get all visitor IDs who have viewed anything IN this room
+  const { data: roomVisitors, error: visitorError } = await supabase
+    .from("deck_page_views")
+    .select("visitor_id")
+    .eq("data_room_id", roomId);
+
+  if (visitorError) {
+    console.error("Error fetching room visitors:", visitorError);
+    return [];
+  }
+
+  const visitorIds = Array.from(new Set(roomVisitors?.map(v => v.visitor_id) || []));
+  if (visitorIds.length === 0) return [];
+
+  // 2. Get all deck IDs in this room to broaden the search for these visitors
+  const { data: roomDocs, error: docsError } = await supabase
+    .from("data_room_documents")
+    .select("deck_id")
+    .eq("data_room_id", roomId);
+
+  if (docsError) {
+    console.error("Error fetching room documents:", docsError);
+    return [];
+  }
+
+  const deckIds = roomDocs?.map(d => d.deck_id) || [];
+
+  // 3. Query page views for these visitors and these decks (BROADENED: include null data_room_id)
   const { data, error } = await supabase
     .from("deck_page_views")
     .select(
       "visitor_id, page_number, viewed_at, time_spent, viewer_email, deck_id, data_room_id",
     )
-    .eq("data_room_id", roomId)
+    .in("visitor_id", visitorIds)
+    .in("deck_id", deckIds)
     .order("viewed_at", { ascending: true });
 
   if (error) {

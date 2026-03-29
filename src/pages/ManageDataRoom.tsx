@@ -358,7 +358,7 @@ function ManageDataRoom() {
           <div className="p-6 space-y-6">
             {/* Icon */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-              <div className="w-16 h-16 rounded-md bg-[#2B2B2B] flex items-center justify-center overflow-hidden shrink-0 relative group">
+              <div className="w-16 h-16 rounded-md bg-surface-container flex items-center justify-center overflow-hidden shrink-0 relative group">
                 {iconPreview ? (
                   <>
                     <img
@@ -396,7 +396,7 @@ function ManageDataRoom() {
                   Room Image
                 </p>
                 <div className="flex items-center gap-3">
-                  <label className="inline-flex items-center justify-center h-9 px-4 bg-[#2B2B2B] border border-white/10 hover:border-white/20 rounded-md text-sm font-medium text-white cursor-pointer transition-all">
+                  <label className="inline-flex items-center justify-center h-9 px-4 bg-surface-container border border-white/10 hover:border-white/20 rounded-md text-sm font-medium text-white cursor-pointer transition-all">
                     <Upload size={14} className="mr-2 text-deckly-primary" />
                     {iconPreview ? "Modify Image" : "Upload Image"}
                     <input
@@ -422,7 +422,7 @@ function ManageDataRoom() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Proposal: Alpha Series"
-                className="w-full h-11 px-4 bg-[#2B2B2B] border border-white/10 rounded-md text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary transition-all placeholder:text-slate-500 focus:bg-[#2B2B2B]"
+                className="w-full h-11 px-4 bg-surface-container border border-white/10 rounded-md text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary transition-all placeholder:text-slate-500 focus:bg-surface-container"
               />
             </div>
 
@@ -432,7 +432,7 @@ function ManageDataRoom() {
                 Internal URL <span className="text-deckly-primary">*</span>
               </label>
               <div className="flex gap-3">
-                <div className="flex-1 flex items-center bg-[#2B2B2B] border border-white/10 rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary transition-all focus-within:bg-[#2B2B2B] h-11 relative">
+                <div className="flex-1 flex items-center bg-surface-container border border-white/10 rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary transition-all focus-within:bg-surface-container h-11 relative">
                   <span className="pl-3 pr-1 text-sm text-slate-500 select-none whitespace-nowrap">
                     /{profile?.handle}/room/
                   </span>
@@ -455,7 +455,7 @@ function ManageDataRoom() {
                 {slug && (
                   <button
                     onClick={handleCopyLink}
-                    className="flex items-center justify-center w-11 h-11 bg-[#2B2B2B] border border-white/10 rounded-md text-slate-400 hover:text-white transition-all shrink-0"
+                    className="flex items-center justify-center w-11 h-11 bg-surface-container border border-white/10 rounded-md text-slate-400 hover:text-white transition-all shrink-0"
                     title="Copy share link"
                   >
                     {copied ? (
@@ -512,7 +512,7 @@ function ManageDataRoom() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Additional room context..."
                 rows={3}
-                className="w-full px-4 py-3 bg-[#2B2B2B] border border-white/10 rounded-md text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary transition-all placeholder:text-slate-500 focus:bg-[#2B2B2B] resize-none"
+                className="w-full px-4 py-3 bg-surface-container border border-white/10 rounded-md text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary transition-all placeholder:text-slate-500 focus:bg-surface-container resize-none"
               />
             </div>
           </div>
@@ -525,7 +525,7 @@ function ManageDataRoom() {
             {documents.length > 0 && (
               <button
                 onClick={() => setPickerOpen(true)}
-                className="flex items-center gap-2 h-8 px-3 bg-[#2B2B2B] border border-white/10 hover:border-white/20 text-white rounded-md text-xs font-medium transition-all"
+                className="flex items-center gap-2 h-8 px-3 bg-surface-container border border-white/10 hover:border-white/20 text-white rounded-md text-xs font-medium transition-all"
               >
                 <Plus size={14} />
                 Add Assets
@@ -536,7 +536,7 @@ function ManageDataRoom() {
             {documents.length === 0 ? (
               <div
                 onClick={() => setPickerOpen(true)}
-                className="group cursor-pointer border border-dashed border-white/10 hover:border-deckly-primary/30 bg-[#2B2B2B] hover:bg-surface-card rounded-md p-8 text-center transition-all flex flex-col items-center gap-4"
+                className="group cursor-pointer border border-dashed border-white/10 hover:border-deckly-primary/30 bg-surface-container hover:bg-surface-card rounded-md p-8 text-center transition-all flex flex-col items-center gap-4"
               >
                 <div className="w-12 h-12 flex items-center justify-center transition-all">
                   <Plus
@@ -591,7 +591,7 @@ function ManageDataRoom() {
 
         {/* ──── Section 4: Danger Zone (edit only) ──── */}
         {isEditMode && (
-          <div className="bg-[#1a0f0f] border border-red-900/50 rounded-lg overflow-hidden relative">
+          <div className="bg-red-500/5 border border-red-500/20 rounded-lg overflow-hidden relative">
             <div className="px-6 py-4 border-b border-red-900/30">
               <h2 className="text-sm font-medium text-red-500">Danger Zone</h2>
             </div>
