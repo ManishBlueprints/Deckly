@@ -18,7 +18,7 @@ export function DataRoomCard({
   return (
     <button
       onClick={() => navigate(`/rooms/${room.id}`)}
-      className="w-full text-left bg-[#1a1a1a] border border-[#222] rounded-lg p-5 md:p-6 hover:border-deckly-primary/30 transition-all duration-300 group relative overflow-hidden shadow-sm active:scale-[0.99]"
+      className="w-full text-left bg-surface-card border border-border rounded-lg p-5 md:p-6 hover:border-deckly-primary/30 transition-all duration-300 group relative overflow-hidden shadow-sm active:scale-[0.99]"
     >
       {/* Pattern Overlay */}
       <div
@@ -34,7 +34,7 @@ export function DataRoomCard({
 
       <div className="flex items-center gap-5 relative z-10">
         {/* Icon */}
-        <div className="w-12 h-12 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center shrink-0 overflow-hidden group-hover:border-deckly-primary/40 transition-all duration-200">
+        <div className="w-12 h-12 rounded-md bg-surface-lowest border border-border flex items-center justify-center shrink-0 overflow-hidden group-hover:border-deckly-primary/40 transition-all duration-200">
           {room.icon_url ? (
             <img
               src={room.icon_url}
@@ -59,11 +59,11 @@ export function DataRoomCard({
             </p>
           )}
           <div className="flex flex-wrap items-center gap-3 mt-4">
-            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 bg-[#222] px-2 py-0.5 rounded-md border border-[#333]/50 shrink-0">
+            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 bg-surface-low px-2 py-0.5 rounded-md border border-border shrink-0">
               <FileText size={12} className="text-deckly-primary" />
               {documentCount} {documentCount === 1 ? "Asset" : "Assets"}
             </span>
-            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 bg-[#222] px-2 py-0.5 rounded-md border border-[#333]/50 shrink-0">
+            <span className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400 bg-surface-low px-2 py-0.5 rounded-md border border-border shrink-0">
               <Eye size={12} className="text-deckly-primary" />
               {totalVisitors} {totalVisitors === 1 ? "Viewer" : "Viewers"}
             </span>

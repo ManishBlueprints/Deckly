@@ -399,9 +399,10 @@ function DataRoomViewer() {
                     <ImageDeckViewer
                       deck={selectedDeck}
                       viewerEmail={viewerEmail}
+                      dataRoomId={room.id}
                     />
                   ) : (
-                    <DeckViewer deck={selectedDeck} />
+                    <DeckViewer deck={selectedDeck} dataRoomId={room.id} />
                   )
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-slate-500">

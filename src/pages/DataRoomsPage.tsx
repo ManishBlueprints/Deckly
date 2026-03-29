@@ -50,14 +50,14 @@ function DataRoomsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
             <div className="flex items-center gap-3">
               {/* Usage indicator */}
-              <div className="flex items-center gap-3 px-4 py-2 bg-[#1a1a1a] border border-[#222] rounded-lg">
+              <div className="flex items-center gap-3 px-4 py-2 bg-surface-card border border-border rounded-lg">
                 <div className="flex gap-1.5">
                   {Array.from({ length: Math.min(maxRooms, 5) }).map((_, i) => (
                     <div
                       key={i}
                       className={cn(
                         "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                        i < rooms.length ? "bg-deckly-primary" : "bg-[#222]",
+                        i < rooms.length ? "bg-deckly-primary" : "bg-surface-lowest",
                       )}
                     />
                   ))}
@@ -82,7 +82,7 @@ function DataRoomsPage() {
               className={cn(
                 "flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-xs rounded-lg transition-all active:scale-95 w-full sm:w-auto",
                 isAtLimit
-                  ? "bg-[#1a1a1a] text-slate-500 border border-[#222] cursor-not-allowed"
+                  ? "bg-surface-low text-slate-500 border border-[#222] cursor-not-allowed"
                   : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90",
               )}
             >

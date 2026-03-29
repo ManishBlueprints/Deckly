@@ -6,6 +6,7 @@ import { getTierConfig } from "../constants/tiers";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
+let geoCache: { country: string; city: string; country_code: string } | null = null;
 
 export const analyticsService = {
   // Track when someone views a deck
@@ -66,15 +67,39 @@ export const analyticsService = {
     return visitorId;
   },
 
+  // Get geolocation from Vercel Edge headers
+  async getGeoLocation(): Promise<{ country: string; city: string; country_code: string }> {
+    if (geoCache) return geoCache;
+    
+    try {
+      // Fetch from our local Vercel API route
+      const response = await fetch("/api/geo");
+      if (!response.ok) throw new Error("Geo fetch failed");
+      
+      const data = await response.json();
+      geoCache = {
+        country: data.country || "Unknown",
+        city: data.city || "Unknown City",
+        country_code: data.country_code || "US"
+      };
+      return geoCache!;
+    } catch (err) {
+      console.warn("Failed to fetch geolocation, falling back to defaults:", err);
+      return { country: "Unknown", city: "Unknown City", country_code: "US" };
+    }
+  },
+
   // Sync stats to Supabase for user dashboard
   async syncSlideStats(
     deck: Deck,
     pageNumber: number,
     timeSpent: number,
     viewerEmail?: string,
+    dataRoomId?: string,
   ): Promise<void> {
     try {
       const visitorId = this.getVisitorId();
+      const geo = await this.getGeoLocation();
 
       const { error } = await supabase.rpc("record_deck_visit", {
         p_deck_id: deck.id,
@@ -82,6 +107,10 @@ export const analyticsService = {
         p_time_spent: timeSpent,
         p_visitor_id: visitorId,
         p_viewer_email: viewerEmail || null,
+        p_data_room_id: dataRoomId || null,
+        p_country: geo.country,
+        p_city: geo.city,
+        p_country_code: geo.country_code,
       });
 
       if (error) throw error;
@@ -357,7 +386,29 @@ export const analyticsService = {
   },
 
   // Get unique visitor count for a deck (distinct people, not slide views)
+  // Uses SQL COUNT(DISTINCT) via RPC for efficiency
   async getUniqueVisitorCount(deckId: string): Promise<number> {
+    try {
+      // Try RPC first (requires count_unique_visitors function in Supabase)
+      const { data, error } = await supabase.rpc("count_unique_visitors", {
+        p_deck_id: deckId,
+      });
+
+      if (error) {
+        // Fallback to client-side aggregation if RPC doesn't exist
+        console.warn("RPC count_unique_visitors not available, using fallback:", error.message);
+        return this._getUniqueVisitorCountFallback(deckId);
+      }
+
+      return data || 0;
+    } catch (err) {
+      console.warn("Error in getUniqueVisitorCount, using fallback:", err);
+      return this._getUniqueVisitorCountFallback(deckId);
+    }
+  },
+
+  // Fallback: client-side aggregation (less efficient, used if RPC doesn't exist)
+  async _getUniqueVisitorCountFallback(deckId: string): Promise<number> {
     const { data, error } = await supabase
       .from("deck_page_views")
       .select("visitor_id")
@@ -424,5 +475,66 @@ export const analyticsService = {
     }
 
     return data;
+  },
+
+  // Get aggregated location stats for a deck
+  // Uses SQL GROUP BY via RPC for efficiency
+  async getDeckLocations(deckId: string) {
+    try {
+      // Try RPC first (requires get_deck_locations function in Supabase)
+      const { data, error } = await supabase.rpc("get_deck_locations", {
+        p_deck_id: deckId,
+      });
+
+      if (error) {
+        // Fallback to client-side aggregation if RPC doesn't exist
+        console.warn("RPC get_deck_locations not available, using fallback:", error.message);
+        return this._getDeckLocationsFallback(deckId);
+      }
+
+      return data || { countries: [], cities: [] };
+    } catch (err) {
+      console.warn("Error in getDeckLocations, using fallback:", err);
+      return this._getDeckLocationsFallback(deckId);
+    }
+  },
+
+  // Fallback: client-side aggregation (less efficient, used if RPC doesn't exist)
+  async _getDeckLocationsFallback(deckId: string) {
+    const { data, error } = await supabase
+      .from("deck_page_views")
+      .select("country, city, country_code")
+      .eq("deck_id", deckId);
+
+    if (error) throw error;
+    if (!data) return { countries: [], cities: [] };
+
+    // Aggregate by country
+    const countryMap = new Map<string, { name: string; count: number; code: string }>();
+    const cityMap = new Map<string, { name: string; count: number; country: string }>();
+
+    data.forEach((row) => {
+      const cName = row.country || "Unknown";
+      const cCode = row.country_code || "US";
+      const cityName = row.city || "Unknown City";
+
+      // Countries
+      if (!countryMap.has(cName)) {
+        countryMap.set(cName, { name: cName, count: 0, code: cCode });
+      }
+      countryMap.get(cName)!.count++;
+
+      // Cities
+      const cityKey = `${cityName}-${cName}`;
+      if (!cityMap.has(cityKey)) {
+        cityMap.set(cityKey, { name: cityName, count: 0, country: cName });
+      }
+      cityMap.get(cityKey)!.count++;
+    });
+
+    return {
+      countries: Array.from(countryMap.values()).sort((a, b) => b.count - a.count),
+      cities: Array.from(cityMap.values()).sort((a, b) => b.count - a.count),
+    };
   },
 };

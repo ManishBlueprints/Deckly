@@ -34,7 +34,7 @@ export function AccessProtectionSection({
   const [showPasswordField, setShowPasswordField] = useState(false);
 
   return (
-    <section className="space-y-6 pt-6 border-t border-[#222]">
+    <section className="space-y-6 pt-6 border-t border-white/5">
       <div className="flex items-center gap-2 mb-2">
         <Lock size={16} className="text-deckly-primary" />
         <h3 className="text-sm font-medium text-white">Security & Access</h3>
@@ -47,18 +47,18 @@ export function AccessProtectionSection({
             className={cn(
               "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer",
               requireEmail
-                ? "bg-[#1a1a1a] border-deckly-primary"
-                : "bg-[#141414] border-[#333] hover:border-[#444]",
+                ? "bg-background border-deckly-primary"
+                : "bg-[#2B2B2B] border-white/10 hover:border-white/20",
             )}
             onClick={() => setRequireEmail(!requireEmail)}
           >
             <div className="flex items-center gap-4">
               <div
                 className={cn(
-                  "w-10 h-10 rounded-md flex items-center justify-center transition-colors shrink-0 aspect-square",
+                  "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
                   requireEmail
-                    ? "bg-deckly-primary/10 text-deckly-primary"
-                    : "bg-[#0f0f0f] border border-[#222] text-slate-500",
+                    ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                    : "text-slate-500",
                 )}
               >
                 <Mail size={18} />
@@ -85,18 +85,18 @@ export function AccessProtectionSection({
             className={cn(
               "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer",
               requirePassword
-                ? "bg-[#1a1a1a] border-deckly-primary"
-                : "bg-[#141414] border-[#333] hover:border-[#444]",
+                ? "bg-background border-deckly-primary"
+                : "bg-[#2B2B2B] border-white/10 hover:border-white/20",
             )}
             onClick={() => setRequirePassword(!requirePassword)}
           >
             <div className="flex items-center gap-4">
               <div
                 className={cn(
-                  "w-10 h-10 rounded-md flex items-center justify-center transition-colors shrink-0 aspect-square",
+                  "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
                   requirePassword
-                    ? "bg-deckly-primary/10 text-deckly-primary"
-                    : "bg-[#0f0f0f] border border-[#222] text-slate-500",
+                    ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                    : "text-slate-500",
                 )}
               >
                 <Lock size={18} />
@@ -140,7 +140,7 @@ export function AccessProtectionSection({
                     value={viewPassword}
                     onChange={(e) => setViewPassword(e.target.value)}
                     placeholder="Enter strong password..."
-                    className="h-11 pr-12 rounded-md border-[#333] bg-[#141414] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 transition-all focus:bg-[#1a1a1a]"
+                    className="h-11 pr-12 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 transition-all focus:bg-[#2B2B2B]"
                   />
                   <button
                     type="button"
@@ -164,8 +164,8 @@ export function AccessProtectionSection({
           className={cn(
             "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer mt-4",
             expiryEnabled
-              ? "bg-[#1a1a1a] border-deckly-primary"
-              : "bg-[#141414] border-[#333] hover:border-[#444]",
+              ? "bg-background border-deckly-primary"
+              : "bg-[#2B2B2B] border-white/10 hover:border-white/20",
           )}
           onClick={() => {
             const next = !expiryEnabled;
@@ -176,10 +176,10 @@ export function AccessProtectionSection({
           <div className="flex items-center gap-4">
             <div
               className={cn(
-                "w-10 h-10 rounded-md flex items-center justify-center transition-colors shrink-0 aspect-square",
+                "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
                 expiryEnabled
-                  ? "bg-deckly-primary/10 text-deckly-primary"
-                  : "bg-[#0f0f0f] border border-[#222] text-slate-500",
+                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                  : "text-slate-500",
               )}
             >
               <CalendarDays size={18} />
@@ -224,7 +224,7 @@ export function AccessProtectionSection({
                   value={expiryDate}
                   onChange={(e) => setExpiryDate(e.target.value)}
                   min={new Date().toISOString().split("T")[0]}
-                  className="h-11 rounded-md border-[#333] bg-[#141414] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#1a1a1a] [color-scheme:dark]"
+                  className="h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#2B2B2B] [color-scheme:dark]"
                 />
               </div>
             </motion.div>

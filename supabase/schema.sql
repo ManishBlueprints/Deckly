@@ -68,22 +68,33 @@ CREATE TABLE IF NOT EXISTS public.branding (
 CREATE TABLE IF NOT EXISTS public.deck_page_views (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
+    data_room_id UUID REFERENCES public.data_rooms(id) ON DELETE CASCADE,
     page_number INTEGER NOT NULL,
     visitor_id TEXT NOT NULL,
     viewer_email TEXT,
     viewed_at TIMESTAMPTZ DEFAULT NOW(),
-    time_spent NUMERIC DEFAULT 0
+    time_spent NUMERIC DEFAULT 0,
+    country TEXT DEFAULT 'Unknown',
+    city TEXT DEFAULT 'Unknown City',
+    country_code TEXT
 );
 
+CREATE INDEX IF NOT EXISTS idx_deck_page_views_location ON public.deck_page_views(country, city);
+
 CREATE TABLE IF NOT EXISTS public.deck_stats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
+    data_room_id UUID REFERENCES public.data_rooms(id) ON DELETE CASCADE,
     page_number INTEGER NOT NULL,
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     total_views INTEGER DEFAULT 0,
     total_time_seconds INTEGER DEFAULT 0,
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (deck_id, page_number)
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Unique index to handle per-room aggregation (treating NULL as Global context)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deck_stats_unique_room 
+ON public.deck_stats (deck_id, page_number, (COALESCE(data_room_id, '00000000-0000-0000-0000-000000000000'::uuid)));
 
 -- Optimized index for dashboard retrieval (filtering by deck, owner, and date)
 CREATE INDEX IF NOT EXISTS idx_deck_stats_dashboard ON public.deck_stats(deck_id, user_id, updated_at);
@@ -493,7 +504,11 @@ CREATE OR REPLACE FUNCTION public.record_deck_visit(
     p_page_number INTEGER,
     p_time_spent NUMERIC,
     p_visitor_id TEXT,
-    p_viewer_email TEXT DEFAULT NULL
+    p_viewer_email TEXT DEFAULT NULL,
+    p_data_room_id UUID DEFAULT NULL,
+    p_country TEXT DEFAULT 'Unknown',
+    p_city TEXT DEFAULT 'Unknown City',
+    p_country_code TEXT DEFAULT NULL
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -531,12 +546,16 @@ BEGIN
     SELECT user_id INTO v_deck_owner_id FROM public.decks WHERE id = p_deck_id;
     IF NOT FOUND THEN RETURN; END IF;
 
-    -- 2. Check for unique view in last 24 hours
+    -- 2. Check for unique view in last 24 hours (now context-aware)
     SELECT id INTO v_recent_view_id
     FROM public.deck_page_views
     WHERE deck_id = p_deck_id
       AND page_number = p_page_number
       AND visitor_id = p_visitor_id
+      AND (
+          (p_data_room_id IS NULL AND data_room_id IS NULL) OR 
+          (p_data_room_id IS NOT NULL AND data_room_id = p_data_room_id)
+      )
       AND viewed_at > (NOW() - INTERVAL '24 hours')
     LIMIT 1;
 
@@ -544,26 +563,35 @@ BEGIN
 
     -- 3. Sync deck_page_views
     IF v_is_unique THEN
-        INSERT INTO public.deck_page_views (deck_id, page_number, visitor_id, time_spent, viewer_email)
-        VALUES (p_deck_id, p_page_number, p_visitor_id, p_time_spent, p_viewer_email);
+        INSERT INTO public.deck_page_views (
+            deck_id, page_number, visitor_id, time_spent, 
+            viewer_email, data_room_id, country, city, country_code
+        )
+        VALUES (
+            p_deck_id, p_page_number, p_visitor_id, p_time_spent, 
+            p_viewer_email, p_data_room_id, p_country, p_city, p_country_code
+        );
     ELSE
         -- Also refresh viewed_at so the 24-hour window advances correctly,
-        -- and keep viewer_email up-to-date ONLY if it was previously null.
+        -- and keep viewer_email/location up-to-date ONLY if they were previously null or unknown.
         UPDATE public.deck_page_views
         SET time_spent   = LEAST(time_spent + p_time_spent, 86400), -- Daily cap of 24 hrs
             viewed_at    = NOW(),
-            viewer_email = COALESCE(viewer_email, p_viewer_email)
+            viewer_email = COALESCE(viewer_email, p_viewer_email),
+            country      = CASE WHEN country = 'Unknown' THEN p_country ELSE country END,
+            city         = CASE WHEN city = 'Unknown City' THEN p_city ELSE city END,
+            country_code = COALESCE(country_code, p_country_code)
         WHERE id = v_recent_view_id;
     END IF;
 
-    -- 4. Sync deck_stats (Aggregate)
-    INSERT INTO public.deck_stats (deck_id, page_number, user_id, total_views, total_time_seconds)
+    -- 4. Sync deck_stats (Aggregate - now context-aware)
+    INSERT INTO public.deck_stats (deck_id, page_number, user_id, data_room_id, total_views, total_time_seconds)
     VALUES (
-        p_deck_id, p_page_number, v_deck_owner_id, 
+        p_deck_id, p_page_number, v_deck_owner_id, p_data_room_id,
         CASE WHEN v_is_unique THEN 1 ELSE 0 END, 
         ROUND(p_time_spent::numeric)::INTEGER
     )
-    ON CONFLICT (deck_id, page_number)
+    ON CONFLICT (deck_id, page_number, (COALESCE(data_room_id, '00000000-0000-0000-0000-000000000000'::uuid)))
     DO UPDATE SET
         total_views        = deck_stats.total_views + (CASE WHEN v_is_unique THEN 1 ELSE 0 END),
         total_time_seconds = deck_stats.total_time_seconds + ROUND(p_time_spent::numeric)::INTEGER,
@@ -572,9 +600,58 @@ BEGIN
 END;
 $$;
 
+-- 1. Count unique visitors (Highly Efficient)
+CREATE OR REPLACE FUNCTION public.count_unique_visitors(p_deck_id UUID)
+RETURNS INTEGER
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT COUNT(DISTINCT visitor_id)::INTEGER
+  FROM public.deck_page_views
+  WHERE deck_id = p_deck_id;
+$$;
+
+-- 2. Get aggregated location stats (Returns exact structure for frontend)
+CREATE OR REPLACE FUNCTION public.get_deck_locations(p_deck_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN jsonb_build_object(
+    'countries', COALESCE((
+      SELECT jsonb_agg(t) FROM (
+        SELECT 
+          COALESCE(country, 'Unknown') as name, 
+          COALESCE(country_code, 'US') as code, 
+          COUNT(*)::INTEGER as count
+        FROM public.deck_page_views
+        WHERE deck_id = p_deck_id
+        GROUP BY country, country_code
+        ORDER BY count DESC
+      ) t
+    ), '[]'::jsonb),
+    'cities', COALESCE((
+      SELECT jsonb_agg(t) FROM (
+        SELECT 
+          COALESCE(city, 'Unknown City') as name, 
+          COALESCE(country, 'Unknown') as country, 
+          COUNT(*)::INTEGER as count
+        FROM public.deck_page_views
+        WHERE deck_id = p_deck_id
+        GROUP BY city, country
+        ORDER BY count DESC
+      ) t
+    ), '[]'::jsonb)
+  );
+END;
+$$;
+
 -- Grant permissions for analytics
-REVOKE EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT) TO anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.count_unique_visitors(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_deck_locations(UUID) TO anon, authenticated;
 
 -- 8. INVESTOR LIBRARY
 CREATE TABLE IF NOT EXISTS public.investor_library (
@@ -714,3 +791,30 @@ CREATE INDEX IF NOT EXISTS idx_library_folder_tags_folder ON public.library_fold
 CREATE INDEX IF NOT EXISTS idx_library_folder_tags_tag ON public.library_folder_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_library_deck_tags_library ON public.library_deck_tags(library_id);
 CREATE INDEX IF NOT EXISTS idx_library_deck_tags_tag ON public.library_deck_tags(tag_id);
+
+-- 12. AUTHENTICATION TRIGGERS
+-- Automatically create profile row when a new user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    INSERT INTO public.profiles (id, full_name, avatar_url, created_at, updated_at)
+    VALUES (
+        NEW.id,
+        NEW.raw_user_meta_data->>'full_name',
+        NEW.raw_user_meta_data->>'avatar_url',
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT (id) DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
