@@ -73,8 +73,13 @@ CREATE TABLE IF NOT EXISTS public.deck_page_views (
     visitor_id TEXT NOT NULL,
     viewer_email TEXT,
     viewed_at TIMESTAMPTZ DEFAULT NOW(),
-    time_spent NUMERIC DEFAULT 0
+    time_spent NUMERIC DEFAULT 0,
+    country TEXT DEFAULT 'Unknown',
+    city TEXT DEFAULT 'Unknown City',
+    country_code TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_deck_page_views_location ON public.deck_page_views(country, city);
 
 CREATE TABLE IF NOT EXISTS public.deck_stats (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -500,7 +505,10 @@ CREATE OR REPLACE FUNCTION public.record_deck_visit(
     p_time_spent NUMERIC,
     p_visitor_id TEXT,
     p_viewer_email TEXT DEFAULT NULL,
-    p_data_room_id UUID DEFAULT NULL
+    p_data_room_id UUID DEFAULT NULL,
+    p_country TEXT DEFAULT 'Unknown',
+    p_city TEXT DEFAULT 'Unknown City',
+    p_country_code TEXT DEFAULT NULL
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -555,15 +563,24 @@ BEGIN
 
     -- 3. Sync deck_page_views
     IF v_is_unique THEN
-        INSERT INTO public.deck_page_views (deck_id, page_number, visitor_id, time_spent, viewer_email, data_room_id)
-        VALUES (p_deck_id, p_page_number, p_visitor_id, p_time_spent, p_viewer_email, p_data_room_id);
+        INSERT INTO public.deck_page_views (
+            deck_id, page_number, visitor_id, time_spent, 
+            viewer_email, data_room_id, country, city, country_code
+        )
+        VALUES (
+            p_deck_id, p_page_number, p_visitor_id, p_time_spent, 
+            p_viewer_email, p_data_room_id, p_country, p_city, p_country_code
+        );
     ELSE
         -- Also refresh viewed_at so the 24-hour window advances correctly,
-        -- and keep viewer_email up-to-date ONLY if it was previously null.
+        -- and keep viewer_email/location up-to-date ONLY if they were previously null or unknown.
         UPDATE public.deck_page_views
         SET time_spent   = LEAST(time_spent + p_time_spent, 86400), -- Daily cap of 24 hrs
             viewed_at    = NOW(),
-            viewer_email = COALESCE(viewer_email, p_viewer_email)
+            viewer_email = COALESCE(viewer_email, p_viewer_email),
+            country      = CASE WHEN country = 'Unknown' THEN p_country ELSE country END,
+            city         = CASE WHEN city = 'Unknown City' THEN p_city ELSE city END,
+            country_code = COALESCE(country_code, p_country_code)
         WHERE id = v_recent_view_id;
     END IF;
 
@@ -583,9 +600,58 @@ BEGIN
 END;
 $$;
 
+-- 1. Count unique visitors (Highly Efficient)
+CREATE OR REPLACE FUNCTION public.count_unique_visitors(p_deck_id UUID)
+RETURNS INTEGER
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT COUNT(DISTINCT visitor_id)::INTEGER
+  FROM public.deck_page_views
+  WHERE deck_id = p_deck_id;
+$$;
+
+-- 2. Get aggregated location stats (Returns exact structure for frontend)
+CREATE OR REPLACE FUNCTION public.get_deck_locations(p_deck_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN jsonb_build_object(
+    'countries', COALESCE((
+      SELECT jsonb_agg(t) FROM (
+        SELECT 
+          COALESCE(country, 'Unknown') as name, 
+          COALESCE(country_code, 'US') as code, 
+          COUNT(*)::INTEGER as count
+        FROM public.deck_page_views
+        WHERE deck_id = p_deck_id
+        GROUP BY country, country_code
+        ORDER BY count DESC
+      ) t
+    ), '[]'::jsonb),
+    'cities', COALESCE((
+      SELECT jsonb_agg(t) FROM (
+        SELECT 
+          COALESCE(city, 'Unknown City') as name, 
+          COALESCE(country, 'Unknown') as country, 
+          COUNT(*)::INTEGER as count
+        FROM public.deck_page_views
+        WHERE deck_id = p_deck_id
+        GROUP BY city, country
+        ORDER BY count DESC
+      ) t
+    ), '[]'::jsonb)
+  );
+END;
+$$;
+
 -- Grant permissions for analytics
-REVOKE EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT) TO anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.count_unique_visitors(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_deck_locations(UUID) TO anon, authenticated;
 
 -- 8. INVESTOR LIBRARY
 CREATE TABLE IF NOT EXISTS public.investor_library (

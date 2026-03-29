@@ -13,6 +13,8 @@ import {
   ChevronDown,
   FileText,
   Loader2,
+  MapPin,
+  Globe,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -22,11 +24,13 @@ import { Button } from "../components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
 import { useDeck } from "../hooks/useDecks";
+import { DeckStats } from "../types";
 import {
   useDeckStats,
   useDeckBookmarks,
   useVisitorSignals,
   useUniqueVisitorCount,
+  useDeckLocations,
 } from "../hooks/useDeckAnalyticsData";
 
 interface BookmarkData {
@@ -36,12 +40,29 @@ interface BookmarkData {
   };
 }
 
+interface CountryStat {
+  name: string;
+  count: number;
+  code: string;
+}
+
+interface CityStat {
+  name: string;
+  count: number;
+  country: string;
+}
+
+interface DropOffStat extends DeckStats {
+  dropOffCount: number;
+  dropOffPercent: number;
+}
+
 export default function DeckAnalytics() {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
   const { session, isPro } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    "VISITS" | "TIME" | "DROPOFF" | "SAVES"
+    "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION"
   >("VISITS");
   const [expandedVisitor, setExpandedVisitor] = useState<string | null>(null);
 
@@ -65,17 +86,18 @@ export default function DeckAnalytics() {
   } = useVisitorSignals(deckId);
   const { data: uniqueVisitors = 0, isFetching: uniqueFetching } =
     useUniqueVisitorCount(deckId);
+  const { data: locationData, isFetching: locationsFetching } = useDeckLocations(deckId);
 
   const loading = deckLoading || (stats.length === 0 && statsLoading);
   const isRefreshing =
-    statsFetching || bookmarksFetching || signalsFetching || uniqueFetching;
+    statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching;
   const error = deckError ? "Failed to load analytics data." : null;
   const totalSaves = bookmarks.length;
 
   // Derived Stats
 
   const totalSeconds = useMemo(
-    () => stats.reduce((acc, curr) => acc + curr.total_time_seconds, 0),
+    () => stats.reduce((acc: number, curr: DeckStats) => acc + curr.total_time_seconds, 0),
     [stats],
   );
   const avgTimePerView = useMemo(
@@ -85,20 +107,20 @@ export default function DeckAnalytics() {
   );
 
   const maxViews = useMemo(
-    () => Math.max(...stats.map((s) => s.total_views), 1),
+    () => Math.max(...stats.map((s: DeckStats) => s.total_views), 1),
     [stats],
   );
   const maxTime = useMemo(
     () =>
       Math.max(
-        ...stats.map((s) => s.total_time_seconds / (s.total_views || 1)),
+        ...stats.map((s: DeckStats) => s.total_time_seconds / (s.total_views || 1)),
         1,
       ),
     [stats],
   );
 
   const dropOffStats = useMemo(() => {
-    return stats.map((s, idx) => {
+    return stats.map((s: DeckStats, idx: number) => {
       const nextSlide = stats[idx + 1];
       const dropOffCount = nextSlide
         ? Math.max(0, s.total_views - nextSlide.total_views)
@@ -121,6 +143,7 @@ export default function DeckAnalytics() {
     { id: "TIME", label: "Duration", shortLabel: "Time" },
     { id: "DROPOFF", label: "Dropoff" },
     { id: "SAVES", label: "Saves", shortLabel: "Saved" },
+    { id: "LOCATION", label: "Location" },
   ];
 
   if (loading) {
@@ -351,6 +374,75 @@ export default function DeckAnalytics() {
                       })}
                     </div>
                   )
+                ) : activeTab === "LOCATION" ? (
+                  !locationData || (locationData.countries.length === 0 && locationData.cities.length === 0) ? (
+                    <div className="py-20 text-center space-y-6">
+                      <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
+                        <Globe size={32} />
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                        No location data captured yet.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 gap-12">
+                      {/* Countries */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Globe size={14} className="text-deckly-primary" />
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Top Countries</h4>
+                        </div>
+                        <div className="space-y-4">
+                          {locationData.countries.map((c: CountryStat, i: number) => (
+                            <div key={i} className="space-y-2">
+                              <div className="flex justify-between text-[11px] font-medium">
+                                <span className="text-white flex items-center gap-2">
+                                  <span className="text-slate-500">#{i + 1}</span>
+                                  {c.name}
+                                </span>
+                                <span className="text-slate-400">{c.count} visits</span>
+                              </div>
+                              <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${(c.count / locationData.countries[0].count) * 100}%` }}
+                                  className="h-full bg-deckly-primary"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Cities */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <MapPin size={14} className="text-deckly-primary" />
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Top Cities</h4>
+                        </div>
+                        <div className="space-y-4">
+                          {locationData.cities.map((c: CityStat, i: number) => (
+                            <div key={i} className="space-y-2">
+                              <div className="flex justify-between text-[11px] font-medium">
+                                <span className="text-white flex items-center gap-2">
+                                  <span className="text-slate-500">#{i + 1}</span>
+                                  {c.name}
+                                </span>
+                                <span className="text-slate-400">{c.count} visits</span>
+                              </div>
+                              <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${(c.count / locationData.cities[0].count) * 100}%` }}
+                                  className="h-full bg-slate-700"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )
                 ) : stats.length === 0 ? (
                   <div className="py-20 text-center space-y-6">
                     <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
@@ -389,16 +481,15 @@ export default function DeckAnalytics() {
                       )}
 
                     <div className="space-y-4">
-                      {(activeTab === "DROPOFF" ? dropOffStats : stats).map(
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (s: any) => {
+                      {(activeTab === "DROPOFF" ? (dropOffStats as DropOffStat[]) : (stats as DeckStats[])).map(
+                        (s: DeckStats | DropOffStat) => {
                           const avgTime =
                             s.total_views > 0
                               ? s.total_time_seconds / s.total_views
                               : 0;
                           const viewPercent = (s.total_views / maxViews) * 100;
                           const timePercent = (avgTime / maxTime) * 100;
-                          const retentionPercent = s.dropOffPercent;
+                          const retentionPercent = (s as DropOffStat).dropOffPercent || 0;
 
                           const percentage =
                             activeTab === "VISITS"
@@ -411,7 +502,7 @@ export default function DeckAnalytics() {
                               ? s.total_views
                               : activeTab === "TIME"
                                 ? `${avgTime.toFixed(1)}s`
-                                : `${s.dropOffPercent.toFixed(0)}%`;
+                                : `${retentionPercent.toFixed(0)}%`;
 
                           const labelText =
                             activeTab === "VISITS"
