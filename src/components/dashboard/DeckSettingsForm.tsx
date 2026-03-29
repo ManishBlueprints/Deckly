@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import * as pdfjsLib from "pdfjs-dist";
 import { useNavigate } from "react-router-dom";
@@ -47,8 +47,19 @@ export function DeckSettingsForm({
   const [uploadProgress, setUploadProgress] = useState("");
   const [newFile, setNewFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { profile } = useAuth();
   const navigate = useNavigate();
+
+  // Cleanup timeout on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // PDF Processing Logic
   const processPdfToImages = async (pdfFile: File) => {
@@ -65,7 +76,10 @@ export function DeckSettingsForm({
       const links = await extractPdfLinkHotspots(page).catch(() => []);
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
-      if (!context) continue;
+      if (!context) {
+        console.warn(`Failed to get 2d context for canvas on page ${i}, skipping slide`);
+        continue;
+      }
 
       canvas.height = viewport.height;
       canvas.width = viewport.width;
@@ -144,7 +158,7 @@ export function DeckSettingsForm({
       const updated = await deckService.updateDeck(deck.id, updates, userId);
       onUpdate(updated);
       setUploadProgress("Changes Synced!");
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setUploadProgress("");
         navigate("/content");
       }, 800);
@@ -202,7 +216,7 @@ export function DeckSettingsForm({
         setViewPassword={setViewPassword}
       />
 
-      <div className="flex justify-end pt-6 mt-6 border-t border-[#222]">
+      <div className="flex justify-end pt-6 mt-6 border-t border-white/5">
         <Button
           type="button"
           onClick={(e: React.MouseEvent) => {
@@ -231,7 +245,7 @@ export function DeckSettingsForm({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-[#111] border border-[#333] px-6 py-3 rounded-md flex items-center gap-3 shadow-2xl"
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-surface-card border border-white/10 px-6 py-3 rounded-md flex items-center gap-3 shadow-2xl"
           >
             <div className="w-4 h-4 border-2 border-deckly-primary/30 border-t-deckly-primary rounded-full animate-spin" />
             <span className="text-sm font-medium text-white">

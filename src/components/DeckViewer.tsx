@@ -14,9 +14,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.vers
 interface DeckViewerProps {
   deck: Deck;
   isOwner?: boolean;
+  dataRoomId?: string;
 }
 
-function DeckViewer({ deck, isOwner = false }: DeckViewerProps) {
+function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
@@ -44,6 +45,7 @@ function DeckViewer({ deck, isOwner = false }: DeckViewerProps) {
     pageNumber,
     numPages || 0,
     isOwner,
+    dataRoomId,
   );
 
   const onDocumentLoadSuccess = useCallback(

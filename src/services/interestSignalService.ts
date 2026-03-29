@@ -33,6 +33,7 @@ interface PageViewRow {
   time_spent: number | null;
   viewer_email: string | null;
   deck_id?: string;
+  data_room_id?: string | null;
 }
 
 /**
@@ -180,21 +181,13 @@ export async function getDeckSignalCount(
 export async function getRoomVisitorSignals(
   roomId: string,
 ): Promise<VisitorSignal[]> {
-  // 1. Get all deck IDs in the room
-  const { data: docs, error: docsError } = await supabase
-    .from("data_room_documents")
-    .select("deck_id")
-    .eq("data_room_id", roomId);
-
-  if (docsError || !docs || docs.length === 0) return [];
-
-  const deckIds = docs.map((d) => d.deck_id);
-
-  // 2. Query page views for all those decks combined
+  // Query page views for this room specifically
   const { data, error } = await supabase
     .from("deck_page_views")
-    .select("visitor_id, page_number, viewed_at, time_spent, viewer_email, deck_id")
-    .in("deck_id", deckIds)
+    .select(
+      "visitor_id, page_number, viewed_at, time_spent, viewer_email, deck_id, data_room_id",
+    )
+    .eq("data_room_id", roomId)
     .order("viewed_at", { ascending: true });
 
   if (error) {
