@@ -154,6 +154,10 @@ export function DeckSettingsForm({
 
         const imageAssets = await processPdfToImages(newFile);
         if (!imageAssets) {
+          // Clean up the orphaned uploaded source file before aborting
+          await supabase.storage.from("decks").remove([fileName]).catch((err) =>
+            console.error("Failed to remove orphaned upload after PDF processing failure:", err)
+          );
           setUploadProgress("");
           setIsSaving(false);
           return;

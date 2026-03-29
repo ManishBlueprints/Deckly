@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { dataRoomService } from "../services/dataRoomService";
 import { DataRoom } from "../types";
 
@@ -36,11 +36,11 @@ export function useDataRoomsWithMeta() {
     queryKey: ["data-rooms", "with-meta"],
     queryFn: async () => {
       const rooms = await dataRoomService.getDataRooms();
-      
+
       // Try batch RPC first (single API call instead of N+1)
       try {
         const batchAnalytics = await dataRoomService.getBatchDataRoomAnalytics(
-          rooms.map((r: DataRoom) => r.id)
+          rooms.map((r: DataRoom) => r.id),
         );
 
         return rooms.map((room: DataRoom) => ({
@@ -48,9 +48,9 @@ export function useDataRoomsWithMeta() {
           docCount: batchAnalytics.get(room.id)?.docCount ?? 0,
           visitors: batchAnalytics.get(room.id)?.visitors ?? 0,
         }));
-      } catch {
+      } catch (error) {
         // Fallback to individual calls if batch fails
-        console.warn("Batch analytics failed, using individual calls");
+        console.warn("Batch analytics failed, using individual calls", error);
         const richRooms = await Promise.all(
           rooms.map(async (room: DataRoom) => {
             const [docCount, analytics] = await Promise.all([
@@ -62,7 +62,7 @@ export function useDataRoomsWithMeta() {
               docCount,
               visitors: analytics.totalVisitors,
             };
-          })
+          }),
         );
         return richRooms;
       }

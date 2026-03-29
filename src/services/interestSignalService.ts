@@ -209,20 +209,42 @@ export async function getRoomVisitorSignals(
   const deckIds = roomDocs?.map(d => d.deck_id).filter((id): id is string => !!id) || [];
   if (deckIds.length === 0) return [];
 
-  // 3. Query page views for these visitors and these decks (BROADENED: include null data_room_id)
-  const { data, error } = await supabase
-    .from("deck_page_views")
-    .select(
-      "visitor_id, page_number, viewed_at, time_spent, viewer_email, deck_id, data_room_id",
-    )
-    .in("visitor_id", visitorIds)
-    .in("deck_id", deckIds)
-    .order("viewed_at", { ascending: true });
+  // 3. Query page views for these visitors and these decks in safe-sized chunks
+  // PostgREST .in() embeds values in the URL; chunk to avoid URL length limits
+  const CHUNK_SIZE = 200;
+  const allPageViewRows: {
+    visitor_id: string;
+    page_number: number;
+    viewed_at: string;
+    time_spent: number;
+    viewer_email: string | null;
+    deck_id: string;
+    data_room_id: string | null;
+  }[] = [];
 
-  if (error) {
-    console.error("Error fetching room page views for signals:", error);
-    return [];
+  for (let vi = 0; vi < visitorIds.length; vi += CHUNK_SIZE) {
+    const visitorChunk = visitorIds.slice(vi, vi + CHUNK_SIZE);
+    for (let di = 0; di < deckIds.length; di += CHUNK_SIZE) {
+      const deckChunk = deckIds.slice(di, di + CHUNK_SIZE);
+      const { data: chunkData, error: chunkError } = await supabase
+        .from("deck_page_views")
+        .select(
+          "visitor_id, page_number, viewed_at, time_spent, viewer_email, deck_id, data_room_id",
+        )
+        .in("visitor_id", visitorChunk)
+        .in("deck_id", deckChunk)
+        .order("viewed_at", { ascending: true });
+
+      if (chunkError) {
+        console.error("Error fetching room page views for signals (chunk):", chunkError);
+        return [];
+      }
+      if (chunkData) allPageViewRows.push(...chunkData);
+    }
   }
+
+  const data = allPageViewRows;
+
 
   if (!data || data.length === 0) return [];
 
