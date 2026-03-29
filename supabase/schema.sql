@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS public.deck_page_views (
 );
 
 CREATE TABLE IF NOT EXISTS public.deck_stats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
     data_room_id UUID REFERENCES public.data_rooms(id) ON DELETE CASCADE,
     page_number INTEGER NOT NULL,
