@@ -43,6 +43,9 @@ export function DeckSettingsForm({
     deck.expires_at ? deck.expires_at.split("T")[0] : "",
   );
 
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [completionPercentage, setCompletionPercentage] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
   const [newFile, setNewFile] = useState<File | null>(null);
@@ -63,38 +66,61 @@ export function DeckSettingsForm({
 
   // PDF Processing Logic
   const processPdfToImages = async (pdfFile: File) => {
-    setUploadProgress("Processing content...");
-    const arrayBuffer = await pdfFile.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const numPages = pdf.numPages;
-    const imageAssets: Array<{ blob: Blob; links: Deck["pages"][number]["links"] }> = [];
+    setIsProcessing(true);
+    setError(null);
+    setCompletionPercentage(0);
+    setUploadProgress("Initializing PDF...");
 
-    for (let i = 1; i <= numPages; i++) {
-      setUploadProgress(`Optimizing ${i}/${numPages}...`);
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const links = await extractPdfLinkHotspots(page).catch(() => []);
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      if (!context) {
-        console.warn(`Failed to get 2d context for canvas on page ${i}, skipping slide`);
-        continue;
+    try {
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const numPages = pdf.numPages;
+      const imageAssets: Array<{ blob: Blob; links: Deck["pages"][number]["links"] }> = [];
+
+      for (let i = 1; i <= numPages; i++) {
+        setUploadProgress(`Optimizing ${i}/${numPages}...`);
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const links = await extractPdfLinkHotspots(page).catch(() => []);
+        
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        
+        if (!context) {
+          throw new Error(`Failed to create canvas context for page ${i}`);
+        }
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (page as any).render({ canvasContext: context, viewport }).promise;
+        
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, "image/webp", 0.8),
+        );
+        
+        if (!blob) {
+          throw new Error(`Failed to generate blob for page ${i}`);
+        }
+
+        imageAssets.push({ blob, links });
+        setCompletionPercentage(Math.round((i / numPages) * 100));
       }
-
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (page as any).render({ canvasContext: context, viewport }).promise;
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, "image/webp", 0.8),
-      );
-      if (blob) imageAssets.push({ blob, links });
+      return imageAssets;
+    } catch (err) {
+      console.error("PDF Processing error:", err);
+      const msg = err instanceof Error ? err.message : "Failed to process PDF";
+      setError(msg);
+      return null;
+    } finally {
+      setIsProcessing(false);
     }
-    return imageAssets;
   };
 
   // Main Save Handler
     const handleSave = async () => {
+      setError(null); // Clear previous errors
       setIsSaving(true);
       setUploadProgress("Syncing changes...");
       try {
@@ -127,6 +153,15 @@ export function DeckSettingsForm({
         fileSize = newFile.size;
 
         const imageAssets = await processPdfToImages(newFile);
+        if (!imageAssets) {
+          // Clean up the orphaned uploaded source file before aborting
+          await supabase.storage.from("decks").remove([fileName]).catch((err) =>
+            console.error("Failed to remove orphaned upload after PDF processing failure:", err)
+          );
+          setUploadProgress("");
+          setIsSaving(false);
+          return;
+        }
         setUploadProgress(`Updating ${imageAssets.length} slides...`);
         const imageUrls = await deckService.uploadSlideImages(
           userId,
@@ -217,6 +252,28 @@ export function DeckSettingsForm({
       />
 
       <div className="flex justify-end pt-6 mt-6 border-t border-white/5">
+        {isProcessing && (
+          <div className="flex-1 mr-6 space-y-3">
+            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+              <span className="text-slate-500">Processing Assets</span>
+              <span className="text-deckly-primary">
+                {completionPercentage}%
+              </span>
+            </div>
+            <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-deckly-primary transition-all duration-300"
+                style={{ width: `${completionPercentage}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {error && !isProcessing && (
+          <div className="flex-1 mr-6 p-3 bg-red-500/10 border border-red-500/20 rounded text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">error</span>
+            {error}
+          </div>
+        )}
         <Button
           type="button"
           onClick={(e: React.MouseEvent) => {

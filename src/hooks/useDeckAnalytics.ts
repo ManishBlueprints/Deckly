@@ -13,14 +13,21 @@ export function useDeckAnalytics(
   pageNumber: number,
   numPages: number,
   isOwner: boolean = false,
-  dataRoomId?: string
+  dataRoomId?: string,
+  viewerEmail?: string
 ) {
   const [viewedPages, setViewedPages] = useState<Set<number>>(new Set());
   const pageStartTime = useRef<number>(Date.now());
   
-  // Refs for debouncing
+  // Refs for debouncing and rate limiting
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSyncedPageRef = useRef<number | null>(null);
+  const lastSyncRef = useRef<{ page: number, time: number } | null>(null);
+  const viewerEmailRef = useRef(viewerEmail);
+
+  // Keep the ref updated with the latest prop value without triggering re-runs
+  useEffect(() => {
+    viewerEmailRef.current = viewerEmail;
+  }, [viewerEmail]);
 
   // Effect to track the initial deck view
   useEffect(() => {
@@ -30,9 +37,9 @@ export function useDeckAnalytics(
   }, [deck, isOwner]);
 
   // Immediate sync function (used for final cleanup)
-  const syncImmediate = useCallback((d: Deck, pageNum: number, time: number, drId?: string) => {
-    analyticsService.syncSlideStats(d, pageNum, time, undefined, drId);
-    lastSyncedPageRef.current = pageNum;
+  const syncImmediate = useCallback((d: Deck, pageNum: number, time: number, drId?: string, email?: string) => {
+    analyticsService.syncSlideStats(d, pageNum, time, email, drId);
+    lastSyncRef.current = { page: pageNum, time: Date.now() };
   }, []);
 
   // Debounced sync function (used during navigation)
@@ -42,15 +49,22 @@ export function useDeckAnalytics(
       clearTimeout(debounceTimerRef.current);
     }
 
-    // Only sync if this page hasn't been synced already
-    if (lastSyncedPageRef.current === pageNum) {
+    // Deduplication logic:
+    // Sync if:
+    // 1. Page is different from last sync
+    // 2. OR it's been more than 30 seconds since last sync of this page (allow growth)
+    const now = Date.now();
+    const isSamePage = lastSyncRef.current?.page === pageNum;
+    const timeSinceLastSync = lastSyncRef.current ? (now - lastSyncRef.current.time) : Infinity;
+
+    if (isSamePage && timeSinceLastSync < 30000) {
       return;
     }
 
     // Debounce: wait 500ms before syncing
     debounceTimerRef.current = setTimeout(() => {
-      analyticsService.syncSlideStats(d, pageNum, time, undefined, drId);
-      lastSyncedPageRef.current = pageNum;
+      analyticsService.syncSlideStats(d, pageNum, time, viewerEmailRef.current, drId);
+      lastSyncRef.current = { page: pageNum, time: Date.now() };
     }, 500);
   }, []);
 
@@ -59,9 +73,6 @@ export function useDeckAnalytics(
     if (!pageNumber || !deck || isOwner) return;
     
     const timeSpent = Math.floor((Date.now() - pageStartTime.current) / 1000);
-    
-    // Always track page view in PostHog immediately (lightweight operation)
-    analyticsService.trackPageView(deck, pageNumber, timeSpent);
     
     // Debounce the Supabase sync (heavier operation)
     syncDebounced(deck, pageNumber, timeSpent, dataRoomId);
@@ -84,7 +95,12 @@ export function useDeckAnalytics(
       // Immediately sync the current page on cleanup (no debounce for final sync)
       if (pageNumber && deck && !isOwner) {
         const timeSpent = Math.floor((Date.now() - pageStartTime.current) / 1000);
-        syncImmediate(deck, pageNumber, timeSpent, dataRoomId);
+        
+        // Track slide view in PostHog
+        analyticsService.trackPageView(deck, pageNumber, timeSpent);
+        
+        // Sync stats to Supabase
+        syncImmediate(deck, pageNumber, timeSpent, dataRoomId, viewerEmailRef.current);
       }
     };
   }, [pageNumber, deck, isOwner, dataRoomId, syncImmediate]);

@@ -427,14 +427,20 @@ function ManageDeck() {
         setProgress("Updating record...");
         setProgressPercent(95);
 
-        // Capture previous state for rollback
+        // Capture previous state for rollback - ALL metadata included
         const previousValues = {
+          title: existingDeck?.title,
+          description: existingDeck?.description,
           pages: existingDeck?.pages || [],
           status: existingDeck?.status || "PENDING",
           file_url: existingDeck?.file_url,
           display_mode: existingDeck?.display_mode,
           file_size: existingDeck?.file_size,
           file_type: existingDeck?.file_type,
+          require_email: existingDeck?.require_email,
+          require_password: existingDeck?.require_password,
+          view_password: existingDeck?.view_password,
+          expires_at: existingDeck?.expires_at,
         };
 
         const { error: dbError } = await supabase
@@ -461,18 +467,64 @@ function ManageDeck() {
           try {
             await triggerAndProcessConversion(editId);
           } catch (conversionErr) {
-            // Rollback on failure - restore all fields that were updated
+            // Robust cleanup: Query the DB to detect actual uploaded assets before rollback
+            const { data: currentDeck } = await supabase
+              .from("decks")
+              .select("pages")
+              .eq("id", editId)
+              .single();
+
+            const currentPages = (currentDeck?.pages as SlidePage[]) || [];
+            const previousPages = (previousValues.pages as SlidePage[]) || [];
+
+            // Find image URLs newly added to the database but not in our rollback snapshot
+            const newAssetUrls = currentPages
+              .filter(cp => !previousPages.some(pp => pp.image_url === cp.image_url))
+              .map(p => p.image_url);
+
+            if (newAssetUrls.length > 0) {
+              const paths = newAssetUrls
+                .map(url => url.split("/storage/v1/object/public/decks/")[1])
+                .filter(Boolean);
+              
+              if (paths.length > 0) {
+                // Clean up orphaned slide image assets from storage
+                await supabase.storage.from("decks").remove(paths).catch(err => 
+                  console.error("Storage cleanup failed during rollback:", err)
+                );
+              }
+            }
+
+            // Also clean up the newly uploaded source document if it differs from
+            // the previous file_url (i.e. a new file was uploaded but conversion failed)
+            if (finalFileUrl && finalFileUrl !== previousValues.file_url) {
+              const newDocPath = finalFileUrl.split("/storage/v1/object/public/decks/")[1];
+              if (newDocPath) {
+                await supabase.storage.from("decks").remove([newDocPath]).catch(err =>
+                  console.error("Source document cleanup failed during rollback:", err)
+                );
+              }
+            }
+
+            // Rollback database record state to snapshot
             await supabase
               .from("decks")
               .update({
+                title: previousValues.title,
+                description: previousValues.description,
                 pages: previousValues.pages,
                 status: previousValues.status,
                 file_url: previousValues.file_url,
                 display_mode: previousValues.display_mode,
                 file_size: previousValues.file_size,
                 file_type: previousValues.file_type,
+                require_email: previousValues.require_email,
+                require_password: previousValues.require_password,
+                view_password: previousValues.view_password,
+                expires_at: previousValues.expires_at,
               })
               .eq("id", editId);
+
             throw conversionErr;
           }
         }
@@ -1074,11 +1126,11 @@ function ManageDeck() {
 
               <button
                 type="button"
-                onClick={() => navigate("/content")}
+                onClick={() => navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content")}
                 className="w-full h-11 text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 font-medium text-sm rounded-md transition-all flex items-center justify-center border border-white/5"
               >
                 <ArrowLeft size={16} className="mr-2" />
-                Return to Assets
+                {returnToRoom ? "Return to Data Room" : "Return to Assets"}
               </button>
             </div>
           </form>

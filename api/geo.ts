@@ -19,7 +19,7 @@ export default async function handler(req: Request) {
   // City names are URL-encoded by Vercel, need to decode safely
   const cityEncoded = req.headers.get('x-vercel-ip-city') || 'Unknown City';
   const city = safeDecodeURIComponent(cityEncoded);
-  const country_code = req.headers.get('x-vercel-ip-country') || 'US';
+  const country_code = req.headers.get('x-vercel-ip-country') || 'Unknown';
 
   return new Response(
     JSON.stringify({ 
@@ -32,6 +32,7 @@ export default async function handler(req: Request) {
       headers: {
         'content-type': 'application/json',
         'cache-control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        'vary': 'x-vercel-ip-country, x-vercel-ip-city',
       },
     }
   );

@@ -64,7 +64,64 @@ CREATE TABLE IF NOT EXISTS public.branding (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. ANALYTICS TABLES
+-- 3. DATA ROOMS TABLE
+CREATE TABLE IF NOT EXISTS public.data_rooms (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    description TEXT,
+    icon_url TEXT,
+    require_email BOOLEAN DEFAULT FALSE,
+    require_password BOOLEAN DEFAULT FALSE,
+    view_password TEXT,
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. DATA ROOM DOCUMENTS (junction table)
+CREATE TABLE IF NOT EXISTS public.data_room_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    data_room_id UUID NOT NULL REFERENCES public.data_rooms(id) ON DELETE CASCADE,
+    deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
+    display_order INTEGER DEFAULT 0,
+    added_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(data_room_id, deck_id)
+);
+
+-- Indexes for data rooms
+CREATE INDEX IF NOT EXISTS idx_data_rooms_user ON public.data_rooms(user_id);
+CREATE INDEX IF NOT EXISTS idx_data_room_docs_room ON public.data_room_documents(data_room_id, display_order);
+
+-- Enable RLS
+ALTER TABLE public.data_rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.data_room_documents ENABLE ROW LEVEL SECURITY;
+
+-- POLICIES FOR DATA ROOMS
+CREATE POLICY "Users can manage their own data rooms" ON public.data_rooms
+    FOR ALL USING ((select auth.uid()) = user_id);
+
+-- POLICIES FOR DATA ROOM DOCUMENTS
+CREATE POLICY "Owners can manage data room documents" ON public.data_room_documents
+    FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.data_rooms dr 
+            WHERE dr.id = data_room_id AND dr.user_id = auth.uid()
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.data_rooms dr 
+            WHERE dr.id = data_room_id AND dr.user_id = auth.uid()
+        ) AND EXISTS (
+            SELECT 1 FROM public.decks d 
+            WHERE d.id = deck_id AND d.user_id = auth.uid()
+        )
+    );
+
+-- 5. ANALYTICS TABLES
 CREATE TABLE IF NOT EXISTS public.deck_page_views (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
@@ -92,6 +149,59 @@ CREATE TABLE IF NOT EXISTS public.deck_stats (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- =============================================================================
+-- DATA ROOMS OPTIMIZATION
+-- Get all data rooms with doc counts and visitor counts in ONE call
+-- =============================================================================
+CREATE OR REPLACE FUNCTION get_batch_data_room_analytics(p_room_ids UUID[])
+RETURNS TABLE (
+  room_id UUID,
+  doc_count INTEGER,
+  visitors INTEGER
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH owned_rooms AS (
+    -- Security Filter: Only process rooms owned by the authenticated caller.
+    -- auth.uid() reads from JWT claims and works correctly inside SECURITY DEFINER.
+    SELECT dr.id
+    FROM public.data_rooms dr
+    WHERE dr.id = ANY(p_room_ids)
+      AND dr.user_id = auth.uid()
+  ),
+  doc_counts AS (
+    SELECT
+      drd.data_room_id,
+      COUNT(*)::INTEGER AS d_count
+    FROM public.data_room_documents drd
+    JOIN owned_rooms orm ON orm.id = drd.data_room_id
+    GROUP BY drd.data_room_id
+  ),
+  visitor_counts AS (
+    SELECT
+      dpv.data_room_id,
+      COUNT(DISTINCT dpv.visitor_id)::INTEGER AS v_count
+    FROM public.deck_page_views dpv
+    JOIN owned_rooms orm ON orm.id = dpv.data_room_id
+    GROUP BY dpv.data_room_id
+  )
+  SELECT
+    orm.id                  AS room_id,
+    COALESCE(dc.d_count, 0) AS doc_count,
+    COALESCE(vc.v_count, 0) AS visitors
+  FROM owned_rooms orm
+  LEFT JOIN doc_counts dc ON dc.data_room_id = orm.id
+  LEFT JOIN visitor_counts vc ON vc.data_room_id = orm.id;
+END;
+$$;
+
+-- Grant permissions
+GRANT EXECUTE ON FUNCTION get_batch_data_room_analytics(UUID[]) TO authenticated;
+
 -- Unique index to handle per-room aggregation (treating NULL as Global context)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_deck_stats_unique_room 
 ON public.deck_stats (deck_id, page_number, (COALESCE(data_room_id, '00000000-0000-0000-0000-000000000000'::uuid)));
@@ -108,9 +218,6 @@ ALTER TABLE public.deck_stats ENABLE ROW LEVEL SECURITY;
 -- POLICIES FOR DECKS
 CREATE POLICY "Users can manage their own decks" ON public.decks
     FOR ALL USING ((select auth.uid()) = user_id);
-
--- Removed: "Decks are viewable by everyone" USING (true)
--- Decks can now only be accessed by the public via security definer views or RPCs.
 
 -- POLICIES FOR BRANDING
 CREATE POLICY "Users can manage their own branding" ON public.branding
@@ -137,56 +244,6 @@ CREATE POLICY "Owners can manage their own stats" ON public.deck_stats
 
 CREATE POLICY "Owners can view their stats" ON public.deck_stats
     FOR SELECT USING ((select auth.uid()) = user_id);
-
--- 5. DATA ROOMS TABLE
-CREATE TABLE IF NOT EXISTS public.data_rooms (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
-    description TEXT,
-    icon_url TEXT,
-    require_email BOOLEAN DEFAULT FALSE,
-    require_password BOOLEAN DEFAULT FALSE,
-    view_password TEXT,
-    expires_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 6. DATA ROOM DOCUMENTS (junction table)
-CREATE TABLE IF NOT EXISTS public.data_room_documents (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    data_room_id UUID NOT NULL REFERENCES public.data_rooms(id) ON DELETE CASCADE,
-    deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
-    display_order INTEGER DEFAULT 0,
-    added_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(data_room_id, deck_id)
-);
-
--- Indexes for data rooms
-CREATE INDEX IF NOT EXISTS idx_data_rooms_user ON public.data_rooms(user_id);
-CREATE INDEX IF NOT EXISTS idx_data_room_docs_room ON public.data_room_documents(data_room_id, display_order);
-
--- Enable RLS
-ALTER TABLE public.data_rooms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.data_room_documents ENABLE ROW LEVEL SECURITY;
-
--- POLICIES FOR DATA ROOMS
-CREATE POLICY "Users can manage their own data rooms" ON public.data_rooms
-    FOR ALL USING ((select auth.uid()) = user_id);
-
--- Removed: "Data rooms are viewable by everyone" USING (true)
--- Rooms can now only be accessed by the public via security definer views or RPCs.
-
--- POLICIES FOR DATA ROOM DOCUMENTS
-CREATE POLICY "Owners can manage data room documents" ON public.data_room_documents
-    FOR ALL USING (EXISTS (
-        SELECT 1 FROM public.data_rooms dr WHERE dr.id = data_room_id AND dr.user_id = (select auth.uid())
-    ));
-
--- Removed: "Data room documents are viewable by everyone" USING (true)
--- Documents can now only be read by the public via get_data_room_payload RPC.
 
 -- STORAGE BUCKETS
 -- You must manually create a public bucket named 'decks' in the Supabase Dashboard.
