@@ -294,7 +294,7 @@ export default function DeckAnalytics() {
                   value={activeTab}
                   onValueChange={(v) => {
                     const tab = tabs.find((t) => t.id === v);
-                    if (tab) setActiveTab(v as "VISITS" | "TIME" | "DROPOFF" | "SAVES");
+                    if (tab) setActiveTab(v as "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION");
                   }}
                   className="w-full md:w-auto"
                 >
@@ -405,7 +405,7 @@ export default function DeckAnalytics() {
                               <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
                                 <motion.div
                                   initial={{ width: 0 }}
-                                  animate={{ width: `${(c.count / locationData.countries[0].count) * 100}%` }}
+                                  animate={{ width: `${(c.count / (locationData.countries[0]?.count || 1)) * 100}%` }}
                                   className="h-full bg-deckly-primary"
                                 />
                               </div>
@@ -433,7 +433,7 @@ export default function DeckAnalytics() {
                               <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
                                 <motion.div
                                   initial={{ width: 0 }}
-                                  animate={{ width: `${(c.count / locationData.cities[0].count) * 100}%` }}
+                                  animate={{ width: `${(c.count / (locationData.cities[0]?.count || 1)) * 100}%` }}
                                   className="h-full bg-slate-700"
                                 />
                               </div>

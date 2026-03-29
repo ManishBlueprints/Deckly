@@ -230,8 +230,8 @@ export const dataRoomService = {
       const { data: viewData, error } = await supabase
         .from("deck_page_views")
         .select("deck_id, visitor_id")
-        .eq("data_room_id", roomId)
-        .in("deck_id", deckIds);
+        .in("deck_id", deckIds)
+        .eq("data_room_id", roomId); // Scoped to this room for accurate per-room visitor counts
 
       if (error) throw error;
 
@@ -254,6 +254,96 @@ export const dataRoomService = {
 
       return { totalVisitors: allVisitors.size, perDeck };
     });
+  },
+
+  // ── BATCH ANALYTICS (N+1 optimization) ────────────────────────────
+
+  async getBatchDataRoomAnalytics(
+    roomIds: string[]
+  ): Promise<Map<string, { docCount: number; visitors: number }>> {
+    try {
+      // Try RPC first (requires get_batch_data_room_analytics function in Supabase)
+      const { data, error } = await supabase.rpc("get_batch_data_room_analytics", {
+        p_room_ids: roomIds,
+      });
+
+      if (error) {
+        console.warn(
+          "RPC get_batch_data_room_analytics not available, using fallback:", error.message
+        );
+        return this._getBatchDataRoomAnalyticsFallback(roomIds);
+      }
+
+      // Convert array to Map for easy lookup
+      const results = new Map<string, { docCount: number; visitors: number }>();
+      for (const item of data || []) {
+        results.set(item.room_id, {
+          docCount: item.doc_count,
+          visitors: item.visitors,
+        });
+      }
+      return results;
+    } catch (err) {
+      console.warn("Error in getBatchDataRoomAnalytics, using fallback:", err);
+      return this._getBatchDataRoomAnalyticsFallback(roomIds);
+    }
+  },
+
+  // Fallback: client-side aggregation (less efficient)
+  async _getBatchDataRoomAnalyticsFallback(
+    roomIds: string[]
+  ): Promise<Map<string, { docCount: number; visitors: number }>> {
+    const results = new Map<string, { docCount: number; visitors: number }>();
+
+    // Batch fetch document counts
+    const { data: docCounts, error: docCountsError } = await supabase
+      .from("data_room_documents")
+      .select("data_room_id")
+      .in("data_room_id", roomIds);
+
+    if (docCountsError) {
+      console.error("[dataRoomService] Failed to fetch document counts:", docCountsError);
+      throw docCountsError;
+    }
+
+    // Batch fetch visitor counts
+    const { data: viewData, error: viewDataError } = await supabase
+      .from("deck_page_views")
+      .select("data_room_id, visitor_id")
+      .in("data_room_id", roomIds);
+
+    if (viewDataError) {
+      console.error("[dataRoomService] Failed to fetch visitor data:", viewDataError);
+      throw viewDataError;
+    }
+
+    // Aggregate document counts
+    const docCountMap = new Map<string, number>();
+    for (const row of docCounts || []) {
+      const count = docCountMap.get(row.data_room_id) || 0;
+      docCountMap.set(row.data_room_id, count + 1);
+    }
+
+    // Aggregate visitor counts
+    const visitorMap = new Map<string, Set<string>>();
+    for (const row of viewData || []) {
+      if (row.data_room_id) {
+        if (!visitorMap.has(row.data_room_id)) {
+          visitorMap.set(row.data_room_id, new Set());
+        }
+        visitorMap.get(row.data_room_id)!.add(row.visitor_id);
+      }
+    }
+
+    // Build results
+    for (const roomId of roomIds) {
+      results.set(roomId, {
+        docCount: docCountMap.get(roomId) || 0,
+        visitors: visitorMap.get(roomId)?.size || 0,
+      });
+    }
+
+    return results;
   },
 
   // ── UTILS ───────────────────────────────────────────────
