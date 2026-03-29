@@ -149,10 +149,10 @@ export function SavedDecksView() {
   return (
     <div className="min-h-[calc(100vh-140px)] bg-deckly-background">
       <main className="overflow-y-auto custom-scrollbar">
-        <div className="p-6 md:p-12 space-y-16 w-full max-w-[1600px] mx-auto pb-32">
+        <div className="p-6 md:px-12 md:pb-12 md:pt-4 space-y-16 w-full max-w-[1600px] mx-auto pb-32">
 
           {/* Main Header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-0">
             <div className="space-y-3">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#54e98a]">
                 Asset Repository

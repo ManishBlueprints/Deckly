@@ -307,7 +307,9 @@ function ManageDataRoom() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const shareUrl = profile?.handle ? getDataRoomShareUrl(profile.handle, slug) : "Set a handle in profile to enable sharing";
+  const shareUrl = profile?.handle
+    ? getDataRoomShareUrl(profile.handle, slug)
+    : "Set a handle in profile to enable sharing";
 
   if (loading) {
     return (
@@ -521,9 +523,7 @@ function ManageDataRoom() {
         {/* ──── Section 2: Documents ──── */}
         <div className="bg-[#111] border border-[#222] rounded-lg overflow-hidden relative">
           <div className="px-6 py-4 border-b border-[#222] flex items-center justify-between">
-            <h2 className="text-sm font-medium text-white">
-              Bundle Composition
-            </h2>
+            <h2 className="text-sm font-medium text-white">YOUR ASSETS</h2>
             {documents.length > 0 && (
               <button
                 onClick={() => setPickerOpen(true)}
@@ -620,7 +620,7 @@ function ManageDataRoom() {
             ) : (
               <Check size={16} className="mr-2" />
             )}
-            {isEditMode ? "Finalize Changes" : "Deploy Data Room"}
+            {isEditMode ? "Finalize Changes" : "Create Data Room"}
           </button>
         </div>
       </div>

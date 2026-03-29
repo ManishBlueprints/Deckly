@@ -169,7 +169,7 @@ export default function DeckAnalytics() {
     <DashboardLayout title={`${deck?.title || "Deck"} Analytics`}>
       <div className="flex-1 -m-8 relative">
         {/* ═══════════════ HEADER SECTION ═══════════════ */}
-        <div className="pt-6 md:pt-8 pb-6 md:pb-8 px-4 md:px-6 border-b border-[#222] bg-[#0f0f0f] relative overflow-hidden">
+        <div className="pt-6 md:pt-8 pb-6 md:pb-8 px-4 md:px-6 border-b border-[#222] bg-background relative overflow-hidden">
           {/* Background Indicator for Refreshing */}
           <AnimatePresence>
             {isRefreshing && (
@@ -224,7 +224,7 @@ export default function DeckAnalytics() {
         </div>
 
         {/* ═══════════════ STATS ROW ═══════════════ */}
-        <div className="border-b border-[#222] bg-[#0a0a0a] px-4 md:px-6 overflow-x-auto scrollbar-hide py-4">
+        <div className="bg-background px-4 md:px-6 overflow-x-auto scrollbar-hide py-4 relative z-10">
           <div className="max-w-6xl mx-auto min-w-[320px] pb-1 md:pb-0">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatItem
@@ -255,7 +255,7 @@ export default function DeckAnalytics() {
 
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-16 space-y-8 md:space-y-16">
           {/* Detailed Engagement Chart Card */}
-          <div className="bg-[#111] border border-[#222] rounded-lg p-4 md:p-8 shadow-sm">
+          <div className="bg-surface-card border border-[#222] rounded-lg p-4 md:p-8 shadow-sm">
             <div className="flex flex-col space-y-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-center gap-3">
@@ -321,7 +321,7 @@ export default function DeckAnalytics() {
                         return (
                         <div
                           key={i}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#141414] border border-[#222] rounded-md group/item hover:bg-[#1a1a1a] hover:border-[#333] transition-all duration-200 gap-4 sm:gap-0"
+                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-surface-low border border-[#222] rounded-md group/item hover:bg-[#2a2a2a] hover:border-[#333] transition-all duration-200 gap-4 sm:gap-0"
                         >
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-md bg-[#111] border border-[#333] flex items-center justify-center text-deckly-primary font-bold text-sm shrink-0">
@@ -431,7 +431,7 @@ export default function DeckAnalytics() {
                               <span className="text-xs font-medium text-slate-500 w-10 shrink-0">
                                 Pg {s.page_number}
                               </span>
-                              <div className="flex-1 h-8 bg-[#141414] rounded overflow-hidden border border-[#222]">
+                              <div className="flex-1 h-8 bg-surface-container rounded overflow-hidden border border-[#222]">
                                 <motion.div
                                   initial={{ width: 0 }}
                                   animate={{
@@ -487,7 +487,7 @@ export default function DeckAnalytics() {
           </div>
 
           {/* Visitor Engagement Signals Section */}
-          <div className="bg-[#111] border border-[#222] rounded-lg p-4 md:p-8 shadow-sm">
+          <div className="bg-surface-card border border-[#222] rounded-lg p-4 md:p-8 shadow-sm">
             <div className="space-y-10 relative z-10">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-deckly-primary">
@@ -543,8 +543,8 @@ export default function DeckAnalytics() {
                       className={cn(
                         "rounded-md border transition-all duration-200 overflow-hidden cursor-pointer",
                         expandedVisitor === visitor.visitorId
-                          ? "bg-surface-card border-deckly-primary/50"
-                          : "bg-[#141414] border-[#222] hover:border-[#333] hover:bg-[#1a1a1a]",
+                          ? "bg-[#2a2a2a] border-deckly-primary/50"
+                          : "bg-surface-low border-[#222] hover:border-[#333] hover:bg-[#2a2a2a]",
                       )}
                       onClick={() =>
                         setExpandedVisitor(
@@ -557,7 +557,7 @@ export default function DeckAnalytics() {
                       <div className="p-4 md:p-6">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-[#0f0f0f] border border-[#222] flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-background border border-[#222] flex items-center justify-center shrink-0">
                               <span className="text-sm font-semibold text-deckly-primary">
                                 V{idx + 1}
                               </span>
@@ -729,9 +729,9 @@ function StatItem({
   value: string;
 }) {
   return (
-    <div className="flex flex-col bg-[#111] border border-[#222] rounded-lg p-5">
+    <div className="flex flex-col bg-surface-card border border-[#222] rounded-lg p-5">
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-deckly-primary">
+        <div className="w-8 h-8 rounded-md bg-surface-lowest border border-[#333] flex items-center justify-center text-deckly-primary">
           {icon}
         </div>
         <p className="text-xs font-medium text-slate-400">{label}</p>

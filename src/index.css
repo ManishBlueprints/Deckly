@@ -8,20 +8,20 @@
     --brand-primary: 145 56% 49%;
     --brand-secondary: 0 0% 15%;
     --brand-tertiary: 15 100% 73%;
-    --brand-neutral: 0 0% 5.1%;
+    --brand-neutral: 0 0% 9.4%;
 
-    --background: 0 0% 5.5%; /* #0e0e0e - Surface Lowest */
+    --background: 0 0% 9.4%; /* #181818 - Surface Lowest */
     --foreground: 0 0% 90%; /* #e5e2e1 */
-    --card: 0 0% 11%; /* #1c1b1b - Surface Low */
+    --card: 0 0% 13%; /* #212121 - Surface Low */
     --card-foreground: 0 0% 90%;
     --popover: 0 0% 11%;
     --popover-foreground: 0 0% 90%;
 
     /* Global Tiers (Digital Curator) */
-    --surface-lowest: 0 0% 5.5%; /* #0e0e0e - page background */
-    --surface-low: 0 0% 8.6%; /* #161616 - main card surface */
-    --surface-card: 0 0% 8.6%; /* #161616 - unified card surface */
-    --surface-container: 0 0% 11%; /* #1c1c1c - nested panels */
+    --surface-lowest: 0 0% 9.4%; /* #181818 - page background */
+    --surface-low: 0 0% 13%; /* #212121 - main card surface */
+    --surface-card: 0 0% 13%; /* #212121 - unified card surface */
+    --surface-container: 0 0% 15%; /* #262626 - nested panels */
     --surface-high: 0 0% 16.5%; /* #2a2a2a - elevated / hover */
     --surface-highest: 0 0% 20.8%; /* #353534 - highest elevation */
     --surface-bright: 0 0% 22.7%; /* #3a3939 */

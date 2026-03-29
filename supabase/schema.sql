@@ -714,3 +714,30 @@ CREATE INDEX IF NOT EXISTS idx_library_folder_tags_folder ON public.library_fold
 CREATE INDEX IF NOT EXISTS idx_library_folder_tags_tag ON public.library_folder_tags(tag_id);
 CREATE INDEX IF NOT EXISTS idx_library_deck_tags_library ON public.library_deck_tags(library_id);
 CREATE INDEX IF NOT EXISTS idx_library_deck_tags_tag ON public.library_deck_tags(tag_id);
+
+-- 12. AUTHENTICATION TRIGGERS
+-- Automatically create profile row when a new user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    INSERT INTO public.profiles (id, full_name, avatar_url, created_at, updated_at)
+    VALUES (
+        NEW.id,
+        NEW.raw_user_meta_data->>'full_name',
+        NEW.raw_user_meta_data->>'avatar_url',
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT (id) DO NOTHING;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

@@ -177,19 +177,19 @@ function DataRoomDetail() {
     <DashboardLayout title="Data Rooms" showFab={false}>
       <div className="space-y-6 pb-12">
         {/* ── HEADER BAR ── */}
-        <div className="relative bg-[#1a1a1a] border border-[#222] rounded-lg overflow-hidden shadow-sm">
+        <div className="relative bg-surface-card border border-[#222] rounded-lg overflow-hidden shadow-sm">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6 p-6">
             {/* Back */}
             <button
               onClick={() => navigate("/rooms")}
-              className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-slate-500 hover:text-white hover:bg-[#222] transition-colors shrink-0"
+              className="w-8 h-8 rounded-md bg-surface-low border border-[#333] flex items-center justify-center text-slate-500 hover:text-white hover:bg-surface-high transition-colors shrink-0"
             >
               <ArrowLeft size={14} />
             </button>
 
             {/* Room Info */}
             <div className="flex items-center gap-4 flex-1">
-              <div className="w-10 h-10 rounded-md bg-[#222] border border-[#333] flex items-center justify-center shrink-0 overflow-hidden">
+              <div className="w-10 h-10 rounded-md bg-background border border-[#333] flex items-center justify-center shrink-0 overflow-hidden">
                 {room.icon_url ? (
                   <img
                     src={room.icon_url}
@@ -252,7 +252,7 @@ function DataRoomDetail() {
                 }}
                 target="_blank"
                 rel="noreferrer"
-                className="p-2 bg-[#222] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"
+                className="p-2 bg-surface-low border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"
                 title="Preview Public Room"
               >
                 <ExternalLink size={18} />
@@ -260,7 +260,7 @@ function DataRoomDetail() {
 
               <button
                 onClick={() => navigate(`/rooms/${roomId}/edit`)}
-                className="p-2 bg-[#222] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"
+                className="p-2 bg-surface-low border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"
                 title="Edit Details"
               >
                 <Pencil size={18} />
@@ -296,7 +296,7 @@ function DataRoomDetail() {
           />
           <div
             onClick={handleCopyLink}
-            className="p-4 bg-[#1a1a1a] border border-[#222] rounded-lg group cursor-pointer hover:border-[#333] transition-all"
+            className="p-4 bg-surface-card border border-[#222] rounded-lg group cursor-pointer hover:border-[#333] transition-all"
           >
             <div className="flex items-center gap-2 text-slate-500 mb-1 group-hover:text-deckly-primary transition-colors">
               <LinkIcon size={14} />
@@ -318,14 +318,14 @@ function DataRoomDetail() {
                 <h2 className="text-xs font-semibold text-slate-400">
                   Room Assets
                 </h2>
-                <span className="text-[10px] font-medium bg-[#1a1a1a] text-slate-500 px-2 py-0.5 rounded-full border border-[#222]">
+                <span className="text-[10px] font-medium bg-surface-low text-slate-500 px-2 py-0.5 rounded-full border border-[#222]">
                   {documents.length}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 justify-end">
                 <button
                   onClick={() => setPickerOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#222] border border-[#333] rounded-md text-xs font-medium text-slate-400 hover:text-white hover:border-[#444] transition-all active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-low border border-[#333] rounded-md text-xs font-medium text-slate-400 hover:text-white hover:border-[#444] transition-all active:scale-95"
                 >
                   <Plus size={13} /> Add Existing
                 </button>
@@ -338,7 +338,7 @@ function DataRoomDetail() {
               </div>
             </div>
 
-            <div className="bg-[#1a1a1a] border border-[#222] rounded-lg overflow-hidden flex-1">
+            <div className="bg-surface-card border border-[#222] rounded-lg overflow-hidden flex-1">
               {documents.length === 0 ? (
                 <div className="py-12 flex flex-col items-center gap-3 text-center">
                   <div className="w-12 h-12 rounded-lg bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-slate-600">
@@ -386,7 +386,7 @@ function DataRoomDetail() {
               )}
             </div>
 
-            <div className="bg-[#1a1a1a] border border-[#222] rounded-lg overflow-hidden flex-1">
+            <div className="bg-surface-card border border-[#222] rounded-lg overflow-hidden flex-1">
               {signalsLoading ? (
                 <div className="py-12 flex flex-col items-center gap-4 text-slate-600">
                   <div className="w-8 h-8 border-2 border-white/5 border-t-deckly-primary rounded-full animate-spin" />
@@ -411,7 +411,7 @@ function DataRoomDetail() {
                   {roomSignals.map((visitor, idx) => (
                     <div
                       key={visitor.visitorId}
-                      className="p-4 hover:bg-[#1a1a1a] transition-colors"
+                      className="p-4 hover:bg-surface-high transition-colors"
                     >
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center shrink-0">
@@ -476,7 +476,7 @@ function DataRoomDetail() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.98, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-[#111] border border-[#222] rounded-lg p-6 max-w-sm w-full shadow-2xl text-center"
+              className="bg-surface-card border border-[#222] rounded-lg p-6 max-w-sm w-full shadow-2xl text-center"
             >
               <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-md flex items-center justify-center mx-auto mb-5">
                 <Trash2 size={20} className="text-red-500" />
@@ -490,7 +490,7 @@ function DataRoomDetail() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="flex-1 px-4 py-2 bg-[#1a1a1a] border border-[#333] text-slate-400 font-semibold text-sm rounded-md hover:text-white transition-colors"
+                  className="flex-1 px-4 py-2 bg-surface-low border border-[#333] text-slate-400 font-semibold text-sm rounded-md hover:text-white transition-colors"
                 >
                   Cancel
                 </button>
@@ -531,7 +531,7 @@ function StatCard({
   value: string | number;
 }) {
   return (
-    <div className="p-4 bg-[#1a1a1a] border border-[#222] rounded-lg">
+    <div className="p-4 bg-surface-card border border-[#222] rounded-lg">
       <div className="flex items-center gap-2 text-slate-500 mb-1">
         {icon}
         <span className="text-[10px] font-medium">{label}</span>
