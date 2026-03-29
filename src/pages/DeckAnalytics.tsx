@@ -193,10 +193,10 @@ export default function DeckAnalytics() {
           <div className="max-w-6xl mx-auto flex items-center gap-3 md:gap-6 mt-6 md:mt-0">
             <button
               onClick={() => navigate("/content")}
-              className="flex-shrink-0 w-8 h-8 rounded-md bg-[#111] border border-[#222] flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#1a1a1a] transition-all"
+              className="flex-shrink-0 w-10 h-10 rounded-md bg-surface-lowest border border-white/5 flex items-center justify-center text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 transition-all shadow-sm"
               title="Return to Content"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={18} />
             </button>
 
             <div className="flex-1 min-w-0 flex items-center gap-3">

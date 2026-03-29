@@ -182,9 +182,10 @@ function DataRoomDetail() {
             {/* Back */}
             <button
               onClick={() => navigate("/rooms")}
-              className="w-8 h-8 rounded-md bg-surface-low border border-[#333] flex items-center justify-center text-slate-500 hover:text-white hover:bg-surface-high transition-colors shrink-0"
+              className="w-10 h-10 rounded-md bg-surface-lowest border border-white/5 flex items-center justify-center text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 transition-all shadow-sm shrink-0"
+              title="Back to Rooms"
             >
-              <ArrowLeft size={14} />
+              <ArrowLeft size={16} />
             </button>
 
             {/* Room Info */}
