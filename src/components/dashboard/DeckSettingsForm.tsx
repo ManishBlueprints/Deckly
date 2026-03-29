@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import * as pdfjsLib from "pdfjs-dist";
 import { useNavigate } from "react-router-dom";
@@ -47,8 +47,19 @@ export function DeckSettingsForm({
   const [uploadProgress, setUploadProgress] = useState("");
   const [newFile, setNewFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { profile } = useAuth();
   const navigate = useNavigate();
+
+  // Cleanup timeout on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // PDF Processing Logic
   const processPdfToImages = async (pdfFile: File) => {
@@ -65,7 +76,10 @@ export function DeckSettingsForm({
       const links = await extractPdfLinkHotspots(page).catch(() => []);
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
-      if (!context) continue;
+      if (!context) {
+        console.warn(`Failed to get 2d context for canvas on page ${i}, skipping slide`);
+        continue;
+      }
 
       canvas.height = viewport.height;
       canvas.width = viewport.width;
@@ -144,7 +158,7 @@ export function DeckSettingsForm({
       const updated = await deckService.updateDeck(deck.id, updates, userId);
       onUpdate(updated);
       setUploadProgress("Changes Synced!");
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setUploadProgress("");
         navigate("/content");
       }, 800);

@@ -428,8 +428,14 @@ function ManageDeck() {
         setProgressPercent(95);
 
         // Capture previous state for rollback
-        const previousPages = existingDeck?.pages || [];
-        const previousStatus = existingDeck?.status || "PENDING";
+        const previousValues = {
+          pages: existingDeck?.pages || [],
+          status: existingDeck?.status || "PENDING",
+          file_url: existingDeck?.file_url,
+          display_mode: existingDeck?.display_mode,
+          file_size: existingDeck?.file_size,
+          file_type: existingDeck?.file_type,
+        };
 
         const { error: dbError } = await supabase
           .from("decks")
@@ -455,12 +461,16 @@ function ManageDeck() {
           try {
             await triggerAndProcessConversion(editId);
           } catch (conversionErr) {
-            // Rollback on failure
+            // Rollback on failure - restore all fields that were updated
             await supabase
               .from("decks")
               .update({
-                pages: previousPages,
-                status: previousStatus,
+                pages: previousValues.pages,
+                status: previousValues.status,
+                file_url: previousValues.file_url,
+                display_mode: previousValues.display_mode,
+                file_size: previousValues.file_size,
+                file_type: previousValues.file_type,
               })
               .eq("id", editId);
             throw conversionErr;
