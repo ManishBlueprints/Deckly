@@ -77,10 +77,10 @@ export function RoomDocumentList({
               onDragEnd={handleDragEnd}
               className={`flex items-center gap-4 px-4 py-3 rounded-lg border transition-all duration-300 group ${
                 isDragging
-                  ? "opacity-40 border-deckly-primary/50 bg-[#111]"
+                  ? "opacity-40 border-deckly-primary/50 bg-[#2B2B2B]"
                   : isDragOver
-                    ? "border-[#222] bg-[#1a1a1a] scale-[1.01]"
-                    : "bg-[#111] border-[#222] hover:border-deckly-primary/30"
+                    ? "border-white/10 bg-surface-card scale-[1.01]"
+                    : "bg-[#2B2B2B] border-white/5 hover:border-deckly-primary/30"
               }`}
             >
               {/* Drag handle */}
@@ -94,7 +94,7 @@ export function RoomDocumentList({
               </span>
 
               {/* Thumbnail */}
-              <div className="w-12 h-10 rounded-md bg-[#1a1a1a] border border-[#222] overflow-hidden shrink-0 group-hover:border-deckly-primary/30 transition-all">
+              <div className="w-12 h-10 rounded-md bg-background border border-white/10 overflow-hidden shrink-0 group-hover:border-deckly-primary/30 transition-all">
                 {deck?.pages?.[0]?.image_url ? (
                   <img
                     src={deck.pages[0].image_url}
@@ -122,21 +122,21 @@ export function RoomDocumentList({
               <div className="flex items-center gap-1">
                 <Link
                   to={`/analytics/${doc.deck_id}`}
-                  className="w-8 h-8 flex items-center justify-center bg-[#1a1a1a] border border-[#333] text-slate-400 hover:text-emerald-400 hover:border-emerald-500/20 rounded-md transition-all active:scale-95"
+                  className="w-8 h-8 flex items-center justify-center bg-background border border-white/10 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/20 rounded-md transition-all active:scale-95"
                   title="View Analytics"
                 >
                   <BarChart3 size={14} />
                 </Link>
                 <Link
                   to={`/upload?edit=${doc.deck_id}`}
-                  className="w-8 h-8 flex items-center justify-center bg-[#1a1a1a] border border-[#333] text-slate-400 hover:text-blue-400 hover:border-blue-500/20 rounded-md transition-all active:scale-95"
+                  className="w-8 h-8 flex items-center justify-center bg-background border border-white/10 text-slate-400 hover:text-blue-400 hover:border-blue-500/20 rounded-md transition-all active:scale-95"
                   title="Edit Asset"
                 >
                   <Pencil size={14} />
                 </Link>
                 <button
                   onClick={() => onRemove(doc.deck_id)}
-                  className="w-8 h-8 flex items-center justify-center bg-[#1a1a1a] border border-[#333] text-slate-400 hover:text-red-400 hover:border-red-500/20 rounded-md transition-all active:scale-95"
+                  className="w-8 h-8 flex items-center justify-center bg-background border border-white/10 text-slate-400 hover:text-red-400 hover:border-red-500/20 rounded-md transition-all active:scale-95"
                   title="Remove from room"
                 >
                   <Trash2 size={14} />

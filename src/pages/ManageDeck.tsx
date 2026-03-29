@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { deckService } from "../services/deckService";
 import { supabase } from "../services/supabase";
@@ -579,11 +579,11 @@ function ManageDeck() {
               >
                 <div className="flex flex-col items-center gap-3">
                   {file ? (
-                    <div className="w-12 h-12 rounded-lg bg-surface-lowest border border-border flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-lg bg-[#2B2B2B] border border-border flex items-center justify-center">
                       <CheckCircle2 size={24} className="text-deckly-primary" />
                     </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-surface-lowest border border-border flex items-center justify-center group-hover:border-border transition-colors">
+                    <div className="w-12 h-12 rounded-lg bg-[#2B2B2B] border border-border flex items-center justify-center group-hover:border-border transition-colors">
                       <Upload
                         size={24}
                         className="text-slate-500 group-hover:text-deckly-primary transition-colors"
@@ -613,7 +613,7 @@ function ManageDeck() {
 
               {/* Display Mode Toggle for New Formats or Pro Formats */}
               {file && fileType !== "pdf" && (
-                <div className="p-4 md:p-6 rounded-lg border border-[#222] bg-[#141414] flex flex-col gap-4 mt-4">
+                <div className="p-4 md:p-6 rounded-lg border border-white/5 bg-surface-lowest flex flex-col gap-4 mt-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-white">
@@ -623,14 +623,14 @@ function ManageDeck() {
                         How should visitors see this?
                       </p>
                     </div>
-                    <div className="flex bg-[#0a0a0a] border border-[#222] p-1 rounded-md w-fit">
+                    <div className="flex bg-background border border-white/5 p-1 rounded-md w-fit">
                       <button
                         type="button"
                         onClick={() => setConversionMode("raw")}
                         className={cn(
                           "px-4 py-1.5 text-xs font-medium rounded transition-all",
                           conversionMode === "raw"
-                            ? "bg-[#222] text-white"
+                            ? "bg-surface-card text-white shadow-sm"
                             : "text-slate-500 hover:text-slate-300",
                         )}
                       >
@@ -651,14 +651,14 @@ function ManageDeck() {
                         className={cn(
                           "px-4 py-1.5 text-xs font-medium rounded transition-all flex items-center gap-2",
                           conversionMode === "interactive"
-                            ? "bg-[#222] text-white"
+                            ? "bg-surface-card text-white shadow-sm"
                             : "text-slate-500 hover:text-slate-300",
                         )}
                       >
                         INTERACTIVE
                         {!TIER_CONFIG[userProfile?.tier || "FREE"]
                           .allowInteractive && (
-                          <span className="bg-[#111] text-[#999] border border-[#333] text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                          <span className="bg-background text-slate-400 border border-white/5 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                             PRO
                           </span>
                         )}
@@ -675,7 +675,7 @@ function ManageDeck() {
             </div>
 
             {/* --- Document Details Section (Section 2) --- */}
-            <div className="space-y-6 pt-6 border-t border-[#222]">
+            <div className="space-y-6 pt-6 border-t border-white/5">
               <div className="flex items-center gap-2 mb-2">
                 <FileText size={16} className="text-deckly-primary" />
                 <h3 className="text-sm font-medium text-white">
@@ -697,7 +697,7 @@ function ManageDeck() {
                     onChange={(e) => setTitle(e.target.value)}
                     required
                     placeholder="e.g. Series A Pitch Deck - v2"
-                    className="h-11 rounded-md border-[#333] bg-[#141414] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 transition-all focus:bg-[#1a1a1a]"
+                    className="h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 transition-all focus:bg-[#2B2B2B]"
                   />
                 </div>
 
@@ -726,7 +726,7 @@ function ManageDeck() {
                       placeholder="my-pitch"
                       disabled={!!editId}
                       className={cn(
-                        "h-11 rounded-md border-[#333] bg-[#141414] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#1a1a1a] disabled:opacity-50",
+                        "h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#2B2B2B] disabled:opacity-50",
                         userProfile?.handle || authProfile?.handle
                           ? "pl-[100px]" // Approximation based on handle length, could be dynamic but sticking to fixed for now.
                           : "pl-12",
@@ -797,13 +797,13 @@ function ManageDeck() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Briefly explain what this document contains..."
                   rows={3}
-                  className="flex w-full rounded-md border border-[#333] bg-[#141414] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-deckly-primary focus:bg-[#1a1a1a] transition-all resize-none"
+                  className="flex w-full rounded-md border border-white/10 bg-[#2B2B2B] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-deckly-primary focus:bg-[#2B2B2B] transition-all resize-none"
                 />
               </div>
             </div>
 
             {/* --- Access Protection Section --- */}
-            <div className="pt-6 border-t border-[#222] space-y-6">
+            <div className="pt-6 border-t border-white/5 space-y-6">
               <div className="flex items-center gap-2 mb-2">
                 <Lock size={16} className="text-deckly-primary" />
                 <h3 className="text-sm font-medium text-white">
@@ -817,17 +817,17 @@ function ManageDeck() {
                   className={cn(
                     "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
                     requireEmail
-                      ? "bg-[#1a1a1a] border-deckly-primary"
-                      : "bg-[#141414] border-[#333]",
+                      ? "bg-background border-deckly-primary"
+                      : "bg-[#2B2B2B] border-white/10",
                   )}
                 >
                   <div className="flex items-center gap-4">
                     <div
                       className={cn(
-                        "w-10 h-10 rounded-md flex items-center justify-center transition-colors",
+                        "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
                         requireEmail
-                          ? "bg-deckly-primary/10 text-deckly-primary"
-                          : "bg-[#0f0f0f] border border-[#222] text-slate-500",
+                          ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                          : "text-slate-500",
                       )}
                     >
                       <Mail size={18} />
@@ -852,17 +852,17 @@ function ManageDeck() {
                   className={cn(
                     "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
                     requirePassword
-                      ? "bg-[#1a1a1a] border-deckly-primary"
-                      : "bg-[#141414] border-[#333]",
+                      ? "bg-background border-deckly-primary"
+                      : "bg-[#2B2B2B] border-white/10",
                   )}
                 >
                   <div className="flex items-center gap-4">
                     <div
                       className={cn(
-                        "w-10 h-10 rounded-md flex items-center justify-center transition-colors",
+                        "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
                         requirePassword
-                          ? "bg-deckly-primary/10 text-deckly-primary"
-                          : "bg-[#0f0f0f] border border-[#222] text-slate-500",
+                          ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                          : "text-slate-500",
                       )}
                     >
                       <Lock size={18} />
@@ -906,7 +906,7 @@ function ManageDeck() {
                           onChange={(e) => setViewPassword(e.target.value)}
                           placeholder="Create a strong password"
                           required={requirePassword}
-                          className="h-11 rounded-md border-[#333] bg-[#141414] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 pr-12 transition-all focus:bg-[#1a1a1a]"
+                          className="h-11 rounded-md border-white/10 bg-surface-lowest focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 pr-12 transition-all focus:bg-background"
                         />
                         <button
                           type="button"
@@ -932,17 +932,17 @@ function ManageDeck() {
                 className={cn(
                   "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
                   enableExpiry
-                    ? "bg-[#1a1a1a] border-deckly-primary"
-                    : "bg-[#141414] border-[#333]",
+                    ? "bg-background border-deckly-primary"
+                    : "bg-[#2B2B2B] border-white/10",
                 )}
               >
                 <div className="flex items-center gap-4">
                   <div
                     className={cn(
-                      "w-10 h-10 rounded-md flex items-center justify-center transition-colors",
+                      "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
                       enableExpiry
-                        ? "bg-deckly-primary/10 text-deckly-primary"
-                        : "bg-[#0f0f0f] border border-[#222] text-slate-500",
+                        ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                        : "text-slate-500",
                     )}
                   >
                     <CalendarDays size={18} />
@@ -986,7 +986,7 @@ function ManageDeck() {
                         value={expiresAt}
                         onChange={(e) => setExpiresAt(e.target.value)}
                         min={new Date().toISOString().split("T")[0]}
-                        className="h-11 rounded-md border-[#333] bg-[#141414] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#1a1a1a] [color-scheme:dark]"
+                        className="h-11 rounded-md border-white/10 bg-surface-lowest focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-background [color-scheme:dark]"
                       />
                     </div>
                   </motion.div>
@@ -1040,7 +1040,7 @@ function ManageDeck() {
             </AnimatePresence>
 
             {/* --- Actions --- */}
-            <div className="flex flex-col gap-3 pt-6 border-t border-[#222]">
+            <div className="flex flex-col gap-3 pt-6 border-t border-white/5">
               <Button
                 type="submit"
                 disabled={loading}
@@ -1062,16 +1062,14 @@ function ManageDeck() {
                 )}
               </Button>
 
-              <Link to="/content">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full h-11 text-slate-400 hover:text-white hover:bg-white/5 font-medium text-sm rounded-md transition-all"
-                >
-                  <ArrowLeft size={16} className="mr-2" />
-                  Back to Assets
-                </Button>
-              </Link>
+              <button
+                type="button"
+                onClick={() => navigate("/content")}
+                className="w-full h-11 text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 font-medium text-sm rounded-md transition-all flex items-center justify-center border border-white/5"
+              >
+                <ArrowLeft size={16} className="mr-2" />
+                Return to Assets
+              </button>
             </div>
           </form>
         </DashboardCard>

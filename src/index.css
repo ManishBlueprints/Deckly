@@ -25,6 +25,7 @@
     --surface-high: 0 0% 16.5%; /* #2a2a2a - elevated / hover */
     --surface-highest: 0 0% 20.8%; /* #353534 - highest elevation */
     --surface-bright: 0 0% 22.7%; /* #3a3939 */
+    --bg-input: 0 0% 16.9%; /* #2b2b2b - User Requested for inputs */
 
     --primary: 142 76% 62%; /* #54e98a */
     --primary-foreground: 148 100% 11%; /* #003919 */

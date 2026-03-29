@@ -202,7 +202,7 @@ export function DeckSettingsForm({
         setViewPassword={setViewPassword}
       />
 
-      <div className="flex justify-end pt-6 mt-6 border-t border-[#222]">
+      <div className="flex justify-end pt-6 mt-6 border-t border-white/5">
         <Button
           type="button"
           onClick={(e: React.MouseEvent) => {
@@ -231,7 +231,7 @@ export function DeckSettingsForm({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-[#111] border border-[#333] px-6 py-3 rounded-md flex items-center gap-3 shadow-2xl"
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-surface-card border border-white/10 px-6 py-3 rounded-md flex items-center gap-3 shadow-2xl"
           >
             <div className="w-4 h-4 border-2 border-deckly-primary/30 border-t-deckly-primary rounded-full animate-spin" />
             <span className="text-sm font-medium text-white">
