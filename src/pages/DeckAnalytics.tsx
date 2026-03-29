@@ -164,7 +164,6 @@ export default function DeckAnalytics() {
     );
   }
 
-  console.log("Analytics State:", { deck, stats, totalSaves, bookmarks });
 
   return (
     <DashboardLayout title={`${deck?.title || "Deck"} Analytics`}>

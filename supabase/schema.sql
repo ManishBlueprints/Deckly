@@ -72,13 +72,13 @@ CREATE TABLE IF NOT EXISTS public.deck_page_views (
     visitor_id TEXT NOT NULL,
     viewer_email TEXT,
     viewed_at TIMESTAMPTZ DEFAULT NOW(),
-    time_spent REAL DEFAULT 0
+    time_spent NUMERIC DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS public.deck_stats (
     deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
     page_number INTEGER NOT NULL,
-    user_id UUID NOT NULL, -- Owner of the deck (redundant but helpful for RLS)
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     total_views INTEGER DEFAULT 0,
     total_time_seconds INTEGER DEFAULT 0,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -110,7 +110,9 @@ CREATE POLICY "Branding is viewable by everyone" ON public.branding
 
 -- POLICIES FOR ANALYTICS (Public insertion, Owner viewing)
 CREATE POLICY "Public can log valid page views" ON public.deck_page_views
-    FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.decks WHERE id = deck_id));
+    FOR INSERT WITH CHECK (
+        EXISTS (SELECT 1 FROM public.decks_public WHERE id = deck_id)
+    );
 
 CREATE POLICY "Owners can view their page views" ON public.deck_page_views
     FOR SELECT USING (EXISTS (
@@ -192,8 +194,10 @@ DROP VIEW IF EXISTS public.decks_public;
 ALTER TABLE public.decks ALTER COLUMN pages DROP DEFAULT;
 ALTER TABLE public.decks ALTER COLUMN pages TYPE JSONB USING to_jsonb(pages);
 ALTER TABLE public.decks ALTER COLUMN pages SET DEFAULT '[]'::jsonb;
-ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS time_spent REAL DEFAULT 0;
-ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS viewer_email TEXT;
+-- time_spent is already defined as NUMERIC in the CREATE TABLE above
+-- These migrations are redundant but harmless — add comment for clarity
+-- ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS time_spent REAL DEFAULT 0; -- REDUNDANT: already NUMERIC in table definition
+-- ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS viewer_email TEXT; -- REDUNDANT: already defined in table definition
 
 -- 7. SECURITY HARDENING: SECURE ACCESS GATE
 -- This section implements server-side password validation to prevent leakage.
@@ -203,7 +207,7 @@ ALTER TABLE deck_page_views ADD COLUMN IF NOT EXISTS viewer_email TEXT;
 -- The "Public profile fields" policy below grants anonymous SELECT on profiles;
 -- column-level GRANTs ensure only id and handle are accessible to anon/authenticated.
 CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = true) AS
-SELECT id, handle
+SELECT id, handle, full_name, avatar_url
 FROM public.profiles;
 
 -- Public view for decks (excludes sensitive view_password, file_url, and pages payload)
@@ -237,7 +241,7 @@ CREATE POLICY "Public profile fields are viewable by everyone"
 
 -- Restrict which columns anon/authenticated can actually access on profiles.
 -- RLS controls which ROWS are visible; column grants control which COLUMNS.
-GRANT SELECT (id, handle) ON public.profiles TO anon, authenticated;
+GRANT SELECT (id, handle, full_name, avatar_url) ON public.profiles TO anon, authenticated;
 
 -- GRANT VIEW PERMISSIONS --
 GRANT SELECT ON public.decks_public TO anon, authenticated;
@@ -484,11 +488,10 @@ BEGIN
 END;
 $$;
 
--- Secure Postgres Function for Analytics (replaces client-side inserts/updates)
 CREATE OR REPLACE FUNCTION public.record_deck_visit(
     p_deck_id UUID,
     p_page_number INTEGER,
-    p_time_spent REAL,
+    p_time_spent NUMERIC,
     p_visitor_id TEXT,
     p_viewer_email TEXT DEFAULT NULL
 )
@@ -505,7 +508,7 @@ DECLARE
 BEGIN
     -- Input Validations
     IF p_time_spent < 0 THEN p_time_spent := 0; END IF;
-    p_time_spent := LEAST(p_time_spent, 300); -- hard cap at 5 mins per ping
+    p_time_spent := LEAST(p_time_spent, 3600); -- updated cap: 1 hr
     
     -- Ensure visitor_id doesn't exceed 100 chars instead of silently dropping
     IF LENGTH(p_visitor_id) > 100 THEN 
@@ -518,8 +521,8 @@ BEGIN
         FROM public.deck_page_views
         WHERE visitor_id = p_visitor_id AND deck_id = p_deck_id AND viewer_email IS NOT NULL;
 
-        IF v_email_count >= 3 THEN
-           -- Ignore the injected email, do not process it
+        IF v_email_count >= 5 THEN
+           -- Ignore the injected email
            p_viewer_email := NULL;
         END IF;
     END IF;
@@ -564,14 +567,19 @@ BEGIN
     DO UPDATE SET
         total_views        = deck_stats.total_views + (CASE WHEN v_is_unique THEN 1 ELSE 0 END),
         total_time_seconds = deck_stats.total_time_seconds + ROUND(p_time_spent::numeric)::INTEGER,
-        updated_at         = NOW();
+        updated_at         = NOW(),
+        user_id            = COALESCE(deck_stats.user_id, EXCLUDED.user_id);
 END;
 $$;
+
+-- Grant permissions for analytics
+REVOKE EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT) TO anon, authenticated;
 
 -- 8. INVESTOR LIBRARY
 CREATE TABLE IF NOT EXISTS public.investor_library (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
     last_viewed_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW(),

@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { dataRoomService } from "../services/dataRoomService";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
 import { useAuth } from "../contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   getRoomVisitorSignals,
   VisitorSignal,
@@ -44,6 +45,7 @@ function DataRoomDetail() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
 
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
@@ -115,12 +117,14 @@ function DataRoomDetail() {
   const handleAddDocuments = async (deckIds: string[]) => {
     if (!roomId) return;
     await dataRoomService.addDocuments(roomId, deckIds);
+    queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
     loadAll();
   };
 
   const handleRemoveDocument = async (deckId: string) => {
     if (!roomId) return;
     await dataRoomService.removeDocument(roomId, deckId);
+    queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
     setDocuments((prev) => prev.filter((d) => d.deck_id !== deckId));
     setAnalytics((prev) => ({
       ...prev,
@@ -139,12 +143,21 @@ function DataRoomDetail() {
       return newDocs;
     });
     await dataRoomService.reorderDocuments(roomId, orderedDeckIds);
+    queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
   };
 
   const handleDeleteRoom = async () => {
     if (!roomId) return;
-    await dataRoomService.deleteDataRoom(roomId);
-    navigate("/rooms");
+    try {
+      await dataRoomService.deleteDataRoom(roomId);
+      queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
+      queryClient.invalidateQueries({
+        queryKey: ["user-total-stats", profile?.id],
+      });
+      navigate("/rooms");
+    } catch (err) {
+      console.error("Failed to delete room", err);
+    }
   };
 
   /* ── loading state ── */

@@ -7,11 +7,13 @@ import { DeckSettingsForm } from "../components/dashboard/DeckSettingsForm";
 import { deckService } from "../services/deckService";
 import { Deck } from "../types";
 import { useAuth } from "../contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function EditDeck() {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
   const { session } = useAuth();
+  const queryClient = useQueryClient();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -102,6 +104,10 @@ export default function EditDeck() {
                 onUpdate={setDeck}
                 onDelete={async (id) => {
                   await deckService.deleteDeck(id, deck.file_url, deck.slug);
+                  queryClient.invalidateQueries({ queryKey: ["decks", session?.user?.id] });
+                  queryClient.invalidateQueries({
+                    queryKey: ["user-total-stats", session?.user?.id],
+                  });
                   navigate("/");
                 }}
               />

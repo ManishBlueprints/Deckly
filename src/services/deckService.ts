@@ -380,12 +380,12 @@ export const deckService = {
     const fileName = `${userId}/branding/logo-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("decks")
+      .from("assets")
       .upload(fileName, file);
 
     if (uploadError) throw uploadError;
 
-    const { data: { publicUrl } } = supabase.storage.from("decks").getPublicUrl(
+    const { data: { publicUrl } } = supabase.storage.from("assets").getPublicUrl(
       fileName,
     );
     return publicUrl;

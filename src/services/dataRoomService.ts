@@ -201,16 +201,15 @@ export const dataRoomService = {
     if (!userId) throw new Error("Not authenticated");
 
     const fileExt = file.name.split(".").pop();
-    const fileName = `${userId}/${Date.now()}.${fileExt}`;
-    const filePath = `room-icons/${fileName}`;
+    const fileName = `${userId}/room-icons/icon-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("assets")
-      .upload(filePath, file);
+      .upload(fileName, file);
 
     if (uploadError) throw uploadError;
 
-    const { data } = supabase.storage.from("assets").getPublicUrl(filePath);
+    const { data } = supabase.storage.from("assets").getPublicUrl(fileName);
     return data.publicUrl;
   },
 
