@@ -118,12 +118,14 @@ export function DeckSettingsForm({
     }
   };
 
-  // Main Save Handler
-    const handleSave = async () => {
-      setError(null); // Clear previous errors
-      setIsSaving(true);
-      setUploadProgress("Syncing changes...");
-      try {
+  const handleSave = async () => {
+    // Track the uploaded file path so it can be cleaned up if any later step fails
+    let uploadedFileName: string | null = null;
+
+    setError(null); // Clear previous errors
+    setIsSaving(true);
+    setUploadProgress("Syncing changes...");
+    try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -140,22 +142,22 @@ export function DeckSettingsForm({
       if (newFile) {
         setUploadProgress("Uploading source...");
         const fileExt = newFile.name.split(".").pop();
-        const fileName = `${userId}/decks/${slug}-${Date.now()}.${fileExt}`;
+        uploadedFileName = `${userId}/decks/${slug}-${Date.now()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
           .from("decks")
-          .upload(fileName, newFile);
+          .upload(uploadedFileName, newFile);
         if (uploadError) throw uploadError;
 
         const {
           data: { publicUrl },
-        } = supabase.storage.from("decks").getPublicUrl(fileName);
+        } = supabase.storage.from("decks").getPublicUrl(uploadedFileName);
         finalFileUrl = publicUrl;
         fileSize = newFile.size;
 
         const imageAssets = await processPdfToImages(newFile);
         if (!imageAssets) {
           // Clean up the orphaned uploaded source file before aborting
-          await supabase.storage.from("decks").remove([fileName]).catch((err) =>
+          await supabase.storage.from("decks").remove([uploadedFileName]).catch((err) =>
             console.error("Failed to remove orphaned upload after PDF processing failure:", err)
           );
           setUploadProgress("");
@@ -201,6 +203,12 @@ export function DeckSettingsForm({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error("Sync error:", err);
+      // Clean up the uploaded source file if a post-upload step failed
+      if (uploadedFileName) {
+        await supabase.storage.from("decks").remove([uploadedFileName]).catch((removeErr) =>
+          console.error("Failed to remove orphaned upload during error recovery:", removeErr)
+        );
+      }
       alert(message || "Failed to update asset settings");
       setUploadProgress("");
     } finally {

@@ -233,6 +233,7 @@ export async function getRoomVisitorSignals(
         )
         .in("visitor_id", visitorChunk)
         .in("deck_id", deckChunk)
+        .or(`data_room_id.eq.${roomId},data_room_id.is.null`) // Scope to this room; null = legacy pre-room rows
         .order("viewed_at", { ascending: true });
 
       if (chunkError) {

@@ -136,7 +136,24 @@ CREATE TABLE IF NOT EXISTS public.deck_page_views (
     country_code TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_deck_page_views_location ON public.deck_page_views(country, city);
+-- Migration: add columns to existing deck_page_views table
+ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS data_room_id UUID;
+ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS viewer_email TEXT;
+ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS time_spent NUMERIC DEFAULT 0;
+ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'Unknown';
+ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS city TEXT DEFAULT 'Unknown City';
+ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS country_code TEXT;
+-- FK constraint for data_room_id (safe to re-run; DO NOTHING if exists)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'deck_page_views_data_room_id_fkey'
+  ) THEN
+    ALTER TABLE public.deck_page_views
+      ADD CONSTRAINT deck_page_views_data_room_id_fkey
+      FOREIGN KEY (data_room_id) REFERENCES public.data_rooms(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.deck_stats (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -148,6 +165,19 @@ CREATE TABLE IF NOT EXISTS public.deck_stats (
     total_time_seconds INTEGER DEFAULT 0,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration: add data_room_id to existing deck_stats table
+ALTER TABLE public.deck_stats ADD COLUMN IF NOT EXISTS data_room_id UUID;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'deck_stats_data_room_id_fkey'
+  ) THEN
+    ALTER TABLE public.deck_stats
+      ADD CONSTRAINT deck_stats_data_room_id_fkey
+      FOREIGN KEY (data_room_id) REFERENCES public.data_rooms(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 -- =============================================================================
 -- DATA ROOMS OPTIMIZATION
@@ -599,7 +629,18 @@ BEGIN
         END IF;
     END IF;
 
-    -- 1. Get the deck owner
+    -- 1. Validate p_data_room_id: ensure it's linked to p_deck_id to prevent spoofing
+    IF p_data_room_id IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM public.data_room_documents
+            WHERE data_room_id = p_data_room_id AND deck_id = p_deck_id
+        ) THEN
+            -- Room is not linked to this deck; silently discard the association
+            p_data_room_id := NULL;
+        END IF;
+    END IF;
+
+    -- 2. Get the deck owner
     SELECT user_id INTO v_deck_owner_id FROM public.decks WHERE id = p_deck_id;
     IF NOT FOUND THEN RETURN; END IF;
 
