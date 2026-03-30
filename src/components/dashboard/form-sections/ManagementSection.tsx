@@ -45,7 +45,7 @@ export function ManagementSection({
             placeholder="Series A Pitch Deck"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="h-11 rounded-md border-[#333] bg-[#141414] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 transition-all focus:bg-[#1a1a1a]"
+            className="h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 transition-all focus:bg-[#2B2B2B]"
           />
         </div>
         <div className="space-y-2">
@@ -65,7 +65,7 @@ export function ManagementSection({
               value={slug}
               onChange={(e) => setSlug(normalizeSlug(e.target.value))}
               className={cn(
-                "h-11 rounded-md border-[#333] bg-[#141414] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#1a1a1a]",
+                "h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#2B2B2B]",
                 userHandle.length > 10 ? "pl-[100px]" : "pl-[80px]",
               )}
             />
@@ -93,17 +93,17 @@ export function ManagementSection({
         <div
           onClick={onFileClick}
           className={cn(
-            "flex items-center justify-between p-6 rounded-lg bg-[#111] border border-[#333] border-dashed cursor-pointer hover:bg-[#141414] hover:border-[#444] transition-all group relative overflow-hidden",
-            newFile ? "border-deckly-primary/30 bg-[#141414]" : "",
+            "flex items-center justify-between p-6 rounded-lg bg-[#2B2B2B] border border-white/10 border-dashed cursor-pointer hover:bg-surface-card hover:border-white/20 transition-all group relative overflow-hidden",
+            newFile ? "border-deckly-primary/30 bg-surface-card" : "",
           )}
         >
           <div className="flex items-center gap-4 relative z-10">
             {newFile ? (
-              <div className="w-12 h-12 rounded-lg bg-[#0f0f0f] border border-[#222] flex items-center justify-center">
+              <div className="w-12 h-12 flex items-center justify-center">
                 <Save size={24} className="text-deckly-primary" />
               </div>
             ) : (
-              <div className="w-12 h-12 rounded-lg bg-[#0f0f0f] border border-[#222] flex items-center justify-center group-hover:border-[#333] transition-colors">
+              <div className="w-12 h-12 flex items-center justify-center transition-colors">
                 <Upload
                   size={24}
                   className="text-slate-500 group-hover:text-deckly-primary transition-colors"

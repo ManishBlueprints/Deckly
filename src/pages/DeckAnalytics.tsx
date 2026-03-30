@@ -13,6 +13,8 @@ import {
   ChevronDown,
   FileText,
   Loader2,
+  MapPin,
+  Globe,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -22,11 +24,13 @@ import { Button } from "../components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
 import { useDeck } from "../hooks/useDecks";
+import { DeckStats } from "../types";
 import {
   useDeckStats,
   useDeckBookmarks,
   useVisitorSignals,
   useUniqueVisitorCount,
+  useDeckLocations,
 } from "../hooks/useDeckAnalyticsData";
 
 interface BookmarkData {
@@ -36,12 +40,29 @@ interface BookmarkData {
   };
 }
 
+interface CountryStat {
+  name: string;
+  count: number;
+  code: string;
+}
+
+interface CityStat {
+  name: string;
+  count: number;
+  country: string;
+}
+
+interface DropOffStat extends DeckStats {
+  dropOffCount: number;
+  dropOffPercent: number;
+}
+
 export default function DeckAnalytics() {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
   const { session, isPro } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    "VISITS" | "TIME" | "DROPOFF" | "SAVES"
+    "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION"
   >("VISITS");
   const [expandedVisitor, setExpandedVisitor] = useState<string | null>(null);
 
@@ -65,17 +86,18 @@ export default function DeckAnalytics() {
   } = useVisitorSignals(deckId);
   const { data: uniqueVisitors = 0, isFetching: uniqueFetching } =
     useUniqueVisitorCount(deckId);
+  const { data: locationData, isFetching: locationsFetching } = useDeckLocations(deckId);
 
   const loading = deckLoading || (stats.length === 0 && statsLoading);
   const isRefreshing =
-    statsFetching || bookmarksFetching || signalsFetching || uniqueFetching;
+    statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching;
   const error = deckError ? "Failed to load analytics data." : null;
   const totalSaves = bookmarks.length;
 
   // Derived Stats
 
   const totalSeconds = useMemo(
-    () => stats.reduce((acc, curr) => acc + curr.total_time_seconds, 0),
+    () => stats.reduce((acc: number, curr: DeckStats) => acc + curr.total_time_seconds, 0),
     [stats],
   );
   const avgTimePerView = useMemo(
@@ -85,20 +107,20 @@ export default function DeckAnalytics() {
   );
 
   const maxViews = useMemo(
-    () => Math.max(...stats.map((s) => s.total_views), 1),
+    () => Math.max(...stats.map((s: DeckStats) => s.total_views), 1),
     [stats],
   );
   const maxTime = useMemo(
     () =>
       Math.max(
-        ...stats.map((s) => s.total_time_seconds / (s.total_views || 1)),
+        ...stats.map((s: DeckStats) => s.total_time_seconds / (s.total_views || 1)),
         1,
       ),
     [stats],
   );
 
   const dropOffStats = useMemo(() => {
-    return stats.map((s, idx) => {
+    return stats.map((s: DeckStats, idx: number) => {
       const nextSlide = stats[idx + 1];
       const dropOffCount = nextSlide
         ? Math.max(0, s.total_views - nextSlide.total_views)
@@ -121,6 +143,7 @@ export default function DeckAnalytics() {
     { id: "TIME", label: "Duration", shortLabel: "Time" },
     { id: "DROPOFF", label: "Dropoff" },
     { id: "SAVES", label: "Saves", shortLabel: "Saved" },
+    { id: "LOCATION", label: "Location" },
   ];
 
   if (loading) {
@@ -169,7 +192,7 @@ export default function DeckAnalytics() {
     <DashboardLayout title={`${deck?.title || "Deck"} Analytics`}>
       <div className="flex-1 -m-8 relative">
         {/* ═══════════════ HEADER SECTION ═══════════════ */}
-        <div className="pt-6 md:pt-8 pb-6 md:pb-8 px-4 md:px-6 border-b border-[#222] bg-[#0f0f0f] relative overflow-hidden">
+        <div className="pt-6 md:pt-8 pb-6 md:pb-8 px-4 md:px-6 border-b border-[#222] bg-background relative overflow-hidden">
           {/* Background Indicator for Refreshing */}
           <AnimatePresence>
             {isRefreshing && (
@@ -193,10 +216,10 @@ export default function DeckAnalytics() {
           <div className="max-w-6xl mx-auto flex items-center gap-3 md:gap-6 mt-6 md:mt-0">
             <button
               onClick={() => navigate("/content")}
-              className="flex-shrink-0 w-8 h-8 rounded-md bg-[#111] border border-[#222] flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#1a1a1a] transition-all"
+              className="flex-shrink-0 w-10 h-10 rounded-md bg-surface-lowest border border-white/5 flex items-center justify-center text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 transition-all shadow-sm"
               title="Return to Content"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={18} />
             </button>
 
             <div className="flex-1 min-w-0 flex items-center gap-3">
@@ -224,7 +247,7 @@ export default function DeckAnalytics() {
         </div>
 
         {/* ═══════════════ STATS ROW ═══════════════ */}
-        <div className="border-b border-[#222] bg-[#0a0a0a] px-4 md:px-6 overflow-x-auto scrollbar-hide py-4">
+        <div className="bg-background px-4 md:px-6 overflow-x-auto scrollbar-hide py-4 relative z-10">
           <div className="max-w-6xl mx-auto min-w-[320px] pb-1 md:pb-0">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatItem
@@ -255,7 +278,7 @@ export default function DeckAnalytics() {
 
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-16 space-y-8 md:space-y-16">
           {/* Detailed Engagement Chart Card */}
-          <div className="bg-[#111] border border-[#222] rounded-lg p-4 md:p-8 shadow-sm">
+          <div className="bg-surface-card border border-[#222] rounded-lg p-4 md:p-8 shadow-sm">
             <div className="flex flex-col space-y-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-center gap-3">
@@ -271,7 +294,7 @@ export default function DeckAnalytics() {
                   value={activeTab}
                   onValueChange={(v) => {
                     const tab = tabs.find((t) => t.id === v);
-                    if (tab) setActiveTab(v as "VISITS" | "TIME" | "DROPOFF" | "SAVES");
+                    if (tab) setActiveTab(v as "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION");
                   }}
                   className="w-full md:w-auto"
                 >
@@ -321,7 +344,7 @@ export default function DeckAnalytics() {
                         return (
                         <div
                           key={i}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#141414] border border-[#222] rounded-md group/item hover:bg-[#1a1a1a] hover:border-[#333] transition-all duration-200 gap-4 sm:gap-0"
+                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-surface-low border border-[#222] rounded-md group/item hover:bg-[#2a2a2a] hover:border-[#333] transition-all duration-200 gap-4 sm:gap-0"
                         >
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-md bg-[#111] border border-[#333] flex items-center justify-center text-deckly-primary font-bold text-sm shrink-0">
@@ -349,6 +372,75 @@ export default function DeckAnalytics() {
                         </div>
                         );
                       })}
+                    </div>
+                  )
+                ) : activeTab === "LOCATION" ? (
+                  !locationData || (locationData.countries.length === 0 && locationData.cities.length === 0) ? (
+                    <div className="py-20 text-center space-y-6">
+                      <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
+                        <Globe size={32} />
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                        No location data captured yet.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 gap-12">
+                      {/* Countries */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Globe size={14} className="text-deckly-primary" />
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Top Countries</h4>
+                        </div>
+                        <div className="space-y-4">
+                          {locationData.countries.map((c: CountryStat, i: number) => (
+                            <div key={i} className="space-y-2">
+                              <div className="flex justify-between text-[11px] font-medium">
+                                <span className="text-white flex items-center gap-2">
+                                  <span className="text-slate-500">#{i + 1}</span>
+                                  {c.name}
+                                </span>
+                                <span className="text-slate-400">{c.count} visits</span>
+                              </div>
+                              <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${(c.count / (locationData.countries[0]?.count || 1)) * 100}%` }}
+                                  className="h-full bg-deckly-primary"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Cities */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <MapPin size={14} className="text-deckly-primary" />
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Top Cities</h4>
+                        </div>
+                        <div className="space-y-4">
+                          {locationData.cities.map((c: CityStat, i: number) => (
+                            <div key={i} className="space-y-2">
+                              <div className="flex justify-between text-[11px] font-medium">
+                                <span className="text-white flex items-center gap-2">
+                                  <span className="text-slate-500">#{i + 1}</span>
+                                  {c.name}
+                                </span>
+                                <span className="text-slate-400">{c.count} visits</span>
+                              </div>
+                              <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${(c.count / (locationData.cities[0]?.count || 1)) * 100}%` }}
+                                  className="h-full bg-slate-700"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )
                 ) : stats.length === 0 ? (
@@ -389,16 +481,15 @@ export default function DeckAnalytics() {
                       )}
 
                     <div className="space-y-4">
-                      {(activeTab === "DROPOFF" ? dropOffStats : stats).map(
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (s: any) => {
+                      {(activeTab === "DROPOFF" ? (dropOffStats as DropOffStat[]) : (stats as DeckStats[])).map(
+                        (s: DeckStats | DropOffStat) => {
                           const avgTime =
                             s.total_views > 0
                               ? s.total_time_seconds / s.total_views
                               : 0;
                           const viewPercent = (s.total_views / maxViews) * 100;
                           const timePercent = (avgTime / maxTime) * 100;
-                          const retentionPercent = s.dropOffPercent;
+                          const retentionPercent = (s as DropOffStat).dropOffPercent || 0;
 
                           const percentage =
                             activeTab === "VISITS"
@@ -411,7 +502,7 @@ export default function DeckAnalytics() {
                               ? s.total_views
                               : activeTab === "TIME"
                                 ? `${avgTime.toFixed(1)}s`
-                                : `${s.dropOffPercent.toFixed(0)}%`;
+                                : `${retentionPercent.toFixed(0)}%`;
 
                           const labelText =
                             activeTab === "VISITS"
@@ -431,7 +522,7 @@ export default function DeckAnalytics() {
                               <span className="text-xs font-medium text-slate-500 w-10 shrink-0">
                                 Pg {s.page_number}
                               </span>
-                              <div className="flex-1 h-8 bg-[#141414] rounded overflow-hidden border border-[#222]">
+                              <div className="flex-1 h-8 bg-surface-container rounded overflow-hidden border border-[#222]">
                                 <motion.div
                                   initial={{ width: 0 }}
                                   animate={{
@@ -487,7 +578,7 @@ export default function DeckAnalytics() {
           </div>
 
           {/* Visitor Engagement Signals Section */}
-          <div className="bg-[#111] border border-[#222] rounded-lg p-4 md:p-8 shadow-sm">
+          <div className="bg-surface-card border border-[#222] rounded-lg p-4 md:p-8 shadow-sm">
             <div className="space-y-10 relative z-10">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-deckly-primary">
@@ -543,8 +634,8 @@ export default function DeckAnalytics() {
                       className={cn(
                         "rounded-md border transition-all duration-200 overflow-hidden cursor-pointer",
                         expandedVisitor === visitor.visitorId
-                          ? "bg-surface-card border-deckly-primary/50"
-                          : "bg-[#141414] border-[#222] hover:border-[#333] hover:bg-[#1a1a1a]",
+                          ? "bg-[#2a2a2a] border-deckly-primary/50"
+                          : "bg-surface-low border-[#222] hover:border-[#333] hover:bg-[#2a2a2a]",
                       )}
                       onClick={() =>
                         setExpandedVisitor(
@@ -557,7 +648,7 @@ export default function DeckAnalytics() {
                       <div className="p-4 md:p-6">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-[#0f0f0f] border border-[#222] flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-background border border-[#222] flex items-center justify-center shrink-0">
                               <span className="text-sm font-semibold text-deckly-primary">
                                 V{idx + 1}
                               </span>
@@ -729,9 +820,9 @@ function StatItem({
   value: string;
 }) {
   return (
-    <div className="flex flex-col bg-[#111] border border-[#222] rounded-lg p-5">
+    <div className="flex flex-col bg-surface-card border border-[#222] rounded-lg p-5">
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-deckly-primary">
+        <div className="w-8 h-8 rounded-md bg-surface-lowest border border-[#333] flex items-center justify-center text-deckly-primary">
           {icon}
         </div>
         <p className="text-xs font-medium text-slate-400">{label}</p>

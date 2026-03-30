@@ -2,19 +2,21 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useKeyboardControls } from "../hooks/useKeyboardControls";
-import { analyticsService } from "../services/analyticsService";
+import { useDeckAnalytics } from "../hooks/useDeckAnalytics";
 import { Deck, SlidePage } from "../types";
 
 interface ImageDeckViewerProps {
   deck: Deck;
   viewerEmail?: string;
   isOwner?: boolean;
+  dataRoomId?: string;
 }
 
 function ImageDeckViewer({
   deck,
   viewerEmail,
   isOwner = false,
+  dataRoomId,
 }: ImageDeckViewerProps) {
   const pages = useMemo(
     () => (Array.isArray(deck?.pages) ? deck.pages : []),
@@ -26,7 +28,6 @@ function ImageDeckViewer({
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const startTimeRef = useRef(Date.now());
 
   // Set up ResizeObserver to track container dimensions
   useEffect(() => {
@@ -81,25 +82,8 @@ function ImageDeckViewer({
     }
   }, [currentPage, pages, numPages, resolveSlideImage]);
 
-  useEffect(() => {
-    startTimeRef.current = Date.now();
-    return () => {
-      const endTime = Date.now();
-      const timeSpent = (endTime - startTimeRef.current) / 1000;
-      if (timeSpent > 0.5 && !isOwner) {
-        analyticsService.trackPageView(deck, currentPage, timeSpent);
-        analyticsService.syncSlideStats(
-          deck,
-          currentPage,
-          timeSpent,
-          viewerEmail,
-        );
-        if (currentPage === numPages) {
-          analyticsService.trackDeckComplete(deck, numPages);
-        }
-      }
-    };
-  }, [currentPage, deck, numPages, isOwner, viewerEmail]);
+  // Use the centralized analytics hook
+  useDeckAnalytics(deck, currentPage, numPages, isOwner, dataRoomId, viewerEmail);
 
   const goToPrevPage = useCallback(() => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
