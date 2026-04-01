@@ -14,17 +14,17 @@ import {
   LogOut,
   BarChart3,
 } from "lucide-react";
-import { deckService } from "../services/deckService";
-import { supabase } from "../services/supabase";
-import defaultBanner from "../assets/banner.png";
-import AnalyticsModal from "./AnalyticsModal";
+import { deckService } from "../../services/deckService";
+import { supabase } from "../../services/supabase";
+import defaultBanner from "../../assets/banner.png";
+import AnalyticsModal from "../dashboard/AnalyticsModal";
 import DeckDetailPanel from "./DeckDetailPanel";
-import { Deck, BrandingSettings } from "../types";
-import { cn } from "../utils/cn";
-import Button from "./common/Button";
-import { useAuth } from "../contexts/AuthContext";
-import { ConfirmModal } from "./common/ConfirmModal";
-import { getDeckShareUrl, getDeckPath } from "../utils/url";
+import { Deck, BrandingSettings } from "../../types";
+import { cn } from "../../lib/utils";
+import Button from "../common/Button";
+import { useAuth } from "../../contexts/AuthContext";
+import { ConfirmModal } from "../common/ConfirmModal";
+import { getDeckShareUrl, getDeckPath } from "../../utils/url";
 
 interface DeckListProps {
   decks: Deck[];

@@ -1,16 +1,16 @@
 import { useState, useMemo, useCallback } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { LibraryFolder, SavedDeckOrganized } from "../types";
+import { useAuth } from "../../contexts/AuthContext";
+import { LibraryFolder, SavedDeckOrganized } from "../../types";
 import { Loader2, Filter, Tag, Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ConfirmModal } from "./common/ConfirmModal";
-import { SavedDeckEmptyState } from "./saved-decks/SavedDeckEmptyState";
-import { CreateFolderModal } from "./saved-decks/CreateFolderModal";
-import { FolderCard } from "./saved-decks/FolderCard";
-import { DocumentRow } from "./saved-decks/DocumentRow";
-import { ManageTagsModal } from "./saved-decks/ManageTagsModal";
-import { useLibrary } from "../hooks/useLibrary";
-import { cn } from "../utils/cn";
+import { ConfirmModal } from "../common/ConfirmModal";
+import { SavedDeckEmptyState } from "./SavedDeckEmptyState";
+import { CreateFolderModal } from "./CreateFolderModal";
+import { FolderCard } from "./FolderCard";
+import { DocumentRow } from "./DocumentRow";
+import { ManageTagsModal } from "./ManageTagsModal";
+import { useLibrary } from "../../hooks/useLibrary";
+import { cn } from "../../lib/utils";
 
 export function SavedDecksView() {
   const { session } = useAuth();

@@ -11,14 +11,14 @@ import {
   AlertCircle,
   RefreshCcw,
 } from "lucide-react";
-import { analyticsService } from "../services/analyticsService";
-import { Deck, DeckStats } from "../types";
-import { cn } from "../utils/cn";
-import { useAuth } from "../contexts/AuthContext";
-import { getTierConfig } from "../constants/tiers";
-import Button from "./common/Button";
-import Card from "./common/Card";
-import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
+import { analyticsService } from "../../services/analyticsService";
+import { Deck, DeckStats } from "../../types";
+import { cn } from "../../lib/utils";
+import { useAuth } from "../../contexts/AuthContext";
+import { getTierConfig } from "../../constants/tiers";
+import Button from "../common/Button";
+import Card from "../common/Card";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 interface AnalyticsModalProps {
   deck: Deck;

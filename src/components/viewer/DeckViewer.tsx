@@ -2,9 +2,9 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useDeckAnalytics } from "../hooks/useDeckAnalytics";
-import { useKeyboardControls } from "../hooks/useKeyboardControls";
-import { Deck } from "../types";
+import { useDeckAnalytics } from "../../hooks/useDeckAnalytics";
+import { useKeyboardControls } from "../../hooks/useKeyboardControls";
+import { Deck } from "../../types";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 

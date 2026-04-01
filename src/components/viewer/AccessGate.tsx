@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck } from "lucide-react";
-import { Deck } from "../types";
-import { deckService } from "../services/deckService";
+import { Deck } from "../../types";
+import { deckService } from "../../services/deckService";
 
 interface AccessGateProps {
   deck: Deck;

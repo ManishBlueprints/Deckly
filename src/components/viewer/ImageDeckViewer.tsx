@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useKeyboardControls } from "../hooks/useKeyboardControls";
-import { useDeckAnalytics } from "../hooks/useDeckAnalytics";
-import { Deck, SlidePage } from "../types";
+import { useKeyboardControls } from "../../hooks/useKeyboardControls";
+import { useDeckAnalytics } from "../../hooks/useDeckAnalytics";
+import { Deck, SlidePage } from "../../types";
 
 interface ImageDeckViewerProps {
   deck: Deck;

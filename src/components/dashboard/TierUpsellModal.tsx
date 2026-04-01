@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Check, ArrowRight } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 
 interface TierUpsellModalProps {
   isOpen: boolean;

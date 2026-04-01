@@ -1,10 +1,10 @@
-import { useAuth } from "../contexts/AuthContext";
-import { ContentStatsCard } from "./dashboard/ContentStatsCard";
-import { DecksTable } from "./dashboard/DecksTable";
-import { useDecks } from "../hooks/useDecks";
-import { useUserTotalStats } from "../hooks/useUserTotalStats";
+import { useAuth } from "../../contexts/AuthContext";
+import { ContentStatsCard } from "./ContentStatsCard";
+import { DecksTable } from "./DecksTable";
+import { useDecks } from "../../hooks/useDecks";
+import { useUserTotalStats } from "../../hooks/useUserTotalStats";
 import { useQueryClient } from "@tanstack/react-query";
-import { deckService } from "../services/deckService";
+import { deckService } from "../../services/deckService";
 
 export function ContentView() {
   const { session, profile } = useAuth();

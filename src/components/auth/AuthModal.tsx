@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Github } from "lucide-react";
-import { supabase } from "../services/supabase";
-import logo from "../assets/Deckly.png";
+import { supabase } from "../../services/supabase";
+import logo from "../../assets/Deckly.png";
 
 interface AuthModalProps {
   isOpen: boolean;

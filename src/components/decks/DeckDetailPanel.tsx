@@ -14,20 +14,20 @@ import {
   EyeOff,
   BarChart3,
 } from "lucide-react";
-import { deckService } from "../services/deckService";
-import { analyticsService } from "../services/analyticsService";
-import { supabase } from "../services/supabase";
-import { useAuth } from "../contexts/AuthContext";
+import { deckService } from "../../services/deckService";
+import { analyticsService } from "../../services/analyticsService";
+import { supabase } from "../../services/supabase";
+import { useAuth } from "../../contexts/AuthContext";
 import * as pdfjsLib from "pdfjs-dist";
-import { Deck } from "../types";
-import { cn } from "../utils/cn";
-import { getDeckPath } from "../utils/url";
+import { Deck } from "../../types";
+import { cn } from "../../lib/utils";
+import { getDeckPath } from "../../utils/url";
 
 // Common Components
-import Button from "./common/Button";
-import Input from "./common/Input";
-import Toggle from "./common/Toggle";
-import Card from "./common/Card";
+import Button from "../common/Button";
+import Input from "../common/Input";
+import Toggle from "../common/Toggle";
+import Card from "../common/Card";
 
 // Set worker source for pdfjs-dist
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
