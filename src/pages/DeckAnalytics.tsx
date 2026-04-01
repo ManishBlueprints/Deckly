@@ -400,7 +400,6 @@ export default function DeckAnalytics() {
                                   <span className="text-slate-500">#{i + 1}</span>
                                   {c.name}
                                 </span>
-                                <span className="text-slate-400">{c.count} visits</span>
                               </div>
                               <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
                                 <motion.div
@@ -428,7 +427,6 @@ export default function DeckAnalytics() {
                                   <span className="text-slate-500">#{i + 1}</span>
                                   {c.name}
                                 </span>
-                                <span className="text-slate-400">{c.count} visits</span>
                               </div>
                               <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
                                 <motion.div
