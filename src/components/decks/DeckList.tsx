@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import {
   Share2,
   Pencil,
@@ -14,17 +15,17 @@ import {
   LogOut,
   BarChart3,
 } from "lucide-react";
-import { deckService } from "../services/deckService";
-import { supabase } from "../services/supabase";
-import defaultBanner from "../assets/banner.png";
-import AnalyticsModal from "./AnalyticsModal";
+import { deckService } from "../../services/deckService";
+import { supabase } from "../../services/supabase";
+import defaultBanner from "../../assets/banner.png";
+import AnalyticsModal from "../dashboard/AnalyticsModal";
 import DeckDetailPanel from "./DeckDetailPanel";
-import { Deck, BrandingSettings } from "../types";
-import { cn } from "../utils/cn";
-import Button from "./common/Button";
-import { useAuth } from "../contexts/AuthContext";
-import { ConfirmModal } from "./common/ConfirmModal";
-import { getDeckShareUrl, getDeckPath } from "../utils/url";
+import { Deck, BrandingSettings } from "../../types";
+import { cn } from "../../lib/utils";
+import Button from "../common/Button";
+import { useAuth } from "../../contexts/AuthContext";
+import { ConfirmModal } from "../common/ConfirmModal";
+import { getDeckShareUrl, getDeckPath } from "../../utils/url";
 
 interface DeckListProps {
   decks: Deck[];
@@ -64,7 +65,13 @@ function DeckList({
   }, [initialBranding]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to log out.";
+      console.error("Logout failed:", errorMessage);
+      toast.error("Failed to log out. Please try again.");
+    }
   };
 
   const handleStartEdit = () => {
@@ -76,6 +83,11 @@ function DeckList({
   const handleSaveTitle = async () => {
     if (!editValue.trim() || editValue === branding.room_name) {
       setIsEditingTitle(false);
+      return;
+    }
+
+    if (!profile?.id) {
+      setError("You must be logged in to update branding.");
       return;
     }
 
@@ -112,8 +124,9 @@ function DeckList({
     setShowBrandingMenu(false);
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${userId}/branding/banner-${Date.now()}.${fileExt}`;
+      const lastDotIndex = file.name.lastIndexOf(".");
+      const fileExt = lastDotIndex !== -1 ? file.name.slice(lastDotIndex + 1) : "";
+      const fileName = `${userId}/branding/banner-${Date.now()}${fileExt ? `.${fileExt}` : ""}`;
 
       const { error: uploadError } = await supabase.storage
         .from("decks")
@@ -144,10 +157,13 @@ function DeckList({
     setIsResetting(true);
     try {
       const defaults = { room_name: "Deckly Data Room", banner_url: "" };
-      await deckService.updateBrandingSettings({
-        room_name: defaults.room_name,
-        banner_url: defaults.banner_url, // Match persisted value to local default
-      });
+      await deckService.updateBrandingSettings(
+        {
+          room_name: defaults.room_name,
+          banner_url: defaults.banner_url, // Match persisted value to local default
+        },
+        profile?.id,
+      );
       setBranding(defaults);
       onBrandingUpdate(defaults); // Keep parent in sync
       setShowBrandingMenu(false);
@@ -162,17 +178,23 @@ function DeckList({
     }
   };
 
-  const handleCopyLink = (e: React.MouseEvent, deck: Deck) => {
+  const handleCopyLink = async (e: React.MouseEvent, deck: Deck) => {
     e.preventDefault();
     e.stopPropagation();
     if (!profile?.handle) {
       alert("Please set a handle in your profile settings to share decks.");
       return;
     }
-    const url = getDeckShareUrl(profile.handle, deck.slug);
-    navigator.clipboard.writeText(url);
-    setCopiedId(deck.id);
-    setTimeout(() => setCopiedId(null), 2000);
+    try {
+      const url = getDeckShareUrl(profile.handle, deck.slug);
+      await navigator.clipboard.writeText(url);
+      setCopiedId(deck.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to copy link to clipboard.";
+      console.error("Failed to copy link:", errorMessage);
+      toast.error("Failed to copy link. Please try again.");
+    }
   };
 
   return (
@@ -664,12 +686,15 @@ function DeckList({
         )}
       </AnimatePresence>
 
-      {selectedAnalyticsDeck && (
-        <AnalyticsModal
-          deck={selectedAnalyticsDeck}
-          onClose={() => setSelectedAnalyticsDeck(null)}
-        />
-      )}
+      <AnimatePresence>
+        {selectedAnalyticsDeck && (
+          <AnalyticsModal
+            key="analytics-modal"
+            deck={selectedAnalyticsDeck}
+            onClose={() => setSelectedAnalyticsDeck(null)}
+          />
+        )}
+      </AnimatePresence>
 
       <ConfirmModal
         isOpen={resetTarget}

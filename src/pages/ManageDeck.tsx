@@ -23,7 +23,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import { Deck, SlidePage, UserProfile } from "../types";
 import { cn } from "@/lib/utils";
 import { userService } from "../services/userService";
-import { TierUpsellModal } from "../components/TierUpsellModal";
+import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { TIER_CONFIG } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
 import { useAuth } from "../contexts/AuthContext";

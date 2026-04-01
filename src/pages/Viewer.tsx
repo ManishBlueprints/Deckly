@@ -9,10 +9,10 @@ import {
   Check,
   MessageSquareText,
 } from "lucide-react";
-import ImageDeckViewer from "../components/ImageDeckViewer";
-import DeckViewer from "../components/DeckViewer";
-import AccessGate from "../components/AccessGate";
-import { AuthModal } from "../components/AuthModal";
+import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
+import DeckViewer from "../components/viewer/DeckViewer";
+import AccessGate from "../components/viewer/AccessGate";
+import { AuthModal } from "../components/auth/AuthModal";
 import { NotesSidebar } from "../components/viewer/NotesSidebar";
 import { deckService } from "../services/deckService";
 import { analyticsService } from "../services/analyticsService";
@@ -42,6 +42,15 @@ function Viewer() {
   // TanStack Queries
   const { data: isSaved = false } = useIsDeckSaved(deck?.id, session?.user?.id);
   const saveToLibraryMutation = useSaveToLibraryMutation();
+
+  // Initialize viewerEmail from session if available
+  useEffect(() => {
+    if (session?.user?.email) {
+      setViewerEmail(session.user.email);
+    } else {
+      setViewerEmail(undefined);
+    }
+  }, [session]);
 
   const loadDeck = useCallback(async (silent = false) => {
     if (!slug || !handle) return;
@@ -286,7 +295,11 @@ function Viewer() {
                   />
                 )
               ) : (
-                <DeckViewer deck={deck} isOwner={isOwner} />
+                <DeckViewer
+                  deck={deck}
+                  isOwner={isOwner}
+                  viewerEmail={viewerEmail}
+                />
               )}
             </div>
           </motion.div>

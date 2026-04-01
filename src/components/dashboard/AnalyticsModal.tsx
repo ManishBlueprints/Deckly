@@ -11,14 +11,14 @@ import {
   AlertCircle,
   RefreshCcw,
 } from "lucide-react";
-import { analyticsService } from "../services/analyticsService";
-import { Deck, DeckStats } from "../types";
-import { cn } from "../utils/cn";
-import { useAuth } from "../contexts/AuthContext";
-import { getTierConfig } from "../constants/tiers";
-import Button from "./common/Button";
-import Card from "./common/Card";
-import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
+import { analyticsService } from "../../services/analyticsService";
+import { Deck, DeckStats } from "../../types";
+import { cn } from "../../lib/utils";
+import { useAuth } from "../../contexts/AuthContext";
+import { getTierConfig } from "../../constants/tiers";
+import Button from "../common/Button";
+import Card from "../common/Card";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 interface AnalyticsModalProps {
   deck: Deck;
@@ -213,7 +213,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                     <div className="w-10 h-10 bg-deckly-primary/10 text-deckly-primary rounded-xl flex items-center justify-center">
                       <Eye size={20} />
                     </div>
-                    <span className="text-[10px] items uppercase tracking-widest text-slate-500 font-bold">
+                    <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
                       Total Views
                     </span>
                   </div>
@@ -231,7 +231,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                     <div className="w-10 h-10 bg-deckly-secondary/10 text-deckly-secondary rounded-xl flex items-center justify-center">
                       <Clock size={20} />
                     </div>
-                    <span className="text-[10px] items uppercase tracking-widest text-slate-500 font-bold">
+                    <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
                       Avg. Session
                     </span>
                   </div>

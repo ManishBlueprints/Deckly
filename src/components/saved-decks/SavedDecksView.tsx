@@ -1,16 +1,17 @@
 import { useState, useMemo, useCallback } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { LibraryFolder, SavedDeckOrganized } from "../types";
+import { useAuth } from "../../contexts/AuthContext";
+import { LibraryFolder, SavedDeckOrganized } from "../../types";
 import { Loader2, Filter, Tag, Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ConfirmModal } from "./common/ConfirmModal";
-import { SavedDeckEmptyState } from "./saved-decks/SavedDeckEmptyState";
-import { CreateFolderModal } from "./saved-decks/CreateFolderModal";
-import { FolderCard } from "./saved-decks/FolderCard";
-import { DocumentRow } from "./saved-decks/DocumentRow";
-import { ManageTagsModal } from "./saved-decks/ManageTagsModal";
-import { useLibrary } from "../hooks/useLibrary";
-import { cn } from "../utils/cn";
+import { toast } from "sonner";
+import { ConfirmModal } from "../common/ConfirmModal";
+import { SavedDeckEmptyState } from "./SavedDeckEmptyState";
+import { CreateFolderModal } from "./CreateFolderModal";
+import { FolderCard } from "./FolderCard";
+import { DocumentRow } from "./DocumentRow";
+import { ManageTagsModal } from "./ManageTagsModal";
+import { useLibrary } from "../../hooks/useLibrary";
+import { cn } from "../../lib/utils";
 
 export function SavedDecksView() {
   const { session } = useAuth();
@@ -60,7 +61,9 @@ export function SavedDecksView() {
       await actions.unsaveDeck(unsaveTarget.deck_id);
       setUnsaveTarget(null);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to remove deck from library.";
       console.error("Failed to unsave deck:", err);
+      toast.error(errorMessage);
     } finally {
       setIsUnsavingInProgress(false);
     }
@@ -75,7 +78,9 @@ export function SavedDecksView() {
       if (selectedFolderId === deletingFolder.id) setSelectedFolderId("uncategorized");
       setDeletingFolder(null);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete folder.";
       console.error("Failed to delete folder:", err);
+      toast.error(errorMessage);
     } finally {
       setIsDeletingInProgress(false);
     }
