@@ -102,8 +102,8 @@ function DeckViewer({
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
               onPanEnd={(_, info) => {
-                if (info.offset.x > 100) goToPrevPage();
-                if (info.offset.x < -100) goToNextPage();
+                if (info.offset.x > 100) handleNavigationClick("prev");
+                if (info.offset.x < -100) handleNavigationClick("next");
               }}
               style={(() => {
                 if (!containerWidth || !containerHeight) return {};

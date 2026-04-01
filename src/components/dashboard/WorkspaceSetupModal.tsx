@@ -101,7 +101,7 @@ export function WorkspaceSetupModal({
             <div className="absolute top-0 right-0 w-64 h-64 bg-deckly-primary/10 blur-[100px] -mr-32 -mt-32" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] -ml-32 -mb-32" />
 
-            <div className="relative z-10 max-h-[85vh] overflow-y-auto p-6 sm:p-10 md:p-12 scrollbar-none">
+            <div className="relative z-10 max-h-[85vh] overflow-y-auto p-6 sm:p-10 md:p-12 custom-scrollbar">
               <div className="w-16 h-16 bg-deckly-primary/10 border border-deckly-primary/20 rounded-none flex items-center justify-center mb-6 sm:mb-8 mx-auto shadow-2xl shadow-deckly-primary/10">
                 <Rocket className="text-deckly-primary" size={32} />
               </div>
@@ -127,7 +127,7 @@ export function WorkspaceSetupModal({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Acme Corp"
-                    className="w-full px-4 py-3 bg-[#0d0d0d] border border-white/10 rounded-none text-sm sm:text-base text-white font-bold tracking-tight placeholder:text-slate-800 focus:outline-none focus:ring-2 focus:ring-deckly-primary/50 focus:border-deckly-primary transition-all shadow-inner"
+                    className="w-full px-4 py-3 bg-[#0d0d0d] border border-white/10 rounded-none text-sm sm:text-base text-white font-bold tracking-tight placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-deckly-primary/50 focus:border-deckly-primary transition-all shadow-inner"
                   />
                 </div>
 
@@ -146,7 +146,7 @@ export function WorkspaceSetupModal({
                         value={slug}
                         onChange={(e) => setSlug(normalizeSlug(e.target.value))}
                         placeholder="acme"
-                        className="flex-1 py-3 pr-4 bg-transparent text-sm sm:text-base text-deckly-primary font-bold focus:outline-none placeholder:text-slate-800"
+                        className="flex-1 py-3 pr-4 bg-transparent text-sm sm:text-base text-deckly-primary font-bold focus:outline-none placeholder:text-slate-600"
                       />
                       <div className="pr-4">
                         {isChecking ? (

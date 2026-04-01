@@ -174,7 +174,7 @@ export function MascotSettingsModal({
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-none">
+            <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 max-h-[calc(100vh-140px)] overflow-y-auto custom-scrollbar">
               {/* Workspace Identity Section */}
               <div className="space-y-6">
                 <div>
@@ -205,7 +205,7 @@ export function MascotSettingsModal({
                         onChange={(e) =>
                           setWorkspaceSlug(normalizeSlug(e.target.value))
                         }
-                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-800"
+                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-600"
                         placeholder="workspace-slug"
                       />
                       <div className="pr-4">

@@ -83,7 +83,14 @@ function ImageDeckViewer({
   }, [currentPage, pages, numPages, resolveSlideImage]);
 
   // Use the centralized analytics hook
-  useDeckAnalytics(deck, currentPage, numPages, isOwner, dataRoomId, viewerEmail);
+  const { trackCurrentPage } = useDeckAnalytics(
+    deck,
+    currentPage,
+    numPages,
+    isOwner,
+    dataRoomId,
+    viewerEmail,
+  );
 
   const goToPrevPage = useCallback(() => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
@@ -94,6 +101,15 @@ function ImageDeckViewer({
       setCurrentPage((prev) => Math.min(prev + 1, numPages));
     }
   }, [numPages]);
+
+  const handleNavigationClick = (direction: "prev" | "next") => {
+    trackCurrentPage();
+    if (direction === "next") {
+      goToNextPage();
+    } else {
+      goToPrevPage();
+    }
+  };
 
   useKeyboardControls(goToPrevPage, goToNextPage);
 
@@ -131,8 +147,8 @@ function ImageDeckViewer({
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
             onPanEnd={(_, info) => {
-              if (info.offset.x > 100) goToPrevPage();
-              if (info.offset.x < -100) goToNextPage();
+              if (info.offset.x > 100) handleNavigationClick("prev");
+              if (info.offset.x < -100) handleNavigationClick("next");
             }}
             style={(() => {
               if (!containerWidth || !containerHeight) return {};

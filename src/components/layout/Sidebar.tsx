@@ -226,18 +226,19 @@ export function Sidebar() {
                     {profile?.full_name?.split(" ")[0] || "User"}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
-                    <span
-                      className={cn(
-                        "text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm border",
-                        profile?.tier
-                          ? TIER_CONFIG[profile.tier].className
-                          : TIER_CONFIG.FREE.className
-                      )}
-                    >
-                      {profile?.tier
-                        ? TIER_CONFIG[profile.tier].label
-                        : "Free"}
-                    </span>
+                    {(() => {
+                      const tierConfig = (profile?.tier && TIER_CONFIG[profile?.tier as keyof typeof TIER_CONFIG]) || TIER_CONFIG.FREE;
+                      return (
+                        <span
+                          className={cn(
+                            "text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm border",
+                            tierConfig.className
+                          )}
+                        >
+                          {tierConfig.label}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
 
