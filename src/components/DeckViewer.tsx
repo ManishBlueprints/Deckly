@@ -15,9 +15,15 @@ interface DeckViewerProps {
   deck: Deck;
   isOwner?: boolean;
   dataRoomId?: string;
+  viewerEmail?: string;
 }
 
-function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
+function DeckViewer({
+  deck,
+  isOwner = false,
+  dataRoomId,
+  viewerEmail,
+}: DeckViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
@@ -46,6 +52,7 @@ function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
     numPages || 0,
     isOwner,
     dataRoomId,
+    viewerEmail,
   );
 
   const onDocumentLoadSuccess = useCallback(
@@ -94,6 +101,10 @@ function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
+              onPanEnd={(_, info) => {
+                if (info.offset.x > 100) goToPrevPage();
+                if (info.offset.x < -100) goToNextPage();
+              }}
               style={(() => {
                 if (!containerWidth || !containerHeight) return {};
                 const targetAspect = 16 / 9;
@@ -113,6 +124,7 @@ function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
                 return {
                   width: finalWidth,
                   height: finalHeight,
+                  touchAction: "pan-y",
                 };
               })()}
               className="bg-white shadow-2xl rounded-sm flex items-center justify-center overflow-hidden"

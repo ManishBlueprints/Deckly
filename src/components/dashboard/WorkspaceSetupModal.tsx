@@ -101,16 +101,16 @@ export function WorkspaceSetupModal({
             <div className="absolute top-0 right-0 w-64 h-64 bg-deckly-primary/10 blur-[100px] -mr-32 -mt-32" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] -ml-32 -mb-32" />
 
-            <div className="relative z-10 p-6 sm:p-8 md:p-12">
-              <div className="w-16 h-16 bg-deckly-primary/10 border border-deckly-primary/20 rounded-none flex items-center justify-center mb-8 mx-auto shadow-2xl shadow-deckly-primary/10">
+            <div className="relative z-10 max-h-[85vh] overflow-y-auto p-6 sm:p-10 md:p-12 scrollbar-none">
+              <div className="w-16 h-16 bg-deckly-primary/10 border border-deckly-primary/20 rounded-none flex items-center justify-center mb-6 sm:mb-8 mx-auto shadow-2xl shadow-deckly-primary/10">
                 <Rocket className="text-deckly-primary" size={32} />
               </div>
 
-              <div className="text-center space-y-3 mb-12">
-                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-[0.2em] uppercase">
+              <div className="text-center space-y-2 sm:space-y-3 mb-8 sm:mb-12">
+                <h2 className="text-xl sm:text-3xl font-black text-white tracking-[0.2em] uppercase">
                   Initiate Workspace
                 </h2>
-                <p className="text-slate-400 text-sm max-w-sm mx-auto leading-relaxed">
+                <p className="text-slate-400 text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
                   Choose how your workspace appears and set your shareable link
                   handle.
                 </p>
@@ -127,7 +127,7 @@ export function WorkspaceSetupModal({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Acme Corp"
-                    className="w-full px-4 py-3 bg-surface-low border border-white/5 rounded-none text-sm sm:text-base text-white font-bold tracking-tight placeholder:text-slate-700 focus:outline-none focus:ring-2 focus:ring-deckly-primary/30 focus:border-deckly-primary/30 transition-all shadow-inner"
+                    className="w-full px-4 py-3 bg-[#0d0d0d] border border-white/10 rounded-none text-sm sm:text-base text-white font-bold tracking-tight placeholder:text-slate-800 focus:outline-none focus:ring-2 focus:ring-deckly-primary/50 focus:border-deckly-primary transition-all shadow-inner"
                   />
                 </div>
 
@@ -137,7 +137,7 @@ export function WorkspaceSetupModal({
                     Workspace URL Handle
                   </label>
                   <div className="relative">
-                    <div className="flex items-center bg-surface-low border border-white/5 rounded-none overflow-hidden focus-within:ring-2 focus-within:ring-deckly-primary/30 focus-within:border-deckly-primary/30 transition-all shadow-inner">
+                    <div className="flex items-center bg-[#0d0d0d] border border-white/10 rounded-none overflow-hidden focus-within:ring-2 focus-within:ring-deckly-primary/50 focus-within:border-deckly-primary transition-all shadow-inner">
                       <span className="pl-4 pr-1 text-sm font-bold text-slate-600 select-none">
                         deckly.com/
                       </span>
@@ -146,7 +146,7 @@ export function WorkspaceSetupModal({
                         value={slug}
                         onChange={(e) => setSlug(normalizeSlug(e.target.value))}
                         placeholder="acme"
-                        className="flex-1 py-3 pr-4 bg-transparent text-sm sm:text-base text-deckly-primary font-bold focus:outline-none placeholder:text-slate-700"
+                        className="flex-1 py-3 pr-4 bg-transparent text-sm sm:text-base text-deckly-primary font-bold focus:outline-none placeholder:text-slate-800"
                       />
                       <div className="pr-4">
                         {isChecking ? (

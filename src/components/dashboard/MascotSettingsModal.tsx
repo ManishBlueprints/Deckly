@@ -174,7 +174,7 @@ export function MascotSettingsModal({
               </button>
             </div>
 
-            <div className="p-5 sm:p-6 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-none">
+            <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-none">
               {/* Workspace Identity Section */}
               <div className="space-y-6">
                 <div>
@@ -185,7 +185,7 @@ export function MascotSettingsModal({
                     type="text"
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
-                    className="w-full px-4 py-3 bg-surface-low border border-white/5 rounded-none text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary/30 transition-all shadow-inner"
+                    className="w-full px-4 py-3 bg-[#0d0d0d] border border-white/10 rounded-none text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary/50 focus:border-deckly-primary transition-all shadow-inner"
                     placeholder="e.g. Acme Corp"
                   />
                 </div>
@@ -195,7 +195,7 @@ export function MascotSettingsModal({
                     Workspace Slug (URL)
                   </label>
                   <div className="relative">
-                    <div className="flex items-center bg-surface-low border border-white/5 rounded-none overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary/30 focus-within:border-deckly-primary/30 transition-all shadow-inner">
+                    <div className="flex items-center bg-[#0d0d0d] border border-white/10 rounded-none overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary/50 focus-within:border-deckly-primary transition-all shadow-inner">
                       <span className="pl-4 pr-1 text-xs text-slate-600 select-none">
                         /
                       </span>
@@ -205,7 +205,7 @@ export function MascotSettingsModal({
                         onChange={(e) =>
                           setWorkspaceSlug(normalizeSlug(e.target.value))
                         }
-                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-700"
+                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-800"
                         placeholder="workspace-slug"
                       />
                       <div className="pr-4">

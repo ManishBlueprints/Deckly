@@ -280,8 +280,8 @@ export default function DeckAnalytics() {
           {/* Detailed Engagement Chart Card */}
           <div className="bg-surface-card border border-[#222] rounded-lg p-4 md:p-8 shadow-sm">
             <div className="flex flex-col space-y-8">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col md:flex-row md:items-center gap-6">
+                <div className="flex items-center gap-3 md:flex-1">
                   <div className="w-8 h-8 rounded-md bg-[#1a1a1a] flex items-center justify-center border border-[#333]">
                     <BarChart3 size={16} className="text-deckly-primary" />
                   </div>
@@ -290,39 +290,42 @@ export default function DeckAnalytics() {
                   </h3>
                 </div>
 
-                <Tabs
-                  value={activeTab}
-                  onValueChange={(v) => {
-                    const tab = tabs.find((t) => t.id === v);
-                    if (tab) setActiveTab(v as "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION");
-                  }}
-                  className="w-full md:w-auto"
-                >
-                  <div className="w-full overflow-x-auto custom-scrollbar flex">
-                    <TabsList className="bg-[#141414] border border-[#333] p-1 h-auto rounded-md gap-1 flex shrink-0 w-fit">
-                      {tabs.map((tab) => (
-                        <TabsTrigger
-                          key={tab.id}
-                          value={tab.id}
-                          className="rounded-sm text-[11px] font-medium px-4 py-1.5 text-slate-400 data-[state=active]:bg-[#222] data-[state=active]:text-deckly-primary transition-all duration-200 whitespace-nowrap shrink-0"
-                        >
-                          {tab.shortLabel ? (
-                            <>
-                              <span className="md:hidden">
-                                {tab.shortLabel}
-                              </span>
-                              <span className="hidden md:inline">
-                                {tab.label}
-                              </span>
-                            </>
-                          ) : (
-                            tab.label
-                          )}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                  </div>
-                </Tabs>
+                <div className="flex-1 flex justify-center">
+                  <Tabs
+                    value={activeTab}
+                    onValueChange={(v) => {
+                      const tab = tabs.find((t) => t.id === v);
+                      if (tab) setActiveTab(v as "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION");
+                    }}
+                    className="w-full md:w-auto"
+                  >
+                    <div className="w-full overflow-x-auto custom-scrollbar flex justify-center">
+                      <TabsList className="bg-[#141414] border border-[#333] p-1 h-auto rounded-md gap-1 flex shrink-0 w-fit">
+                        {tabs.map((tab) => (
+                          <TabsTrigger
+                            key={tab.id}
+                            value={tab.id}
+                            className="rounded-sm text-[11px] font-bold px-4 py-1.5 text-slate-400 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950 transition-all duration-200 whitespace-nowrap shrink-0"
+                          >
+                            {tab.shortLabel ? (
+                              <>
+                                <span className="md:hidden">
+                                  {tab.shortLabel}
+                                </span>
+                                <span className="hidden md:inline">
+                                  {tab.label}
+                                </span>
+                              </>
+                            ) : (
+                              tab.label
+                            )}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </div>
+                  </Tabs>
+                </div>
+                <div className="hidden md:block md:flex-1" /> {/* Spacer for symmetry */}
               </div>
 
               {/* Chart Content */}

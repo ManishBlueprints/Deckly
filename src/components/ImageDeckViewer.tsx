@@ -130,6 +130,10 @@ function ImageDeckViewer({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
+            onPanEnd={(_, info) => {
+              if (info.offset.x > 100) goToPrevPage();
+              if (info.offset.x < -100) goToNextPage();
+            }}
             style={(() => {
               if (!containerWidth || !containerHeight) return {};
               const targetAspect = 16 / 9;
@@ -149,6 +153,7 @@ function ImageDeckViewer({
               return {
                 width: finalWidth,
                 height: finalHeight,
+                touchAction: "pan-y",
               };
             })()}
             className="relative z-20 bg-white shadow-[0_32px_128px_-12px_rgba(0,0,0,1)] rounded-sm flex items-center justify-center overflow-hidden"

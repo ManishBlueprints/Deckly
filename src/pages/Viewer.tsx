@@ -43,6 +43,13 @@ function Viewer() {
   const { data: isSaved = false } = useIsDeckSaved(deck?.id, session?.user?.id);
   const saveToLibraryMutation = useSaveToLibraryMutation();
 
+  // Initialize viewerEmail from session if available
+  useEffect(() => {
+    if (session?.user?.email) {
+      setViewerEmail(session.user.email);
+    }
+  }, [session]);
+
   const loadDeck = useCallback(async (silent = false) => {
     if (!slug || !handle) return;
     try {
@@ -286,7 +293,11 @@ function Viewer() {
                   />
                 )
               ) : (
-                <DeckViewer deck={deck} isOwner={isOwner} />
+                <DeckViewer
+                  deck={deck}
+                  isOwner={isOwner}
+                  viewerEmail={viewerEmail}
+                />
               )}
             </div>
           </motion.div>
