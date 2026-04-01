@@ -3,7 +3,9 @@ import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { Plus, Upload, Home as RoomIcon } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { createPortal } from "react-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -18,8 +20,9 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { branding, profile } = useAuth();
+  const { branding, setBranding, profile } = useAuth();
   const [fabOpen, setFabOpen] = React.useState(false);
+  const [showSettings, setShowSettings] = React.useState(false);
 
   const pageLabels: Record<string, string> = {
     "/": "Dashboard",
@@ -57,7 +60,10 @@ export function DashboardLayout({
         {/* Top Header */}
         <header className="w-full h-16 sticky top-0 z-40 bg-background flex items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="md:hidden flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="md:hidden flex items-center gap-3 min-w-0 group hover:opacity-80 transition-opacity text-left"
+            >
               <div className="w-8 h-8 rounded-lg bg-surface-low border border-white/5 overflow-hidden shrink-0 flex items-center justify-center">
                 {branding?.logo_url ? (
                   <img
@@ -79,7 +85,7 @@ export function DashboardLayout({
                   {workspaceName}
                 </p>
               </div>
-            </div>
+            </button>
 
             <span className="hidden md:inline-flex text-primary text-[10px] font-bold uppercase tracking-[0.3em]">
               {currentLabel}
@@ -149,6 +155,18 @@ export function DashboardLayout({
 
       {/* Mobile Bottom Navigation */}
       <BottomNav />
+
+      {/* Workspace Settings Modal (Mobile & Global) */}
+      {createPortal(
+        <MascotSettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          branding={branding}
+          onUpdate={(newBranding) => setBranding(newBranding)}
+          userProfile={profile || undefined}
+        />,
+        document.body,
+      )}
     </div>
   );
 }

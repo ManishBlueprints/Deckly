@@ -83,7 +83,14 @@ function ImageDeckViewer({
   }, [currentPage, pages, numPages, resolveSlideImage]);
 
   // Use the centralized analytics hook
-  useDeckAnalytics(deck, currentPage, numPages, isOwner, dataRoomId, viewerEmail);
+  const { trackCurrentPage } = useDeckAnalytics(
+    deck,
+    currentPage,
+    numPages,
+    isOwner,
+    dataRoomId,
+    viewerEmail,
+  );
 
   const goToPrevPage = useCallback(() => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
@@ -94,6 +101,15 @@ function ImageDeckViewer({
       setCurrentPage((prev) => Math.min(prev + 1, numPages));
     }
   }, [numPages]);
+
+  const handleNavigationClick = (direction: "prev" | "next") => {
+    trackCurrentPage();
+    if (direction === "next") {
+      goToNextPage();
+    } else {
+      goToPrevPage();
+    }
+  };
 
   useKeyboardControls(goToPrevPage, goToNextPage);
 
@@ -130,6 +146,10 @@ function ImageDeckViewer({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
+            onPanEnd={(_, info) => {
+              if (info.offset.x > 100) handleNavigationClick("prev");
+              if (info.offset.x < -100) handleNavigationClick("next");
+            }}
             style={(() => {
               if (!containerWidth || !containerHeight) return {};
               const targetAspect = 16 / 9;
@@ -149,6 +169,7 @@ function ImageDeckViewer({
               return {
                 width: finalWidth,
                 height: finalHeight,
+                touchAction: "pan-y",
               };
             })()}
             className="relative z-20 bg-white shadow-[0_32px_128px_-12px_rgba(0,0,0,1)] rounded-sm flex items-center justify-center overflow-hidden"
@@ -198,22 +219,22 @@ function ImageDeckViewer({
 
         {/* Navigation Overlays & Visual Arrows */}
         <div
-          className="absolute inset-y-0 left-0 w-1/4 cursor-pointer group/nav overflow-hidden"
+          className="absolute inset-y-0 left-0 w-1/4 z-30 cursor-pointer group/nav overflow-hidden"
           onClick={goToPrevPage}
           title="Previous"
         >
-          <div className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-14 md:h-14 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-white opacity-40 group-hover/nav:opacity-100 -translate-x-2 group-hover/nav:translate-x-0 transition-all duration-300 shadow-2xl">
-            <ChevronLeft size={20} className="md:w-8 md:h-8" />
+          <div className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 bg-black/50 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center text-white opacity-80 md:opacity-50 group-hover/nav:opacity-100 transition-all duration-300 shadow-2xl">
+            <ChevronLeft size={24} className="md:w-8 md:h-8" />
           </div>
         </div>
 
         <div
-          className="absolute inset-y-0 right-0 w-1/4 cursor-pointer group/nav overflow-hidden"
+          className="absolute inset-y-0 right-0 w-1/4 z-30 cursor-pointer group/nav overflow-hidden"
           onClick={goToNextPage}
           title="Next"
         >
-          <div className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-14 md:h-14 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-white opacity-40 group-hover/nav:opacity-100 translate-x-2 group-hover/nav:translate-x-0 transition-all duration-300 shadow-2xl">
-            <ChevronRight size={20} className="md:w-8 md:h-8" />
+          <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 bg-black/50 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center text-white opacity-80 md:opacity-50 group-hover/nav:opacity-100 transition-all duration-300 shadow-2xl">
+            <ChevronRight size={24} className="md:w-8 md:h-8" />
           </div>
         </div>
       </div>
