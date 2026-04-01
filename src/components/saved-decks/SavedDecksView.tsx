@@ -78,7 +78,9 @@ export function SavedDecksView() {
       if (selectedFolderId === deletingFolder.id) setSelectedFolderId("uncategorized");
       setDeletingFolder(null);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete folder.";
       console.error("Failed to delete folder:", err);
+      toast.error(errorMessage);
     } finally {
       setIsDeletingInProgress(false);
     }

@@ -86,6 +86,11 @@ function DeckList({
       return;
     }
 
+    if (!profile?.id) {
+      setError("You must be logged in to update branding.");
+      return;
+    }
+
     setSaving(true);
     try {
       await deckService.updateBrandingSettings(
@@ -186,7 +191,9 @@ function DeckList({
       setCopiedId(deck.id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
-      console.error("Failed to copy link:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to copy link to clipboard.";
+      console.error("Failed to copy link:", errorMessage);
+      toast.error("Failed to copy link. Please try again.");
     }
   };
 
