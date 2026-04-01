@@ -38,58 +38,102 @@
 - **🔐 Privacy-First by Design**  
   No forced email capture, optional anonymous viewing, and minimal data collection by default.
 
+- **📱 Mobile-First UI**  
+  Native app feel with bottom navigation and responsive dashboard layouts.
+
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: React 19 + Vite
-- **Backend**: Supabase (PostgreSQL + Storage)
-- **Processing**: pdf.js (Client-side rendering)
-- **Styling**: Vanilla CSS (Outfit Typography)
-- **Analytics**: PostHog
+- **Framework**: [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
+- **Backend**: [Supabase](https://supabase.com/) (PostgreSQL + RLS + Storage)
+- **Data Fetching**: [TanStack Query v5](https://tanstack.com/query/latest)
+- **PDF Engine**: [pdf.js](https://mozilla.github.io/pdf.js/) (Client-side rendering)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)
+- **Analytics**: [PostHog](https://posthog.com/)
 
-## 🌍 Open Source & Community
+---
 
-Deckly is **100% Open Source**. We believe that every founder should have access to high-quality investor tools without the "Doc Tax."
+## 📁 Project Architecture
 
-Whether you want to self-host your own private Data Room or contribute to the next generation of founder tools, the code is yours to explore, modify, and deploy.
+```text
+src/
+├── components/     # UI atoms (common/) and complex dashboard modules
+├── contexts/       # Auth, Tier Gating, and Branding state
+├── hooks/          # Domain-specific logic (useDecks, useAnalytics)
+├── pages/          # DataRoomDetail, DeckAnalytics, Viewer, Home
+├── services/       # The "Brain" - deckService, analyticsService, auth
+└── utils/          # URL generation and formatting helpers
+```
+
+Whether you want to self-host your own private Data Room or contribute to the next generation of founder tools, the code is yours to explore, modify, and deploy under the **GNU AGPL v3**.
+
+## 📜 License
+
+Deckly is licensed under the **GNU Affero General Public License v3 (AGPL-3.0)**.
+
+### Section 13: Network Interaction & Source Distribution
+
+> [!IMPORTANT]
+> Because Deckly is licensed under the AGPL, **Section 13 (Remote Network Interaction)** is in effect. If you modify the software and run it on a server for other users to interact with over a network, you **must** provide those users with an opportunity to receive the Corresponding Source of your modified version.
+
+#### How to provide "Corresponding Source":
+
+1.  **Keep the Source Link:** We recommend keeping a "View Source" or "Source Code" link in the footer of your deployed application that points to your public repository (e.g., on GitHub or GitLab).
+2.  **Facilitate Access:** The source code must be provided through a standard or customary means of facilitating copying of software, at no charge.
+3.  **Complete Source:** The source you provide must include all modifications, scripts, and interface definition files needed to generate, install, and run the version you have deployed.
+
+For more details, see the full [LICENSE](./LICENSE) file.
 
 ## 🚀 Getting Started
 
-### 1. Supabase Setup
+### Prerequisites
 
-Deckly uses Supabase for database, authentication, and storage.
+- **Node.js**: v20+ (required for the latest build pipeline)
+- **Supabase**: A project with `decks` storage bucket and `schema.sql` applied.
 
-- Create a new project at [supabase.com](https://supabase.com).
-- Copy-paste the content of [supabase/schema.sql](./supabase/schema.sql) into the Supabase SQL Editor and run it to set up your tables and policies.
-- Create a public storage bucket named `decks`.
+### Setup
 
-### 2. Configure Environment
+1. **Clone & Install**:
 
-Create a `.env.local` file in the root:
+   ```bash
+   git clone https://github.com/ManishBlueprints/Deckly.git
+   cd Deckly
+   npm install
+   ```
 
-```env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
+2. **Configure Environment**:
 
-### 3. Launch
+   ```bash
+   cp .env.example .env.local
+   # Fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+   ```
 
-#### Option A: Standard (Local Node.js)
+3. **Database Setup**:
+   Copy the contents of `supabase/schema.sql` and run it in your Supabase SQL Editor.
+
+### Launch
+
+#### Local Node.js
 
 ```bash
-npm install
 npm run dev
 ```
 
-#### Option B: Docker (Recommended)
+#### Docker Development
+
+The project includes a pre-configured Docker setup using **Node 20-alpine**.
 
 ```bash
 docker-compose up
 ```
 
-The app will be available at `http://localhost:5173`.
+The application will be available at `http://localhost:5173`.
 
 ---
 
-Built with ❤️ for the startup community. Star this repo if you find it useful!
+## 📖 Extended Documentation
+
+Coming Soon
+
+Built with ❤️ for the startup community. Star this repo if you find it useful.
