@@ -47,6 +47,8 @@ function Viewer() {
   useEffect(() => {
     if (session?.user?.email) {
       setViewerEmail(session.user.email);
+    } else {
+      setViewerEmail(undefined);
     }
   }, [session]);
 
