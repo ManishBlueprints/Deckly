@@ -33,10 +33,12 @@ export function DeckActionMenu({
 }: DeckActionMenuProps) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="p-2.5 bg-[#1c1b1b] border border-[#3d4a3e]/10 text-[#bbcbbb]/40 hover:text-[#54e98a] transition-all shadow-xl outline-none group-focus-within:border-[#54e98a]/30">
+      <DropdownMenuTrigger
+        aria-label="Deck actions"
+        className="p-2.5 bg-[#1c1b1b] border border-[#3d4a3e]/10 text-[#bbcbbb]/40 hover:text-[#54e98a] transition-all shadow-xl outline-none group-focus-within:border-[#54e98a]/30"
+      >
         <span className="material-symbols-outlined text-lg">more_vert</span>
       </DropdownMenuTrigger>
-
       <DropdownMenuContent
         align="end"
         className="w-64 bg-[#0e0e0e] border-[#1c1b1b] p-2 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] font-headline"
@@ -137,9 +139,9 @@ export function DeckActionMenu({
               })}
               {tags.length === 0 && (
                 <div className="px-4 py-3 text-xs text-[#bbcbbb]/20 italic font-medium">
-                  No labels established
+                  No tags created
                 </div>
-              )}
+              )}{" "}
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>

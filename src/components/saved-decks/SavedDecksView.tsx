@@ -3,6 +3,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { LibraryFolder, SavedDeckOrganized } from "../../types";
 import { Loader2, Filter, Tag, Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import { ConfirmModal } from "../common/ConfirmModal";
 import { SavedDeckEmptyState } from "./SavedDeckEmptyState";
 import { CreateFolderModal } from "./CreateFolderModal";
@@ -60,7 +61,9 @@ export function SavedDecksView() {
       await actions.unsaveDeck(unsaveTarget.deck_id);
       setUnsaveTarget(null);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to remove deck from library.";
       console.error("Failed to unsave deck:", err);
+      toast.error(errorMessage);
     } finally {
       setIsUnsavingInProgress(false);
     }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck } from "lucide-react";
 import { Deck } from "../../types";
@@ -14,14 +14,18 @@ interface AccessGateProps {
   sessionEmail?: string; // pre-fill from logged-in user or undefined
 }
 
+const EMAIL_CACHE_TTL = 24 * 60 * 60 * 1000;
+
 const AccessGate: React.FC<AccessGateProps> = ({
   deck,
   onAccessGranted,
   onVerifyPassword,
   sessionEmail,
 }) => {
-  const EMAIL_CACHE_KEY = `deckly_email_${deck.id}`;
-  const EMAIL_CACHE_TTL = 24 * 60 * 60 * 1000;
+  const EMAIL_CACHE_KEY = useMemo(
+    () => `deckly_email_${deck.id}`,
+    [deck.id],
+  );
 
   // Pre-fill email from session; also check 24h localStorage cache
   const getInitialEmail = (): string => {
@@ -86,16 +90,25 @@ const AccessGate: React.FC<AccessGateProps> = ({
     const isEmailStep = step === "email";
 
     if (isEmailStep) {
-      if (!email || !email.includes("@")) {
+      const trimmedEmail = email.trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      
+      if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
         setError("Please enter a valid email address.");
         return;
       }
 
+      if (trimmedEmail !== email) {
+        setEmail(trimmedEmail);
+      }
+
+      const finalEmail = trimmedEmail;
+
       if (deck.require_password) {
         setStep("password");
       } else {
-        saveEmailToCache(email);
-        onAccessGranted(email, undefined);
+        saveEmailToCache(finalEmail);
+        onAccessGranted(finalEmail, undefined);
       }
     } else {
       try {

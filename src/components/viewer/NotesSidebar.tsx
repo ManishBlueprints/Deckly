@@ -196,8 +196,8 @@ export function NotesSidebar({
             {session && (
               <div className="p-6 bg-white/[0.02] border-t border-white/5">
                 <p className="text-[11px] text-slate-500 leading-relaxed italic">
-                  Tip: Use these notes to compiled your thoughts. They'll always
-                  be here when you return to this room.
+                  Tip: Use these notes to compile your thoughts. They'll always
+                  be here when you return to this room.{" "}
                 </p>
               </div>
             )}

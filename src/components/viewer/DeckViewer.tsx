@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -6,7 +6,6 @@ import { useDeckAnalytics } from "../../hooks/useDeckAnalytics";
 import { useKeyboardControls } from "../../hooks/useKeyboardControls";
 import { Deck } from "../../types";
 import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -84,6 +83,26 @@ function DeckViewer({
     }
   };
 
+  const dimensions = useMemo(() => {
+    if (!containerWidth || !containerHeight) return { width: 0, height: 0 };
+    const targetAspect = 16 / 9;
+    const containerAspect = containerWidth / containerHeight;
+
+    if (containerAspect > targetAspect) {
+      // Window is wider than 16:9 - height is limit
+      return {
+        width: containerHeight * targetAspect,
+        height: containerHeight,
+      };
+    } else {
+      // Window is taller than 16:9 - width is limit
+      return {
+        width: containerWidth,
+        height: containerWidth / targetAspect,
+      };
+    }
+  }, [containerWidth, containerHeight]);
+
   const isPdf = !deck.file_type || deck.file_type === "pdf";
   const officeEmbedUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(deck.file_url)}`;
 
@@ -105,28 +124,11 @@ function DeckViewer({
                 if (info.offset.x > 100) handleNavigationClick("prev");
                 if (info.offset.x < -100) handleNavigationClick("next");
               }}
-              style={(() => {
-                if (!containerWidth || !containerHeight) return {};
-                const targetAspect = 16 / 9;
-                const containerAspect = containerWidth / containerHeight;
-
-                let finalWidth, finalHeight;
-                if (containerAspect > targetAspect) {
-                  // Window is wider than 16:9 - height is limit
-                  finalHeight = containerHeight;
-                  finalWidth = containerHeight * targetAspect;
-                } else {
-                  // Window is taller than 16:9 - width is limit
-                  finalWidth = containerWidth;
-                  finalHeight = containerWidth / targetAspect;
-                }
-
-                return {
-                  width: finalWidth,
-                  height: finalHeight,
-                  touchAction: "pan-y",
-                };
-              })()}
+              style={{
+                width: dimensions.width,
+                height: dimensions.height,
+                touchAction: "pan-y",
+              }}
               className="bg-white shadow-2xl rounded-sm flex items-center justify-center overflow-hidden"
             >
               <Document
@@ -150,20 +152,7 @@ function DeckViewer({
                   pageNumber={pageNumber}
                   renderTextLayer={false}
                   renderAnnotationLayer={true}
-                  width={(() => {
-                    if (!containerWidth || !containerHeight) return undefined;
-                    const targetAspect = 16 / 9;
-                    return containerWidth / containerHeight > targetAspect
-                      ? containerHeight * targetAspect
-                      : containerWidth;
-                  })()}
-                  height={(() => {
-                    if (!containerWidth || !containerHeight) return undefined;
-                    const targetAspect = 16 / 9;
-                    return containerWidth / containerHeight > targetAspect
-                      ? containerHeight
-                      : containerWidth / targetAspect;
-                  })()}
+                  width={dimensions.width || undefined}
                   loading=""
                 />
               </Document>
@@ -176,7 +165,6 @@ function DeckViewer({
               src={officeEmbedUrl}
               className="w-full h-full border-none"
               title="Document Viewer"
-              frameBorder="0"
             />
           </div>
         )}

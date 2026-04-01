@@ -41,7 +41,15 @@ interface DeckDetailPanelProps {
   onUpdate: (deck: Deck) => void;
 }
 
-const SectionHeader = ({ children, icon: Icon, color = "primary" }: { children: React.ReactNode, icon?: React.ElementType, color?: "primary" | "secondary" }) => (
+const SectionHeader = ({
+  children,
+  icon: Icon,
+  color = "primary",
+}: {
+  children: React.ReactNode;
+  icon?: React.ElementType;
+  color?: "primary" | "secondary";
+}) => (
   <div className="flex flex-col gap-1.5 px-1 mb-6">
     <h3
       className={cn(
@@ -134,8 +142,10 @@ function DeckDetailPanel({
       const viewport = page.getViewport({ scale: 1.5 });
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
-      if (!context) continue;
-
+      if (!context) {
+        console.warn(`Failed to get canvas context for page ${i}, skipping`);
+        continue;
+      }
       canvas.height = viewport.height;
       canvas.width = viewport.width;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -201,8 +211,11 @@ function DeckDetailPanel({
       };
 
       if (expiryEnabled && expiryDate) {
-        updates.expires_at = new Date(expiryDate).toISOString();
-      } else if (deck.expires_at) {
+        const [year, month, day] = expiryDate.split("-").map(Number);
+        updates.expires_at = new Date(
+          Date.UTC(year, month - 1, day),
+        ).toISOString();
+      } else {
         updates.expires_at = null;
       }
 
@@ -214,7 +227,10 @@ function DeckDetailPanel({
         setUploadProgress("");
       }, 1000);
     } catch (err: unknown) {
-      alert("Failed to update deck: " + (err instanceof Error ? err.message : String(err)));
+      alert(
+        "Failed to update deck: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
       setUploadProgress("");
     } finally {
       setIsSaving(false);
@@ -277,11 +293,15 @@ function DeckDetailPanel({
             </h2>
           </div>
           <a
-            href={profile?.handle ? getDeckPath(profile.handle, deck.slug) : "#"}
+            href={
+              profile?.handle ? getDeckPath(profile.handle, deck.slug) : "#"
+            }
             onClick={(e) => {
               if (!profile?.handle) {
                 e.preventDefault();
-                alert("Please set a handle in your profile settings to view this.");
+                alert(
+                  "Please set a handle in your profile settings to view this.",
+                );
               }
             }}
             target="_blank"
@@ -305,7 +325,9 @@ function DeckDetailPanel({
                     ? deck.pages[0]
                     : null;
 
-                const pageCandidate = firstPage as unknown as Record<string, unknown> | string;
+                const pageCandidate = firstPage as unknown as
+                  | Record<string, unknown>
+                  | string;
                 if (
                   typeof pageCandidate === "string" &&
                   (pageCandidate.startsWith("{") ||
@@ -323,7 +345,8 @@ function DeckDetailPanel({
                   imgSrc =
                     typeof firstPage === "string"
                       ? firstPage
-                      : (firstPage as unknown as Record<string, string>).image_url ||
+                      : (firstPage as unknown as Record<string, string>)
+                          .image_url ||
                         (firstPage as unknown as Record<string, string>).url ||
                         "";
                 }

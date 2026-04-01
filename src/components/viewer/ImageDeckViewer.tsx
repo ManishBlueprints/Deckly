@@ -65,6 +65,17 @@ function ImageDeckViewer({
     return obj.image_url || obj.url || "";
   }, []);
 
+  const isValidUrl = useCallback((url: string) => {
+    try {
+      const parsed = new URL(url, window.location.origin);
+      return ["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol);
+    } catch {
+      return (
+        url.startsWith("/") || url.startsWith("./") || url.startsWith("../")
+      );
+    }
+  }, []);
+
   useEffect(() => {
     // Prefetch next 5 slides for buttery smooth transitions
     const prefetchOffset = 5;
@@ -111,7 +122,10 @@ function ImageDeckViewer({
     }
   };
 
-  useKeyboardControls(goToPrevPage, goToNextPage);
+  useKeyboardControls(
+    () => handleNavigationClick("prev"),
+    () => handleNavigationClick("next"),
+  );
 
   if (numPages === 0) {
     return (
@@ -189,26 +203,29 @@ function ImageDeckViewer({
 
                   {linkHotspots.length > 0 && (
                     <div className="absolute inset-0 z-20">
-                      {linkHotspots.map((link, index) => (
-                        <a
-                          key={`${currentPage}-${index}-${link.href}`}
-                          href={link.href}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={`Open link ${link.href}`}
-                          title={link.href}
-                          onClick={(e) => e.stopPropagation()}
-                          className="absolute block cursor-pointer"
-                          style={{
-                            left: `${link.rect.x * 100}%`,
-                            top: `${link.rect.y * 100}%`,
-                            width: `${link.rect.width * 100}%`,
-                            height: `${link.rect.height * 100}%`,
-                          }}
-                        >
-                          <span className="sr-only">{link.href}</span>
-                        </a>
-                      ))}
+                      {linkHotspots.map((link, index) => {
+                        if (!isValidUrl(link.href)) return null;
+                        return (
+                          <a
+                            key={`${currentPage}-${index}-${link.href}`}
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Open link ${link.href}`}
+                            title={link.href}
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute block cursor-pointer"
+                            style={{
+                              left: `${link.rect.x * 100}%`,
+                              top: `${link.rect.y * 100}%`,
+                              width: `${link.rect.width * 100}%`,
+                              height: `${link.rect.height * 100}%`,
+                            }}
+                          >
+                            <span className="sr-only">{link.href}</span>
+                          </a>
+                        );
+                      })}
                     </div>
                   )}
                 </>
@@ -220,7 +237,7 @@ function ImageDeckViewer({
         {/* Navigation Overlays & Visual Arrows */}
         <div
           className="absolute inset-y-0 left-0 w-1/4 z-30 cursor-pointer group/nav overflow-hidden"
-          onClick={goToPrevPage}
+          onClick={() => handleNavigationClick("prev")}
           title="Previous"
         >
           <div className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 bg-black/50 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center text-white opacity-80 md:opacity-50 group-hover/nav:opacity-100 transition-all duration-300 shadow-2xl">
@@ -230,7 +247,7 @@ function ImageDeckViewer({
 
         <div
           className="absolute inset-y-0 right-0 w-1/4 z-30 cursor-pointer group/nav overflow-hidden"
-          onClick={goToNextPage}
+          onClick={() => handleNavigationClick("next")}
           title="Next"
         >
           <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 bg-black/50 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center text-white opacity-80 md:opacity-50 group-hover/nav:opacity-100 transition-all duration-300 shadow-2xl">

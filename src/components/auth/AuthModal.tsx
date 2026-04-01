@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Github } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "../../services/supabase";
 import logo from "../../assets/Deckly.png";
 
@@ -16,39 +17,26 @@ export function AuthModal({
   message = "Sign up to never lose track of your decks. Save this deck to your private library or add notes.",
   redirectTo,
 }: AuthModalProps) {
-  if (!isOpen) return null;
-
-  const handleGoogleSignIn = async () => {
+  const handleOAuthSignIn = async (provider: "google" | "github", friendlyName: string) => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
+        provider,
         options: {
           redirectTo: redirectTo || window.location.href,
         },
       });
       if (error) throw error;
     } catch (err: unknown) {
-      console.error("Google login failed:", err instanceof Error ? err.message : String(err));
-    }
-  };
-
-  const handleGitHubSignIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "github",
-        options: {
-          redirectTo: redirectTo || window.location.href,
-        },
-      });
-      if (error) throw error;
-    } catch (err: unknown) {
-      console.error("GitHub login failed:", err instanceof Error ? err.message : String(err));
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error(`${friendlyName} login failed:`, errorMessage);
+      toast.error(`${friendlyName} authentication failed. Please try again.`);
     }
   };
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
+      {isOpen && (
+      <div key="auth-modal" className="fixed inset-0 z-[101] flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -81,7 +69,7 @@ export function AuthModal({
 
           <div className="space-y-4">
             <button
-              onClick={handleGoogleSignIn}
+              onClick={() => handleOAuthSignIn("google", "Google")}
               className="w-full flex items-center justify-center gap-3 py-4 bg-white/5 border border-white/10 rounded-2xl text-slate-300 font-bold text-sm hover:bg-white/10 transition-all active:scale-[0.98]"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -106,7 +94,7 @@ export function AuthModal({
             </button>
 
             <button
-              onClick={handleGitHubSignIn}
+              onClick={() => handleOAuthSignIn("github", "GitHub")}
               className="w-full flex items-center justify-center gap-3 py-4 bg-white/5 border border-white/10 rounded-2xl text-slate-300 font-bold text-sm hover:bg-white/10 transition-all active:scale-[0.98]"
             >
               <Github size={20} />
@@ -121,6 +109,7 @@ export function AuthModal({
           </div>
         </motion.div>
       </div>
+      )}
     </AnimatePresence>
   );
 }
