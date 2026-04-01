@@ -1,7 +1,7 @@
 import { useAuth } from "../contexts/AuthContext";
 import { useDecks } from "../hooks/useDecks";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
-import { DashboardView } from "../components/DashboardView";
+import { DashboardView } from "../components/dashboard/DashboardView";
 import { EmptyStateOverlay } from "../components/dashboard/EmptyStateOverlay";
 import { WorkspaceSetupModal } from "../components/dashboard/WorkspaceSetupModal";
 

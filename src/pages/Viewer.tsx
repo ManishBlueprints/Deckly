@@ -9,10 +9,10 @@ import {
   Check,
   MessageSquareText,
 } from "lucide-react";
-import ImageDeckViewer from "../components/ImageDeckViewer";
-import DeckViewer from "../components/DeckViewer";
-import AccessGate from "../components/AccessGate";
-import { AuthModal } from "../components/AuthModal";
+import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
+import DeckViewer from "../components/viewer/DeckViewer";
+import AccessGate from "../components/viewer/AccessGate";
+import { AuthModal } from "../components/auth/AuthModal";
 import { NotesSidebar } from "../components/viewer/NotesSidebar";
 import { deckService } from "../services/deckService";
 import { analyticsService } from "../services/analyticsService";

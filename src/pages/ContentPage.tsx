@@ -1,5 +1,5 @@
 import { DashboardLayout } from "../components/layout/DashboardLayout";
-import { ContentView } from "../components/ContentView";
+import { ContentView } from "../components/dashboard/ContentView";
 
 function ContentPage() {
   return (
