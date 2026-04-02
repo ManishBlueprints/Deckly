@@ -1267,11 +1267,22 @@ BEGIN
     FROM public.decks d
     WHERE d.id = NEW.deck_id;
 
-    -- Atomically increment unique_visitors.
-    -- The unique index idx_deck_page_views_unique_visitor on (deck_id, visitor_id)
-    -- guarantees that only the first row per visitor_id reaches this trigger.
-    -- Duplicate inserts are rejected at the constraint level with ON CONFLICT DO NOTHING,
-    -- so this trigger always represents a new unique visitor — no additional EXISTS check needed.
+    -- Guard: only count as a unique visitor if no prior page_view row exists
+    -- for this same (deck_id, visitor_id) combination.
+    -- The non-unique idx_page_views_visitor index covers this query efficiently.
+    -- NOTE: We cannot rely on a unique index here because deck_page_views intentionally
+    -- allows multiple rows per visitor (one per page viewed per session).
+    IF EXISTS (
+        SELECT 1 FROM public.deck_page_views
+        WHERE deck_id   = NEW.deck_id
+          AND visitor_id = NEW.visitor_id
+          AND id        != NEW.id  -- exclude the row that just fired this trigger
+    ) THEN
+        -- Not a first-time visitor for this deck; skip counter increment.
+        RETURN NEW;
+    END IF;
+
+    -- First-time visitor: atomically increment unique_visitors on the deck.
     UPDATE public.decks
     SET unique_visitors = unique_visitors + 1
     WHERE id = NEW.deck_id
