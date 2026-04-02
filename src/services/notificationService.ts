@@ -38,41 +38,37 @@ export const notificationService = {
 
   // Mark all notifications as read for a user
   async markAllAsRead(userId: string): Promise<void> {
-    const { error } = await withRetry(async () =>
-      await supabase
+    await withRetry(async () => {
+      const { error } = await supabase
         .from("notifications")
         .update({ read_at: new Date().toISOString() })
         .eq("user_id", userId)
-        .is("read_at", null),
-    );
-
-    if (error) throw error;
+        .is("read_at", null);
+      if (error) throw error;
+    });
   },
-
   // Mark a notification as read
   async markAsRead(notificationId: string, userId: string): Promise<void> {
-    const { error } = await withRetry(async () =>
-      await supabase
+    await withRetry(async () => {
+      const { error } = await supabase
         .from("notifications")
         .update({ read_at: new Date().toISOString() })
         .eq("id", notificationId)
-        .eq("user_id", userId),
-    );
-
-    if (error) throw error;
+        .eq("user_id", userId);
+      if (error) throw error;
+    });
   },
 
   // Delete a notification
   async deleteNotification(notificationId: string, userId: string): Promise<void> {
-    const { error } = await withRetry(async () =>
-      await supabase
+    await withRetry(async () => {
+      const { error } = await supabase
         .from("notifications")
         .delete()
         .eq("id", notificationId)
-        .eq("user_id", userId),
-    );
-
-    if (error) throw error;
+        .eq("user_id", userId);
+      if (error) throw error;
+    });
   },
 
   // Create a notification via RPC

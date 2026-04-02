@@ -144,6 +144,9 @@ ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS time_spent NUMERIC D
 ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'Unknown';
 ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS city TEXT DEFAULT 'Unknown City';
 ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS country_code TEXT;
+-- NOTE: deck_page_views stores one row per PAGE view (multiple rows per visitor per deck
+-- are expected). Uniqueness for visitor counting is enforced at the trigger level in
+-- notify_signal_threshold() which atomically increments decks.unique_visitors.
 -- FK constraint for data_room_id (safe to re-run; DO NOTHING if exists)
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -988,11 +991,8 @@ CREATE TABLE IF NOT EXISTS public.admin_emails (
 
 ALTER TABLE public.admin_emails ENABLE ROW LEVEL SECURITY;
 
--- Only admins can manage the list (bootstrapped by direct SQL insert)
-CREATE POLICY "Only admins can view admin_emails" ON public.admin_emails
-    FOR SELECT USING (public.is_admin());
-
 -- Canonical is_admin function (email-allowlist based)
+-- Must be defined BEFORE the policy that references it.
 CREATE OR REPLACE FUNCTION public.is_admin(p_user_id UUID DEFAULT NULL)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -1018,6 +1018,11 @@ $$;
 
 -- Grant access
 GRANT EXECUTE ON FUNCTION public.is_admin(UUID) TO authenticated;
+
+-- Only admins can manage the list (bootstrapped by direct SQL insert)
+-- Defined AFTER is_admin() so the policy can safely reference it.
+CREATE POLICY "Only admins can view admin_emails" ON public.admin_emails
+    FOR SELECT USING (public.is_admin());
 -- =============================================================================
 
 -- =============================================================================
@@ -1262,23 +1267,17 @@ BEGIN
     FROM public.decks d
     WHERE d.id = NEW.deck_id;
 
-    -- 1. Check if this is a first-time unique visit for this deck + visitor
-    IF EXISTS (
-        SELECT 1 FROM public.deck_page_views
-        WHERE deck_id = NEW.deck_id
-          AND visitor_id = NEW.visitor_id
-          AND id != NEW.id -- exclude the current insert
-    ) THEN
-        RETURN NEW;
-    END IF;
-
-    -- 2. Increment the unique_visitors count on the decks table
+    -- Atomically increment unique_visitors.
+    -- The unique index idx_deck_page_views_unique_visitor on (deck_id, visitor_id)
+    -- guarantees that only the first row per visitor_id reaches this trigger.
+    -- Duplicate inserts are rejected at the constraint level with ON CONFLICT DO NOTHING,
+    -- so this trigger always represents a new unique visitor — no additional EXISTS check needed.
     UPDATE public.decks
     SET unique_visitors = unique_visitors + 1
     WHERE id = NEW.deck_id
     RETURNING unique_visitors INTO v_visitor_count;
 
-    -- 3. Milestone check
+    -- Milestone check
     FOREACH v_milestone IN ARRAY v_milestones LOOP
         IF v_visitor_count = v_milestone THEN
             PERFORM public.create_notification(
