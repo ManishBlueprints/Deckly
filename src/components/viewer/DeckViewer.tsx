@@ -1,12 +1,11 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useDeckAnalytics } from "../hooks/useDeckAnalytics";
-import { useKeyboardControls } from "../hooks/useKeyboardControls";
-import { Deck } from "../types";
+import { useDeckAnalytics } from "../../hooks/useDeckAnalytics";
+import { useKeyboardControls } from "../../hooks/useKeyboardControls";
+import { Deck } from "../../types";
 import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -15,9 +14,15 @@ interface DeckViewerProps {
   deck: Deck;
   isOwner?: boolean;
   dataRoomId?: string;
+  viewerEmail?: string;
 }
 
-function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
+function DeckViewer({
+  deck,
+  isOwner = false,
+  dataRoomId,
+  viewerEmail,
+}: DeckViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
@@ -46,6 +51,7 @@ function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
     numPages || 0,
     isOwner,
     dataRoomId,
+    viewerEmail,
   );
 
   const onDocumentLoadSuccess = useCallback(
@@ -77,6 +83,26 @@ function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
     }
   };
 
+  const dimensions = useMemo(() => {
+    if (!containerWidth || !containerHeight) return { width: 0, height: 0 };
+    const targetAspect = 16 / 9;
+    const containerAspect = containerWidth / containerHeight;
+
+    if (containerAspect > targetAspect) {
+      // Window is wider than 16:9 - height is limit
+      return {
+        width: containerHeight * targetAspect,
+        height: containerHeight,
+      };
+    } else {
+      // Window is taller than 16:9 - width is limit
+      return {
+        width: containerWidth,
+        height: containerWidth / targetAspect,
+      };
+    }
+  }, [containerWidth, containerHeight]);
+
   const isPdf = !deck.file_type || deck.file_type === "pdf";
   const officeEmbedUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(deck.file_url)}`;
 
@@ -94,27 +120,15 @@ function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              style={(() => {
-                if (!containerWidth || !containerHeight) return {};
-                const targetAspect = 16 / 9;
-                const containerAspect = containerWidth / containerHeight;
-
-                let finalWidth, finalHeight;
-                if (containerAspect > targetAspect) {
-                  // Window is wider than 16:9 - height is limit
-                  finalHeight = containerHeight;
-                  finalWidth = containerHeight * targetAspect;
-                } else {
-                  // Window is taller than 16:9 - width is limit
-                  finalWidth = containerWidth;
-                  finalHeight = containerWidth / targetAspect;
-                }
-
-                return {
-                  width: finalWidth,
-                  height: finalHeight,
-                };
-              })()}
+              onPanEnd={(_, info) => {
+                if (info.offset.x > 100) handleNavigationClick("prev");
+                if (info.offset.x < -100) handleNavigationClick("next");
+              }}
+              style={{
+                width: dimensions.width,
+                height: dimensions.height,
+                touchAction: "pan-y",
+              }}
               className="bg-white shadow-2xl rounded-sm flex items-center justify-center overflow-hidden"
             >
               <Document
@@ -138,20 +152,7 @@ function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
                   pageNumber={pageNumber}
                   renderTextLayer={false}
                   renderAnnotationLayer={true}
-                  width={(() => {
-                    if (!containerWidth || !containerHeight) return undefined;
-                    const targetAspect = 16 / 9;
-                    return containerWidth / containerHeight > targetAspect
-                      ? containerHeight * targetAspect
-                      : containerWidth;
-                  })()}
-                  height={(() => {
-                    if (!containerWidth || !containerHeight) return undefined;
-                    const targetAspect = 16 / 9;
-                    return containerWidth / containerHeight > targetAspect
-                      ? containerHeight
-                      : containerWidth / targetAspect;
-                  })()}
+                  width={dimensions.width || undefined}
                   loading=""
                 />
               </Document>
@@ -164,21 +165,20 @@ function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
               src={officeEmbedUrl}
               className="w-full h-full border-none"
               title="Document Viewer"
-              frameBorder="0"
             />
           </div>
         )}
 
         {/* Navigation Overlays & Visual Arrows (Only for PDF) */}
         {isPdf && (
-          <div className="absolute inset-0 flex pointer-events-none">
+          <div className="absolute inset-0 z-30 flex pointer-events-none">
             <div
               className="flex-1 cursor-pointer group/nav overflow-hidden pointer-events-auto relative"
               onClick={() => handleNavigationClick("prev")}
               title="Previous Page"
             >
-              <div className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-14 md:h-14 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-white opacity-40 group-hover/nav:opacity-100 -translate-x-2 group-hover/nav:translate-x-0 transition-all duration-300 shadow-2xl">
-                <ChevronLeft size={20} className="md:w-8 md:h-8" />
+              <div className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 bg-black/50 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center text-white opacity-80 md:opacity-50 group-hover/nav:opacity-100 transition-all duration-300 shadow-2xl">
+                <ChevronLeft size={24} className="md:w-8 md:h-8" />
               </div>
             </div>
             <div
@@ -186,8 +186,8 @@ function DeckViewer({ deck, isOwner = false, dataRoomId }: DeckViewerProps) {
               onClick={() => handleNavigationClick("next")}
               title="Next Page"
             >
-              <div className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-10 h-10 md:w-14 md:h-14 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center text-white opacity-40 group-hover/nav:opacity-100 translate-x-2 group-hover/nav:translate-x-0 transition-all duration-300 shadow-2xl">
-                <ChevronRight size={20} className="md:w-8 md:h-8" />
+              <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 md:w-14 md:h-14 bg-black/50 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center text-white opacity-80 md:opacity-50 group-hover/nav:opacity-100 transition-all duration-300 shadow-2xl">
+                <ChevronRight size={24} className="md:w-8 md:h-8" />
               </div>
             </div>
           </div>

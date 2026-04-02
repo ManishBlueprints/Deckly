@@ -39,6 +39,21 @@ function getInitialCollapsed(): boolean {
   }
 }
 
+const TIER_CONFIG = {
+  FREE: {
+    label: "Free",
+    className: "bg-slate-800/50 text-slate-500 border-white/5",
+  },
+  PRO: {
+    label: "Pro",
+    className: "bg-amber-400 text-slate-950 border-amber-500/50",
+  },
+  PRO_PLUS: {
+    label: "Pro Plus",
+    className: "bg-purple-600 text-white border-purple-500/50 shadow-[0_0_15px_rgba(147,51,234,0.3)]",
+  },
+};
+
 export function Sidebar() {
   const location = useLocation();
   const { profile, signOut, branding, setBranding } = useAuth();
@@ -210,9 +225,21 @@ export function Sidebar() {
                   <p className="text-[13px] font-bold text-slate-100 truncate leading-none">
                     {profile?.full_name?.split(" ")[0] || "User"}
                   </p>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter truncate mt-1">
-                    {profile?.tier || "Managing Partner"}
-                  </p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    {(() => {
+                      const tierConfig = (profile?.tier && TIER_CONFIG[profile?.tier as keyof typeof TIER_CONFIG]) || TIER_CONFIG.FREE;
+                      return (
+                        <span
+                          className={cn(
+                            "text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm border",
+                            tierConfig.className
+                          )}
+                        >
+                          {tierConfig.label}
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 <button

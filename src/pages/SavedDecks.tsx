@@ -1,5 +1,5 @@
 import { DashboardLayout } from "../components/layout/DashboardLayout";
-import { SavedDecksView } from "../components/SavedDecksView";
+import { SavedDecksView } from "../components/saved-decks/SavedDecksView";
 
 function SavedDecks() {
   return (

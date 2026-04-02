@@ -1,7 +1,7 @@
-import { AnalyticsDashboard } from "./dashboard/AnalyticsDashboard";
-import { WelcomeBanner } from "./dashboard/WelcomeBanner";
-import { TopDecksCard } from "./dashboard/TopDecksCard";
-import { CommentsCard } from "./dashboard/CommentsCard";
+import { AnalyticsDashboard } from "./AnalyticsDashboard";
+import { WelcomeBanner } from "./WelcomeBanner";
+import { TopDecksCard } from "./TopDecksCard";
+import { CommentsCard } from "./CommentsCard";
 
 export function DashboardView() {
   return (
