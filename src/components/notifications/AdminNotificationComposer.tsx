@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Send, User, AlertTriangle } from "lucide-react";
 import { useSendAdminMessage, useSendBroadcastAll } from "../../hooks/useAdminNotifications";
 import Button from "../common/Button";
@@ -17,6 +17,52 @@ export function AdminNotificationComposer() {
 
   const sendMessage = useSendAdminMessage();
   const sendBroadcastAll = useSendBroadcastAll();
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Accessibility: Focus management and Escape key handling
+  useEffect(() => {
+    if (!showConfirm) return;
+
+    const previousFocus = document.activeElement as HTMLElement;
+    modalRef.current?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Close on Escape
+      if (e.key === "Escape") {
+        setShowConfirm(false);
+        return;
+      }
+
+      // Focus trap
+      if (e.key === "Tab") {
+        const focusableElements = modalRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusableElements) return;
+
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, [showConfirm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,10 +100,16 @@ export function AdminNotificationComposer() {
 
   const doSendBroadcast = async () => {
     try {
-      const count = await sendBroadcastAll.mutateAsync({
+      const result = await sendBroadcastAll.mutateAsync({
         title: title.trim(),
         message: message.trim(),
       });
+
+      // Normalize response shape (handle number or { count: number })
+      const count = typeof result === "number" 
+        ? result 
+        : (result as Record<string, unknown>)?.count ?? 0;
+
       toast.success(`Broadcast sent to ${count} users`);
       resetForm();
     } catch {
@@ -153,14 +205,23 @@ export function AdminNotificationComposer() {
 
       {/* Confirmation Modal */}
       {showConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-[#0e0e0e] border border-white/10 rounded-xl shadow-2xl overflow-hidden">
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-modal-title"
+        >
+          <div 
+            ref={modalRef}
+            tabIndex={-1}
+            className="w-full max-w-md bg-[#0e0e0e] border border-white/10 rounded-xl shadow-2xl overflow-hidden focus:outline-none"
+          >
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
                   <AlertTriangle size={20} className="text-red-400" />
                 </div>
-                <h3 className="text-lg font-bold text-white">Confirm Broadcast</h3>
+                <h3 id="confirm-modal-title" className="text-lg font-bold text-white">Confirm Broadcast</h3>
               </div>
               <p className="text-sm text-slate-400 mb-2">
                 You are about to send this notification to <strong className="text-white">all users</strong>:

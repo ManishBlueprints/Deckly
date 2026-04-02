@@ -1,5 +1,8 @@
 import { X, CheckCheck } from "lucide-react";
-import { useNotifications, useMarkAllAsRead } from "../../hooks/useNotifications";
+import {
+  useNotifications,
+  useMarkAllAsRead,
+} from "../../hooks/useNotifications";
 import { NotificationItem } from "./NotificationItem";
 import type { GroupedNotification } from "../../types";
 
@@ -14,10 +17,14 @@ export function NotificationPanel({ userId, onClose }: NotificationPanelProps) {
 
   const handleMarkAllRead = async () => {
     if (userId) {
-      await markAllAsRead.mutateAsync(userId);
+      try {
+        await markAllAsRead.mutateAsync(userId);
+      } catch (error) {
+        // Error is typically handled by the mutation's onError callback
+        console.error("Failed to mark notifications as read:", error);
+      }
     }
   };
-
   return (
     <div className="w-[380px] max-h-[480px] bg-[#0e0e0e] border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col">
       {/* Header */}

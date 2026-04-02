@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS public.decks (
     require_email BOOLEAN DEFAULT FALSE,
     require_password BOOLEAN DEFAULT FALSE,
     view_password TEXT,
+    unique_visitors INTEGER DEFAULT 0,
     expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -976,14 +977,22 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread_created
     WHERE read_at IS NULL;
 
 -- =============================================================================
--- 13a. HELPER: is_admin()
--- Checks whether the calling user has an admin role in profiles.
--- The profiles table must have a `role TEXT DEFAULT 'user'` column.
--- Add it if missing:
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'
-    CHECK (role IN ('user', 'admin'));
+-- 13a. HELPERS: admin_emails & is_admin()
 -- =============================================================================
 
+-- Create a simple allowlist table for admins
+CREATE TABLE IF NOT EXISTS public.admin_emails (
+    email TEXT PRIMARY KEY,
+    added_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.admin_emails ENABLE ROW LEVEL SECURITY;
+
+-- Only admins can manage the list (bootstrapped by direct SQL insert)
+CREATE POLICY "Only admins can view admin_emails" ON public.admin_emails
+    FOR SELECT USING (public.is_admin());
+
+-- Canonical is_admin function (email-allowlist based)
 CREATE OR REPLACE FUNCTION public.is_admin(p_user_id UUID DEFAULT NULL)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -993,14 +1002,23 @@ SET search_path = public
 AS $$
 DECLARE
     v_uid UUID;
+    v_email TEXT;
 BEGIN
     v_uid := COALESCE(p_user_id, auth.uid());
+    
+    -- Get email from auth.users (SECURITY DEFINER can read auth schema)
+    SELECT email INTO v_email FROM auth.users WHERE id = v_uid;
+    
+    -- Check against allowlist
     RETURN EXISTS (
-        SELECT 1 FROM public.profiles
-        WHERE id = v_uid AND role = 'admin'
+        SELECT 1 FROM public.admin_emails WHERE email = v_email
     );
 END;
 $$;
+
+-- Grant access
+GRANT EXECUTE ON FUNCTION public.is_admin(UUID) TO authenticated;
+-- =============================================================================
 
 -- =============================================================================
 -- 13b. create_notification() — internal + callable by authenticated users
@@ -1028,6 +1046,13 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'Invalid notification type: %', p_type;
     END IF;
+
+    -- Create supporting partial index for deduplication if it doesn't exist
+    -- idx_notifications_dedup on columns (user_id, type, title, created_at DESC)
+    -- with WHERE read_at IS NULL. This ensures efficient coverage for the IF EXISTS check below.
+    CREATE INDEX IF NOT EXISTS idx_notifications_dedup 
+    ON public.notifications (user_id, type, title, created_at DESC) 
+    WHERE read_at IS NULL;
 
     -- Deduplicate: skip if an identical unread notification already exists
     -- created within the last 10 minutes (prevents trigger spam on bulk ops)
@@ -1110,9 +1135,12 @@ BEGIN
     END IF;
 
     INSERT INTO public.notifications (user_id, type, title, message, metadata)
-    SELECT id, 'admin_message', p_title, p_message, COALESCE(p_metadata, '{}'::jsonb)
-    FROM public.profiles
-    WHERE role != 'admin';  -- skip admins themselves
+    SELECT p.id, 'admin_message', p_title, p_message, COALESCE(p_metadata, '{}'::jsonb)
+    FROM public.profiles p
+    JOIN auth.users u ON u.id = p.id
+    WHERE NOT EXISTS (
+        SELECT 1 FROM public.admin_emails ae WHERE ae.email = u.email
+    );
 
     GET DIAGNOSTICS v_count = ROW_COUNT;
     RETURN v_count;
@@ -1130,15 +1158,29 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    v_count INTEGER;
+    v_count       INTEGER := 0;
+    v_batch_count INTEGER;
 BEGIN
     -- Extra guard: only service role or admin can call this manually
     IF auth.uid() IS NOT NULL AND NOT public.is_admin(auth.uid()) THEN
         RAISE EXCEPTION 'Permission denied';
     END IF;
 
-    DELETE FROM public.notifications WHERE expires_at < NOW();
-    GET DIAGNOSTICS v_count = ROW_COUNT;
+    -- Batched delete to avoid long table locks on high volumes
+    LOOP
+        DELETE FROM public.notifications 
+        WHERE id IN (
+            SELECT id FROM public.notifications 
+            WHERE expires_at < NOW() 
+            LIMIT 1000
+        );
+        
+        GET DIAGNOSTICS v_batch_count = ROW_COUNT;
+        v_count := v_count + v_batch_count;
+        
+        EXIT WHEN v_batch_count = 0;
+    END LOOP;
+
     RETURN v_count;
 END;
 $$;
@@ -1179,7 +1221,7 @@ BEGIN
         v_owner_id,
         'deck_save',
         'New Save 🔖',
-        '"' || v_deck_title || '" was saved by an viewer. ' ||
+        '"' || v_deck_title || '" was saved by a viewer. ' ||
         'It now has ' || v_save_count || ' save' || CASE WHEN v_save_count = 1 THEN '' ELSE 's' END || '.',
         jsonb_build_object(
             'deck_id',    NEW.deck_id,
@@ -1220,13 +1262,23 @@ BEGIN
     FROM public.decks d
     WHERE d.id = NEW.deck_id;
 
-    -- Count distinct visitors (visitor_id = fingerprint/anonymous id)
-    SELECT COUNT(DISTINCT visitor_id)
-    INTO v_visitor_count
-    FROM public.deck_page_views
-    WHERE deck_id = NEW.deck_id;
+    -- 1. Check if this is a first-time unique visit for this deck + visitor
+    IF EXISTS (
+        SELECT 1 FROM public.deck_page_views
+        WHERE deck_id = NEW.deck_id
+          AND visitor_id = NEW.visitor_id
+          AND id != NEW.id -- exclude the current insert
+    ) THEN
+        RETURN NEW;
+    END IF;
 
-    -- Fire only when a milestone is hit exactly
+    -- 2. Increment the unique_visitors count on the decks table
+    UPDATE public.decks
+    SET unique_visitors = unique_visitors + 1
+    WHERE id = NEW.deck_id
+    RETURNING unique_visitors INTO v_visitor_count;
+
+    -- 3. Milestone check
     FOREACH v_milestone IN ARRAY v_milestones LOOP
         IF v_visitor_count = v_milestone THEN
             PERFORM public.create_notification(
@@ -1319,42 +1371,3 @@ GRANT EXECUTE ON FUNCTION public.create_admin_broadcast_all(TEXT, TEXT, JSONB)  
 -- Schedule it via pg_cron (Supabase dashboard → Database → Cron Jobs):
 --   SELECT cron.schedule('cleanup-notifications', '0 3 * * *',
 --     $$SELECT public.cleanup_expired_notifications();$$);
-
-
--- 1. Create a simple allowlist table
-CREATE TABLE IF NOT EXISTS public.admin_emails (
-    email TEXT PRIMARY KEY,
-    added_at TIMESTAMPTZ DEFAULT NOW()
-);
-ALTER TABLE public.admin_emails ENABLE ROW LEVEL SECURITY;
--- Only admins can manage the list (bootstrapped by direct SQL insert)
-CREATE POLICY "Only admins can view admin_emails" ON public.admin_emails
-    FOR SELECT USING (public.is_admin());
--- 2. Insert your email (replace with yours)
-INSERT INTO public.admin_emails (email) VALUES ('[EMAIL_ADDRESS]')
-ON CONFLICT DO NOTHING;
--- 3. Replace is_admin() to check email instead of role
-CREATE OR REPLACE FUNCTION public.is_admin(p_user_id UUID DEFAULT NULL)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-    v_uid UUID;
-    v_email TEXT;
-BEGIN
-    v_uid := COALESCE(p_user_id, auth.uid());
-    
-    -- Get email from auth.users (SECURITY DEFINER can read auth schema)
-    SELECT email INTO v_email FROM auth.users WHERE id = v_uid;
-    
-    -- Check against allowlist
-    RETURN EXISTS (
-        SELECT 1 FROM public.admin_emails WHERE email = v_email
-    );
-END;
-$$;
--- 4. Grant access
-GRANT EXECUTE ON FUNCTION public.is_admin(UUID) TO authenticated;

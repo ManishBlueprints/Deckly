@@ -52,47 +52,31 @@ export function useMarkAsRead() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (notificationId: string) =>
-      notificationService.markAsRead(notificationId),
-    onMutate: async () => {
-      // Snapshot current unread count
-      const queryKeys = qc.getQueryCache().findAll({
-        queryKey: KEYS.all,
-      });
-      const affectedUserIds = new Set<string>();
-      for (const q of queryKeys) {
-        const key = q.queryKey as string[];
-        const userIdIdx = key.indexOf("unread-count") + 1;
-        if (userIdIdx > 0 && key[userIdIdx]) {
-          affectedUserIds.add(key[userIdIdx]);
-        }
-        const listIdx = key.indexOf("list") + 1;
-        if (listIdx > 0 && key[listIdx]) {
-          affectedUserIds.add(key[listIdx]);
-        }
-      }
+    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+      notificationService.markAsRead(id, userId),
+    onMutate: async ({ userId }) => {
+      // Snapshot current unread count for rollback
+      const prevCount = qc.getQueryData<number>(KEYS.unreadCount(userId));
 
-      // Optimistic: decrement unread count for each user
-      for (const uid of affectedUserIds) {
-        qc.setQueryData<number>(KEYS.unreadCount(uid), (prev) =>
-          prev ? Math.max(0, prev - 1) : 0,
-        );
-      }
+      // Optimistic: decrement unread count for this user only
+      qc.setQueryData<number>(KEYS.unreadCount(userId), (prev) =>
+        prev ? Math.max(0, prev - 1) : 0,
+      );
 
-      return { affectedUserIds };
+      return { userId, prevCount };
     },
     onError: (_err, _vars, context) => {
-      // Rollback on error — invalidate to refetch
+      // Rollback on error
       if (context) {
-        for (const uid of context.affectedUserIds) {
-          qc.invalidateQueries({ queryKey: KEYS.unreadCount(uid as string) });
-          qc.invalidateQueries({ queryKey: KEYS.list(uid as string) });
-        }
+        qc.setQueryData(KEYS.unreadCount(context.userId), context.prevCount);
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _err, _vars, context) => {
       // Always invalidate after mutation settles
-      qc.invalidateQueries({ queryKey: KEYS.all });
+      if (context) {
+        qc.invalidateQueries({ queryKey: KEYS.unreadCount(context.userId) });
+        qc.invalidateQueries({ queryKey: KEYS.list(context.userId) });
+      }
     },
   });
 }

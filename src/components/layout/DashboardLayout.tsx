@@ -93,15 +93,13 @@ export function DashboardLayout({
               {currentLabel}
             </span>
           </div>
-
           <div className="md:hidden flex items-center">
             <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-[0.25em] text-primary">
               {currentLabel}
             </span>
           </div>
-
           {/* Notification Bell — top right */}
-          <NotificationBell userId={profile?.id} />
+          {profile?.id && <NotificationBell userId={profile.id} />}{" "}
         </header>
 
         {/* Content Area */}

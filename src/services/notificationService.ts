@@ -1,6 +1,10 @@
 import { supabase } from "./supabase";
 import { withRetry } from "../utils/resilience";
-import type { Notification, NotificationType, GroupedNotification } from "../types";
+import type {
+  GroupedNotification,
+  Notification,
+  NotificationType,
+} from "../types";
 
 export const notificationService = {
   // Get all notifications for a user, ordered by created_at DESC
@@ -32,33 +36,41 @@ export const notificationService = {
     });
   },
 
-  // Mark a single notification as read
-  async markAsRead(notificationId: string): Promise<void> {
-    const { error } = await supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("id", notificationId);
+  // Mark all notifications as read for a user
+  async markAllAsRead(userId: string): Promise<void> {
+    const { error } = await withRetry(async () =>
+      await supabase
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .is("read_at", null),
+    );
 
     if (error) throw error;
   },
 
-  // Mark all notifications as read for a user
-  async markAllAsRead(userId: string): Promise<void> {
-    const { error } = await supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("user_id", userId)
-      .is("read_at", null);
+  // Mark a notification as read
+  async markAsRead(notificationId: string, userId: string): Promise<void> {
+    const { error } = await withRetry(async () =>
+      await supabase
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", notificationId)
+        .eq("user_id", userId),
+    );
 
     if (error) throw error;
   },
 
   // Delete a notification
-  async deleteNotification(notificationId: string): Promise<void> {
-    const { error } = await supabase
-      .from("notifications")
-      .delete()
-      .eq("id", notificationId);
+  async deleteNotification(notificationId: string, userId: string): Promise<void> {
+    const { error } = await withRetry(async () =>
+      await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", notificationId)
+        .eq("user_id", userId),
+    );
 
     if (error) throw error;
   },
@@ -83,9 +95,11 @@ export const notificationService = {
     );
 
     if (error) throw error;
+    if (!notificationId) {
+      throw new Error("Failed to create notification: no ID returned");
+    }
     return notificationId as string;
   },
-
   // Send admin broadcast to specific users via RPC
   async sendAdminBroadcast(data: {
     userIds: string[];
@@ -160,8 +174,11 @@ function getGroupTitle(type: NotificationType, date: string): string {
   const today = new Date().toISOString().split("T")[0];
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
 
-  const dayLabel =
-    date === today ? "Today" : date === yesterday ? "Yesterday" : date;
+  const dayLabel = date === today
+    ? "Today"
+    : date === yesterday
+    ? "Yesterday"
+    : date;
 
   const typeLabels: Record<NotificationType, string> = {
     deck_view: "Views",

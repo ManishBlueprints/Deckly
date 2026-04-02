@@ -72,7 +72,10 @@ export function useIsAdmin(userId: string | undefined) {
       const { data, error } = await (
         await import("../services/supabase")
       ).supabase.rpc("is_admin", { p_user_id: userId });
-      if (error) return false;
+      if (error) {
+        console.error("Failed to check admin status:", error);
+        throw error;
+      }
       return !!data;
     },
     enabled: !!userId,

@@ -1,6 +1,7 @@
 import { Eye, Bookmark, TrendingUp, FileEdit, Mail } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { useMarkAsRead } from "../../hooks/useNotifications";
+import { toast } from "sonner";
 import type { Notification, NotificationType } from "../../types";
 
 interface NotificationItemProps {
@@ -14,6 +15,8 @@ const TYPE_CONFIG: Record<NotificationType, { icon: typeof Eye; color: string }>
   deck_update: { icon: FileEdit, color: "text-purple-400" },
   admin_message: { icon: Mail, color: "text-emerald-400" },
 };
+
+const DEFAULT_CONFIG = { icon: Eye, color: "text-slate-400" };
 
 function formatTimeAgo(dateStr: string): string {
   const now = new Date();
@@ -31,21 +34,30 @@ function formatTimeAgo(dateStr: string): string {
 
 export function NotificationItem({ notification }: NotificationItemProps) {
   const markAsRead = useMarkAsRead();
-  const config = TYPE_CONFIG[notification.type];
+  const config = TYPE_CONFIG[notification.type] || DEFAULT_CONFIG;
   const Icon = config.icon;
   const isUnread = notification.read_at === null;
 
   const handleClick = async () => {
-    if (isUnread) {
-      await markAsRead.mutateAsync(notification.id);
+    if (isUnread && !markAsRead.isPending) {
+      try {
+        await markAsRead.mutateAsync({
+          id: notification.id,
+          userId: notification.user_id,
+        });
+      } catch (error) {
+        console.error("Failed to mark as read:", error);
+        toast.error("Failed to mark notification as read");
+      }
     }
   };
 
   return (
     <button
       onClick={handleClick}
+      disabled={markAsRead.isPending}
       className={cn(
-        "w-full text-left px-4 py-3 flex items-start gap-3 transition-colors",
+        "w-full text-left px-4 py-3 flex items-start gap-3 transition-colors disabled:opacity-70",
         isUnread
           ? "bg-white/[0.03] hover:bg-white/[0.06]"
           : "hover:bg-white/[0.03]",

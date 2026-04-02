@@ -1,20 +1,27 @@
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { AdminNotificationComposer } from "../components/notifications/AdminNotificationComposer";
 import { useAuth } from "../contexts/AuthContext";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, Loader2 } from "lucide-react";
 import { Navigate } from "react-router-dom";
-
-// ── Admin allowlist (add emails here) ──
-const ADMIN_EMAILS = [
-  "manish@level29.games",
-];
+import { useIsAdmin } from "../hooks/useAdminNotifications";
 
 function AdminNotificationsPage() {
   const { session } = useAuth();
+  const { data: isAdmin, isLoading } = useIsAdmin(session?.user?.id);
 
   if (!session) return <Navigate to="/login" />;
 
-  const isAdmin = ADMIN_EMAILS.includes(session.user.email?.toLowerCase() || "");
+  // Display a centered loading state while we check the server-side admin status
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Admin Notifications" showFab={false}>
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-500">
+          <Loader2 className="w-8 h-8 animate-spin mb-4 text-deckly-primary" />
+          <p className="text-sm font-medium">Verifying admin access...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (!isAdmin) return <Navigate to="/" />;
 
