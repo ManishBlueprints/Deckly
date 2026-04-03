@@ -1026,12 +1026,11 @@ CREATE POLICY "Only admins can view admin_emails" ON public.admin_emails
 -- =============================================================================
 
 -- =============================================================================
--- 13b. create_notification() — internal + callable by authenticated users
--- (founders notifying themselves is fine; actual cross-user writes only
---  happen from SECURITY DEFINER triggers / functions, which bypass RLS)
+-- 13b. create_notification_internal() — privileged insert helper
+-- SECURITY DEFINER and NOT directly granted to authenticated callers.
 -- =============================================================================
 
-CREATE OR REPLACE FUNCTION public.create_notification(
+CREATE OR REPLACE FUNCTION public.create_notification_internal(
     p_user_id UUID,
     p_type     TEXT,
     p_title    TEXT,
@@ -1077,6 +1076,43 @@ BEGIN
     RETURNING id INTO v_id;
 
     RETURN v_id;
+END;
+$$;
+
+-- =============================================================================
+-- 13b. create_notification() — public RPC wrapper
+-- SECURITY INVOKER + explicit auth check:
+-- caller must be notifying self OR caller must be admin.
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.create_notification(
+    p_user_id UUID,
+    p_type     TEXT,
+    p_title    TEXT,
+    p_message  TEXT,
+    p_metadata JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+    IF auth.uid() IS NULL THEN
+        RAISE EXCEPTION 'Authentication required';
+    END IF;
+
+    IF auth.uid() <> p_user_id AND NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Permission denied';
+    END IF;
+
+    RETURN public.create_notification_internal(
+        p_user_id,
+        p_type,
+        p_title,
+        p_message,
+        p_metadata
+    );
 END;
 $$;
 
@@ -1222,7 +1258,7 @@ BEGIN
     FROM public.investor_library
     WHERE deck_id = NEW.deck_id;
 
-    PERFORM public.create_notification(
+    PERFORM public.create_notification_internal(
         v_owner_id,
         'deck_save',
         'New Save 🔖',
@@ -1291,7 +1327,7 @@ BEGIN
     -- Milestone check
     FOREACH v_milestone IN ARRAY v_milestones LOOP
         IF v_visitor_count = v_milestone THEN
-            PERFORM public.create_notification(
+            PERFORM public.create_notification_internal(
                 v_owner_id,
                 'signal_threshold',
                 'High Investor Interest 🔥',
@@ -1342,7 +1378,7 @@ BEGIN
             FROM public.investor_library
             WHERE deck_id = NEW.id
         LOOP
-            PERFORM public.create_notification(
+            PERFORM public.create_notification_internal(
                 v_investor.user_id,
                 'deck_update',
                 'Deck Updated 📄',
@@ -1367,7 +1403,8 @@ CREATE TRIGGER tr_notify_on_deck_update
 
 -- =============================================================================
 -- 13i. GRANTS
--- create_notification  → authenticated (founders can trigger it via service)
+-- create_notification_internal → internal helper only (no authenticated grant)
+-- create_notification  → authenticated self/admin wrapper
 -- create_admin_broadcast / _all → authenticated (function enforces admin check)
 -- cleanup_expired_notifications → NOT granted to authenticated (cron only)
 -- is_admin → authenticated (needed for UI role checks)
@@ -1375,6 +1412,7 @@ CREATE TRIGGER tr_notify_on_deck_update
 
 GRANT EXECUTE ON FUNCTION public.is_admin(UUID)                                TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_notification(UUID, TEXT, TEXT, TEXT, JSONB) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.create_notification_internal(UUID, TEXT, TEXT, TEXT, JSONB) FROM anon, authenticated, PUBLIC;
 GRANT EXECUTE ON FUNCTION public.create_admin_broadcast(UUID[], TEXT, TEXT, JSONB)  TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_admin_broadcast_all(TEXT, TEXT, JSONB)      TO authenticated;
 -- cleanup_expired_notifications is intentionally NOT granted to authenticated.

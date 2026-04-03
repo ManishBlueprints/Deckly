@@ -65,7 +65,7 @@ export function useSendBroadcastAll() {
 }
 
 export function useIsAdmin(userId: string | undefined) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ["is-admin", userId] as const,
     queryFn: async () => {
       if (!userId) return false;
@@ -80,4 +80,12 @@ export function useIsAdmin(userId: string | undefined) {
     },
     enabled: !!userId,
   });
+
+  return {
+    isAdmin: query.data ?? false,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  };
 }

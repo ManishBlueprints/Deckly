@@ -78,7 +78,7 @@ export const notificationService = {
     title: string;
     message: string;
     metadata?: Record<string, unknown>;
-  }): Promise<string> {
+  }): Promise<string | null> {
     const { data: notificationId, error } = await supabase.rpc(
       "create_notification",
       {
@@ -91,9 +91,8 @@ export const notificationService = {
     );
 
     if (error) throw error;
-    if (!notificationId) {
-      throw new Error("Failed to create notification: no ID returned");
-    }
+    // RPC can intentionally return NULL when deduplicating duplicate notifications.
+    if (!notificationId) return null;
     return notificationId as string;
   },
   // Send admin broadcast to specific users via RPC
