@@ -979,6 +979,10 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread_created
     ON public.notifications(user_id, created_at DESC)
     WHERE read_at IS NULL;
 
+CREATE INDEX IF NOT EXISTS idx_notifications_dedup
+    ON public.notifications(user_id, type, title, created_at DESC)
+    WHERE read_at IS NULL;
+
 -- =============================================================================
 -- 13a. HELPERS: admin_emails & is_admin()
 -- =============================================================================
@@ -1050,13 +1054,6 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'Invalid notification type: %', p_type;
     END IF;
-
-    -- Create supporting partial index for deduplication if it doesn't exist
-    -- idx_notifications_dedup on columns (user_id, type, title, created_at DESC)
-    -- with WHERE read_at IS NULL. This ensures efficient coverage for the IF EXISTS check below.
-    CREATE INDEX IF NOT EXISTS idx_notifications_dedup 
-    ON public.notifications (user_id, type, title, created_at DESC) 
-    WHERE read_at IS NULL;
 
     -- Deduplicate: skip if an identical unread notification already exists
     -- created within the last 10 minutes (prevents trigger spam on bulk ops)

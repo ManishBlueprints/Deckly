@@ -1,107 +1,80 @@
 # Developer Documentation - Deckly
 
-Deckly is a premium "Data Room" application designed for sharing pitch decks with high-fidelity previews and real-time viewer analytics.
+Deckly is a React 19 + Supabase workspace for founders and investors. This guide is the lightweight repo-level developer overview. For the fuller internal docs set, use the files under `docs/`.
 
-## 🚀 Tech Stack
+## Tech stack
 
-- **Frontend**: React 18 with Vite
-- **Backend-as-a-Service**: Supabase (Authentication, PostgreSQL Database, Storage)
-- **PDF Processing**: `pdfjs-dist` (Converting PDFs to high-performance WebP slide images)
-- **Icons**: Lucide React
-- **Styling**: Vanilla CSS (Custom Glassmorphic Design System)
+- Frontend: React 19 + Vite + TypeScript
+- Styling: Tailwind CSS + shadcn/ui
+- Backend: Supabase Auth + Postgres + Storage + RPCs
+- Data fetching: TanStack Query v5
+- Document processing: `pdfjs-dist` in-browser + Supabase Edge Function for Office conversion
+- Analytics: PostHog + Supabase analytics RPCs
 
----
+## Current architecture
 
-## 📁 File Structure Breakdown
+```text
+src/
+├── components/
+│   ├── dashboard/
+│   │   └── manage-deck/          # Split ManageDeck UI sections
+│   ├── notifications/
+│   ├── ui/
+│   └── viewer/
+├── contexts/
+├── hooks/
+│   └── useManageDeckWorkflow.ts  # Upload/edit orchestration
+├── pages/
+│   ├── ManageDeck.tsx            # Composition + form state
+│   ├── Viewer.tsx
+│   └── DataRoomViewer.tsx
+├── services/
+│   ├── authSession.ts
+│   ├── deckService.ts            # Composed facade
+│   ├── deckStorageService.ts
+│   ├── deckLibraryService.ts
+│   ├── deckBrandingService.ts
+│   ├── dataRoomService.ts
+│   ├── noteService.ts
+│   └── organizerService.ts
+├── workflows/
+│   └── deckProcessing.ts
+└── utils/
+```
 
-### `src/components/common/`
+## Important refactors already landed
 
-This directory contains the **Atomic UI Components**. They are designed to be state-agnostic and reusable across the entire app to maintain visual consistency.
+- `ManageDeck` is no longer a single workflow-heavy page. The upload/edit flow is split across:
+  - `src/pages/ManageDeck.tsx`
+  - `src/hooks/useManageDeckWorkflow.ts`
+  - `src/components/dashboard/manage-deck/ManageDeckSections.tsx`
+- Shared PDF processing now lives in `src/workflows/deckProcessing.ts`
+- `deckService` was split internally into focused modules while preserving the public `deckService.*` API
+- Auth/session resolution is being standardized through `src/services/authSession.ts`
+- The Vitest pipeline is healthy again and `npm test` is trustworthy
 
-- `Button.jsx`: Handles all variants (`primary`, `glass`, `danger`) and loading states.
-- `Input.jsx` & `Textarea.jsx`: Glassmorphic form fields with label and icon support.
-- `Card.jsx`: The foundational "Frosted Glass" container.
-- `Toggle.jsx`: Custom switch for boolean settings (e.g., Link Expiry).
+## Local development
 
-### `src/pages/`
+```bash
+npm install
+npm run dev
+```
 
-- `Home.jsx`: The main dashboard. It manages the deck list state and handles deletions/updates.
-- `ManageDeck.jsx`: (Formerly Admin.jsx) A unified page for both **Creating** and **Editing** decks. Includes the PDF-to-Image processing pipeline.
-- `Viewer.jsx`: The public-facing page where guests view the decks.
-- `Login.jsx` & `Signup.jsx`: Auth flows using Supabase GoTrue.
+Before merging code, run:
 
-### `src/services/`
+```bash
+npm run type-check
+npm run lint
+npm test
+```
 
-- `deckService.js`: Contains all business logic for fetching decks, uploading PDFs, and converting PDF pages into images.
-- `analyticsService.js`: Manages the heartbeat-based tracking system that calculates time spent per slide.
-- `supabase.js`: Initialized Supabase client.
+## Service conventions
 
----
+- Prefer shared auth helpers over ad-hoc `supabase.auth.getSession()` calls
+- Keep service modules focused by concern
+- Put shared processing/orchestration in `workflows/` or dedicated hooks, not inside page components
+- Keep TanStack Query keys centralized inside hooks when optimistic updates are involved
 
-## 🛠 Project Architecture & Data Flow
+## Current known docs note
 
-### 1. PDF Conversion Pipeline
-
-When a user uploads a PDF in `ManageDeck.jsx`:
-
-1. The PDF is uploaded to Supabase Storage (`decks` bucket).
-2. `pdfjs-dist` loads the file in the browser.
-3. Each page is rendered to a canvas at **1.5x scale** for a balance of quality and speed.
-4. Canvases are converted to **WebP blobs** (80% quality).
-5. Blobs are uploaded to a structured folder in storage: `userId/deck-images/slug/page-N.webp`.
-
-### 2. Layout & Design System (`App.css`)
-
-The app uses a **Centralized Design Token** system in `:root`:
-
-- `--accent-primary`: The signature green color.
-- `--glass-bg`: The base transparency for cards.
-- `--transition-smooth`: Harmonic easing for all hover effects.
-
-**Utility-First Approach**: Instead of repeating CSS, we use components like `Card` and `Button` which inject these global tokens.
-
-### 3. Analytics Tracking
-
-Analytics are recorded in the `Viewer.jsx` via `analyticsService.js`:
-
-- **Unique Views**: Logged on initial mount.
-- **Time Spent**: Calculated by sending a "heartbeat" to Supabase every few seconds while the slide is active.
-- **Aggregates**: `DeckDetailPanel.jsx` fetches and sums these records to show the "Total Views" and "Avg. Session" cards.
-
----
-
-## 🚦 Getting Started for Developers
-
-### Prerequisites
-
-- Node.js (v16+)
-- A Supabase Project with `decks` and `analytics` tables.
-
-### Setup
-
-1. Clone the repository.
-2. Create a `.env.local` file:
-   ```env
-   VITE_SUPABASE_URL=your_project_url
-   VITE_SUPABASE_ANON_KEY=your_anon_key
-   ```
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-### Important Database Columns
-
-The `decks` table expects:
-
-- `id` (uuid)
-- `title` (text)
-- `slug` (text, unique)
-- `file_url` (text)
-- `pages` (text[], array of slide image URLs)
-- `expires_at` (timestamptz, optional)
-- `user_id` (uuid, fk to auth.users)
+- `docs/.vitepress/theme/index.ts` still has 3 pre-existing lint warnings for unused args. They are docs-only and do not block app verification.

@@ -12,7 +12,6 @@ type SetState<T> = Dispatch<SetStateAction<T>>;
 
 interface UseManageDeckWorkflowParams {
   editId: string | null;
-  slug: string;
   setExistingDeck: SetState<Deck | null>;
   setTitle: SetState<string>;
   setSlug: SetState<string>;
@@ -48,7 +47,6 @@ interface SubmitDeckParams {
 
 export function useManageDeckWorkflow({
   editId,
-  slug,
   setExistingDeck,
   setTitle,
   setSlug,
@@ -71,8 +69,12 @@ export function useManageDeckWorkflow({
 
     if (!session?.user) return;
 
-    const profile = await userService.getProfile(session.user.id);
-    setUserProfile(profile);
+    try {
+      const profile = await userService.getProfile(session.user.id);
+      setUserProfile(profile);
+    } catch (err) {
+      console.error("Failed to fetch user profile:", err);
+    }
   }, [setUserProfile]);
 
   const loadExistingDeck = useCallback(
@@ -141,7 +143,7 @@ export function useManageDeckWorkflow({
   );
 
   const processConvertedPdf = useCallback(
-    async (pdfUrl: string, targetDeckId: string) => {
+    async (pdfUrl: string, targetDeckId: string, deckSlug: string) => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -166,7 +168,7 @@ export function useManageDeckWorkflow({
           pdfResponse.blob(),
           new Promise<never>((_, reject) =>
             setTimeout(
-              () => reject(new Error("Download timed out reading file data")),
+              () => reject(new Error("Download timed out after 60s while reading file data.")),
               60000,
             )
           ),
@@ -183,7 +185,7 @@ export function useManageDeckWorkflow({
         setProgress(`Uploading slide 1 of ${imageAssets.length}...`);
         const imageUrls = await deckService.uploadSlideImages(
           userId,
-          slug,
+          deckSlug,
           imageAssets.map((asset) => asset.blob),
           (current, total) => {
             setProgress(`Uploading slide ${current} of ${total}...`);
@@ -231,7 +233,7 @@ export function useManageDeckWorkflow({
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") {
           throw new Error(
-            "Download timed out (10s). Your document might be too large or the network is slow.",
+            "Download timed out after 60s. Your document might be too large or the network is slow.",
           );
         }
         throw err;
@@ -239,15 +241,15 @@ export function useManageDeckWorkflow({
         clearTimeout(timeoutId);
       }
     },
-    [processPdfFile, setProgress, setProgressPercent, slug],
+    [processPdfFile, setProgress, setProgressPercent],
   );
 
   const triggerAndProcessConversion = useCallback(
-    async (deckId: string) => {
+    async (deckId: string, deckSlug: string) => {
       setProgress("Converting document to PDF...");
       setProgressPercent(60);
-      const { data: invokeData, error: invokeError } =
-        await supabase.functions.invoke("document-processor", {
+      const { data: invokeData, error: invokeError } = await supabase.functions
+        .invoke("document-processor", {
           body: { deckId },
         });
 
@@ -273,7 +275,7 @@ export function useManageDeckWorkflow({
         );
       }
 
-      await processConvertedPdf(invokeData.pdf_url, deckId);
+      await processConvertedPdf(invokeData.pdf_url, deckId, deckSlug);
     },
     [processConvertedPdf, setProgress, setProgressPercent],
   );
@@ -303,6 +305,7 @@ export function useManageDeckWorkflow({
         let finalFileUrl = existingDeck?.file_url;
         let finalPages: SlidePage[] = existingDeck?.pages || [];
         let finalStatus = "PROCESSED";
+        let oldSlidePathsToDelete: string[] = [];
         const finalViewPassword = requirePassword
           ? viewPassword.trim() || null
           : null;
@@ -329,15 +332,14 @@ export function useManageDeckWorkflow({
           finalFileUrl = publicUrl;
 
           if (editId && existingDeck) {
-            setProgress("Cleaning up old content...");
             const { data: files } = await supabase.storage
               .from("decks")
               .list(`${userId}/deck-images/${slug}`);
             if (files && files.length > 0) {
-              const filesToDelete = files.map(
-                (storedFile) => `${userId}/deck-images/${slug}/${storedFile.name}`,
+              oldSlidePathsToDelete = files.map(
+                (storedFile) =>
+                  `${userId}/deck-images/${slug}/${storedFile.name}`,
               );
-              await supabase.storage.from("decks").remove(filesToDelete);
             }
           }
 
@@ -406,9 +408,20 @@ export function useManageDeckWorkflow({
             .eq("id", editId);
           if (dbError) throw dbError;
 
+          if (
+            oldSlidePathsToDelete.length > 0 &&
+            !(file && fileType !== "pdf" && conversionMode === "interactive")
+          ) {
+            await supabase.storage.from("decks").remove(oldSlidePathsToDelete);
+          }
+
           if (file && fileType !== "pdf" && conversionMode === "interactive") {
             try {
-              await triggerAndProcessConversion(editId);
+              await triggerAndProcessConversion(editId, slug);
+
+              if (oldSlidePathsToDelete.length > 0) {
+                await supabase.storage.from("decks").remove(oldSlidePathsToDelete);
+              }
             } catch (conversionErr) {
               const { data: currentDeck } = await supabase
                 .from("decks")
@@ -458,7 +471,7 @@ export function useManageDeckWorkflow({
                 }
               }
 
-              await supabase
+              const { error: rollbackError } = await supabase
                 .from("decks")
                 .update({
                   title: previousValues.title,
@@ -475,6 +488,14 @@ export function useManageDeckWorkflow({
                   expires_at: previousValues.expires_at,
                 })
                 .eq("id", editId);
+
+              if (rollbackError) {
+                console.error("Failed to rollback deck update:", {
+                  editId,
+                  rollbackError,
+                  originalError: conversionErr,
+                });
+              }
 
               throw conversionErr;
             }
@@ -500,7 +521,9 @@ export function useManageDeckWorkflow({
                 require_email: requireEmail,
                 require_password: requirePassword,
                 view_password: finalViewPassword ?? undefined,
-                expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+                expires_at: expiresAt
+                  ? new Date(expiresAt).toISOString()
+                  : null,
               },
             ])
             .select()
@@ -513,15 +536,68 @@ export function useManageDeckWorkflow({
             await dataRoomService.addDocuments(returnToRoom, [deckRecord.id]);
           }
 
-          if (fileType !== "pdf" && conversionMode === "interactive" && deckRecord) {
-            await triggerAndProcessConversion(deckRecord.id);
+          if (
+            fileType !== "pdf" &&
+            conversionMode === "interactive" &&
+            deckRecord
+          ) {
+            try {
+              await triggerAndProcessConversion(deckRecord.id, slug);
+            } catch (conversionErr) {
+              console.error(
+                "Interactive conversion failed for newly created deck:",
+                {
+                  deckId: deckRecord.id,
+                  slug,
+                  fileUrl: finalFileUrl,
+                  error: conversionErr,
+                },
+              );
+
+              const { error: statusResetError } = await supabase
+                .from("decks")
+                .update({ status: "PENDING" })
+                .eq("id", deckRecord.id);
+
+              if (statusResetError) {
+                console.error(
+                  "Failed to reset deck status after conversion failure:",
+                  statusResetError,
+                );
+              }
+
+              if (finalFileUrl) {
+                try {
+                  await deckService.deleteDeck(
+                    deckRecord.id,
+                    finalFileUrl,
+                    slug,
+                    userId,
+                  );
+                } catch (cleanupErr) {
+                  console.error(
+                    "Failed to rollback newly created deck after conversion failure:",
+                    {
+                      deckId: deckRecord.id,
+                      slug,
+                      fileUrl: finalFileUrl,
+                      cleanupErr,
+                    },
+                  );
+                }
+              }
+
+              throw conversionErr;
+            }
           }
         }
 
         setProgress("Successful!");
         setProgressPercent(100);
 
-        queryClient.invalidateQueries({ queryKey: ["decks", session?.user?.id] });
+        queryClient.invalidateQueries({
+          queryKey: ["decks", session?.user?.id],
+        });
         queryClient.invalidateQueries({
           queryKey: ["user-total-stats", session?.user?.id],
         });

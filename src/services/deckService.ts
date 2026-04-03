@@ -49,7 +49,13 @@ const deckCrudService = {
   async uploadDeck(file: File, deckData: Partial<Deck>): Promise<Deck> {
     const normalizedSlug =
       deckData.slug ||
-      file.name.split(".")[0].toLowerCase().replace(/[^a-z0-9]/g, "-");
+      file.name
+        .split(".")[0]
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "") ||
+      "untitled";
     const { userId, publicUrl } = await deckStorageService.uploadDeckFile(
       file,
       normalizedSlug,
@@ -85,7 +91,16 @@ const deckCrudService = {
       userId,
     );
 
-    if (!deletedAssets) return;
+    if (!deletedAssets) {
+      console.error("Deck asset deletion failed; aborting deck record removal.", {
+        fileUrl,
+        slug,
+        userId,
+      });
+      throw new Error(
+        `Failed to delete deck assets before removing deck record. fileUrl=${fileUrl} slug=${slug} userId=${userId}`,
+      );
+    }
 
     const { error } = await supabase
       .from("decks")

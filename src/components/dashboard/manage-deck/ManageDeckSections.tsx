@@ -57,8 +57,18 @@ export function ManageDeckUploadSection({
       </div>
       <div
         onClick={() => !loading && fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (loading) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label="Upload document"
         className={cn(
-          "relative group cursor-pointer border border-border border-dashed rounded-lg p-8 md:p-12 text-center transition-all duration-200",
+          "relative group cursor-pointer border border-border border-dashed rounded-lg p-8 md:p-12 text-center transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-deckly-primary/50",
           file
             ? "border-deckly-primary/30 bg-surface-container"
             : "bg-surface-low hover:bg-surface-container hover:border-border",
@@ -85,7 +95,7 @@ export function ManageDeckUploadSection({
             <p className="text-xs text-slate-400 mt-1">
               {file
                 ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
-                : "PPTX, DOCX, XLSX, OR PDF (MAX 50MB)"}
+                : "PPTX, DOCX, DOC, XLSX, OR PDF (MAX 50MB)"}
             </p>
           </div>
         </div>
@@ -242,6 +252,7 @@ export function ManageDeckDetailsSection({
               isSlugAvailable === false &&
               !isCheckingSlug && (
                 <motion.p
+                  key="slug-taken"
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -5 }}
@@ -256,6 +267,7 @@ export function ManageDeckDetailsSection({
               isSlugAvailable === true &&
               !isCheckingSlug && (
                 <motion.p
+                  key="slug-available"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="mt-1.5 text-xs text-emerald-500 flex items-center gap-1.5"

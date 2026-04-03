@@ -3,6 +3,15 @@ import { BrandingSettings } from "../types";
 import { withRetry } from "../utils/resilience";
 import { getRequiredDeckUserId } from "./deckService.shared";
 
+const ALLOWED_LOGO_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+
+const ALLOWED_LOGO_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
+const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;
+
 export const deckBrandingService = {
   async getBrandingSettings(
     providedUserId?: string,
@@ -27,27 +36,12 @@ export const deckBrandingService = {
     providedUserId?: string,
   ): Promise<BrandingSettings> {
     const userId = await getRequiredDeckUserId(providedUserId);
-
-    const { data: existing } = await supabase
-      .from("branding")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (existing) {
-      const { data, error } = await supabase
-        .from("branding")
-        .update({ ...settings, updated_at: new Date().toISOString() })
-        .eq("id", existing.id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as BrandingSettings;
-    }
-
     const { data, error } = await supabase
       .from("branding")
-      .insert([{ ...settings, user_id: userId }])
+      .upsert(
+        [{ ...settings, user_id: userId, updated_at: new Date().toISOString() }],
+        { onConflict: "user_id" },
+      )
       .select()
       .single();
     if (error) throw error;
@@ -55,9 +49,31 @@ export const deckBrandingService = {
   },
 
   async uploadLogo(file: File): Promise<string> {
+    const dotIndex = file.name.lastIndexOf(".");
+    const fileExt = dotIndex > -1 ? file.name.slice(dotIndex + 1).toLowerCase() : "";
+
+    if (!fileExt || !ALLOWED_LOGO_EXTENSIONS.has(fileExt)) {
+      throw new Error(
+        "Invalid logo file type. Please upload a PNG, JPG, JPEG, or WEBP image.",
+      );
+    }
+
+    if (!ALLOWED_LOGO_MIME_TYPES.has(file.type)) {
+      throw new Error(
+        "Invalid logo MIME type. Please upload a PNG, JPG, JPEG, or WEBP image.",
+      );
+    }
+
+    if (file.size <= 0) {
+      throw new Error("Logo file is empty. Please choose a valid image.");
+    }
+
+    if (file.size > MAX_LOGO_SIZE_BYTES) {
+      throw new Error("Logo file is too large. Please upload an image up to 5MB.");
+    }
+
     const userId = await getRequiredDeckUserId();
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${userId}/branding/logo-${Date.now()}.${fileExt}`;
+    const fileName = `${userId}/branding/logo-${Date.now()}${fileExt ? "." + fileExt : ""}`;
 
     const { error: uploadError } = await supabase.storage
       .from("assets")

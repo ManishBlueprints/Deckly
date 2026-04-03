@@ -73,7 +73,10 @@ export function DeckSettingsForm({
         quality: 0.8,
         onProgress: (current: number, total: number) => {
           setUploadProgress(`Optimizing ${current}/${total}...`);
-          setCompletionPercentage(Math.round((current / total) * 100));
+          // Guard against divide-by-zero and clamp current to valid range
+          const clampedCurrent = Math.max(0, Math.min(current, total));
+          const percentage = total > 0 ? Math.round((clampedCurrent / total) * 100) : 0;
+          setCompletionPercentage(percentage);
         },
       });
     } catch (err) {

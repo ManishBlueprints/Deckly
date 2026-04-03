@@ -9,8 +9,11 @@ export const deckStorageService = {
     providedUserId?: string,
   ): Promise<{ userId: string; publicUrl: string; fileName: string }> {
     const userId = await getRequiredDeckUserId(providedUserId);
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${userId}/decks/${slug}-${Date.now()}.${fileExt}`;
+    const fileExt = file.name.includes(".") 
+      ? file.name.split(".").pop()?.toLowerCase() || "bin"
+      : "bin";
+    const safeSlug = slug.replace(/[^a-z0-9-]/gi, "_");
+    const fileName = `${userId}/decks/${safeSlug}-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("decks")

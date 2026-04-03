@@ -56,7 +56,6 @@ function ManageDeck() {
 
   const { submitDeck } = useManageDeckWorkflow({
     editId,
-    slug,
     setExistingDeck,
     setTitle,
     setSlug,

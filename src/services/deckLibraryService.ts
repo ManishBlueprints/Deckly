@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { SavedDeck, Deck } from "../types";
+import { Deck, SavedDeck } from "../types";
 import { withRetry } from "../utils/resilience";
 import { getDeckSession } from "./deckService.shared";
 
@@ -44,7 +44,10 @@ export const deckLibraryService = {
       .eq("deck_id", deckId)
       .maybeSingle();
 
-    if (error) return false;
+    if (error) {
+      console.error("Error checking if deck is saved:", error);
+      return false;
+    }
     return !!data;
   },
 
@@ -85,10 +88,13 @@ export const deckLibraryService = {
         ),
       ];
 
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, handle")
-        .in("id", ownerIds);
+      const profilesResult = ownerIds.length === 0
+        ? { data: [], error: null }
+        : await supabase
+            .from("profiles")
+            .select("id, handle")
+            .in("id", ownerIds);
+      const { data: profilesData, error: profilesError } = profilesResult;
 
       if (profilesError) {
         console.error("Error fetching profiles for library:", profilesError);
@@ -102,14 +108,20 @@ export const deckLibraryService = {
       const deckIds = (data || []).map((item) =>
         (item.deck as unknown as Deck).id
       );
-      const { data: notesData, error: notesError } = await supabase
-        .from("investor_notes")
-        .select("deck_id, content")
-        .eq("user_id", session.user.id)
-        .in("deck_id", deckIds);
+      const notesResult = deckIds.length === 0
+        ? { data: [], error: null }
+        : await supabase
+            .from("investor_notes")
+            .select("deck_id, content")
+            .eq("user_id", session.user.id)
+            .in("deck_id", deckIds);
+      const { data: notesData, error: notesError } = notesResult;
 
       if (notesError) {
-        console.error("Error fetching notes for bookmarked library:", notesError);
+        console.error(
+          "Error fetching notes for bookmarked library:",
+          notesError,
+        );
       }
 
       const notesMap = (notesData || []).reduce((acc, curr) => {
@@ -121,7 +133,7 @@ export const deckLibraryService = {
         const deck = item.deck as unknown as Deck;
         return {
           ...deck,
-          user_handle: handlesMap[deck.user_id] || "username",
+          user_handle: handlesMap[deck.user_id] || "Unknown",
           saved_at: item.created_at,
           last_viewed_at: item.last_viewed_at,
           library_id: item.id,
