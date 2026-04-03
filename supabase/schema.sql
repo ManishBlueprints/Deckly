@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS public.decks (
     require_email BOOLEAN DEFAULT FALSE,
     require_password BOOLEAN DEFAULT FALSE,
     view_password TEXT,
+    unique_visitors INTEGER DEFAULT 0,
     expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -143,6 +144,9 @@ ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS time_spent NUMERIC D
 ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'Unknown';
 ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS city TEXT DEFAULT 'Unknown City';
 ALTER TABLE public.deck_page_views ADD COLUMN IF NOT EXISTS country_code TEXT;
+-- NOTE: deck_page_views stores one row per PAGE view (multiple rows per visitor per deck
+-- are expected). Uniqueness for visitor counting is enforced at the trigger level in
+-- notify_signal_threshold() which atomically increments decks.unique_visitors.
 -- FK constraint for data_room_id (safe to re-run; DO NOTHING if exists)
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -916,3 +920,502 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- =============================================================================
+-- 13. NOTIFICATIONS
+-- =============================================================================
+
+-- Core table
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id          UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id     UUID        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    type        TEXT        NOT NULL CHECK (type IN (
+                                'deck_view',
+                                'deck_save',
+                                'signal_threshold',
+                                'deck_update',
+                                'admin_message'
+                            )),
+    title       TEXT        NOT NULL,
+    message     TEXT        NOT NULL,
+    metadata    JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    read_at     TIMESTAMPTZ DEFAULT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at  TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days')
+);
+
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+-- Users can only read / update (mark read) / delete their own notifications.
+-- INSERT is handled exclusively by SECURITY DEFINER functions below, which
+-- bypass RLS — so no open INSERT policy is needed (and would be unsafe).
+CREATE POLICY "notifications_owner_select" ON public.notifications
+    FOR SELECT USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "notifications_owner_update" ON public.notifications
+    FOR UPDATE USING ((SELECT auth.uid()) = user_id)
+    WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "notifications_owner_delete" ON public.notifications
+    FOR DELETE USING ((SELECT auth.uid()) = user_id);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_notifications_user
+    ON public.notifications(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_unread
+    ON public.notifications(user_id)
+    WHERE read_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_notifications_created
+    ON public.notifications(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_expires
+    ON public.notifications(expires_at);
+
+-- Composite index for the most common query pattern:
+-- "get all unread notifications for user X ordered by newest first"
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread_created
+    ON public.notifications(user_id, created_at DESC)
+    WHERE read_at IS NULL;
+
+-- =============================================================================
+-- 13a. HELPERS: admin_emails & is_admin()
+-- =============================================================================
+
+-- Create a simple allowlist table for admins
+CREATE TABLE IF NOT EXISTS public.admin_emails (
+    email TEXT PRIMARY KEY,
+    added_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.admin_emails ENABLE ROW LEVEL SECURITY;
+
+-- Canonical is_admin function (email-allowlist based)
+-- Must be defined BEFORE the policy that references it.
+CREATE OR REPLACE FUNCTION public.is_admin(p_user_id UUID DEFAULT NULL)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID;
+    v_email TEXT;
+BEGIN
+    v_uid := COALESCE(p_user_id, auth.uid());
+    
+    -- Get email from auth.users (SECURITY DEFINER can read auth schema)
+    SELECT email INTO v_email FROM auth.users WHERE id = v_uid;
+    
+    -- Check against allowlist
+    RETURN EXISTS (
+        SELECT 1 FROM public.admin_emails WHERE email = v_email
+    );
+END;
+$$;
+
+-- Grant access
+GRANT EXECUTE ON FUNCTION public.is_admin(UUID) TO authenticated;
+
+-- Only admins can manage the list (bootstrapped by direct SQL insert)
+-- Defined AFTER is_admin() so the policy can safely reference it.
+CREATE POLICY "Only admins can view admin_emails" ON public.admin_emails
+    FOR SELECT USING (public.is_admin());
+-- =============================================================================
+
+-- =============================================================================
+-- 13b. create_notification_internal() — privileged insert helper
+-- SECURITY DEFINER and NOT directly granted to authenticated callers.
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.create_notification_internal(
+    p_user_id UUID,
+    p_type     TEXT,
+    p_title    TEXT,
+    p_message  TEXT,
+    p_metadata JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_id UUID;
+BEGIN
+    IF p_type NOT IN (
+        'deck_view', 'deck_save', 'signal_threshold', 'deck_update', 'admin_message'
+    ) THEN
+        RAISE EXCEPTION 'Invalid notification type: %', p_type;
+    END IF;
+
+    -- Create supporting partial index for deduplication if it doesn't exist
+    -- idx_notifications_dedup on columns (user_id, type, title, created_at DESC)
+    -- with WHERE read_at IS NULL. This ensures efficient coverage for the IF EXISTS check below.
+    CREATE INDEX IF NOT EXISTS idx_notifications_dedup 
+    ON public.notifications (user_id, type, title, created_at DESC) 
+    WHERE read_at IS NULL;
+
+    -- Deduplicate: skip if an identical unread notification already exists
+    -- created within the last 10 minutes (prevents trigger spam on bulk ops)
+    IF EXISTS (
+        SELECT 1 FROM public.notifications
+        WHERE user_id   = p_user_id
+          AND type      = p_type
+          AND title     = p_title
+          AND read_at   IS NULL
+          AND created_at > NOW() - INTERVAL '10 minutes'
+    ) THEN
+        RETURN NULL;  -- silently skip duplicate
+    END IF;
+
+    INSERT INTO public.notifications (user_id, type, title, message, metadata)
+    VALUES (p_user_id, p_type, p_title, p_message, COALESCE(p_metadata, '{}'::jsonb))
+    RETURNING id INTO v_id;
+
+    RETURN v_id;
+END;
+$$;
+
+-- =============================================================================
+-- 13b. create_notification() — public RPC wrapper
+-- SECURITY INVOKER + explicit auth check:
+-- caller must be notifying self OR caller must be admin.
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.create_notification(
+    p_user_id UUID,
+    p_type     TEXT,
+    p_title    TEXT,
+    p_message  TEXT,
+    p_metadata JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+    IF auth.uid() IS NULL THEN
+        RAISE EXCEPTION 'Authentication required';
+    END IF;
+
+    IF auth.uid() <> p_user_id AND NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Permission denied';
+    END IF;
+
+    RETURN public.create_notification_internal(
+        p_user_id,
+        p_type,
+        p_title,
+        p_message,
+        p_metadata
+    );
+END;
+$$;
+
+-- =============================================================================
+-- 13c. create_admin_broadcast() — admin-only
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.create_admin_broadcast(
+    p_user_ids UUID[],
+    p_title    TEXT,
+    p_message  TEXT,
+    p_metadata JSONB DEFAULT '{}'::jsonb
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid    UUID;
+    v_count  INTEGER := 0;
+BEGIN
+    -- Only admins may broadcast
+    IF NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Permission denied: admin role required';
+    END IF;
+
+    IF p_user_ids IS NULL OR array_length(p_user_ids, 1) = 0 THEN
+        RAISE EXCEPTION 'p_user_ids must contain at least one user';
+    END IF;
+
+    FOREACH v_uid IN ARRAY p_user_ids LOOP
+        INSERT INTO public.notifications (user_id, type, title, message, metadata)
+        VALUES (v_uid, 'admin_message', p_title, p_message, COALESCE(p_metadata, '{}'::jsonb));
+        v_count := v_count + 1;
+    END LOOP;
+
+    RETURN v_count;
+END;
+$$;
+
+-- =============================================================================
+-- 13d. create_admin_broadcast_all() — broadcast to ALL users (admin-only)
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.create_admin_broadcast_all(
+    p_title    TEXT,
+    p_message  TEXT,
+    p_metadata JSONB DEFAULT '{}'::jsonb
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_count INTEGER;
+BEGIN
+    IF NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Permission denied: admin role required';
+    END IF;
+
+    INSERT INTO public.notifications (user_id, type, title, message, metadata)
+    SELECT p.id, 'admin_message', p_title, p_message, COALESCE(p_metadata, '{}'::jsonb)
+    FROM public.profiles p
+    JOIN auth.users u ON u.id = p.id
+    WHERE NOT EXISTS (
+        SELECT 1 FROM public.admin_emails ae WHERE ae.email = u.email
+    );
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+END;
+$$;
+
+-- =============================================================================
+-- 13e. cleanup_expired_notifications() — service-role / pg_cron only
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.cleanup_expired_notifications()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_count       INTEGER := 0;
+    v_batch_count INTEGER;
+BEGIN
+    -- Extra guard: only service role or admin can call this manually
+    IF auth.uid() IS NOT NULL AND NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Permission denied';
+    END IF;
+
+    -- Batched delete to avoid long table locks on high volumes
+    LOOP
+        DELETE FROM public.notifications 
+        WHERE id IN (
+            SELECT id FROM public.notifications 
+            WHERE expires_at < NOW() 
+            LIMIT 1000
+        );
+        
+        GET DIAGNOSTICS v_batch_count = ROW_COUNT;
+        v_count := v_count + v_batch_count;
+        
+        EXIT WHEN v_batch_count = 0;
+    END LOOP;
+
+    RETURN v_count;
+END;
+$$;
+
+-- =============================================================================
+-- 13f. TRIGGER — notify deck owner when someone saves their deck
+-- Fires on INSERT into investor_library
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.notify_on_deck_save()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_owner_id   UUID;
+    v_deck_title TEXT;
+    v_save_count BIGINT;
+BEGIN
+    -- Fetch deck owner + title
+    SELECT d.user_id, d.title
+    INTO v_owner_id, v_deck_title
+    FROM public.decks d
+    WHERE d.id = NEW.deck_id;
+
+    -- Don't notify if the owner saved their own deck
+    IF v_owner_id = NEW.user_id THEN
+        RETURN NEW;
+    END IF;
+
+    -- Count total saves for display
+    SELECT COUNT(*) INTO v_save_count
+    FROM public.investor_library
+    WHERE deck_id = NEW.deck_id;
+
+    PERFORM public.create_notification_internal(
+        v_owner_id,
+        'deck_save',
+        'New Save 🔖',
+        '"' || v_deck_title || '" was saved by a viewer. ' ||
+        'It now has ' || v_save_count || ' save' || CASE WHEN v_save_count = 1 THEN '' ELSE 's' END || '.',
+        jsonb_build_object(
+            'deck_id',    NEW.deck_id,
+            'save_count', v_save_count
+        )
+    );
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_notify_on_deck_save ON public.investor_library;
+CREATE TRIGGER tr_notify_on_deck_save
+    AFTER INSERT ON public.investor_library
+    FOR EACH ROW EXECUTE FUNCTION public.notify_on_deck_save();
+
+-- =============================================================================
+-- 13g. TRIGGER — signal threshold (3, 10, 25, 50, 100 unique visitors)
+-- Fires on INSERT into deck_page_views
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.notify_signal_threshold()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_owner_id      UUID;
+    v_deck_title    TEXT;
+    v_visitor_count BIGINT;
+    v_milestones    INTEGER[] := ARRAY[3, 10, 25, 50, 100, 250, 500, 1000];
+    v_milestone     INTEGER;
+BEGIN
+    -- Get deck metadata
+    SELECT d.user_id, d.title
+    INTO v_owner_id, v_deck_title
+    FROM public.decks d
+    WHERE d.id = NEW.deck_id;
+
+    -- Guard: only count as a unique visitor if no prior page_view row exists
+    -- for this same (deck_id, visitor_id) combination.
+    -- The non-unique idx_page_views_visitor index covers this query efficiently.
+    -- NOTE: We cannot rely on a unique index here because deck_page_views intentionally
+    -- allows multiple rows per visitor (one per page viewed per session).
+    IF EXISTS (
+        SELECT 1 FROM public.deck_page_views
+        WHERE deck_id   = NEW.deck_id
+          AND visitor_id = NEW.visitor_id
+          AND id        != NEW.id  -- exclude the row that just fired this trigger
+    ) THEN
+        -- Not a first-time visitor for this deck; skip counter increment.
+        RETURN NEW;
+    END IF;
+
+    -- First-time visitor: atomically increment unique_visitors on the deck.
+    UPDATE public.decks
+    SET unique_visitors = unique_visitors + 1
+    WHERE id = NEW.deck_id
+    RETURNING unique_visitors INTO v_visitor_count;
+
+    -- Milestone check
+    FOREACH v_milestone IN ARRAY v_milestones LOOP
+        IF v_visitor_count = v_milestone THEN
+            PERFORM public.create_notification_internal(
+                v_owner_id,
+                'signal_threshold',
+                'High Investor Interest 🔥',
+                '"' || v_deck_title || '" has now been viewed by ' ||
+                v_visitor_count || ' unique investor' ||
+                CASE WHEN v_visitor_count = 1 THEN '' ELSE 's' END || '.',
+                jsonb_build_object(
+                    'deck_id',       NEW.deck_id,
+                    'visitor_count', v_visitor_count,
+                    'milestone',     v_milestone
+                )
+            );
+            EXIT;  -- Only one milestone per insert
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_notify_signal_threshold ON public.deck_page_views;
+CREATE TRIGGER tr_notify_signal_threshold
+    AFTER INSERT ON public.deck_page_views
+    FOR EACH ROW EXECUTE FUNCTION public.notify_signal_threshold();
+
+-- =============================================================================
+-- 13h. TRIGGER — notify investors when a saved deck is updated
+-- Fires on UPDATE of status on decks (CONVERTING → PROCESSED = new version)
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.notify_on_deck_update()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_investor RECORD;
+    v_count    INTEGER := 0;
+BEGIN
+    -- Only trigger when a deck finishes processing (new version uploaded)
+    IF OLD.status IS DISTINCT FROM NEW.status
+       AND OLD.status = 'CONVERTING'
+       AND NEW.status = 'PROCESSED' THEN
+
+        FOR v_investor IN
+            SELECT user_id
+            FROM public.investor_library
+            WHERE deck_id = NEW.id
+        LOOP
+            PERFORM public.create_notification_internal(
+                v_investor.user_id,
+                'deck_update',
+                'Deck Updated 📄',
+                '"' || NEW.title || '" has been updated by the founder. Tap to view the latest version.',
+                jsonb_build_object(
+                    'deck_id',   NEW.id,
+                    'deck_slug', NEW.slug
+                )
+            );
+            v_count := v_count + 1;
+        END LOOP;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_notify_on_deck_update ON public.decks;
+CREATE TRIGGER tr_notify_on_deck_update
+    AFTER UPDATE OF status ON public.decks
+    FOR EACH ROW EXECUTE FUNCTION public.notify_on_deck_update();
+
+-- =============================================================================
+-- 13i. GRANTS
+-- create_notification_internal → internal helper only (no authenticated grant)
+-- create_notification  → authenticated self/admin wrapper
+-- create_admin_broadcast / _all → authenticated (function enforces admin check)
+-- cleanup_expired_notifications → NOT granted to authenticated (cron only)
+-- is_admin → authenticated (needed for UI role checks)
+-- =============================================================================
+
+GRANT EXECUTE ON FUNCTION public.is_admin(UUID)                                TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_notification(UUID, TEXT, TEXT, TEXT, JSONB) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.create_notification_internal(UUID, TEXT, TEXT, TEXT, JSONB) FROM anon, authenticated, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_admin_broadcast(UUID[], TEXT, TEXT, JSONB)  TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_admin_broadcast_all(TEXT, TEXT, JSONB)      TO authenticated;
+-- cleanup_expired_notifications is intentionally NOT granted to authenticated.
+-- Schedule it via pg_cron (Supabase dashboard → Database → Cron Jobs):
+--   SELECT cron.schedule('cleanup-notifications', '0 3 * * *',
+--     $$SELECT public.cleanup_expired_notifications();$$);
