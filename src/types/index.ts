@@ -136,3 +136,30 @@ export interface DataRoomDocument {
   added_at: string;
   deck?: Deck;
 }
+
+export type NotificationType =
+  | "deck_view"
+  | "deck_save"
+  | "signal_threshold"
+  | "deck_update"
+  | "admin_message";
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  metadata: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+  expires_at: string;
+}
+
+export interface GroupedNotification {
+  type: NotificationType;
+  date: string; // YYYY-MM-DD
+  title: string;
+  count: number;
+  notifications: Notification[];
+}

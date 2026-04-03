@@ -9,6 +9,7 @@ lerna-debug.log*
 Gemini.md
 Uncodixfy.md
 AGENTS.md
+audit.md
 
 node_modules
 dist
