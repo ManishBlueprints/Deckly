@@ -6,6 +6,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
+import { NotificationBell } from "../notifications/NotificationBell";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -41,7 +42,8 @@ export function DashboardLayout({
         ? location.pathname === "/"
         : location.pathname.startsWith(path),
     )?.[1] ?? title;
-  const workspaceName = branding?.room_name || profile?.full_name || "Workspace";
+  const workspaceName =
+    branding?.room_name || profile?.full_name || "Workspace";
   const workspaceInitial = workspaceName.charAt(0).toUpperCase() || "W";
 
   const handleFabAction = (href: string) => {
@@ -58,7 +60,7 @@ export function DashboardLayout({
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
         {/* Top Header */}
-        <header className="w-full h-16 sticky top-0 z-40 bg-background flex items-center justify-between px-4 sm:px-8">
+        <header className="w-full h-16 sticky top-0 z-40 bg-background flex items-center justify-between px-4 sm:px-8 gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setShowSettings(true)}
@@ -91,12 +93,13 @@ export function DashboardLayout({
               {currentLabel}
             </span>
           </div>
-
           <div className="md:hidden flex items-center">
             <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-[0.25em] text-primary">
               {currentLabel}
             </span>
           </div>
+          {/* Notification Bell — top right */}
+          {profile?.id && <NotificationBell userId={profile.id} />}{" "}
         </header>
 
         {/* Content Area */}
