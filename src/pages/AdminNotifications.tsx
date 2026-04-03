@@ -1,13 +1,15 @@
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { AdminNotificationComposer } from "../components/notifications/AdminNotificationComposer";
 import { useAuth } from "../contexts/AuthContext";
-import { ShieldAlert, Loader2 } from "lucide-react";
+import { ShieldAlert, Loader2, AlertTriangle } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { useIsAdmin } from "../hooks/useAdminNotifications";
 
 function AdminNotificationsPage() {
   const { session } = useAuth();
-  const { data: isAdmin, isLoading } = useIsAdmin(session?.user?.id);
+  const { isAdmin, isLoading, isError, error, refetch } = useIsAdmin(
+    session?.user?.id,
+  );
 
   if (!session) return <Navigate to="/login" />;
 
@@ -23,7 +25,32 @@ function AdminNotificationsPage() {
     );
   }
 
-  if (!isAdmin) return <Navigate to="/" />;
+  if (isError) {
+    return (
+      <DashboardLayout title="Admin Notifications" showFab={false}>
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-6">
+          <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
+            <AlertTriangle className="w-6 h-6 text-red-400" />
+          </div>
+          <h2 className="text-lg font-semibold text-white mb-2">
+            Admin verification failed
+          </h2>
+          <p className="text-sm text-slate-400 max-w-md mb-6">
+            {(error as Error | null)?.message ||
+              "We could not verify admin access right now. You can retry without leaving this page."}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="px-5 py-2.5 rounded-lg bg-deckly-primary text-slate-950 font-semibold hover:bg-deckly-primary/90 transition-colors"
+          >
+            Retry Verification
+          </button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!isLoading && isAdmin === false) return <Navigate to="/" />;
 
   return (
     <DashboardLayout title="Admin Notifications" showFab={false}>
