@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import * as pdfjsLib from "pdfjs-dist";
 import { useNavigate } from "react-router-dom";
 import { deckService } from "../../services/deckService";
 import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
 import { normalizeSlug } from "../../utils/slug";
 import { useAuth } from "../../contexts/AuthContext";
-import { extractPdfLinkHotspots } from "../../utils/pdfLinks";
+import { processPdfToImages as processDeckPdfToImages } from "../../workflows/deckProcessing";
 
 // Sub-components
 import { ManagementSection } from "./form-sections/ManagementSection";
@@ -15,9 +14,6 @@ import { AccessProtectionSection } from "./form-sections/AccessProtectionSection
 import { DangerZoneSection } from "./form-sections/DangerZoneSection";
 import { Button } from "../ui/button";
 import { Save } from "lucide-react";
-
-// Set worker source for pdfjs-dist
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 interface DeckSettingsFormProps {
   deck: Deck;
@@ -65,49 +61,21 @@ export function DeckSettingsForm({
   }, []);
 
   // PDF Processing Logic
-  const processPdfToImages = async (pdfFile: File) => {
+  const processUploadedPdf = async (pdfFile: File) => {
     setIsProcessing(true);
     setError(null);
     setCompletionPercentage(0);
     setUploadProgress("Initializing PDF...");
 
     try {
-      const arrayBuffer = await pdfFile.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const numPages = pdf.numPages;
-      const imageAssets: Array<{ blob: Blob; links: Deck["pages"][number]["links"] }> = [];
-
-      for (let i = 1; i <= numPages; i++) {
-        setUploadProgress(`Optimizing ${i}/${numPages}...`);
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const links = await extractPdfLinkHotspots(page).catch(() => []);
-        
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-        
-        if (!context) {
-          throw new Error(`Failed to create canvas context for page ${i}`);
-        }
-
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (page as any).render({ canvasContext: context, viewport }).promise;
-        
-        const blob = await new Promise<Blob | null>((resolve) =>
-          canvas.toBlob(resolve, "image/webp", 0.8),
-        );
-        
-        if (!blob) {
-          throw new Error(`Failed to generate blob for page ${i}`);
-        }
-
-        imageAssets.push({ blob, links });
-        setCompletionPercentage(Math.round((i / numPages) * 100));
-      }
-      return imageAssets;
+      return await processDeckPdfToImages(pdfFile, {
+        scale: 1.5,
+        quality: 0.8,
+        onProgress: (current: number, total: number) => {
+          setUploadProgress(`Optimizing ${current}/${total}...`);
+          setCompletionPercentage(Math.round((current / total) * 100));
+        },
+      });
     } catch (err) {
       console.error("PDF Processing error:", err);
       const msg = err instanceof Error ? err.message : "Failed to process PDF";
@@ -154,7 +122,7 @@ export function DeckSettingsForm({
         finalFileUrl = publicUrl;
         fileSize = newFile.size;
 
-        const imageAssets = await processPdfToImages(newFile);
+        const imageAssets = await processUploadedPdf(newFile);
         if (!imageAssets) {
           // Clean up the orphaned uploaded source file before aborting
           await supabase.storage.from("decks").remove([uploadedFileName]).catch((err) =>

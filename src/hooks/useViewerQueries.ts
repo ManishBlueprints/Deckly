@@ -2,12 +2,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deckService } from "../services/deckService";
 import { noteService } from "../services/noteService";
 
+const viewerQueryKeys = {
+    deckSaved: (deckId: string | undefined, userId: string | undefined) =>
+        ["deck-saved", deckId, userId] as const,
+    investorNotes: (deckId: string | undefined, userId: string | undefined) =>
+        ["investor-notes", deckId, userId] as const,
+};
+
 export function useIsDeckSaved(
     deckId: string | undefined,
     userId: string | undefined,
 ) {
     return useQuery({
-        queryKey: ["deck-saved", deckId, userId],
+        queryKey: viewerQueryKeys.deckSaved(deckId, userId),
         queryFn: () => deckService.isDeckSaved(deckId!),
         enabled: !!deckId && !!userId,
     });
@@ -18,13 +25,13 @@ export function useInvestorNotes(
     userId: string | undefined,
 ) {
     return useQuery({
-        queryKey: ["investor-notes", deckId, userId],
+        queryKey: viewerQueryKeys.investorNotes(deckId, userId),
         queryFn: () => noteService.getNote(deckId!),
         enabled: !!deckId && !!userId,
     });
 }
 
-export function useSaveToLibraryMutation() {
+export function useSaveToLibraryMutation(userId: string | undefined) {
     const queryClient = useQueryClient();
 
     return useMutation({
@@ -33,19 +40,18 @@ export function useSaveToLibraryMutation() {
                 ? deckService.saveToLibrary(deckId)
                 : deckService.removeFromLibrary(deckId),
         onMutate: async ({ deckId, save }) => {
+            const queryKey = viewerQueryKeys.deckSaved(deckId, userId);
+
             // Cancel any outgoing refetches
             await queryClient.cancelQueries({
-                queryKey: ["deck-saved", deckId],
+                queryKey,
             });
 
             // Snapshot the previous value
-            const previousSaved = queryClient.getQueryData([
-                "deck-saved",
-                deckId,
-            ]);
+            const previousSaved = queryClient.getQueryData(queryKey);
 
             // Optimistically update to the new value
-            queryClient.setQueryData(["deck-saved", deckId], save);
+            queryClient.setQueryData(queryKey, save);
 
             return { previousSaved };
         },
@@ -53,20 +59,24 @@ export function useSaveToLibraryMutation() {
             // Rollback on error
             if (context?.previousSaved !== undefined) {
                 queryClient.setQueryData(
-                    ["deck-saved", deckId],
+                    viewerQueryKeys.deckSaved(deckId, userId),
                     context.previousSaved,
                 );
             }
         },
         onSettled: (_data, _err, { deckId }) => {
             // Always refetch after error or success to ensure sync
-            queryClient.invalidateQueries({ queryKey: ["deck-saved", deckId] });
-            queryClient.invalidateQueries({ queryKey: ["user-total-stats"] });
+            queryClient.invalidateQueries({
+                queryKey: viewerQueryKeys.deckSaved(deckId, userId),
+            });
+            queryClient.invalidateQueries({
+                queryKey: ["user-total-stats", userId],
+            });
         },
     });
 }
 
-export function useSaveNoteMutation() {
+export function useSaveNoteMutation(userId: string | undefined) {
     const queryClient = useQueryClient();
 
     return useMutation({
@@ -74,27 +84,26 @@ export function useSaveNoteMutation() {
             { deckId, content }: { deckId: string; content: string },
         ) => noteService.saveNote(deckId, content),
         onMutate: async ({ deckId, content }) => {
+            const queryKey = viewerQueryKeys.investorNotes(deckId, userId);
+
             await queryClient.cancelQueries({
-                queryKey: ["investor-notes", deckId],
+                queryKey,
             });
-            const previousNote = queryClient.getQueryData([
-                "investor-notes",
-                deckId,
-            ]);
-            queryClient.setQueryData(["investor-notes", deckId], content);
+            const previousNote = queryClient.getQueryData(queryKey);
+            queryClient.setQueryData(queryKey, content);
             return { previousNote };
         },
         onError: (_err, { deckId }, context) => {
             if (context?.previousNote !== undefined) {
                 queryClient.setQueryData(
-                    ["investor-notes", deckId],
+                    viewerQueryKeys.investorNotes(deckId, userId),
                     context.previousNote,
                 );
             }
         },
         onSettled: (_data, _err, { deckId }) => {
             queryClient.invalidateQueries({
-                queryKey: ["investor-notes", deckId],
+                queryKey: viewerQueryKeys.investorNotes(deckId, userId),
             });
         },
     });

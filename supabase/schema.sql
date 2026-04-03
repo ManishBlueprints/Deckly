@@ -309,7 +309,7 @@ ALTER TABLE public.decks ALTER COLUMN pages SET DEFAULT '[]'::jsonb;
 -- The "Public profile fields" policy below grants anonymous SELECT on profiles;
 -- column-level GRANTs ensure only id and handle are accessible to anon/authenticated.
 CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = true) AS
-SELECT id, handle, full_name, avatar_url
+SELECT id, handle
 FROM public.profiles;
 
 -- Public view for decks (excludes sensitive view_password, file_url, and pages payload)
@@ -343,7 +343,7 @@ CREATE POLICY "Public profile fields are viewable by everyone"
 
 -- Restrict which columns anon/authenticated can actually access on profiles.
 -- RLS controls which ROWS are visible; column grants control which COLUMNS.
-GRANT SELECT (id, handle, full_name, avatar_url) ON public.profiles TO anon, authenticated;
+GRANT SELECT (id, handle) ON public.profiles TO anon, authenticated;
 
 -- GRANT VIEW PERMISSIONS --
 GRANT SELECT ON public.decks_public TO anon, authenticated;

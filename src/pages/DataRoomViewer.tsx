@@ -131,13 +131,18 @@ function DataRoomViewer() {
     if (isUnlocked && selectedDeck) {
       analyticsService.trackDeckView(
         selectedDeck,
-        viewerEmail ? { email_captured: viewerEmail } : undefined,
+        {
+          ...(viewerEmail ? { email_captured: viewerEmail } : {}),
+          data_room_id: room?.id,
+          data_room_slug: room?.slug,
+          data_room_name: room?.name,
+        },
       );
     }
     // selectedDeck and viewerEmail intentionally excluded: we only want to fire on deck ID change,
     // not on every re-render of the email/deck object reference
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDeck?.id, isUnlocked]);
+  }, [selectedDeck?.id, isUnlocked, room?.id, room?.slug, room?.name]);
 
   // Build a fake Deck object for AccessGate compatibility
   const roomAsDeck = room

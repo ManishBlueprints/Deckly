@@ -1,12 +1,7 @@
 import { supabase } from "./supabase";
+import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
 import { withRetry } from "../utils/resilience";
-
-async function resolveUserId(providedUserId?: string): Promise<string | null> {
-  if (providedUserId) return providedUserId;
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.user?.id ?? null;
-}
 
 export const dataRoomService = {
   // ── CRUD ────────────────────────────────────────────────
@@ -18,8 +13,7 @@ export const dataRoomService = {
     icon_url?: string;
   }): Promise<DataRoom> {
     return withRetry(async () => {
-      const userId = await resolveUserId();
-      if (!userId) throw new Error("Not authenticated");
+      const userId = await getRequiredSessionUserId();
 
       const { data, error } = await supabase
         .from("data_rooms")
@@ -37,7 +31,7 @@ export const dataRoomService = {
 
   async getDataRooms(providedUserId?: string): Promise<DataRoom[]> {
     return withRetry(async () => {
-      const userId = await resolveUserId(providedUserId);
+      const userId = await getSessionUserId(providedUserId);
       if (!userId) return [];
 
       const { data, error } = await supabase
@@ -106,8 +100,7 @@ export const dataRoomService = {
 
   async deleteDataRoom(id: string): Promise<void> {
     return withRetry(async () => {
-      const userId = await resolveUserId();
-      if (!userId) throw new Error("Not authenticated");
+      const userId = await getRequiredSessionUserId();
 
       const { error } = await supabase
         .from("data_rooms")
@@ -197,8 +190,7 @@ export const dataRoomService = {
   // ── ASSETS ──────────────────────────────────────────────
 
   async uploadRoomIcon(file: File): Promise<string> {
-    const userId = await resolveUserId();
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getRequiredSessionUserId();
 
     const fileExt = file.name.split(".").pop();
     const fileName = `${userId}/room-icons/icon-${Date.now()}.${fileExt}`;
@@ -350,7 +342,7 @@ export const dataRoomService = {
 
   async checkSlugAvailable(slug: string, excludeId?: string): Promise<boolean> {
     return withRetry(async () => {
-      const userId = await resolveUserId();
+      const userId = await getSessionUserId();
       if (!userId) return true;
 
       let query = supabase
