@@ -80,7 +80,7 @@ function ManageDeck() {
     const validExts = ["pdf", "pptx", "docx", "doc", "xlsx"];
 
     if (!ext || !validExts.includes(ext)) {
-      alert("Please select a supported file (PDF, PPTX, DOCX, or XLSX).");
+      alert("Please select a supported file (PDF, PPTX, DOCX, DOC, or XLSX).");
       return;
     }
 
@@ -103,15 +103,19 @@ function ManageDeck() {
       setConversionMode(config.allowInteractive ? "interactive" : "raw");
     }
 
+    const baseName = selectedFile.name.includes(".")
+      ? selectedFile.name.substring(0, selectedFile.name.lastIndexOf("."))
+      : selectedFile.name;
+
     if (!slug && !editId) {
       const generatedSlug = normalizeSlug(
-        `${selectedFile.name.split(".")[0]}-${Math.random().toString(36).substring(2, 6)}`,
+        `${baseName}-${Math.random().toString(36).substring(2, 6)}`,
       );
       setSlug(generatedSlug);
     }
 
     if (!title && !editId) {
-      setTitle(selectedFile.name.split(".")[0]);
+      setTitle(baseName);
     }
   };
 

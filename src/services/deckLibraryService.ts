@@ -82,9 +82,11 @@ export const deckLibraryService = {
 
       if (error) throw error;
 
+      const validData = (data || []).filter((item) => item.deck);
+
       const ownerIds = [
         ...new Set(
-          (data || []).map((item) => (item.deck as unknown as Deck).user_id),
+          validData.map((item) => (item.deck as unknown as Deck).user_id),
         ),
       ];
 
@@ -105,7 +107,7 @@ export const deckLibraryService = {
         return acc;
       }, {} as Record<string, string>);
 
-      const deckIds = (data || []).map((item) =>
+      const deckIds = validData.map((item) =>
         (item.deck as unknown as Deck).id
       );
       const notesResult = deckIds.length === 0
@@ -129,7 +131,7 @@ export const deckLibraryService = {
         return acc;
       }, {} as Record<string, string>);
 
-      return (data || []).map((item) => {
+      return validData.map((item) => {
         const deck = item.deck as unknown as Deck;
         return {
           ...deck,

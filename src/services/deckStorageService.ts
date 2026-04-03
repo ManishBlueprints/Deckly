@@ -2,6 +2,13 @@ import { supabase } from "./supabase";
 import { getDeckPublicStoragePath, getRequiredDeckUserId } from "./deckService.shared";
 import { withRetry } from "../utils/resilience";
 
+/**
+ * Sanitizes a deck slug for storage paths.
+ */
+function sanitizeStorageSlug(slug: string): string {
+  return slug.replace(/[^a-z0-9-]/gi, "_");
+}
+
 export const deckStorageService = {
   async uploadDeckFile(
     file: File,
@@ -12,7 +19,7 @@ export const deckStorageService = {
     const fileExt = file.name.includes(".") 
       ? file.name.split(".").pop()?.toLowerCase() || "bin"
       : "bin";
-    const safeSlug = slug.replace(/[^a-z0-9-]/gi, "_");
+    const safeSlug = sanitizeStorageSlug(slug);
     const fileName = `${userId}/decks/${safeSlug}-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
@@ -39,7 +46,8 @@ export const deckStorageService = {
     const concurrencyLimit = 3;
 
     const uploadSingle = async (index: number) => {
-      const fileName = `${userId}/deck-images/${deckSlug}/page-${
+      const safeSlug = sanitizeStorageSlug(deckSlug);
+      const fileName = `${userId}/deck-images/${safeSlug}/page-${
         index + 1
       }-${timestamp}.webp`;
 
@@ -107,9 +115,10 @@ export const deckStorageService = {
     });
 
     await withRetry(async () => {
+      const safeSlug = sanitizeStorageSlug(slug);
       const { data: files, error: listError } = await supabase.storage
         .from("decks")
-        .list(`${userId}/deck-images/${slug}`);
+        .list(`${userId}/deck-images/${safeSlug}`);
 
       if (listError && !listError.message?.includes("not found")) {
         throw listError;
@@ -117,7 +126,7 @@ export const deckStorageService = {
 
       if (files && files.length > 0) {
         const filesToDelete = files.map(
-          (file) => `${userId}/deck-images/${slug}/${file.name}`,
+          (file) => `${userId}/deck-images/${safeSlug}/${file.name}`,
         );
         const { error: removeError } = await supabase.storage
           .from("decks")
@@ -132,8 +141,16 @@ export const deckStorageService = {
     return true;
   },
 
-  async getStoragePath(slug: string, filename: string): Promise<string> {
-    const userId = await getRequiredDeckUserId();
-    return `${userId}/${slug}/${filename}`;
+  /**
+   * Returns a bucket path for slide-level storage assets.
+   */
+  async getStoragePath(
+    slug: string,
+    filename: string,
+    providedUserId?: string,
+  ): Promise<string> {
+    const userId = await getRequiredDeckUserId(providedUserId);
+    const safeSlug = sanitizeStorageSlug(slug);
+    return `${userId}/deck-images/${safeSlug}/${filename}`;
   },
 };

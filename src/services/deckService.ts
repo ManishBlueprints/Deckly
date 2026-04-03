@@ -85,30 +85,51 @@ const deckCrudService = {
     providedUserId?: string,
   ): Promise<void> {
     const userId = await getRequiredDeckUserId(providedUserId);
-    const deletedAssets = await deckStorageService.deleteDeckAssets(
-      fileUrl,
-      slug,
-      userId,
-    );
-
-    if (!deletedAssets) {
-      console.error("Deck asset deletion failed; aborting deck record removal.", {
-        fileUrl,
-        slug,
-        userId,
-      });
-      throw new Error(
-        `Failed to delete deck assets before removing deck record. fileUrl=${fileUrl} slug=${slug} userId=${userId}`,
-      );
-    }
-
     const { error } = await supabase
       .from("decks")
       .delete()
       .eq("id", id)
       .eq("user_id", userId);
 
-    if (error) throw error;
+    if (error) {
+      console.error("Deck DB deletion failed; storage cleanup was not attempted.", {
+        deckId: id,
+        fileUrl,
+        slug,
+        userId,
+        error,
+      });
+      throw error;
+    }
+
+    try {
+      const deletedAssets = await deckStorageService.deleteDeckAssets(
+        fileUrl,
+        slug,
+        userId,
+      );
+
+      if (!deletedAssets) {
+        console.error("Deck DB row was deleted but asset cleanup could not start.", {
+          deckId: id,
+          fileUrl,
+          slug,
+          userId,
+        });
+        throw new Error(
+          `Deck record was deleted but asset cleanup failed to start. deckId=${id} fileUrl=${fileUrl} slug=${slug} userId=${userId}`,
+        );
+      }
+    } catch (cleanupError) {
+      console.error("Deck DB row deleted but asset cleanup failed after retries.", {
+        deckId: id,
+        fileUrl,
+        slug,
+        userId,
+        cleanupError,
+      });
+      throw cleanupError;
+    }
   },
 
   async updateDeckPages(

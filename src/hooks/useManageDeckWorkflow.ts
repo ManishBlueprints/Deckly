@@ -319,8 +319,8 @@ export function useManageDeckWorkflow({
         if (file) {
           setProgress("Uploading document...");
           setProgressPercent(5);
-          const fileExt = file.name.split(".").pop();
-          const fileName = `${userId}/decks/${slug}-${Date.now()}.${fileExt}`;
+          const fileExt = file.name.includes(".") ? file.name.split(".").pop() : "";
+          const fileName = `${userId}/decks/${slug}-${Date.now()}${fileExt ? "." + fileExt : ""}`;
           const { error: uploadError } = await supabase.storage
             .from("decks")
             .upload(fileName, file);
@@ -402,7 +402,7 @@ export function useManageDeckWorkflow({
               file_type: fileType,
               require_email: requireEmail,
               require_password: requirePassword,
-              view_password: finalViewPassword ?? undefined,
+              view_password: finalViewPassword,
               expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
             })
             .eq("id", editId);
@@ -520,7 +520,7 @@ export function useManageDeckWorkflow({
                 user_id: userId,
                 require_email: requireEmail,
                 require_password: requirePassword,
-                view_password: finalViewPassword ?? undefined,
+                view_password: finalViewPassword,
                 expires_at: expiresAt
                   ? new Date(expiresAt).toISOString()
                   : null,

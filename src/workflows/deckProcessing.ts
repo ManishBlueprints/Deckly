@@ -32,38 +32,46 @@ export async function processPdfToImages(
   const numPages = pdf.numPages;
   const imageAssets: ProcessedPdfAsset[] = [];
 
-  for (let i = 1; i <= numPages; i++) {
-    onProgress?.(i, numPages);
+  try {
+    for (let i = 1; i <= numPages; i++) {
+      const page = await pdf.getPage(i);
 
-    const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale });
-    const links = await extractPdfLinkHotspots(page).catch(() => []);
+      try {
+        const viewport = page.getViewport({ scale });
+        const links = await extractPdfLinkHotspots(page).catch(() => []);
 
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
 
-    if (!context) {
-      throw new Error(`Failed to create canvas context for page ${i}`);
+        if (!context) {
+          throw new Error(`Failed to create canvas context for page ${i}`);
+        }
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        await page.render({
+          canvasContext: context,
+          viewport,
+          canvas,
+        }).promise;
+
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, "image/webp", quality),
+        );
+
+        if (!blob) {
+          throw new Error(`Failed to generate blob for page ${i}`);
+        }
+
+        imageAssets.push({ blob, links });
+        onProgress?.(i, numPages);
+      } finally {
+        page.cleanup();
+      }
     }
-
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-
-    await page.render({
-      canvasContext: context,
-      viewport,
-      canvas,
-    }).promise;
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/webp", quality),
-    );
-
-    if (!blob) {
-      throw new Error(`Failed to generate blob for page ${i}`);
-    }
-
-    imageAssets.push({ blob, links });
+  } finally {
+    pdf.destroy();
   }
 
   return imageAssets;
