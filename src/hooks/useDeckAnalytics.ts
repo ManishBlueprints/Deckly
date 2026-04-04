@@ -29,13 +29,6 @@ export function useDeckAnalytics(
     viewerEmailRef.current = viewerEmail;
   }, [viewerEmail]);
 
-  // Effect to track the initial deck view
-  useEffect(() => {
-    if (deck && !isOwner) {
-      analyticsService.trackDeckView(deck);
-    }
-  }, [deck, isOwner]);
-
   // Immediate sync function (used for final cleanup)
   const syncImmediate = useCallback((d: Deck, pageNum: number, time: number, drId?: string, email?: string) => {
     analyticsService.syncSlideStats(d, pageNum, time, email, drId);

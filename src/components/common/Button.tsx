@@ -28,7 +28,7 @@ const Button: React.FC<ButtonProps> = ({
       "bg-deckly-primary text-slate-950 hover:bg-opacity-90 active:scale-95",
     secondary:
       "bg-deckly-secondary text-slate-950 hover:bg-opacity-90 backdrop-blur-md active:scale-95",
-    danger: "bg-deckly-accent text-white hover:bg-opacity-90 active:scale-95",
+    danger: "bg-destructive text-destructive-foreground hover:bg-opacity-90 active:scale-95",
     ghost: "bg-transparent text-white hover:bg-white/10 active:scale-95",
   };
 
@@ -46,7 +46,7 @@ const Button: React.FC<ButtonProps> = ({
       onClick={onClick}
       disabled={disabled || loading}
       className={cn(
-        "relative flex items-center justify-center font-medium rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed",
+        "relative flex items-center justify-center font-bold rounded-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-xs",
         variants[variant],
         sizes[size],
         fullWidth ? "w-full" : "",

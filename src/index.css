@@ -71,8 +71,8 @@
     --primary-foreground: 0 0% 0%;
     --secondary: var(--brand-secondary);
     --secondary-foreground: 0 0% 100%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 40%;
+    --destructive-foreground: 0 0% 100%;
     --ring: var(--brand-primary);
   }
 }

@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import * as pdfjsLib from "pdfjs-dist";
 import { useNavigate } from "react-router-dom";
 import { deckService } from "../../services/deckService";
+import { deckStorageService } from "../../services/deckStorageService";
 import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
 import { normalizeSlug } from "../../utils/slug";
 import { useAuth } from "../../contexts/AuthContext";
-import { extractPdfLinkHotspots } from "../../utils/pdfLinks";
+import { processPdfToImages as processDeckPdfToImages } from "../../workflows/deckProcessing";
+import { extractStoragePath } from "../../services/deckService.shared";
 
 // Sub-components
 import { ManagementSection } from "./form-sections/ManagementSection";
@@ -15,9 +16,6 @@ import { AccessProtectionSection } from "./form-sections/AccessProtectionSection
 import { DangerZoneSection } from "./form-sections/DangerZoneSection";
 import { Button } from "../ui/button";
 import { Save } from "lucide-react";
-
-// Set worker source for pdfjs-dist
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 interface DeckSettingsFormProps {
   deck: Deck;
@@ -65,49 +63,25 @@ export function DeckSettingsForm({
   }, []);
 
   // PDF Processing Logic
-  const processPdfToImages = async (pdfFile: File) => {
+  const processUploadedPdf = async (pdfFile: File) => {
     setIsProcessing(true);
     setError(null);
     setCompletionPercentage(0);
     setUploadProgress("Initializing PDF...");
 
     try {
-      const arrayBuffer = await pdfFile.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const numPages = pdf.numPages;
-      const imageAssets: Array<{ blob: Blob; links: Deck["pages"][number]["links"] }> = [];
-
-      for (let i = 1; i <= numPages; i++) {
-        setUploadProgress(`Optimizing ${i}/${numPages}...`);
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const links = await extractPdfLinkHotspots(page).catch(() => []);
-        
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-        
-        if (!context) {
-          throw new Error(`Failed to create canvas context for page ${i}`);
-        }
-
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (page as any).render({ canvasContext: context, viewport }).promise;
-        
-        const blob = await new Promise<Blob | null>((resolve) =>
-          canvas.toBlob(resolve, "image/webp", 0.8),
-        );
-        
-        if (!blob) {
-          throw new Error(`Failed to generate blob for page ${i}`);
-        }
-
-        imageAssets.push({ blob, links });
-        setCompletionPercentage(Math.round((i / numPages) * 100));
-      }
-      return imageAssets;
+      return await processDeckPdfToImages(pdfFile, {
+        scale: 1.5,
+        quality: 0.8,
+        onProgress: (current: number, total: number) => {
+          // Guard against divide-by-zero and clamp current to valid range
+          const clampedCurrent = Math.max(0, Math.min(current, total));
+          setUploadProgress(`Optimizing ${clampedCurrent}/${total}...`);
+          const percentage =
+            total > 0 ? Math.round((clampedCurrent / total) * 100) : 0;
+          setCompletionPercentage(percentage);
+        },
+      });
     } catch (err) {
       console.error("PDF Processing error:", err);
       const msg = err instanceof Error ? err.message : "Failed to process PDF";
@@ -132,12 +106,12 @@ export function DeckSettingsForm({
       if (!session) throw new Error("Authentication required");
       const userId = session.user.id;
 
-        let finalFileUrl = deck.file_url;
-        let finalPages = deck.pages;
-        let fileSize = deck.file_size;
-        const finalViewPassword = requirePassword
-          ? viewPassword.trim() || null
-          : null;
+      let finalFileUrl = deck.file_url;
+      let finalPages = deck.pages;
+      let fileSize = deck.file_size;
+      const finalViewPassword = requirePassword
+        ? viewPassword.trim() || null
+        : null;
 
       if (newFile) {
         setUploadProgress("Uploading source...");
@@ -154,21 +128,30 @@ export function DeckSettingsForm({
         finalFileUrl = publicUrl;
         fileSize = newFile.size;
 
-        const imageAssets = await processPdfToImages(newFile);
+        const imageAssets = await processUploadedPdf(newFile);
         if (!imageAssets) {
           // Clean up the orphaned uploaded source file before aborting
-          await supabase.storage.from("decks").remove([uploadedFileName]).catch((err) =>
-            console.error("Failed to remove orphaned upload after PDF processing failure:", err)
-          );
+          await supabase.storage
+            .from("decks")
+            .remove([uploadedFileName])
+            .catch((err) =>
+              console.error(
+                "Failed to remove orphaned upload after PDF processing failure:",
+                err,
+              ),
+            );
           setUploadProgress("");
           setIsSaving(false);
           return;
         }
         setUploadProgress(`Updating ${imageAssets.length} slides...`);
-        const imageUrls = await deckService.uploadSlideImages(
+        const stagingVersion = `v-${Date.now()}`;
+        const imageUrls = await deckStorageService.uploadSlideImages(
           userId,
           slug,
           imageAssets.map((asset) => asset.blob),
+          undefined,
+          stagingVersion
         );
         finalPages = imageUrls.map((url, idx) => ({
           image_url: url,
@@ -177,22 +160,48 @@ export function DeckSettingsForm({
         }));
       }
 
-        const updates: Partial<Deck> = {
-          title,
-          slug,
-          file_url: finalFileUrl,
-          pages: finalPages,
-          file_size: fileSize,
-          require_email: requireEmail,
-          require_password: requirePassword,
-          view_password: finalViewPassword ?? undefined,
-          expires_at:
-            expiryEnabled && expiryDate
-              ? new Date(expiryDate).toISOString()
-              : null,
-        };
+      const updates: Partial<Deck> = {
+        title,
+        slug,
+        file_url: finalFileUrl,
+        pages: finalPages,
+        file_size: fileSize,
+        require_email: requireEmail,
+        require_password: requirePassword,
+        view_password: finalViewPassword ?? undefined,
+        expires_at:
+          expiryEnabled && expiryDate
+            ? new Date(expiryDate).toISOString()
+            : null,
+      };
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
+
+      // Feature: Updating document replaces the physical storage blob but keeps UI intact (no slug change).
+      // Cleanup the prior source file ONLY after successful DB update.
+      if (newFile && deck.file_url) {
+        const prevDocPath = extractStoragePath(deck.file_url, "decks");
+        if (prevDocPath && prevDocPath !== uploadedFileName) {
+          await supabase.storage
+            .from("decks")
+            .remove([prevDocPath])
+            .catch((cleanupErr) =>
+              console.warn("Failed to clean up old document:", cleanupErr)
+            );
+        }
+        
+        // Also clean up old slide images that are no longer used
+        if (deck.pages) {
+          const oldUrls = deck.pages.map(p => p.image_url);
+          const newUrls = new Set(finalPages.map(p => p.image_url));
+          const actuallyDelete = oldUrls.filter(url => !newUrls.has(url));
+          if (actuallyDelete.length > 0) {
+            await deckStorageService.deleteSlideImages(actuallyDelete).catch(
+              cleanupErr => console.warn("Failed to clean up old slide images:", cleanupErr)
+            );
+          }
+        }
+      }
       onUpdate(updated);
       setUploadProgress("Changes Synced!");
       timeoutRef.current = setTimeout(() => {
@@ -205,9 +214,15 @@ export function DeckSettingsForm({
       console.error("Sync error:", err);
       // Clean up the uploaded source file if a post-upload step failed
       if (uploadedFileName) {
-        await supabase.storage.from("decks").remove([uploadedFileName]).catch((removeErr) =>
-          console.error("Failed to remove orphaned upload during error recovery:", removeErr)
-        );
+        await supabase.storage
+          .from("decks")
+          .remove([uploadedFileName])
+          .catch((removeErr) =>
+            console.error(
+              "Failed to remove orphaned upload during error recovery:",
+              removeErr,
+            ),
+          );
       }
       alert(message || "Failed to update asset settings");
       setUploadProgress("");

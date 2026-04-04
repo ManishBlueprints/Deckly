@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, User, AlertTriangle } from "lucide-react";
-import { useSendAdminMessage, useSendBroadcastAll } from "../../hooks/useAdminNotifications";
+import {
+  useSendAdminMessage,
+  useSendBroadcastAll,
+} from "../../hooks/useAdminNotifications";
 import Button from "../common/Button";
 import Input from "../common/Input";
 import Textarea from "../common/Textarea";
@@ -36,12 +39,14 @@ export function AdminNotificationComposer() {
       // Focus trap
       if (e.key === "Tab") {
         const focusableElements = modalRef.current?.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         );
         if (!focusableElements) return;
 
         const firstElement = focusableElements[0] as HTMLElement;
-        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+        const lastElement = focusableElements[
+          focusableElements.length - 1
+        ] as HTMLElement;
 
         if (e.shiftKey) {
           if (document.activeElement === firstElement) {
@@ -100,15 +105,10 @@ export function AdminNotificationComposer() {
 
   const doSendBroadcast = async () => {
     try {
-      const result = await sendBroadcastAll.mutateAsync({
+      const count = (await sendBroadcastAll.mutateAsync({
         title: title.trim(),
         message: message.trim(),
-      });
-
-      // Normalize response shape (handle number or { count: number })
-      const count = typeof result === "number" 
-        ? result 
-        : (result as Record<string, unknown>)?.count ?? 0;
+      })) as number;
 
       toast.success(`Broadcast sent to ${count} users`);
       resetForm();
@@ -129,14 +129,14 @@ export function AdminNotificationComposer() {
     <>
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Mode Toggle */}
-        <div className="flex gap-2">
+        <div className="flex gap-4">
           <button
             type="button"
             onClick={() => setMode("single")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 rounded-none text-xs uppercase tracking-widest font-bold transition-all ${
               mode === "single"
-                ? "bg-deckly-primary/10 text-deckly-primary border border-deckly-primary/20"
-                : "bg-white/5 text-slate-500 border border-white/10 hover:text-slate-300"
+                ? "bg-primary/10 text-primary border border-primary/20"
+                : "bg-surface-container text-muted-foreground border border-border hover:text-white"
             }`}
           >
             <User size={14} />
@@ -145,10 +145,10 @@ export function AdminNotificationComposer() {
           <button
             type="button"
             onClick={() => setMode("broadcast")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 rounded-none text-xs uppercase tracking-widest font-bold transition-all ${
               mode === "broadcast"
-                ? "bg-deckly-primary/10 text-deckly-primary border border-deckly-primary/20"
-                : "bg-white/5 text-slate-500 border border-white/10 hover:text-slate-300"
+                ? "bg-destructive/10 text-destructive border border-destructive/20"
+                : "bg-surface-container text-muted-foreground border border-border hover:text-white"
             }`}
           >
             <Send size={14} />
@@ -167,8 +167,16 @@ export function AdminNotificationComposer() {
         )}
 
         {mode === "broadcast" && (
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 text-sm text-amber-300">
-            This will send a notification to <strong>all users</strong> in the system.
+          <div 
+            className="bg-destructive/10 border-l-4 border-destructive px-6 py-4 rounded-none text-sm flex items-center gap-4"
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+          >
+            <AlertTriangle className="text-destructive shrink-0" size={20} />
+            <p className="font-bold text-white">
+              Critical: This will broadcast to every registered user.
+            </p>
           </div>
         )}
 
@@ -195,7 +203,11 @@ export function AdminNotificationComposer() {
           type="submit"
           icon={Send}
           loading={sendMessage.isPending || sendBroadcastAll.isPending}
-          disabled={!title.trim() || !message.trim() || (mode === "single" && !userId.trim())}
+          disabled={
+            !title.trim() ||
+            !message.trim() ||
+            (mode === "single" && !userId.trim())
+          }
           fullWidth
           variant={mode === "broadcast" ? "danger" : "primary"}
         >
@@ -205,38 +217,49 @@ export function AdminNotificationComposer() {
 
       {/* Confirmation Modal */}
       {showConfirm && (
-        <div 
+        <div
           className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-modal-title"
         >
-          <div 
+          <div
             ref={modalRef}
             tabIndex={-1}
-            className="w-full max-w-md bg-[#0e0e0e] border border-white/10 rounded-xl shadow-2xl overflow-hidden focus:outline-none"
+            className="w-full max-w-lg bg-surface-low border border-border rounded-none shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden focus:outline-none"
           >
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
-                  <AlertTriangle size={20} className="text-red-400" />
+            <div className="p-10">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-destructive/10 flex items-center justify-center border border-destructive/20">
+                  <AlertTriangle size={24} className="text-destructive" />
                 </div>
-                <h3 id="confirm-modal-title" className="text-lg font-bold text-white">Confirm Broadcast</h3>
+                <h3
+                  id="confirm-modal-title"
+                  className="text-2xl font-black text-white uppercase tracking-tighter"
+                >
+                  Confirm <span className="text-destructive">Broadcast</span>
+                </h3>
               </div>
-              <p className="text-sm text-slate-400 mb-2">
-                You are about to send this notification to <strong className="text-white">all users</strong>:
+              <p className="text-sm text-muted-foreground mb-6 uppercase tracking-wider">
+                You are authorizing a global broadcast to{" "}
+                <strong className="text-white">all users</strong>.
               </p>
-              <div className="bg-white/5 rounded-lg p-3 mb-4">
-                <p className="text-sm font-medium text-slate-200">{title}</p>
-                <p className="text-xs text-slate-500 mt-1">{message}</p>
+              <div className="bg-surface-container border border-border p-6 mb-10">
+                <p className="text-xs uppercase tracking-widest text-primary font-bold mb-2">
+                  Payload Preview
+                </p>
+                <p className="text-lg font-bold text-white mb-2">{title}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {message}
+                </p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <Button
                   variant="ghost"
                   onClick={() => setShowConfirm(false)}
                   fullWidth
                 >
-                  Cancel
+                  Abort
                 </Button>
                 <Button
                   variant="danger"
@@ -244,7 +267,7 @@ export function AdminNotificationComposer() {
                   loading={sendBroadcastAll.isPending}
                   fullWidth
                 >
-                  Broadcast
+                  Authorize Send
                 </Button>
               </div>
             </div>

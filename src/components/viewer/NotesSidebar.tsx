@@ -30,7 +30,7 @@ export function NotesSidebar({
     deckId,
     session?.user?.id,
   );
-  const saveNoteMutation = useSaveNoteMutation();
+  const saveNoteMutation = useSaveNoteMutation(session?.user?.id);
 
   // Sync local state with initial query data
   useEffect(() => {

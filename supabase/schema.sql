@@ -305,11 +305,10 @@ ALTER TABLE public.decks ALTER COLUMN pages SET DEFAULT '[]'::jsonb;
 -- This section implements server-side password validation to prevent leakage.
 
 -- Minimal public profiles view: exposes only id and handle.
--- IMPORTANT: regular PostgreSQL views do NOT bypass RLS automatically.
--- The "Public profile fields" policy below grants anonymous SELECT on profiles;
--- column-level GRANTs ensure only id and handle are accessible to anon/authenticated.
-CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = true) AS
-SELECT id, handle, full_name, avatar_url
+-- Runs with security definer semantics to safely bypass RLS on profiles without exposing sensitive columns.
+DROP VIEW IF EXISTS public.profiles_public CASCADE;
+CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = false) AS
+SELECT id, handle
 FROM public.profiles;
 
 -- Public view for decks (excludes sensitive view_password, file_url, and pages payload)
@@ -335,15 +334,12 @@ SELECT
 FROM public.data_rooms dr
 JOIN public.profiles_public p ON dr.user_id = p.id;
 
--- Allow anonymous and authenticated roles to read only the public profile fields.
--- Without this policy, RLS blocks all anon reads even through profiles_public.
-CREATE POLICY "Public profile fields are viewable by everyone"
-  ON public.profiles FOR SELECT
-  USING (true);
+-- Cleanup the old, insecure "viewable by everyone" policy if it exists.
+DROP POLICY IF EXISTS "Public profile fields are viewable by everyone" ON public.profiles;
 
--- Restrict which columns anon/authenticated can actually access on profiles.
--- RLS controls which ROWS are visible; column grants control which COLUMNS.
-GRANT SELECT (id, handle, full_name, avatar_url) ON public.profiles TO anon, authenticated;
+-- Restore standard table-level SELECT so authenticated users can read all columns of their OWN profile 
+-- (as permitted by the "Users can view their own profile" RLS policy above).
+GRANT SELECT ON public.profiles TO anon, authenticated;
 
 -- GRANT VIEW PERMISSIONS --
 GRANT SELECT ON public.decks_public TO anon, authenticated;
@@ -979,6 +975,10 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread_created
     ON public.notifications(user_id, created_at DESC)
     WHERE read_at IS NULL;
 
+CREATE INDEX IF NOT EXISTS idx_notifications_dedup
+    ON public.notifications(user_id, type, title, created_at DESC)
+    WHERE read_at IS NULL;
+
 -- =============================================================================
 -- 13a. HELPERS: admin_emails & is_admin()
 -- =============================================================================
@@ -1050,13 +1050,6 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'Invalid notification type: %', p_type;
     END IF;
-
-    -- Create supporting partial index for deduplication if it doesn't exist
-    -- idx_notifications_dedup on columns (user_id, type, title, created_at DESC)
-    -- with WHERE read_at IS NULL. This ensures efficient coverage for the IF EXISTS check below.
-    CREATE INDEX IF NOT EXISTS idx_notifications_dedup 
-    ON public.notifications (user_id, type, title, created_at DESC) 
-    WHERE read_at IS NULL;
 
     -- Deduplicate: skip if an identical unread notification already exists
     -- created within the last 10 minutes (prevents trigger spam on bulk ops)
@@ -1419,3 +1412,26 @@ GRANT EXECUTE ON FUNCTION public.create_admin_broadcast_all(TEXT, TEXT, JSONB)  
 -- Schedule it via pg_cron (Supabase dashboard → Database → Cron Jobs):
 --   SELECT cron.schedule('cleanup-notifications', '0 3 * * *',
 --     $$SELECT public.cleanup_expired_notifications();$$);
+
+-- =============================================================================
+-- Admin Dashboard Metrics
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.get_total_system_users()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_count INTEGER;
+BEGIN
+    IF NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Unauthorized';
+    END IF;
+
+    SELECT COUNT(*)::INTEGER INTO v_count FROM public.profiles;
+    RETURN v_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_total_system_users() TO authenticated;
