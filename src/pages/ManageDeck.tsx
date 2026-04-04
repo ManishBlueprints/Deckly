@@ -44,6 +44,7 @@ function ManageDeck() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
   const [upsellFeature, setUpsellFeature] = useState("");
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile: authProfile } = useAuth();
@@ -72,6 +73,13 @@ function ManageDeck() {
     setUserProfile,
   });
 
+  // Clear uploadError when profile becomes available
+  React.useEffect(() => {
+    if (userProfile && uploadError) {
+      setUploadError(null);
+    }
+  }, [userProfile, uploadError]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -81,7 +89,7 @@ function ManageDeck() {
 
     // Ensure profile is loaded before proceeding with tier-sensitive checks
     if (!userProfile) {
-      alert("Please wait for your profile to load before uploading.");
+      setUploadError("Loading platform profile... Please wait.");
       return;
     }
 
@@ -185,6 +193,7 @@ function ManageDeck() {
                 setShowUpsell(true);
               }}
               disabled={!userProfile}
+              error={uploadError}
             />
 
             <ManageDeckDetailsSection

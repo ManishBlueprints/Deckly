@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, User, AlertTriangle } from "lucide-react";
-import { useSendAdminMessage, useSendBroadcastAll } from "../../hooks/useAdminNotifications";
+import {
+  useSendAdminMessage,
+  useSendBroadcastAll,
+} from "../../hooks/useAdminNotifications";
 import Button from "../common/Button";
 import Input from "../common/Input";
 import Textarea from "../common/Textarea";
@@ -36,12 +39,14 @@ export function AdminNotificationComposer() {
       // Focus trap
       if (e.key === "Tab") {
         const focusableElements = modalRef.current?.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         );
         if (!focusableElements) return;
 
         const firstElement = focusableElements[0] as HTMLElement;
-        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+        const lastElement = focusableElements[
+          focusableElements.length - 1
+        ] as HTMLElement;
 
         if (e.shiftKey) {
           if (document.activeElement === firstElement) {
@@ -106,9 +111,10 @@ export function AdminNotificationComposer() {
       });
 
       // Normalize response shape (handle number or { count: number })
-      const count = typeof result === "number" 
-        ? result 
-        : (result as Record<string, unknown>)?.count ?? 0;
+      const count =
+        typeof result === "number"
+          ? result
+          : ((result as Record<string, unknown>)?.count ?? 0);
 
       toast.success(`Broadcast sent to ${count} users`);
       resetForm();
@@ -169,8 +175,8 @@ export function AdminNotificationComposer() {
         {mode === "broadcast" && (
           <div className="bg-destructive/10 border-l-4 border-destructive px-6 py-4 rounded-none text-sm flex items-center gap-4">
             <AlertTriangle className="text-destructive shrink-0" size={20} />
-            <p className="uppercase tracking-tight font-black text-white">
-              CRITICAL: THIS WILL BROADCAST TO EVERY REGISTERED USER IN THE PLATFORM.
+            <p className="font-bold text-white">
+              Critical: This will broadcast to every registered user.
             </p>
           </div>
         )}
@@ -198,7 +204,11 @@ export function AdminNotificationComposer() {
           type="submit"
           icon={Send}
           loading={sendMessage.isPending || sendBroadcastAll.isPending}
-          disabled={!title.trim() || !message.trim() || (mode === "single" && !userId.trim())}
+          disabled={
+            !title.trim() ||
+            !message.trim() ||
+            (mode === "single" && !userId.trim())
+          }
           fullWidth
           variant={mode === "broadcast" ? "danger" : "primary"}
         >
@@ -208,13 +218,13 @@ export function AdminNotificationComposer() {
 
       {/* Confirmation Modal */}
       {showConfirm && (
-        <div 
+        <div
           className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-modal-title"
         >
-          <div 
+          <div
             ref={modalRef}
             tabIndex={-1}
             className="w-full max-w-lg bg-surface-low border border-border rounded-none shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden focus:outline-none"
@@ -224,17 +234,25 @@ export function AdminNotificationComposer() {
                 <div className="w-12 h-12 bg-destructive/10 flex items-center justify-center border border-destructive/20">
                   <AlertTriangle size={24} className="text-destructive" />
                 </div>
-                <h3 id="confirm-modal-title" className="text-2xl font-black text-white uppercase tracking-tighter">
+                <h3
+                  id="confirm-modal-title"
+                  className="text-2xl font-black text-white uppercase tracking-tighter"
+                >
                   Confirm <span className="text-destructive">Broadcast</span>
                 </h3>
               </div>
               <p className="text-sm text-muted-foreground mb-6 uppercase tracking-wider">
-                You are authorizing a global broadcast to <strong className="text-white">all users</strong>.
+                You are authorizing a global broadcast to{" "}
+                <strong className="text-white">all users</strong>.
               </p>
               <div className="bg-surface-container border border-border p-6 mb-10">
-                <p className="text-xs uppercase tracking-widest text-primary font-bold mb-2">Payload Preview</p>
+                <p className="text-xs uppercase tracking-widest text-primary font-bold mb-2">
+                  Payload Preview
+                </p>
                 <p className="text-lg font-bold text-white mb-2">{title}</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">{message}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {message}
+                </p>
               </div>
               <div className="flex gap-4">
                 <Button

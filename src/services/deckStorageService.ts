@@ -94,15 +94,14 @@ export const deckStorageService = {
     return imageUrls;
   },
 
-  async deleteDeckAssets(fileUrl: string, slug: string, providedUserId?: string) {
+  async deleteDeckAssets(fileUrl: string, slug: string, providedUserId?: string): Promise<void> {
     const userId = await getRequiredDeckUserId(providedUserId);
     const storagePath = extractStoragePath(fileUrl, "decks");
 
     if (!storagePath) {
-      console.warn(
+      throw new Error(
         `[deckStorageService.deleteDeckAssets] Unexpected fileUrl format; aborting delete. fileUrl: ${fileUrl}`,
       );
-      return false;
     }
 
     await withRetry(async () => {
@@ -138,8 +137,6 @@ export const deckStorageService = {
         }
       }
     });
-
-    return true;
   },
 
   /**

@@ -34,6 +34,7 @@ interface UploadSectionProps {
   onConversionModeChange: (mode: "raw" | "interactive") => void;
   onUpsellRequest: (featureName: string) => void;
   disabled?: boolean;
+  error?: string | null;
 }
 
 export function ManageDeckUploadSection({
@@ -48,6 +49,7 @@ export function ManageDeckUploadSection({
   onConversionModeChange,
   onUpsellRequest,
   disabled = false,
+  error,
 }: UploadSectionProps) {
   const config = useMemo(
     () => TIER_CONFIG[userProfile?.tier || "FREE"],
@@ -114,6 +116,13 @@ export function ManageDeckUploadSection({
           onChange={onFileChange}
         />
       </div>
+
+      {error && !file && (
+        <div className="flex items-center gap-2 text-destructive text-xs font-semibold animate-in fade-in slide-in-from-top-1 px-1">
+          <AlertCircle size={14} />
+          {error}
+        </div>
+      )}
 
       {file && fileType !== "pdf" && (
         <div className="p-4 md:p-6 rounded-lg border border-white/5 bg-surface-lowest flex flex-col gap-4 mt-4">
@@ -343,7 +352,7 @@ export function ManageDeckAccessSection({
   onEnableExpiryChange,
   onExpiresAtChange,
 }: AccessSectionProps) {
-  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const today = new Date().toISOString().split("T")[0];
 
   return (
     <div className="pt-6 border-t border-white/5 space-y-6">

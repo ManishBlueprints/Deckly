@@ -575,12 +575,20 @@ export function useManageDeckWorkflow({
 
               if (finalFileUrl) {
                 try {
-                  await deckService.deleteDeck(
+                  const { dbDeleted, assetsDeleted } = await deckService.deleteDeck(
                     deckRecord.id,
                     finalFileUrl,
                     slug,
                     userId,
                   );
+
+                  if (!dbDeleted) {
+                    throw new Error("Failed to delete deck from database");
+                  }
+
+                  if (!assetsDeleted) {
+                    console.warn("Deck removed from UI but storage cleanup failed.");
+                  }
                 } catch (cleanupErr) {
                   console.error(
                     "Failed to rollback newly created deck after conversion failure:",

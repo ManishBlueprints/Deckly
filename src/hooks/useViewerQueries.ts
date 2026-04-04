@@ -62,25 +62,25 @@ export function useSaveToLibraryMutation(userId: string | undefined) {
             // Optimistically update to the new value
             queryClient.setQueryData(queryKey, save);
 
-            return { previousSaved };
+            return { previousSaved, savedUserId: userId };
         },
         onError: (_err, { deckId }, context) => {
             // Rollback on error (only if userId was valid)
-            if (userId && context?.previousSaved !== undefined) {
+            if (context?.savedUserId && context.previousSaved !== undefined) {
                 queryClient.setQueryData(
-                    viewerQueryKeys.deckSaved(deckId, userId),
+                    viewerQueryKeys.deckSaved(deckId, context.savedUserId),
                     context.previousSaved,
                 );
             }
         },
-        onSettled: (_data, _err, { deckId }) => {
+        onSettled: (_data, _err, { deckId }, context) => {
             // Always refetch after error or success to ensure sync (only if userId is valid)
-            if (userId) {
+            if (context?.savedUserId) {
                 queryClient.invalidateQueries({
-                    queryKey: viewerQueryKeys.deckSaved(deckId, userId),
+                    queryKey: viewerQueryKeys.deckSaved(deckId, context.savedUserId),
                 });
                 queryClient.invalidateQueries({
-                    queryKey: ["user-total-stats", userId],
+                    queryKey: ["user-total-stats", context.savedUserId],
                 });
             }
         },
@@ -109,20 +109,20 @@ export function useSaveNoteMutation(userId: string | undefined) {
             });
             const previousNote = queryClient.getQueryData(queryKey);
             queryClient.setQueryData(queryKey, content);
-            return { previousNote };
+            return { previousNote, savedUserId: userId };
         },
         onError: (_err, { deckId }, context) => {
-            if (userId && context?.previousNote !== undefined) {
+            if (context?.savedUserId && context.previousNote !== undefined) {
                 queryClient.setQueryData(
-                    viewerQueryKeys.investorNotes(deckId, userId),
+                    viewerQueryKeys.investorNotes(deckId, context.savedUserId),
                     context.previousNote,
                 );
             }
         },
-        onSettled: (_data, _err, { deckId }) => {
-            if (userId) {
+        onSettled: (_data, _err, { deckId }, context) => {
+            if (context?.savedUserId) {
                 queryClient.invalidateQueries({
-                    queryKey: viewerQueryKeys.investorNotes(deckId, userId),
+                    queryKey: viewerQueryKeys.investorNotes(deckId, context.savedUserId),
                 });
             }
         },

@@ -47,10 +47,11 @@ const deckCrudService = {
   },
 
   async uploadDeck(file: File, deckData: Partial<Deck>): Promise<Deck> {
+    const lastDotIndex = file.name.lastIndexOf(".");
+    const baseName = lastDotIndex > 0 ? file.name.slice(0, lastDotIndex) : file.name;
     const normalizedSlug =
       deckData.slug ||
-      file.name
-        .split(".")[0]
+      baseName
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "-")
         .replace(/-+/g, "-")
@@ -83,7 +84,7 @@ const deckCrudService = {
     fileUrl: string,
     slug: string,
     providedUserId?: string,
-  ): Promise<void> {
+  ): Promise<{ dbDeleted: boolean; assetsDeleted: boolean; cleanupError?: Error }> {
     const userId = await getRequiredDeckUserId(providedUserId);
     const { error } = await supabase
       .from("decks")
@@ -102,11 +103,9 @@ const deckCrudService = {
       throw error;
     }
 
-    let deletedAssets = false;
     let cleanupError: unknown = null;
-
     try {
-      deletedAssets = await deckStorageService.deleteDeckAssets(
+      await deckStorageService.deleteDeckAssets(
         fileUrl,
         slug,
         userId,
@@ -115,20 +114,22 @@ const deckCrudService = {
       cleanupError = err;
     }
 
-    if (!deletedAssets || cleanupError) {
+    if (cleanupError) {
       console.error("Deck DB row deleted but asset cleanup failed.", {
         deckId: id,
         fileUrl,
         slug,
         userId,
         cleanupError,
-        notStarted: !deletedAssets && !cleanupError,
       });
-      
-      throw cleanupError || new Error(
-        `Deck record was deleted but asset cleanup failed to start. deckId=${id} fileUrl=${fileUrl} slug=${slug} userId=${userId}`
-      );
+      return {
+        dbDeleted: true,
+        assetsDeleted: false,
+        cleanupError: cleanupError instanceof Error ? cleanupError : new Error(String(cleanupError)),
+      };
     }
+
+    return { dbDeleted: true, assetsDeleted: true };
   },
 
   async updateDeckPages(

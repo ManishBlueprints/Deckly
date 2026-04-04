@@ -39,7 +39,7 @@ const Textarea: React.FC<TextareaProps> = ({
         />
       </div>
       {error && (
-        <span className="text-xs text-deckly-accent px-1 font-medium animate-in fade-in slide-in-from-top-1">
+        <span className="text-xs text-destructive px-1 font-medium animate-in fade-in slide-in-from-top-1">
           {error}
         </span>
       )}

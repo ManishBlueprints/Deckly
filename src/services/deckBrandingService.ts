@@ -73,9 +73,18 @@ export const deckBrandingService = {
     }
 
     const userId = await getRequiredDeckUserId();
-    const brandingPrefix = `${userId}/branding`;
     const fileName = `${userId}/branding/logo-${Date.now()}${fileExt ? "." + fileExt : ""}`;
 
+    // 1. Fetch current branding to identify the old logo
+    const { data: currentBranding } = await supabase
+      .from("branding")
+      .select("logo_url")
+      .eq("user_id", userId)
+      .single();
+
+    const oldLogoUrl = currentBranding?.logo_url;
+
+    // 2. Upload new logo
     const { error: uploadError } = await supabase.storage
       .from("assets")
       .upload(fileName, file);
@@ -86,37 +95,42 @@ export const deckBrandingService = {
       data: { publicUrl },
     } = supabase.storage.from("assets").getPublicUrl(fileName);
 
-    const { data: existingFiles, error: listError } = await supabase.storage
-      .from("assets")
-      .list(brandingPrefix);
+    // 3. Update branding record atomically
+    const { error: updateError } = await supabase
+      .from("branding")
+      .upsert(
+        [{ logo_url: publicUrl, user_id: userId, updated_at: new Date().toISOString() }],
+        { onConflict: "user_id" },
+      );
 
-    if (listError) {
-      console.warn("Failed to list previous branding assets after logo upload:", {
-        userId,
-        brandingPrefix,
-        listError,
-      });
+    if (updateError) {
+      console.error("Failed to update branding record after logo upload:", updateError);
+      // Optional: Cleanup the newly uploaded file? 
+      // For now, we return the URL but the record update failed.
       return publicUrl;
     }
 
-    const oldLogoPaths = (existingFiles || [])
-      .filter((existingFile) => existingFile.name.startsWith("logo-"))
-      .filter((existingFile) => `${brandingPrefix}/${existingFile.name}` !== fileName)
-      .map((existingFile) => `${brandingPrefix}/${existingFile.name}`);
+    // 4. Cleanup ONLY the specific old logo if it exists and is different
+    if (oldLogoUrl && oldLogoUrl !== publicUrl) {
+      const { extractStoragePath } = await import("./deckService.shared");
+      const oldPath = extractStoragePath(oldLogoUrl, "assets");
+      
+      if (oldPath && oldPath.startsWith(`${userId}/branding/logo-`)) {
+        const { error: removeError } = await supabase.storage
+          .from("assets")
+          .remove([oldPath]);
 
-    if (oldLogoPaths.length > 0) {
-      const { error: removeError } = await supabase.storage
-        .from("assets")
-        .remove(oldLogoPaths);
-
-      if (removeError) {
-        console.warn("Failed to clean up old branding assets after logo upload:", {
-          userId,
-          oldLogoPaths,
-          removeError,
-        });
+        if (removeError) {
+          console.warn("Failed to clean up specific old logo asset:", {
+            userId,
+            oldPath,
+            removeError,
+          });
+        }
       }
     }
+
+    return publicUrl;
 
     return publicUrl;
   },

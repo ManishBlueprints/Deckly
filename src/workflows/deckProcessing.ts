@@ -67,11 +67,11 @@ export async function processPdfToImages(
         imageAssets.push({ blob, links });
         onProgress?.(i, numPages);
       } finally {
-        page.cleanup();
+        await page.cleanup();
       }
     }
   } finally {
-    pdf.destroy();
+    await pdf.destroy();
   }
 
   return imageAssets;

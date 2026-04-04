@@ -72,10 +72,11 @@ export function DeckSettingsForm({
         scale: 1.5,
         quality: 0.8,
         onProgress: (current: number, total: number) => {
-          setUploadProgress(`Optimizing ${current}/${total}...`);
           // Guard against divide-by-zero and clamp current to valid range
           const clampedCurrent = Math.max(0, Math.min(current, total));
-          const percentage = total > 0 ? Math.round((clampedCurrent / total) * 100) : 0;
+          setUploadProgress(`Optimizing ${clampedCurrent}/${total}...`);
+          const percentage =
+            total > 0 ? Math.round((clampedCurrent / total) * 100) : 0;
           setCompletionPercentage(percentage);
         },
       });
@@ -103,12 +104,12 @@ export function DeckSettingsForm({
       if (!session) throw new Error("Authentication required");
       const userId = session.user.id;
 
-        let finalFileUrl = deck.file_url;
-        let finalPages = deck.pages;
-        let fileSize = deck.file_size;
-        const finalViewPassword = requirePassword
-          ? viewPassword.trim() || null
-          : null;
+      let finalFileUrl = deck.file_url;
+      let finalPages = deck.pages;
+      let fileSize = deck.file_size;
+      const finalViewPassword = requirePassword
+        ? viewPassword.trim() || null
+        : null;
 
       if (newFile) {
         setUploadProgress("Uploading source...");
@@ -128,9 +129,15 @@ export function DeckSettingsForm({
         const imageAssets = await processUploadedPdf(newFile);
         if (!imageAssets) {
           // Clean up the orphaned uploaded source file before aborting
-          await supabase.storage.from("decks").remove([uploadedFileName]).catch((err) =>
-            console.error("Failed to remove orphaned upload after PDF processing failure:", err)
-          );
+          await supabase.storage
+            .from("decks")
+            .remove([uploadedFileName])
+            .catch((err) =>
+              console.error(
+                "Failed to remove orphaned upload after PDF processing failure:",
+                err,
+              ),
+            );
           setUploadProgress("");
           setIsSaving(false);
           return;
@@ -148,20 +155,20 @@ export function DeckSettingsForm({
         }));
       }
 
-        const updates: Partial<Deck> = {
-          title,
-          slug,
-          file_url: finalFileUrl,
-          pages: finalPages,
-          file_size: fileSize,
-          require_email: requireEmail,
-          require_password: requirePassword,
-          view_password: finalViewPassword ?? undefined,
-          expires_at:
-            expiryEnabled && expiryDate
-              ? new Date(expiryDate).toISOString()
-              : null,
-        };
+      const updates: Partial<Deck> = {
+        title,
+        slug,
+        file_url: finalFileUrl,
+        pages: finalPages,
+        file_size: fileSize,
+        require_email: requireEmail,
+        require_password: requirePassword,
+        view_password: finalViewPassword ?? undefined,
+        expires_at:
+          expiryEnabled && expiryDate
+            ? new Date(expiryDate).toISOString()
+            : null,
+      };
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
       onUpdate(updated);
@@ -176,9 +183,15 @@ export function DeckSettingsForm({
       console.error("Sync error:", err);
       // Clean up the uploaded source file if a post-upload step failed
       if (uploadedFileName) {
-        await supabase.storage.from("decks").remove([uploadedFileName]).catch((removeErr) =>
-          console.error("Failed to remove orphaned upload during error recovery:", removeErr)
-        );
+        await supabase.storage
+          .from("decks")
+          .remove([uploadedFileName])
+          .catch((removeErr) =>
+            console.error(
+              "Failed to remove orphaned upload during error recovery:",
+              removeErr,
+            ),
+          );
       }
       alert(message || "Failed to update asset settings");
       setUploadProgress("");
