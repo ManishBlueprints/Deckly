@@ -80,10 +80,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // 1. Listen for auth changes (handles both initial and updates)
       const {
         data: { subscription },
-      } = supabase.auth.onAuthStateChange(async (_, session) => {
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (!mounted) return;
 
         setSession(session);
+
+        // Security: Automatically clear sensitive cache if session expires or is signed out remotely
+        if (!session || event === "SIGNED_OUT") {
+          queryClient.clear();
+        }
 
         // Always stop loading after the first session discovery or event
         if (mounted && loadingRef.current) {
@@ -120,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       clearTimeout(safetyTimeout);
       if (authSubscription) authSubscription.unsubscribe();
     };
-  }, []);
+  }, [queryClient]);
 
   const isPro = profile?.tier === "PRO" || profile?.tier === "PRO_PLUS";
 

@@ -575,7 +575,7 @@ export function useManageDeckWorkflow({
 
               if (finalFileUrl) {
                 try {
-                  const { dbDeleted, assetsDeleted } = await deckService.deleteDeck(
+                  const { dbDeleted, assetsDeleted, cleanupError } = await deckService.deleteDeck(
                     deckRecord.id,
                     finalFileUrl,
                     slug,
@@ -587,7 +587,7 @@ export function useManageDeckWorkflow({
                   }
 
                   if (!assetsDeleted) {
-                    console.warn("Deck removed from UI but storage cleanup failed.");
+                    console.warn(`Deck removed from UI but storage cleanup failed for deck [${deckRecord.id}].`, cleanupError);
                   }
                 } catch (cleanupErr) {
                   console.error(

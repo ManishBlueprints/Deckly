@@ -98,7 +98,7 @@ function ManageDeck() {
       return;
     }
 
-    const currentTier = userProfile?.tier || "FREE";
+    const currentTier = (userProfile?.tier as keyof typeof TIER_CONFIG) || "FREE";
     const config = TIER_CONFIG[currentTier];
 
     if (ext !== "pdf" && !config.allowOffice) {

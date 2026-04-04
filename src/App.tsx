@@ -174,7 +174,11 @@ const AppContent = () => {
           />
           <Route
             path="/admin"
-            element={session ? <AdminDashboard /> : <Navigate to="/login" />}
+            element={session ? <AdminDashboard /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/admin/notifications"
+            element={session ? <Navigate to="/admin" replace /> : <Navigate to="/login" replace />}
           />
           <Route
             path="/"

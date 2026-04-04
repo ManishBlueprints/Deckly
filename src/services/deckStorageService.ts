@@ -42,15 +42,13 @@ export const deckStorageService = {
     onProgress?: (current: number, total: number) => void,
   ): Promise<string[]> {
     const imageUrls: string[] = new Array(imageBlobs.length);
-    const timestamp = Date.now();
     const concurrencyLimit = 3;
     let uploadedCount = 0;
 
     const uploadSingle = async (index: number) => {
       const safeSlug = sanitizeStorageSlug(deckSlug);
-      const fileName = `${userId}/deck-images/${safeSlug}/page-${
-        index + 1
-      }-${timestamp}.webp`;
+      // Removed timestamp: ensures stable paths per page. Overwrite stale pages idempotently since upsert is true.
+      const fileName = `${userId}/deck-images/${safeSlug}/page-${index + 1}.webp`;
 
       let attempts = 0;
       const maxAttempts = 3;
@@ -116,24 +114,46 @@ export const deckStorageService = {
 
     await withRetry(async () => {
       const safeSlug = sanitizeStorageSlug(slug);
-      const { data: files, error: listError } = await supabase.storage
-        .from("decks")
-        .list(`${userId}/deck-images/${safeSlug}`);
+      const allFilesToDelete: string[] = [];
+      let offset = 0;
+      const limit = 100;
+      let hasMore = true;
 
-      if (listError && !listError.message?.toLowerCase().includes("not found")) {
-        throw listError;
+      while (hasMore) {
+        const { data: files, error: listError } = await supabase.storage
+          .from("decks")
+          .list(`${userId}/deck-images/${safeSlug}`, { limit, offset });
+
+        if (listError) {
+          if (!listError.message?.toLowerCase().includes("not found")) {
+            throw listError;
+          }
+          break; // Nothing found
+        }
+
+        if (files && files.length > 0) {
+          files.forEach(file => {
+            allFilesToDelete.push(`${userId}/deck-images/${safeSlug}/${file.name}`);
+          });
+          offset += files.length;
+          hasMore = files.length === limit;
+        } else {
+          hasMore = false;
+        }
       }
 
-      if (files && files.length > 0) {
-        const filesToDelete = files.map(
-          (file) => `${userId}/deck-images/${safeSlug}/${file.name}`,
-        );
-        const { error: removeError } = await supabase.storage
-          .from("decks")
-          .remove(filesToDelete);
+      if (allFilesToDelete.length > 0) {
+        // supabase remove has a limit depending on the payload length, but usually accepts a lot. Let's chunk if necessary, or pass all.
+        // Doing simple chunks of 100
+        for (let i = 0; i < allFilesToDelete.length; i += limit) {
+          const chunk = allFilesToDelete.slice(i, i + limit);
+          const { error: removeError } = await supabase.storage
+            .from("decks")
+            .remove(chunk);
 
-        if (removeError && !removeError.message?.toLowerCase().includes("not found")) {
-          throw removeError;
+          if (removeError && !removeError.message?.toLowerCase().includes("not found")) {
+            throw removeError;
+          }
         }
       }
     });

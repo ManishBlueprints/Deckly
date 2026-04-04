@@ -19,6 +19,7 @@ import { analyticsService } from "../../services/analyticsService";
 import { supabase } from "../../services/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import * as pdfjsLib from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { Deck } from "../../types";
 import { cn } from "../../lib/utils";
 import { getDeckPath } from "../../utils/url";
@@ -30,7 +31,7 @@ import Toggle from "../common/Toggle";
 import Card from "../common/Card";
 
 // Set worker source for pdfjs-dist
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface DeckDetailPanelProps {
   deck: Deck;

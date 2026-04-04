@@ -19,7 +19,7 @@ function AdminDashboardPage() {
     refetch: refetchMetrics
   } = useAdminMetrics(isAdmin);
 
-  if (!session) return <Navigate to="/login" />;
+  if (!session) return <Navigate to="/login" replace />;
 
   // Display a centered loading state while we check the server-side admin status
   if (isLoading) {
@@ -34,6 +34,7 @@ function AdminDashboardPage() {
   }
 
   if (isError) {
+    console.error("[Admin Verification Failed]", error);
     return (
        <DashboardLayout title="Admin Dashboard" showFab={false}>
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-6">
@@ -44,8 +45,7 @@ function AdminDashboardPage() {
             Admin verification failed
           </h2>
           <p className="text-sm text-slate-400 max-w-md mb-6">
-            {(error as Error | null)?.message ||
-              "We could not verify admin access right now. You can retry without leaving this page."}
+            We could not verify admin access right now. Please try again.
           </p>
           <button
             onClick={() => refetchAdmin()}
@@ -58,7 +58,7 @@ function AdminDashboardPage() {
     );
   }
 
-  if (!isLoading && isAdmin === false) return <Navigate to="/" />;
+  if (!isLoading && isAdmin === false) return <Navigate to="/" replace />;
 
   return (
     <DashboardLayout title="Admin Dashboard" showFab={false}>

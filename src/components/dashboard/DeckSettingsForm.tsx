@@ -7,6 +7,7 @@ import { Deck } from "../../types";
 import { normalizeSlug } from "../../utils/slug";
 import { useAuth } from "../../contexts/AuthContext";
 import { processPdfToImages as processDeckPdfToImages } from "../../workflows/deckProcessing";
+import { extractStoragePath } from "../../services/deckService.shared";
 
 // Sub-components
 import { ManagementSection } from "./form-sections/ManagementSection";
@@ -171,6 +172,20 @@ export function DeckSettingsForm({
       };
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
+
+      // Feature: Updating document replaces the physical storage blob but keeps UI intact (no slug change).
+      // Cleanup the prior source file ONLY after successful DB update.
+      if (newFile && deck.file_url) {
+        const prevDocPath = extractStoragePath(deck.file_url, "decks");
+        if (prevDocPath && prevDocPath !== uploadedFileName) {
+          await supabase.storage
+            .from("decks")
+            .remove([prevDocPath])
+            .catch((cleanupErr) =>
+              console.warn("Failed to clean up old document:", cleanupErr)
+            );
+        }
+      }
       onUpdate(updated);
       setUploadProgress("Changes Synced!");
       timeoutRef.current = setTimeout(() => {

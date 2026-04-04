@@ -250,8 +250,13 @@ export function ManageDeckDetailsSection({
               disabled={!!editId}
               className={cn(
                 "h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#2B2B2B] disabled:opacity-50",
-                authHandle || userProfile?.handle ? "pl-[100px]" : "pl-12",
+                "pl-12"
               )}
+              style={
+                (authHandle || userProfile?.handle)
+                  ? { paddingLeft: `${((authHandle || userProfile?.handle || "...").length * 8) + 48}px` }
+                  : undefined
+              }
             />
             {isCheckingSlug && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -352,7 +357,7 @@ export function ManageDeckAccessSection({
   onEnableExpiryChange,
   onExpiresAtChange,
 }: AccessSectionProps) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   return (
     <div className="pt-6 border-t border-white/5 space-y-6">

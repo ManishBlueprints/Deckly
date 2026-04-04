@@ -122,7 +122,7 @@ export const userService = {
     const { data, error } = await supabase.rpc("get_total_system_users");
     if (error) {
       console.error("[User Service] Failed to get total users:", error);
-      throw error;
+      return 0; // Graceful fallback if RPC access is restricted
     }
     return data ?? 0;
   },

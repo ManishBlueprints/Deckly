@@ -42,8 +42,8 @@ const Input: React.FC<InputProps> = ({
           <Icon
             size={18}
             className={cn(
-              "text-slate-500 group-focus-within:text-deckly-primary transition-colors",
-              error ? "text-deckly-accent" : "",
+              "text-slate-500 group-focus-within:text-primary transition-colors",
+              error ? "text-destructive" : "",
             )}
           />
         )}
@@ -63,7 +63,7 @@ const Input: React.FC<InputProps> = ({
         )}
       </div>
       {error && (
-        <span className="text-xs text-deckly-accent px-1 font-medium animate-in fade-in slide-in-from-top-1">
+        <span className="text-xs text-destructive px-1 font-medium animate-in fade-in slide-in-from-top-1">
           {error}
         </span>
       )}

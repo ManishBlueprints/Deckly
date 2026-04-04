@@ -105,16 +105,10 @@ export function AdminNotificationComposer() {
 
   const doSendBroadcast = async () => {
     try {
-      const result = await sendBroadcastAll.mutateAsync({
+      const count = (await sendBroadcastAll.mutateAsync({
         title: title.trim(),
         message: message.trim(),
-      });
-
-      // Normalize response shape (handle number or { count: number })
-      const count =
-        typeof result === "number"
-          ? result
-          : ((result as Record<string, unknown>)?.count ?? 0);
+      })) as number;
 
       toast.success(`Broadcast sent to ${count} users`);
       resetForm();
@@ -259,7 +253,6 @@ export function AdminNotificationComposer() {
                   variant="ghost"
                   onClick={() => setShowConfirm(false)}
                   fullWidth
-                  className="rounded-none uppercase tracking-widest font-bold"
                 >
                   Abort
                 </Button>
@@ -268,7 +261,6 @@ export function AdminNotificationComposer() {
                   onClick={doSendBroadcast}
                   loading={sendBroadcastAll.isPending}
                   fullWidth
-                  className="rounded-none uppercase tracking-widest font-bold"
                 >
                   Authorize Send
                 </Button>

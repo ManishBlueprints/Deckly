@@ -8,16 +8,11 @@ export async function getDeckSession() {
   return session;
 }
 
-export async function getRequiredDeckUserId(providedUserId?: string) {
-  if (providedUserId) return providedUserId;
-
-  const session = await getDeckSession();
-  if (!session) throw new Error("Not authenticated");
-  return session.user.id;
-}
+export { getRequiredSessionUserId as getRequiredDeckUserId } from "./authSession";
 
 export function extractStoragePath(publicUrl: string, bucket: string): string | null {
   const marker = `/storage/v1/object/public/${bucket}/`;
-  const parts = publicUrl.split(marker);
-  return parts.length > 1 ? parts[1] : null;
+  const markerIndex = publicUrl.indexOf(marker);
+  if (markerIndex === -1) return null;
+  return publicUrl.substring(markerIndex + marker.length);
 }

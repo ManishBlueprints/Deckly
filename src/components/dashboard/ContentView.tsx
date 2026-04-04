@@ -27,14 +27,14 @@ export function ContentView() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleDeleteDeck = async (deck: any) => {
     try {
-      const { dbDeleted, assetsDeleted } = await deckService.deleteDeck(deck.id, deck.file_url, deck.slug);
+      const { dbDeleted, assetsDeleted, cleanupError } = await deckService.deleteDeck(deck.id, deck.file_url, deck.slug);
       
       if (!dbDeleted) {
         throw new Error("Failed to delete deck from database");
       }
 
       if (!assetsDeleted) {
-        console.warn("Deck removed from UI but storage cleanup failed.");
+        console.warn(`Deck removed from UI but storage cleanup failed for deck [${deck.id}].`, cleanupError);
       }
 
       // Invalidate queries to trigger refetch

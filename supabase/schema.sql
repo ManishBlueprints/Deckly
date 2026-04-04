@@ -305,10 +305,8 @@ ALTER TABLE public.decks ALTER COLUMN pages SET DEFAULT '[]'::jsonb;
 -- This section implements server-side password validation to prevent leakage.
 
 -- Minimal public profiles view: exposes only id and handle.
--- IMPORTANT: regular PostgreSQL views do NOT bypass RLS automatically.
--- The "Public profile fields" policy below grants anonymous SELECT on profiles;
--- column-level GRANTs ensure only id and handle are accessible to anon/authenticated.
-CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = true) AS
+-- Runs with security definer semantics to safely bypass RLS on profiles without exposing sensitive columns.
+CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = false) AS
 SELECT id, handle
 FROM public.profiles;
 
@@ -335,15 +333,12 @@ SELECT
 FROM public.data_rooms dr
 JOIN public.profiles_public p ON dr.user_id = p.id;
 
--- Allow anonymous and authenticated roles to read only the public profile fields.
--- Without this policy, RLS blocks all anon reads even through profiles_public.
-CREATE POLICY "Public profile fields are viewable by everyone"
-  ON public.profiles FOR SELECT
-  USING (true);
+-- Cleanup the old, insecure "viewable by everyone" policy if it exists.
+DROP POLICY IF EXISTS "Public profile fields are viewable by everyone" ON public.profiles;
 
--- Restrict which columns anon/authenticated can actually access on profiles.
--- RLS controls which ROWS are visible; column grants control which COLUMNS.
-GRANT SELECT (id, handle) ON public.profiles TO anon, authenticated;
+-- Restore standard table-level SELECT so authenticated users can read all columns of their OWN profile 
+-- (as permitted by the "Users can view their own profile" RLS policy above).
+GRANT SELECT ON public.profiles TO anon, authenticated;
 
 -- GRANT VIEW PERMISSIONS --
 GRANT SELECT ON public.decks_public TO anon, authenticated;

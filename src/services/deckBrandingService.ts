@@ -1,7 +1,7 @@
 import { supabase } from "./supabase";
 import { BrandingSettings } from "../types";
 import { withRetry } from "../utils/resilience";
-import { getRequiredDeckUserId } from "./deckService.shared";
+import { extractStoragePath, getRequiredDeckUserId } from "./deckService.shared";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set([
   "image/png",
@@ -128,14 +128,17 @@ export const deckBrandingService = {
         "Failed to update branding record after logo upload:",
         updateError,
       );
-      // Optional: Cleanup the newly uploaded file?
-      // For now, we return the URL but the record update failed.
-      return publicUrl;
+      // Cleanup the newly uploaded file to avoid an orphan asset in storage
+      if (fileName) {
+        await supabase.storage.from("assets").remove([fileName]).catch((err) =>
+          console.warn("Failed to clean up newly uploaded logo on DB error:", err)
+        );
+      }
+      throw updateError;
     }
 
     // 4. Cleanup ONLY the specific old logo if it exists and is different
     if (oldLogoUrl && oldLogoUrl !== publicUrl) {
-      const { extractStoragePath } = await import("./deckService.shared");
       const oldPath = extractStoragePath(oldLogoUrl, "assets");
 
       if (oldPath && oldPath.startsWith(`${userId}/branding/logo-`)) {

@@ -1,4 +1,5 @@
 import * as pdfjsLib from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { PdfLinkHotspot } from "../types";
 import { extractPdfLinkHotspots } from "../utils/pdfLinks";
 
@@ -14,8 +15,7 @@ export interface ProcessPdfToImagesOptions {
 }
 
 // Keep the worker setup in one place so all deck-processing flows use the same runtime.
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export async function processPdfToImages(
   pdfFile: File,
