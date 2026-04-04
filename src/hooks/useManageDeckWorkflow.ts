@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { deckService } from "../services/deckService";
+import { deckStorageService } from "../services/deckStorageService";
 import { supabase } from "../services/supabase";
 import { userService } from "../services/userService";
 import { dataRoomService } from "../services/dataRoomService";
@@ -158,7 +159,7 @@ export function useManageDeckWorkflow({
   );
 
   const processConvertedPdf = useCallback(
-    async (pdfUrl: string, targetDeckId: string, deckSlug: string) => {
+    async (pdfUrl: string, targetDeckId: string, deckSlug: string, stagingVersion?: string) => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -190,7 +191,7 @@ export function useManageDeckWorkflow({
         const imageAssets = await processPdfFile(pdfFile, 65, 5);
 
         setProgress(`Uploading slide 1 of ${imageAssets.length}...`);
-        const imageUrls = await deckService.uploadSlideImages(
+        const imageUrls = await deckStorageService.uploadSlideImages(
           userId,
           deckSlug,
           imageAssets.map((asset) => asset.blob),
@@ -198,6 +199,7 @@ export function useManageDeckWorkflow({
             setProgress(`Uploading slide ${current} of ${total}...`);
             setProgressPercent(70 + Math.round((current / total) * 20));
           },
+          stagingVersion
         );
 
         const processedPages = imageUrls.map((url, idx) => ({
@@ -252,7 +254,7 @@ export function useManageDeckWorkflow({
   );
 
   const triggerAndProcessConversion = useCallback(
-    async (deckId: string, deckSlug: string) => {
+    async (deckId: string, deckSlug: string, stagingVersion?: string) => {
       setProgress("Converting document to PDF...");
       setProgressPercent(60);
       const { data: invokeData, error: invokeError } = await supabase.functions
@@ -289,7 +291,7 @@ export function useManageDeckWorkflow({
         );
       }
 
-      await processConvertedPdf(invokeData.pdf_url, deckId, deckSlug);
+      await processConvertedPdf(invokeData.pdf_url, deckId, deckSlug, stagingVersion);
     },
     [processConvertedPdf, setProgress, setProgressPercent],
   );
@@ -318,8 +320,11 @@ export function useManageDeckWorkflow({
       try {
         let finalFileUrl = existingDeck?.file_url;
         let finalPages: SlidePage[] = existingDeck?.pages || [];
-        let finalStatus = "PROCESSED";
+        let finalStatus = existingDeck?.status || "PROCESSED";
+        let finalConversionMode = existingDeck?.display_mode || conversionMode;
+        let finalFileType = existingDeck?.file_type || fileType;
         let oldSlidePathsToDelete: string[] = [];
+        let stagingVersion = "";
         const finalViewPassword = requirePassword
           ? viewPassword.trim() || null
           : null;
@@ -350,21 +355,17 @@ export function useManageDeckWorkflow({
           finalFileUrl = publicUrl;
 
           if (editId && existingDeck) {
-            const { data: files } = await supabase.storage
-              .from("decks")
-              .list(`${userId}/deck-images/${slug}`);
-            if (files && files.length > 0) {
-              oldSlidePathsToDelete = files.map(
-                (storedFile) =>
-                  `${userId}/deck-images/${slug}/${storedFile.name}`,
-              );
-            }
+             const previousPages = existingDeck.pages || [];
+             oldSlidePathsToDelete = previousPages.map(page => page.image_url);
           }
+          finalConversionMode = conversionMode;
+          finalFileType = fileType;
+          stagingVersion = `v-${Date.now()}`;
 
           if (fileType === "pdf") {
             const imageAssets = await processPdfFile(file);
             setProgress(`Uploading slide 1 of ${imageAssets.length}...`);
-            const imageUrls = await deckService.uploadSlideImages(
+            const imageUrls = await deckStorageService.uploadSlideImages(
               userId,
               slug,
               imageAssets.map((asset) => asset.blob),
@@ -372,6 +373,7 @@ export function useManageDeckWorkflow({
                 setProgress(`Uploading slide ${current} of ${total}...`);
                 setProgressPercent(50 + Math.round((current / total) * 45));
               },
+              stagingVersion
             );
             finalPages = imageUrls.map((url, idx) => ({
               image_url: url,
@@ -379,7 +381,7 @@ export function useManageDeckWorkflow({
               links: imageAssets[idx]?.links || [],
             }));
             finalStatus = "PROCESSED";
-          } else if (conversionMode === "interactive") {
+          } else if (finalConversionMode === "interactive") {
             finalStatus = "CONVERTING";
             finalPages = [];
           } else {
@@ -417,7 +419,7 @@ export function useManageDeckWorkflow({
               status: finalStatus as "PENDING" | "CONVERTING" | "PROCESSED",
               display_mode: conversionMode,
               file_size: file ? file.size : existingDeck?.file_size,
-              file_type: fileType,
+              file_type: finalFileType,
               require_email: requireEmail,
               require_password: requirePassword,
               view_password: finalViewPassword,
@@ -428,19 +430,21 @@ export function useManageDeckWorkflow({
 
           if (
             oldSlidePathsToDelete.length > 0 &&
-            !(file && fileType !== "pdf" && conversionMode === "interactive")
+            !(file && finalFileType !== "pdf" && finalConversionMode === "interactive")
           ) {
-            await supabase.storage.from("decks").remove(oldSlidePathsToDelete);
+            const newUrls = new Set(finalPages.map(p => p.image_url));
+            const actuallyDelete = oldSlidePathsToDelete.filter(url => !newUrls.has(url));
+            await deckStorageService.deleteSlideImages(actuallyDelete);
           }
 
-          if (file && fileType !== "pdf" && conversionMode === "interactive") {
+          if (file && finalFileType !== "pdf" && finalConversionMode === "interactive") {
             try {
-              await triggerAndProcessConversion(editId, slug);
+              await triggerAndProcessConversion(editId, slug, stagingVersion);
 
               if (oldSlidePathsToDelete.length > 0) {
-                await supabase.storage.from("decks").remove(
-                  oldSlidePathsToDelete,
-                );
+                // Not diffing here, interactive mode wipes the existing deck rendering entirely. But diffing may still be safer.
+                const actuallyDelete = oldSlidePathsToDelete;
+                await deckStorageService.deleteSlideImages(actuallyDelete);
               }
             } catch (conversionErr) {
               const { data: currentDeck } = await supabase

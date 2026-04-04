@@ -167,7 +167,12 @@ export function AdminNotificationComposer() {
         )}
 
         {mode === "broadcast" && (
-          <div className="bg-destructive/10 border-l-4 border-destructive px-6 py-4 rounded-none text-sm flex items-center gap-4">
+          <div 
+            className="bg-destructive/10 border-l-4 border-destructive px-6 py-4 rounded-none text-sm flex items-center gap-4"
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+          >
             <AlertTriangle className="text-destructive shrink-0" size={20} />
             <p className="font-bold text-white">
               Critical: This will broadcast to every registered user.

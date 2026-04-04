@@ -7,7 +7,7 @@ import { useIsAdmin } from "../hooks/useAdminNotifications";
 import { useAdminMetrics } from "../hooks/useAdminMetrics";
 
 function AdminDashboardPage() {
-  const { session } = useAuth();
+  const { session, loading: isAuthLoading } = useAuth();
   const { isAdmin, isLoading, isError, error, refetch: refetchAdmin } = useIsAdmin(
     session?.user?.id,
   );
@@ -19,19 +19,24 @@ function AdminDashboardPage() {
     refetch: refetchMetrics
   } = useAdminMetrics(isAdmin);
 
-  if (!session) return <Navigate to="/login" replace />;
-
-  // Display a centered loading state while we check the server-side admin status
-  if (isLoading) {
+  // Display a centered loading state while checking the server-side admin status or initial auth
+  if (isAuthLoading || isLoading) {
     return (
-      <DashboardLayout title="Admin Dashboard" showFab={false}>
-        <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-500">
-          <Loader2 className="w-8 h-8 animate-spin mb-4 text-deckly-primary" />
-          <p className="text-sm font-medium">Verifying admin access...</p>
+      <DashboardLayout title="Admin Control Center">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-surface border border-border mt-8 h-[70vh]">
+          <Loader2 size={40} className="text-primary animate-spin mb-4" />
+          <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">
+            Authenticating
+          </h2>
+          <p className="text-muted-foreground uppercase tracking-widest text-xs font-bold">
+            Verifying secure session...
+          </p>
         </div>
       </DashboardLayout>
     );
   }
+
+  if (!isAuthLoading && !session) return <Navigate to="/login" replace />;
 
   if (isError) {
     console.error("[Admin Verification Failed]", error);

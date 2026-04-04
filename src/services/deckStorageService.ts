@@ -40,6 +40,7 @@ export const deckStorageService = {
     deckSlug: string,
     imageBlobs: Blob[],
     onProgress?: (current: number, total: number) => void,
+    version?: string,
   ): Promise<string[]> {
     const imageUrls: string[] = new Array(imageBlobs.length);
     const concurrencyLimit = 3;
@@ -47,8 +48,10 @@ export const deckStorageService = {
 
     const uploadSingle = async (index: number) => {
       const safeSlug = sanitizeStorageSlug(deckSlug);
-      // Removed timestamp: ensures stable paths per page. Overwrite stale pages idempotently since upsert is true.
-      const fileName = `${userId}/deck-images/${safeSlug}/page-${index + 1}.webp`;
+      const fileName = version 
+        ? `${userId}/deck-images/${safeSlug}/staging/${version}/page-${index + 1}.webp` 
+        : `${userId}/deck-images/${safeSlug}/page-${index + 1}.webp`;
+
 
       let attempts = 0;
       const maxAttempts = 3;
@@ -155,6 +158,18 @@ export const deckStorageService = {
             throw removeError;
           }
         }
+      }
+    });
+  },
+
+  async deleteSlideImages(fileUrls: string[]): Promise<void> {
+    const paths = fileUrls.map(url => extractStoragePath(url, "decks")).filter(Boolean) as string[];
+    if (paths.length === 0) return;
+
+    await withRetry(async () => {
+      const { error } = await supabase.storage.from("decks").remove(paths);
+      if (error && !error.message?.toLowerCase().includes("not found")) {
+        throw error;
       }
     });
   },

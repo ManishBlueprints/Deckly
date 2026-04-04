@@ -85,8 +85,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         setSession(session);
 
-        // Security: Automatically clear sensitive cache if session expires or is signed out remotely
-        if (!session || event === "SIGNED_OUT") {
+        // Security: Automatically clear sensitive cache if session is signed out remotely
+        if (event === "SIGNED_OUT") {
           queryClient.clear();
         }
 

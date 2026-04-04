@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { deckService } from "../../services/deckService";
+import { deckStorageService } from "../../services/deckStorageService";
 import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
 import { normalizeSlug } from "../../utils/slug";
@@ -144,10 +145,13 @@ export function DeckSettingsForm({
           return;
         }
         setUploadProgress(`Updating ${imageAssets.length} slides...`);
-        const imageUrls = await deckService.uploadSlideImages(
+        const stagingVersion = `v-${Date.now()}`;
+        const imageUrls = await deckStorageService.uploadSlideImages(
           userId,
           slug,
           imageAssets.map((asset) => asset.blob),
+          undefined,
+          stagingVersion
         );
         finalPages = imageUrls.map((url, idx) => ({
           image_url: url,
@@ -184,6 +188,18 @@ export function DeckSettingsForm({
             .catch((cleanupErr) =>
               console.warn("Failed to clean up old document:", cleanupErr)
             );
+        }
+        
+        // Also clean up old slide images that are no longer used
+        if (deck.pages) {
+          const oldUrls = deck.pages.map(p => p.image_url);
+          const newUrls = new Set(finalPages.map(p => p.image_url));
+          const actuallyDelete = oldUrls.filter(url => !newUrls.has(url));
+          if (actuallyDelete.length > 0) {
+            await deckStorageService.deleteSlideImages(actuallyDelete).catch(
+              cleanupErr => console.warn("Failed to clean up old slide images:", cleanupErr)
+            );
+          }
         }
       }
       onUpdate(updated);

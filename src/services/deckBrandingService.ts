@@ -16,9 +16,10 @@ export const deckBrandingService = {
   async getBrandingSettings(
     providedUserId?: string,
   ): Promise<BrandingSettings | null> {
-    const userId = await getRequiredDeckUserId(providedUserId).catch(() =>
-      null
-    );
+    const userId = await getRequiredDeckUserId(providedUserId).catch((error) => {
+      if (error instanceof Error && error.message === "Not authenticated") return null;
+      throw error;
+    });
     if (!userId) return null;
 
     return withRetry(async () => {
@@ -83,7 +84,7 @@ export const deckBrandingService = {
     }
 
     const userId = await getRequiredDeckUserId();
-    const fileName = `${userId}/branding/logo-${Date.now()}${
+    const fileName = `${userId}/branding/logo-${Date.now()}-${crypto.randomUUID()}${
       fileExt ? "." + fileExt : ""
     }`;
 

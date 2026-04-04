@@ -306,6 +306,7 @@ ALTER TABLE public.decks ALTER COLUMN pages SET DEFAULT '[]'::jsonb;
 
 -- Minimal public profiles view: exposes only id and handle.
 -- Runs with security definer semantics to safely bypass RLS on profiles without exposing sensitive columns.
+DROP VIEW IF EXISTS public.profiles_public CASCADE;
 CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = false) AS
 SELECT id, handle
 FROM public.profiles;
