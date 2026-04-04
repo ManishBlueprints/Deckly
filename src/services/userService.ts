@@ -117,4 +117,13 @@ export const userService = {
     if (error) return false;
     return count === 0;
   },
+
+  async getTotalUsers(): Promise<number> {
+    const { data, error } = await supabase.rpc("get_total_system_users");
+    if (error) {
+      console.error("[User Service] Failed to get total users:", error);
+      throw error;
+    }
+    return data ?? 0;
+  },
 };

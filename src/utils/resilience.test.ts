@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+/// <reference types="vitest/globals" />
+
 import { withRetry } from "./resilience";
 
 // ─── withRetry ───────────────────────────────────────────────────────────────

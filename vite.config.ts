@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -20,11 +20,6 @@ export default defineConfig({
         },
       },
     },
-  },
-  test: {
-    globals: true,
-    environment: "node", // Pure utility tests don't need a DOM
-    include: ["src/**/*.{test,spec}.ts"],
   },
 });
 

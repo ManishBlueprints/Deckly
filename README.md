@@ -58,13 +58,21 @@
 
 ```text
 src/
-├── components/     # UI atoms (common/) and complex dashboard modules
+├── components/     # Shared UI plus feature-facing dashboard/viewer sections
 ├── contexts/       # Auth, Tier Gating, and Branding state
-├── hooks/          # Domain-specific logic (useDecks, useAnalytics)
-├── pages/          # DataRoomDetail, DeckAnalytics, Viewer, Home
-├── services/       # The "Brain" - deckService, analyticsService, auth
-└── utils/          # URL generation and formatting helpers
+├── hooks/          # Query hooks and workflow hooks
+├── pages/          # Route containers like Viewer, DataRoomViewer, ManageDeck
+├── services/       # Composed service facade + focused service modules
+├── workflows/      # Shared document/deck processing flows
+└── utils/          # URL generation, resilience, slug helpers
 ```
+
+Recent internal cleanup moved the repo toward clearer boundaries:
+
+- `ManageDeck` now uses a workflow hook and split presentational sections
+- shared PDF/document processing lives in `src/workflows/deckProcessing.ts`
+- `deckService` is a composed facade over storage, branding, and library modules
+- auth/session lookup is being standardized through shared service helpers
 
 Whether you want to self-host your own private Data Room or contribute to the next generation of founder tools, the code is yours to explore, modify, and deploy under the **GNU AGPL v3**.
 
@@ -119,6 +127,16 @@ For more details, see the full [LICENSE](./LICENSE) file.
 ```bash
 npm run dev
 ```
+
+### Quality checks
+
+```bash
+npm run type-check
+npm run lint
+npm test
+```
+
+Vitest is now part of the normal local workflow and should be considered a trusted signal before shipping changes.
 
 #### Docker Development
 
