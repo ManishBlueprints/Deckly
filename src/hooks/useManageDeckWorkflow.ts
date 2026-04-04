@@ -609,10 +609,7 @@ export function useManageDeckWorkflow({
           queryKey: ["user-total-stats", session?.user?.id],
         });
 
-        setTimeout(
-          () => navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content"),
-          1500,
-        );
+        navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content");
       } catch (err: unknown) {
         console.error("Upload error:", err);
         let errorMsg = "Something went wrong. Please try again.";
@@ -625,6 +622,7 @@ export function useManageDeckWorkflow({
         }
         setError(errorMsg);
         setProgress("");
+        setProgressPercent(0);
       } finally {
         setLoading(false);
       }

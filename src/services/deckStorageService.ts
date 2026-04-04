@@ -44,6 +44,7 @@ export const deckStorageService = {
     const imageUrls: string[] = new Array(imageBlobs.length);
     const timestamp = Date.now();
     const concurrencyLimit = 3;
+    let uploadedCount = 0;
 
     const uploadSingle = async (index: number) => {
       const safeSlug = sanitizeStorageSlug(deckSlug);
@@ -69,9 +70,10 @@ export const deckStorageService = {
             data: { publicUrl },
           } = supabase.storage.from("decks").getPublicUrl(fileName);
           imageUrls[index] = publicUrl;
+          uploadedCount++;
 
           if (onProgress) {
-            onProgress(imageUrls.filter(Boolean).length, imageBlobs.length);
+            onProgress(uploadedCount, imageBlobs.length);
           }
           return;
         } catch (err) {
@@ -107,8 +109,7 @@ export const deckStorageService = {
       const { error } = await supabase.storage.from("decks").remove([storagePath]);
       if (
         error &&
-        !error.message?.includes("not found") &&
-        error.message !== "Object not found"
+        !error.message?.toLowerCase().includes("not found")
       ) {
         throw error;
       }
@@ -120,7 +121,7 @@ export const deckStorageService = {
         .from("decks")
         .list(`${userId}/deck-images/${safeSlug}`);
 
-      if (listError && !listError.message?.includes("not found")) {
+      if (listError && !listError.message?.toLowerCase().includes("not found")) {
         throw listError;
       }
 
@@ -132,7 +133,7 @@ export const deckStorageService = {
           .from("decks")
           .remove(filesToDelete);
 
-        if (removeError && !removeError.message?.includes("not found")) {
+        if (removeError && !removeError.message?.toLowerCase().includes("not found")) {
           throw removeError;
         }
       }
