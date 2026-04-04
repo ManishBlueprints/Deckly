@@ -16,7 +16,9 @@ export const deckBrandingService = {
   async getBrandingSettings(
     providedUserId?: string,
   ): Promise<BrandingSettings | null> {
-    const userId = await getRequiredDeckUserId(providedUserId).catch(() => null);
+    const userId = await getRequiredDeckUserId(providedUserId).catch(() =>
+      null
+    );
     if (!userId) return null;
 
     return withRetry(async () => {
@@ -39,7 +41,11 @@ export const deckBrandingService = {
     const { data, error } = await supabase
       .from("branding")
       .upsert(
-        [{ ...settings, user_id: userId, updated_at: new Date().toISOString() }],
+        [{
+          ...settings,
+          user_id: userId,
+          updated_at: new Date().toISOString(),
+        }],
         { onConflict: "user_id" },
       )
       .select()
@@ -50,7 +56,9 @@ export const deckBrandingService = {
 
   async uploadLogo(file: File): Promise<string> {
     const dotIndex = file.name.lastIndexOf(".");
-    const fileExt = dotIndex > -1 ? file.name.slice(dotIndex + 1).toLowerCase() : "";
+    const fileExt = dotIndex > -1
+      ? file.name.slice(dotIndex + 1).toLowerCase()
+      : "";
 
     if (!fileExt || !ALLOWED_LOGO_EXTENSIONS.has(fileExt)) {
       throw new Error(
@@ -69,18 +77,26 @@ export const deckBrandingService = {
     }
 
     if (file.size > MAX_LOGO_SIZE_BYTES) {
-      throw new Error("Logo file is too large. Please upload an image up to 5MB.");
+      throw new Error(
+        "Logo file is too large. Please upload an image up to 5MB.",
+      );
     }
 
     const userId = await getRequiredDeckUserId();
-    const fileName = `${userId}/branding/logo-${Date.now()}${fileExt ? "." + fileExt : ""}`;
+    const fileName = `${userId}/branding/logo-${Date.now()}${
+      fileExt ? "." + fileExt : ""
+    }`;
 
     // 1. Fetch current branding to identify the old logo
-    const { data: currentBranding } = await supabase
+    const { data: currentBranding, error: fetchError } = await supabase
       .from("branding")
       .select("logo_url")
       .eq("user_id", userId)
       .single();
+
+    if (fetchError && fetchError.code !== "PGRST116") {
+      console.warn("Failed to fetch current branding:", fetchError);
+    }
 
     const oldLogoUrl = currentBranding?.logo_url;
 
@@ -99,13 +115,20 @@ export const deckBrandingService = {
     const { error: updateError } = await supabase
       .from("branding")
       .upsert(
-        [{ logo_url: publicUrl, user_id: userId, updated_at: new Date().toISOString() }],
+        [{
+          logo_url: publicUrl,
+          user_id: userId,
+          updated_at: new Date().toISOString(),
+        }],
         { onConflict: "user_id" },
       );
 
     if (updateError) {
-      console.error("Failed to update branding record after logo upload:", updateError);
-      // Optional: Cleanup the newly uploaded file? 
+      console.error(
+        "Failed to update branding record after logo upload:",
+        updateError,
+      );
+      // Optional: Cleanup the newly uploaded file?
       // For now, we return the URL but the record update failed.
       return publicUrl;
     }
@@ -114,7 +137,7 @@ export const deckBrandingService = {
     if (oldLogoUrl && oldLogoUrl !== publicUrl) {
       const { extractStoragePath } = await import("./deckService.shared");
       const oldPath = extractStoragePath(oldLogoUrl, "assets");
-      
+
       if (oldPath && oldPath.startsWith(`${userId}/branding/logo-`)) {
         const { error: removeError } = await supabase.storage
           .from("assets")
@@ -129,8 +152,6 @@ export const deckBrandingService = {
         }
       }
     }
-
-    return publicUrl;
 
     return publicUrl;
   },
