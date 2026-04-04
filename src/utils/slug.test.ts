@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+/// <reference types="vitest/globals" />
+
 import { normalizeSlug, normalizeHandle } from "./slug";
 
 // ─── normalizeSlug ──────────────────────────────────────────────────────────

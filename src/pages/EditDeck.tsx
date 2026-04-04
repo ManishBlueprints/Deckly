@@ -103,7 +103,16 @@ export default function EditDeck() {
                 deck={deck}
                 onUpdate={setDeck}
                 onDelete={async (id) => {
-                  await deckService.deleteDeck(id, deck.file_url, deck.slug);
+                  const { dbDeleted, assetsDeleted } = await deckService.deleteDeck(id, deck.file_url, deck.slug);
+                  
+                  if (!dbDeleted) {
+                    throw new Error("Failed to delete deck from database");
+                  }
+
+                  if (!assetsDeleted) {
+                    console.warn("Deck removed from UI but storage cleanup failed.");
+                  }
+
                   queryClient.invalidateQueries({ queryKey: ["decks", session?.user?.id] });
                   queryClient.invalidateQueries({
                     queryKey: ["user-total-stats", session?.user?.id],

@@ -309,7 +309,7 @@ ALTER TABLE public.decks ALTER COLUMN pages SET DEFAULT '[]'::jsonb;
 -- The "Public profile fields" policy below grants anonymous SELECT on profiles;
 -- column-level GRANTs ensure only id and handle are accessible to anon/authenticated.
 CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = true) AS
-SELECT id, handle, full_name, avatar_url
+SELECT id, handle
 FROM public.profiles;
 
 -- Public view for decks (excludes sensitive view_password, file_url, and pages payload)
@@ -343,7 +343,7 @@ CREATE POLICY "Public profile fields are viewable by everyone"
 
 -- Restrict which columns anon/authenticated can actually access on profiles.
 -- RLS controls which ROWS are visible; column grants control which COLUMNS.
-GRANT SELECT (id, handle, full_name, avatar_url) ON public.profiles TO anon, authenticated;
+GRANT SELECT (id, handle) ON public.profiles TO anon, authenticated;
 
 -- GRANT VIEW PERMISSIONS --
 GRANT SELECT ON public.decks_public TO anon, authenticated;
@@ -979,6 +979,10 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread_created
     ON public.notifications(user_id, created_at DESC)
     WHERE read_at IS NULL;
 
+CREATE INDEX IF NOT EXISTS idx_notifications_dedup
+    ON public.notifications(user_id, type, title, created_at DESC)
+    WHERE read_at IS NULL;
+
 -- =============================================================================
 -- 13a. HELPERS: admin_emails & is_admin()
 -- =============================================================================
@@ -1050,13 +1054,6 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'Invalid notification type: %', p_type;
     END IF;
-
-    -- Create supporting partial index for deduplication if it doesn't exist
-    -- idx_notifications_dedup on columns (user_id, type, title, created_at DESC)
-    -- with WHERE read_at IS NULL. This ensures efficient coverage for the IF EXISTS check below.
-    CREATE INDEX IF NOT EXISTS idx_notifications_dedup 
-    ON public.notifications (user_id, type, title, created_at DESC) 
-    WHERE read_at IS NULL;
 
     -- Deduplicate: skip if an identical unread notification already exists
     -- created within the last 10 minutes (prevents trigger spam on bulk ops)
@@ -1419,3 +1416,26 @@ GRANT EXECUTE ON FUNCTION public.create_admin_broadcast_all(TEXT, TEXT, JSONB)  
 -- Schedule it via pg_cron (Supabase dashboard → Database → Cron Jobs):
 --   SELECT cron.schedule('cleanup-notifications', '0 3 * * *',
 --     $$SELECT public.cleanup_expired_notifications();$$);
+
+-- =============================================================================
+-- Admin Dashboard Metrics
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.get_total_system_users()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_count INTEGER;
+BEGIN
+    IF NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Unauthorized';
+    END IF;
+
+    SELECT COUNT(*)::INTEGER INTO v_count FROM public.profiles;
+    RETURN v_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_total_system_users() TO authenticated;

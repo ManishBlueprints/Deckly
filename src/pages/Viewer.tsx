@@ -41,7 +41,7 @@ function Viewer() {
 
   // TanStack Queries
   const { data: isSaved = false } = useIsDeckSaved(deck?.id, session?.user?.id);
-  const saveToLibraryMutation = useSaveToLibraryMutation();
+  const saveToLibraryMutation = useSaveToLibraryMutation(session?.user?.id);
 
   // Initialize viewerEmail from session if available
   useEffect(() => {

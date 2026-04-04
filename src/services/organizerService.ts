@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
 import { withRetry } from "../utils/resilience";
 import { LibraryFolder, LibraryTag, SavedDeckOrganized } from "../types";
 
@@ -33,11 +34,7 @@ export const organizerService = {
 
   async getFolders(optionalUserId?: string): Promise<LibraryFolder[]> {
     return withRetry(async () => {
-      let uid = optionalUserId;
-      if (!uid) {
-        const { data: { session } } = await supabase.auth.getSession();
-        uid = session?.user?.id;
-      }
+      const uid = await getSessionUserId(optionalUserId);
       if (!uid) return [];
 
       const { data, error } = await supabase
@@ -93,15 +90,14 @@ export const organizerService = {
   ): Promise<LibraryFolder> {
     // Note: No withRetry here - this is a multi-step non-idempotent operation.
     // Retrying could create duplicate folders since there's no unique constraint on (user_id, name).
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not authenticated");
+    const userId = await getRequiredSessionUserId();
 
     const { data: folderData, error: folderError } = await supabase
       .from("library_folders")
       .insert([{
         name,
         color: color || "#666666",
-        user_id: session.user.id,
+        user_id: userId,
       }])
       .select()
       .single();
@@ -114,7 +110,7 @@ export const organizerService = {
       console.warn("Falling back to insert folder without color...");
       const { data: fbData, error: fbError } = await supabase
         .from("library_folders")
-        .insert([{ name, user_id: session.user.id }])
+        .insert([{ name, user_id: userId }])
         .select()
         .single();
       finalData = fbData ? { ...fbData, color: color || "#666666" } : fbData;
@@ -139,7 +135,7 @@ export const organizerService = {
           const { data: existingTag, error: existingTagErr } = await supabase
             .from("library_tags")
             .select("*")
-            .eq("user_id", session.user.id)
+            .eq("user_id", userId)
             .eq("name", tagName)
             .maybeSingle();
 
@@ -154,7 +150,7 @@ export const organizerService = {
               .insert([{
                 name: tagName,
                 color: "#666666",
-                user_id: session.user.id,
+                user_id: userId,
               }])
               .select()
               .single();
@@ -231,8 +227,7 @@ export const organizerService = {
   ): Promise<LibraryFolder> {
     // Note: No withRetry here - this is a multi-step operation with compensating rollback.
     // The caller can handle network errors and retry if needed.
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not authenticated");
+    const userId = await getRequiredSessionUserId();
 
     // 1. Fetch original folder data for potential rollback
     const { data: originalFolder, error: snapErr } = await supabase
@@ -307,7 +302,7 @@ export const organizerService = {
           const { data: existingTag, error: lookupErr } = await supabase
             .from("library_tags")
             .select("*")
-            .eq("user_id", session.user.id)
+            .eq("user_id", userId)
             .eq("name", tagName)
             .maybeSingle();
 
@@ -320,7 +315,7 @@ export const organizerService = {
               .insert([{
                 name: tagName,
                 color: "#666666",
-                user_id: session.user.id,
+                user_id: userId,
               }])
               .select()
               .single();
@@ -431,11 +426,7 @@ export const organizerService = {
 
   async getTags(optionalUserId?: string): Promise<LibraryTag[]> {
     return withRetry(async () => {
-      let uid = optionalUserId;
-      if (!uid) {
-        const { data: { session } } = await supabase.auth.getSession();
-        uid = session?.user?.id;
-      }
+      const uid = await getSessionUserId(optionalUserId);
       if (!uid) return [];
 
       const { data, error } = await supabase
@@ -453,14 +444,13 @@ export const organizerService = {
     // Uses upsert for idempotency - safe to retry since UNIQUE(user_id, name) constraint
     // prevents duplicates. On conflict, updates the existing tag's color.
     return withRetry(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
+      const userId = await getRequiredSessionUserId();
 
       const canonicalName = name.trim().toUpperCase();
       const { data, error } = await supabase
         .from("library_tags")
         .upsert(
-          [{ name: canonicalName, color, user_id: session.user.id }],
+          [{ name: canonicalName, color, user_id: userId }],
           { onConflict: "user_id,name" }
         )
         .select()
@@ -569,11 +559,7 @@ export const organizerService = {
     optionalUserId?: string,
   ): Promise<SavedDeckOrganized[]> {
     return withRetry(async () => {
-      let uid = optionalUserId;
-      if (!uid) {
-        const { data: { session } } = await supabase.auth.getSession();
-        uid = session?.user?.id;
-      }
+      const uid = await getSessionUserId(optionalUserId);
       if (!uid) return [];
 
       const { data, error } = await supabase
