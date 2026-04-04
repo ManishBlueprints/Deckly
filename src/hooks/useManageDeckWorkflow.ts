@@ -11,6 +11,15 @@ import { Deck, SlidePage, UserProfile } from "../types";
 
 type SetState<T> = Dispatch<SetStateAction<T>>;
 
+function isErrorWithMessageCode(err: unknown): err is { message: string; code?: string } {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "message" in err &&
+    typeof (err as { message: unknown }).message === "string"
+  );
+}
+
 interface UseManageDeckWorkflowParams {
   editId: string | null;
   setExistingDeck: SetState<Deck | null>;
@@ -75,8 +84,10 @@ export function useManageDeckWorkflow({
       setUserProfile(profile);
     } catch (err) {
       console.error("Failed to fetch user profile:", err);
+      setUserProfile(null);
+      setError("Failed to load your profile. Some features may be limited.");
     }
-  }, [setUserProfile]);
+  }, [setUserProfile, setError]);
 
   const loadExistingDeck = useCallback(
     async (id: string) => {
@@ -262,10 +273,17 @@ export function useManageDeckWorkflow({
 
       if (!invokeData?.pdf_url) {
         console.error("Missing pdf_url in invocation response:", invokeData);
-        await supabase.from("decks").update({ status: "PENDING" }).eq(
-          "id",
-          deckId,
-        );
+        const { error: resetError } = await supabase
+          .from("decks")
+          .update({ status: "PENDING" })
+          .eq("id", deckId);
+
+        if (resetError) {
+          console.error("Failed to reset deck status after missing URL:", {
+            deckId,
+            resetError,
+          });
+        }
         throw new Error(
           "Conversion succeeded but returned no PDF URL. Please try again.",
         );
@@ -442,10 +460,10 @@ export function useManageDeckWorkflow({
                 )
                 .map((page) => page.image_url);
 
-                if (newAssetUrls.length > 0) {
-                  const paths = newAssetUrls
-                    .map((url) => extractStoragePath(url, "decks"))
-                    .filter((path): path is string => !!path);
+              if (newAssetUrls.length > 0) {
+                const paths = newAssetUrls
+                  .map((url) => extractStoragePath(url, "decks"))
+                  .filter((path): path is string => !!path);
 
                 if (paths.length > 0) {
                   await supabase.storage.from("decks").remove(paths).catch(
@@ -459,9 +477,7 @@ export function useManageDeckWorkflow({
               }
 
               if (finalFileUrl && finalFileUrl !== previousValues.file_url) {
-                const newDocPath = finalFileUrl.split(
-                  "/storage/v1/object/public/decks/",
-                )[1];
+                const newDocPath = extractStoragePath(finalFileUrl, "decks");
                 if (newDocPath) {
                   await supabase.storage.from("decks").remove([newDocPath])
                     .catch(
@@ -557,18 +573,6 @@ export function useManageDeckWorkflow({
                 },
               );
 
-              const { error: statusResetError } = await supabase
-                .from("decks")
-                .update({ status: "PENDING" })
-                .eq("id", deckRecord.id);
-
-              if (statusResetError) {
-                console.error(
-                  "Failed to reset deck status after conversion failure:",
-                  statusResetError,
-                );
-              }
-
               if (finalFileUrl) {
                 try {
                   await deckService.deleteDeck(
@@ -611,11 +615,13 @@ export function useManageDeckWorkflow({
         );
       } catch (err: unknown) {
         console.error("Upload error:", err);
-        const e = err as { message?: string; code?: string };
-        let errorMsg = e.message || "Something went wrong. Please try again.";
-        if (e.code === "23505" && e.message?.includes("slug")) {
-          errorMsg =
-            "This URL Slug is already taken. Please enter a different one.";
+        let errorMsg = "Something went wrong. Please try again.";
+
+        if (isErrorWithMessageCode(err)) {
+          errorMsg = err.message;
+          if (err.code === "23505" && err.message.includes("slug")) {
+            errorMsg = "This URL Slug is already taken. Please enter a different one.";
+          }
         }
         setError(errorMsg);
         setProgress("");

@@ -190,7 +190,20 @@ const deckCrudService = {
       query = query.neq("id", excludeId);
     }
 
-    const { data } = await query.maybeSingle();
+    const { data, error } = await query.maybeSingle();
+
+    if (error) {
+      console.error("Error checking slug availability:", {
+        slug,
+        excludeId,
+        userId: session.user.id,
+        error,
+      });
+      throw new Error(
+        `Failed to verify slug availability for "${slug}". Please try again.`,
+      );
+    }
+
     return !data;
   },
 };
@@ -237,10 +250,10 @@ const deckPublicService = {
       .from("decks_public")
       .select("user_handle, slug")
       .eq("slug", slug)
-      .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) return null;
+    if (error) throw error;
+    if (!data) return null;
     return { handle: data.user_handle, slug: data.slug };
   },
 };

@@ -60,6 +60,23 @@ npm install
 npm run dev
 ```
 
+### Environment setup
+
+1. Copy `.env.example` to `.env.local` (or `.env`):
+   ```bash
+   cp .env.example .env.local
+   ```
+2. Set the required environment variables:
+   - `VITE_SUPABASE_URL`: Your Supabase project URL (found in Project Settings > API).
+   - `VITE_SUPABASE_ANON_KEY`: Your Supabase anon/public key (found in Project Settings > API).
+   - `VITE_POSTHOG_KEY`: (Optional) Your PostHog project API key.
+   - `VITE_POSTHOG_HOST`: (Optional) Your PostHog host (e.g., `https://app.posthog.com`).
+
+> [!IMPORTANT]
+> Never commit your `.env.local` or any file containing secrets to version control.
+
+After configuring your environment, ensure you run `npm install` to keep dependencies in sync before starting the development server.
+
 Before merging code, run:
 
 ```bash

@@ -107,6 +107,8 @@ function ManageDeck() {
       setConversionMode("raw");
     } else if (ext === "pptx") {
       setConversionMode(config.allowInteractive ? "interactive" : "raw");
+    } else {
+      setConversionMode("raw");
     }
 
     const baseName = selectedFile.name.includes(".")
@@ -210,7 +212,8 @@ function ManageDeck() {
               onRequirePasswordChange={setRequirePassword}
               onViewPasswordChange={setViewPassword}
               onTogglePasswordVisibility={() =>
-                setShowPasswordField((value) => !value)}
+                setShowPasswordField((value) => !value)
+              }
               onEnableExpiryChange={(checked) => {
                 setEnableExpiry(checked);
                 if (!checked) setExpiresAt("");
@@ -230,7 +233,8 @@ function ManageDeck() {
               loading={loading}
               returnToRoom={returnToRoom}
               onCancel={() =>
-                navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content")}
+                navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content")
+              }
             />
           </form>
         </DashboardCard>

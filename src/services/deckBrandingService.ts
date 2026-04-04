@@ -100,6 +100,7 @@ export const deckBrandingService = {
     }
 
     const oldLogoPaths = (existingFiles || [])
+      .filter((existingFile) => existingFile.name.startsWith("logo-"))
       .filter((existingFile) => `${brandingPrefix}/${existingFile.name}` !== fileName)
       .map((existingFile) => `${brandingPrefix}/${existingFile.name}`);
 

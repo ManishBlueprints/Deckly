@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Upload,
@@ -49,6 +49,11 @@ export function ManageDeckUploadSection({
   onUpsellRequest,
   disabled = false,
 }: UploadSectionProps) {
+  const config = useMemo(
+    () => TIER_CONFIG[userProfile?.tier || "FREE"],
+    [userProfile?.tier],
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-1">
@@ -135,7 +140,6 @@ export function ManageDeckUploadSection({
               <button
                 type="button"
                 onClick={() => {
-                  const config = TIER_CONFIG[userProfile?.tier || "FREE"];
                   if (!config.allowInteractive) {
                     onUpsellRequest("Interactive Mode");
                   } else {
@@ -150,7 +154,7 @@ export function ManageDeckUploadSection({
                 )}
               >
                 INTERACTIVE
-                {!TIER_CONFIG[userProfile?.tier || "FREE"].allowInteractive && (
+                {!config.allowInteractive && (
                   <span className="bg-background text-slate-400 border border-white/5 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                     PRO
                   </span>
@@ -231,15 +235,13 @@ export function ManageDeckDetailsSection({
             <Input
               id="slug"
               value={slug}
-              onChange={(e) => {
-                if (!editId) onSlugChange(e.target.value);
-              }}
+              onChange={(e) => onSlugChange(e.target.value)}
               required
               placeholder="my-pitch"
               disabled={!!editId}
               className={cn(
                 "h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#2B2B2B] disabled:opacity-50",
-                userProfile?.handle || authHandle ? "pl-[100px]" : "pl-12",
+                authHandle || userProfile?.handle ? "pl-[100px]" : "pl-12",
               )}
             />
             {isCheckingSlug && (
@@ -341,6 +343,8 @@ export function ManageDeckAccessSection({
   onEnableExpiryChange,
   onExpiresAtChange,
 }: AccessSectionProps) {
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+
   return (
     <div className="pt-6 border-t border-white/5 space-y-6">
       <div className="flex items-center gap-2 mb-2">
@@ -493,7 +497,7 @@ export function ManageDeckAccessSection({
                 type="date"
                 value={expiresAt}
                 onChange={(e) => onExpiresAtChange(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
+                min={today}
                 className="h-11 rounded-md border-white/10 bg-surface-lowest focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-background [color-scheme:dark]"
               />
             </div>
@@ -523,6 +527,7 @@ export function ManageDeckFeedbackSection({
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
           className="space-y-3 pt-4"
         >
           <div className="flex items-center justify-between">
@@ -541,6 +546,7 @@ export function ManageDeckFeedbackSection({
               className="absolute top-0 left-0 h-full bg-deckly-primary"
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
+              exit={{ width: 0 }}
               transition={{ duration: 0.5 }}
             />
           </div>
@@ -551,6 +557,7 @@ export function ManageDeckFeedbackSection({
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
           className="flex items-center gap-3 bg-red-500/10 p-4 rounded-md border border-red-500/20 text-red-500 mt-4"
         >
           <AlertCircle size={18} className="shrink-0" />
@@ -579,6 +586,7 @@ export function ManageDeckActionsSection({
       <Button
         type="submit"
         disabled={loading}
+        aria-busy={loading}
         className="h-12 rounded-md bg-deckly-primary hover:bg-deckly-primary/90 text-slate-950 font-semibold text-sm transition-all"
       >
         {loading ? (
