@@ -1416,3 +1416,26 @@ GRANT EXECUTE ON FUNCTION public.create_admin_broadcast_all(TEXT, TEXT, JSONB)  
 -- Schedule it via pg_cron (Supabase dashboard → Database → Cron Jobs):
 --   SELECT cron.schedule('cleanup-notifications', '0 3 * * *',
 --     $$SELECT public.cleanup_expired_notifications();$$);
+
+-- =============================================================================
+-- Admin Dashboard Metrics
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.get_total_system_users()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_count INTEGER;
+BEGIN
+    IF NOT public.is_admin(auth.uid()) THEN
+        RAISE EXCEPTION 'Unauthorized';
+    END IF;
+
+    SELECT COUNT(*)::INTEGER INTO v_count FROM public.profiles;
+    RETURN v_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_total_system_users() TO authenticated;

@@ -25,8 +25,8 @@ const Textarea: React.FC<TextareaProps> = ({
       )}
       <div
         className={cn(
-          "flex bg-white/5 border border-white/10 rounded-xl transition-all duration-200 focus-within:border-deckly-primary/50 focus-within:bg-white/10 group",
-          error ? "border-deckly-accent/50 bg-deckly-accent/5" : "",
+          "flex bg-surface-low border border-border rounded-none transition-all duration-200 focus-within:border-primary/50 focus-within:bg-surface-high group",
+          error ? "border-destructive/50 bg-destructive/5" : "",
         )}
       >
         <textarea
