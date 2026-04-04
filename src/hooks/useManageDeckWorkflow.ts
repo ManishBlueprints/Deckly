@@ -6,6 +6,7 @@ import { supabase } from "../services/supabase";
 import { userService } from "../services/userService";
 import { dataRoomService } from "../services/dataRoomService";
 import { processPdfToImages } from "../workflows/deckProcessing";
+import { extractStoragePath } from "../services/deckService.shared";
 import { Deck, SlidePage, UserProfile } from "../types";
 
 type SetState<T> = Dispatch<SetStateAction<T>>;
@@ -83,7 +84,10 @@ export function useManageDeckWorkflow({
         setLoading(true);
         setProgress("Loading deck data...");
         const deck = await deckService.getDeckById(id);
-        if (!deck) return;
+        if (!deck) {
+          setError("Deck not found or has been deleted.");
+          return;
+        }
 
         setExistingDeck(deck);
         setTitle(deck.title);
@@ -164,15 +168,7 @@ export function useManageDeckWorkflow({
           );
         }
 
-        const pdfBlob = await Promise.race([
-          pdfResponse.blob(),
-          new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new Error("Download timed out after 60s while reading file data.")),
-              60000,
-            )
-          ),
-        ]);
+        const pdfBlob = await pdfResponse.blob();
         clearTimeout(timeoutId);
 
         const pdfFile = new File([pdfBlob], "converted.pdf", {
@@ -319,8 +315,12 @@ export function useManageDeckWorkflow({
         if (file) {
           setProgress("Uploading document...");
           setProgressPercent(5);
-          const fileExt = file.name.includes(".") ? file.name.split(".").pop() : "";
-          const fileName = `${userId}/decks/${slug}-${Date.now()}${fileExt ? "." + fileExt : ""}`;
+          const fileExt = file.name.includes(".")
+            ? file.name.split(".").pop()
+            : "";
+          const fileName = `${userId}/decks/${slug}-${Date.now()}${
+            fileExt ? "." + fileExt : ""
+          }`;
           const { error: uploadError } = await supabase.storage
             .from("decks")
             .upload(fileName, file);
@@ -420,7 +420,9 @@ export function useManageDeckWorkflow({
               await triggerAndProcessConversion(editId, slug);
 
               if (oldSlidePathsToDelete.length > 0) {
-                await supabase.storage.from("decks").remove(oldSlidePathsToDelete);
+                await supabase.storage.from("decks").remove(
+                  oldSlidePathsToDelete,
+                );
               }
             } catch (conversionErr) {
               const { data: currentDeck } = await supabase
@@ -440,10 +442,10 @@ export function useManageDeckWorkflow({
                 )
                 .map((page) => page.image_url);
 
-              if (newAssetUrls.length > 0) {
-                const paths = newAssetUrls
-                  .map((url) => url.split("/storage/v1/object/public/decks/")[1])
-                  .filter(Boolean);
+                if (newAssetUrls.length > 0) {
+                  const paths = newAssetUrls
+                    .map((url) => extractStoragePath(url, "decks"))
+                    .filter((path): path is string => !!path);
 
                 if (paths.length > 0) {
                   await supabase.storage.from("decks").remove(paths).catch(
@@ -461,13 +463,14 @@ export function useManageDeckWorkflow({
                   "/storage/v1/object/public/decks/",
                 )[1];
                 if (newDocPath) {
-                  await supabase.storage.from("decks").remove([newDocPath]).catch(
-                    (err) =>
-                      console.error(
-                        "Source document cleanup failed during rollback:",
-                        err,
-                      ),
-                  );
+                  await supabase.storage.from("decks").remove([newDocPath])
+                    .catch(
+                      (err) =>
+                        console.error(
+                          "Source document cleanup failed during rollback:",
+                          err,
+                        ),
+                    );
                 }
               }
 

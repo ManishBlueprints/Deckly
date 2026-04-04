@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { getDeckPublicStoragePath, getRequiredDeckUserId } from "./deckService.shared";
+import { extractStoragePath, getRequiredDeckUserId } from "./deckService.shared";
 import { withRetry } from "../utils/resilience";
 
 /**
@@ -94,7 +94,7 @@ export const deckStorageService = {
 
   async deleteDeckAssets(fileUrl: string, slug: string, providedUserId?: string) {
     const userId = await getRequiredDeckUserId(providedUserId);
-    const storagePath = getDeckPublicStoragePath(fileUrl);
+    const storagePath = extractStoragePath(fileUrl, "decks");
 
     if (!storagePath) {
       console.warn(

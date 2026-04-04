@@ -73,6 +73,7 @@ export const deckBrandingService = {
     }
 
     const userId = await getRequiredDeckUserId();
+    const brandingPrefix = `${userId}/branding`;
     const fileName = `${userId}/branding/logo-${Date.now()}${fileExt ? "." + fileExt : ""}`;
 
     const { error: uploadError } = await supabase.storage
@@ -84,6 +85,38 @@ export const deckBrandingService = {
     const {
       data: { publicUrl },
     } = supabase.storage.from("assets").getPublicUrl(fileName);
+
+    const { data: existingFiles, error: listError } = await supabase.storage
+      .from("assets")
+      .list(brandingPrefix);
+
+    if (listError) {
+      console.warn("Failed to list previous branding assets after logo upload:", {
+        userId,
+        brandingPrefix,
+        listError,
+      });
+      return publicUrl;
+    }
+
+    const oldLogoPaths = (existingFiles || [])
+      .filter((existingFile) => `${brandingPrefix}/${existingFile.name}` !== fileName)
+      .map((existingFile) => `${brandingPrefix}/${existingFile.name}`);
+
+    if (oldLogoPaths.length > 0) {
+      const { error: removeError } = await supabase.storage
+        .from("assets")
+        .remove(oldLogoPaths);
+
+      if (removeError) {
+        console.warn("Failed to clean up old branding assets after logo upload:", {
+          userId,
+          oldLogoPaths,
+          removeError,
+        });
+      }
+    }
+
     return publicUrl;
   },
 };

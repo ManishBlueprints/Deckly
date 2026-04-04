@@ -16,6 +16,8 @@ export async function getRequiredDeckUserId(providedUserId?: string) {
   return session.user.id;
 }
 
-export function getDeckPublicStoragePath(fileUrl: string) {
-  return fileUrl.split("/storage/v1/object/public/decks/")[1] || null;
+export function extractStoragePath(publicUrl: string, bucket: string): string | null {
+  const marker = `/storage/v1/object/public/${bucket}/`;
+  const parts = publicUrl.split(marker);
+  return parts.length > 1 ? parts[1] : null;
 }

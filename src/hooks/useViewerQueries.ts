@@ -35,11 +35,20 @@ export function useSaveToLibraryMutation(userId: string | undefined) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ deckId, save }: { deckId: string; save: boolean }) =>
-            save
+        mutationFn: ({ deckId, save }: { deckId: string; save: boolean }) => {
+            if (!userId) {
+                return Promise.reject(new Error("User must be authenticated to save decks"));
+            }
+            return save
                 ? deckService.saveToLibrary(deckId)
-                : deckService.removeFromLibrary(deckId),
+                : deckService.removeFromLibrary(deckId);
+        },
         onMutate: async ({ deckId, save }) => {
+            // Bail early if userId is undefined to avoid invalid cache keys
+            if (!userId) {
+                return {};
+            }
+
             const queryKey = viewerQueryKeys.deckSaved(deckId, userId);
 
             // Cancel any outgoing refetches
@@ -56,8 +65,8 @@ export function useSaveToLibraryMutation(userId: string | undefined) {
             return { previousSaved };
         },
         onError: (_err, { deckId }, context) => {
-            // Rollback on error
-            if (context?.previousSaved !== undefined) {
+            // Rollback on error (only if userId was valid)
+            if (userId && context?.previousSaved !== undefined) {
                 queryClient.setQueryData(
                     viewerQueryKeys.deckSaved(deckId, userId),
                     context.previousSaved,
@@ -65,13 +74,15 @@ export function useSaveToLibraryMutation(userId: string | undefined) {
             }
         },
         onSettled: (_data, _err, { deckId }) => {
-            // Always refetch after error or success to ensure sync
-            queryClient.invalidateQueries({
-                queryKey: viewerQueryKeys.deckSaved(deckId, userId),
-            });
-            queryClient.invalidateQueries({
-                queryKey: ["user-total-stats", userId],
-            });
+            // Always refetch after error or success to ensure sync (only if userId is valid)
+            if (userId) {
+                queryClient.invalidateQueries({
+                    queryKey: viewerQueryKeys.deckSaved(deckId, userId),
+                });
+                queryClient.invalidateQueries({
+                    queryKey: ["user-total-stats", userId],
+                });
+            }
         },
     });
 }
@@ -82,8 +93,15 @@ export function useSaveNoteMutation(userId: string | undefined) {
     return useMutation({
         mutationFn: (
             { deckId, content }: { deckId: string; content: string },
-        ) => noteService.saveNote(deckId, content),
+        ) => {
+            if (!userId) {
+                return Promise.reject(new Error("User must be authenticated to save notes"));
+            }
+            return noteService.saveNote(deckId, content);
+        },
         onMutate: async ({ deckId, content }) => {
+            if (!userId) return {};
+
             const queryKey = viewerQueryKeys.investorNotes(deckId, userId);
 
             await queryClient.cancelQueries({
@@ -94,7 +112,7 @@ export function useSaveNoteMutation(userId: string | undefined) {
             return { previousNote };
         },
         onError: (_err, { deckId }, context) => {
-            if (context?.previousNote !== undefined) {
+            if (userId && context?.previousNote !== undefined) {
                 queryClient.setQueryData(
                     viewerQueryKeys.investorNotes(deckId, userId),
                     context.previousNote,
@@ -102,9 +120,11 @@ export function useSaveNoteMutation(userId: string | undefined) {
             }
         },
         onSettled: (_data, _err, { deckId }) => {
-            queryClient.invalidateQueries({
-                queryKey: viewerQueryKeys.investorNotes(deckId, userId),
-            });
+            if (userId) {
+                queryClient.invalidateQueries({
+                    queryKey: viewerQueryKeys.investorNotes(deckId, userId),
+                });
+            }
         },
     });
 }

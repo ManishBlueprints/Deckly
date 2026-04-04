@@ -33,6 +33,7 @@ interface UploadSectionProps {
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onConversionModeChange: (mode: "raw" | "interactive") => void;
   onUpsellRequest: (featureName: string) => void;
+  disabled?: boolean;
 }
 
 export function ManageDeckUploadSection({
@@ -46,6 +47,7 @@ export function ManageDeckUploadSection({
   onFileChange,
   onConversionModeChange,
   onUpsellRequest,
+  disabled = false,
 }: UploadSectionProps) {
   return (
     <div className="space-y-4">
@@ -56,9 +58,9 @@ export function ManageDeckUploadSection({
         </h3>
       </div>
       <div
-        onClick={() => !loading && fileInputRef.current?.click()}
+        onClick={() => !loading && !disabled && fileInputRef.current?.click()}
         onKeyDown={(e) => {
-          if (loading) return;
+          if (loading || disabled) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             fileInputRef.current?.click();
@@ -72,7 +74,7 @@ export function ManageDeckUploadSection({
           file
             ? "border-deckly-primary/30 bg-surface-container"
             : "bg-surface-low hover:bg-surface-container hover:border-border",
-          loading ? "opacity-30 cursor-not-allowed" : "",
+          (loading || disabled) ? "opacity-30 cursor-not-allowed" : "",
         )}
       >
         <div className="flex flex-col items-center gap-3">
@@ -434,6 +436,7 @@ export function ManageDeckAccessSection({
                   type="button"
                   onClick={onTogglePasswordVisibility}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                  aria-label={showPasswordField ? "Hide password" : "Show password"}
                 >
                   {showPasswordField ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>

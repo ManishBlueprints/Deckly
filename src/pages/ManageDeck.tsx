@@ -79,6 +79,12 @@ function ManageDeck() {
     const ext = selectedFile.name.split(".").pop()?.toLowerCase();
     const validExts = ["pdf", "pptx", "docx", "doc", "xlsx"];
 
+    // Ensure profile is loaded before proceeding with tier-sensitive checks
+    if (!userProfile) {
+      alert("Please wait for your profile to load before uploading.");
+      return;
+    }
+
     if (!ext || !validExts.includes(ext)) {
       alert("Please select a supported file (PDF, PPTX, DOCX, DOC, or XLSX).");
       return;
@@ -176,6 +182,7 @@ function ManageDeck() {
                 setUpsellFeature(featureName);
                 setShowUpsell(true);
               }}
+              disabled={!userProfile}
             />
 
             <ManageDeckDetailsSection

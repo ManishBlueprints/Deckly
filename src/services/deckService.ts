@@ -102,33 +102,32 @@ const deckCrudService = {
       throw error;
     }
 
+    let deletedAssets = false;
+    let cleanupError: unknown = null;
+
     try {
-      const deletedAssets = await deckStorageService.deleteDeckAssets(
+      deletedAssets = await deckStorageService.deleteDeckAssets(
         fileUrl,
         slug,
         userId,
       );
+    } catch (err) {
+      cleanupError = err;
+    }
 
-      if (!deletedAssets) {
-        console.error("Deck DB row was deleted but asset cleanup could not start.", {
-          deckId: id,
-          fileUrl,
-          slug,
-          userId,
-        });
-        throw new Error(
-          `Deck record was deleted but asset cleanup failed to start. deckId=${id} fileUrl=${fileUrl} slug=${slug} userId=${userId}`,
-        );
-      }
-    } catch (cleanupError) {
-      console.error("Deck DB row deleted but asset cleanup failed after retries.", {
+    if (!deletedAssets || cleanupError) {
+      console.error("Deck DB row deleted but asset cleanup failed.", {
         deckId: id,
         fileUrl,
         slug,
         userId,
         cleanupError,
+        notStarted: !deletedAssets && !cleanupError,
       });
-      throw cleanupError;
+      
+      throw cleanupError || new Error(
+        `Deck record was deleted but asset cleanup failed to start. deckId=${id} fileUrl=${fileUrl} slug=${slug} userId=${userId}`
+      );
     }
   },
 
