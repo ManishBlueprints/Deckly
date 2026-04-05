@@ -16,7 +16,7 @@ export function DangerZoneSection({ onDelete }: DangerZoneSectionProps) {
             <p className="text-sm font-black uppercase tracking-tight text-red-500 leading-tight">
               Delete Asset
             </p>
-            <p className="text-[10px] uppercase font-bold tracking-widest text-red-500/70 mt-1.5">
+            <p className="text-xs uppercase font-bold tracking-widest text-red-500/70 mt-1.5">
               Permanently wipe all records.
             </p>
           </div>
@@ -25,11 +25,7 @@ export function DangerZoneSection({ onDelete }: DangerZoneSectionProps) {
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto mt-4 md:mt-0">
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onDelete();
-            }}
+            onClick={onDelete}
             className="w-full sm:w-auto h-14 px-8 rounded-none font-black text-xs uppercase tracking-[0.2em] bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 transition-all flex items-center justify-center gap-2"
           >
             <Trash2 size={16} />

@@ -54,13 +54,16 @@ export const DataRoomTour: React.FC<DataRoomTourProps> = ({ hasRooms, isLoading 
     []
   );
 
-  const handleJoyrideEvent = (data: EventData) => {
-    const { status } = data;
+  const handleJoyrideEvent = React.useCallback(
+    (data: EventData) => {
+      const { status } = data;
 
-    if (([STATUS.FINISHED, STATUS.SKIPPED] as string[]).includes(status)) {
-      markTourComplete("data_room_completed");
-    }
-  };
+      if (([STATUS.FINISHED, STATUS.SKIPPED] as string[]).includes(status)) {
+        markTourComplete("data_room_completed");
+      }
+    },
+    [markTourComplete]
+  );
 
   if (!run) return null;
 

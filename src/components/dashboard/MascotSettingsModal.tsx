@@ -3,6 +3,7 @@ import {
   X,
   Upload,
   Trash2,
+  RotateCcw,
   Camera,
   Loader2,
   Info,
@@ -378,13 +379,18 @@ export function MascotSettingsModal({
                       </div>
                       <button
                         onClick={async () => {
-                          await resetTours();
-                          onClose();
-                          window.location.reload();
+                          try {
+                            await resetTours();
+                            onClose();
+                            window.location.reload();
+                          } catch (err: unknown) {
+                            const message = err instanceof Error ? err.message : String(err);
+                            setError(message || "Failed to reset tutorials.");
+                          }
                         }}
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-none border border-white/10 transition-all text-[10px] font-bold uppercase tracking-widest"
                       >
-                        <Camera size={16} className="opacity-50" />
+                        <RotateCcw size={16} className="opacity-50" />
                         Reset All Tutorials
                       </button>
                     </div>

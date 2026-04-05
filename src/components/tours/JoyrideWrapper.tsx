@@ -29,30 +29,45 @@ export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
   // Workaround for react-joyride dropping disableBeacon on init in certain renders:
   // Automatically click the beacon immediately when it appears.
   React.useEffect(() => {
-    if (run) {
-      const interval = setInterval(() => {
-        // The react-joyride beacon uses this aria-label by default
-        const beacon = document.querySelector('button[aria-label="Open the dialog"]') as HTMLButtonElement;
-        
-        // Also check by title fallback just in case
-        const titleBeacon = document.querySelector('button[title="Open the dialog"]') as HTMLButtonElement;
-        
-        const targetBeacon = beacon || titleBeacon;
-        
-        if (targetBeacon) {
-          targetBeacon.click();
-        }
-      }, 50);
+    if (!run) return;
 
-      // Stop checking after 3 seconds to prevent memory leaks
-      const timeout = setTimeout(() => clearInterval(interval), 3000);
+    // Centralized selector for the react-joyride beacon
+    const BEACON_SELECTOR = 'button[aria-label="Open the dialog"], button[title="Open the dialog"]';
 
-      return () => {
-        clearInterval(interval);
-        clearTimeout(timeout);
-      };
-    }
-  }, [run, stepIndex, steps]);
+    const attemptClick = () => {
+      const beacon = document.querySelector(BEACON_SELECTOR) as HTMLButtonElement;
+      if (beacon) {
+        beacon.click();
+        return true;
+      }
+      return false;
+    };
+
+    // Check immediately if it's already mounted
+    if (attemptClick()) return;
+
+    // Use MutationObserver for instant detection without the overhead of polling
+    const observer = new MutationObserver(() => {
+      if (attemptClick()) {
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(document.body, { 
+      childList: true, 
+      subtree: true 
+    });
+
+    // Safety timeout to prevent long-running observers if beacon fails to appear
+    const safetyTimeout = setTimeout(() => {
+      observer.disconnect();
+    }, 3000);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(safetyTimeout);
+    };
+  }, [run, stepIndex]);
 
   return (
     <Joyride

@@ -8,8 +8,13 @@ export const RestartTourButton: React.FC = () => {
 
   const handleRestart = async () => {
     if (window.confirm("Restart the onboarding tutorial?")) {
-      await resetTours();
-      window.location.reload();
+      try {
+        await resetTours();
+        window.location.reload();
+      } catch (err) {
+        console.error("Failed to reset tutorial:", err);
+        alert("Failed to restart tutorial. Please try again.");
+      }
     }
   };
 
