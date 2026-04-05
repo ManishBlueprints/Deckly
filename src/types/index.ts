@@ -104,12 +104,22 @@ export interface DeckStats {
   total_time_seconds: number;
 }
 
+export interface TutorialState {
+  home_completed?: boolean;
+  content_completed?: boolean;
+  data_room_completed?: boolean;
+  data_room_create_completed?: boolean;
+  upload_completed?: boolean;
+  onboarding_completed?: boolean;
+}
+
 export interface UserProfile {
   id: string;
   full_name: string | null;
   handle: string | null;
   avatar_url: string | null;
   tier: "FREE" | "PRO" | "PRO_PLUS";
+  tutorial_state?: TutorialState | null;
   updated_at: string | null;
 }
 

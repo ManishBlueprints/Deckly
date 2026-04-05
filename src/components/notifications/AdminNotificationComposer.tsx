@@ -105,10 +105,17 @@ export function AdminNotificationComposer() {
 
   const doSendBroadcast = async () => {
     try {
-      const count = (await sendBroadcastAll.mutateAsync({
+      const result = await sendBroadcastAll.mutateAsync({
         title: title.trim(),
         message: message.trim(),
-      })) as number;
+      });
+
+      // Defensive check for the returned count (handles both direct number and { count } object)
+      const count = typeof result === 'number' 
+        ? result 
+        : (result && typeof (result as { count?: number }).count === 'number') 
+          ? (result as { count?: number }).count! 
+          : 0;
 
       toast.success(`Broadcast sent to ${count} users`);
       resetForm();

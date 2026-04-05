@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { TourProvider } from "./contexts/TourContext";
 import { deckService } from "./services/deckService";
 import "./App.css";
 
@@ -197,10 +198,12 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppContent />
-        <Toaster theme="dark" richColors />
-      </Router>
+      <TourProvider>
+        <Router>
+          <AppContent />
+          <Toaster theme="dark" richColors />
+        </Router>
+      </TourProvider>
     </AuthProvider>
   );
 }
