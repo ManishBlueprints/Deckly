@@ -94,6 +94,10 @@ export function MascotSettingsModal({
       setError("Failed to upload image. Please try again.");
     } finally {
       setUploading(false);
+      // Reset input value so the same file can be selected again
+      if (e.target) {
+        e.target.value = "";
+      }
     }
   };
 
@@ -124,12 +128,13 @@ export function MascotSettingsModal({
       }
 
       // 2. Update Slug if changed and available
+      let shouldReload = false;
       if (workspaceSlug !== userProfile?.handle && isSlugAvailable) {
         if (userProfile?.id) {
           await userService.updateProfile(userProfile.id, {
             handle: workspaceSlug,
           });
-          window.location.reload();
+          shouldReload = true;
         }
       }
 
@@ -139,6 +144,12 @@ export function MascotSettingsModal({
       }
 
       onClose();
+
+      // Perform reload last, if needed
+      if (shouldReload) {
+        window.location.reload();
+        return; // Prevent further execution during reload
+      }
     } catch {
       setError("Failed to save workspace settings.");
     } finally {

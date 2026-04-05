@@ -17,11 +17,20 @@ export const ContentTour: React.FC = () => {
     let checkInterval: number;
     
     const checkForTargets = () => {
-      const target = document.querySelector('[data-tour="analytics-btn"]') as HTMLElement;
-      // Also check for the class just in case data-tour is missing
-      const fallback = document.querySelector(".tour-analytics-btn") as HTMLElement;
+      const targetAnalytics = document.querySelector('[data-tour="analytics-btn"]') as HTMLElement;
+      const fallbackAnalytics = document.querySelector(".tour-analytics-btn") as HTMLElement;
       
-      if ((target || fallback) && hasDecks && (target?.offsetParent !== null || fallback?.offsetParent !== null)) {
+      const targetEdit = document.querySelector('[data-tour="edit-btn"]') as HTMLElement;
+      const fallbackEdit = document.querySelector(".tour-edit-btn") as HTMLElement;
+
+      const targetDelete = document.querySelector('[data-tour="delete-btn"]') as HTMLElement;
+      const fallbackDelete = document.querySelector(".tour-delete-btn") as HTMLElement;
+
+      const analyticsVisible = Boolean(targetAnalytics?.offsetParent || fallbackAnalytics?.offsetParent);
+      const editVisible = Boolean(targetEdit?.offsetParent || fallbackEdit?.offsetParent);
+      const deleteVisible = Boolean(targetDelete?.offsetParent || fallbackDelete?.offsetParent);
+      
+      if (hasDecks && analyticsVisible && editVisible && deleteVisible) {
         setIsReady(true);
         clearInterval(checkInterval);
       }

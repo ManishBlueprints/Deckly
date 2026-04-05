@@ -39,11 +39,25 @@ function ManageDataRoom() {
   // Tier limit safety check for create mode
   useEffect(() => {
     if (isEditMode) return;
+
+    let isMounted = true;
     const tier: Tier = (profile?.tier as Tier) || "FREE";
     const max = TIER_CONFIG[tier].maxDataRooms;
-    dataRoomService.getDataRooms().then((rooms) => {
-      if (rooms.length >= max) navigate("/rooms");
-    });
+
+    dataRoomService
+      .getDataRooms()
+      .then((rooms) => {
+        if (isMounted && rooms.length >= max) {
+          navigate("/rooms");
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to check room limits", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [isEditMode, profile, navigate]);
 
   // Form state
@@ -187,11 +201,14 @@ function ManageDataRoom() {
   // Reorder documents
   const handleReorder = useCallback(
     async (orderedDeckIds: string[]) => {
-      // Optimistic reorder
-      const reordered = orderedDeckIds.map((id, i) => {
-        const doc = documents.find((d) => d.deck_id === id)!;
-        return { ...doc, display_order: i };
-      });
+      // Reorder documents safely
+      const reordered = orderedDeckIds
+        .map((id, i) => {
+          const doc = documents.find((d) => d.deck_id === id);
+          return doc ? { ...doc, display_order: i } : null;
+        })
+        .filter((d): d is DataRoomDocument => d !== null);
+
       setDocuments(reordered);
 
       if (isEditMode) {
@@ -213,7 +230,7 @@ function ManageDataRoom() {
       return;
     }
 
-    if (!isSlugAvailable && !isEditMode) {
+    if (isSlugAvailable === false) {
       setError("This URL slug is already taken. Please choose another.");
       return;
     }
