@@ -61,8 +61,7 @@ export function SavedDeckEmptyState({
             No documents yet
           </h2>
           <p className="text-[#bbcbbb]/80 text-base md:text-lg font-light leading-relaxed mb-10 max-w-md mx-auto">
-            Your pipeline is clear. Start by saving your first deck or dragging
-            documents anywhere.
+            Your pipeline is clear. Start by saving your first deck.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -91,8 +90,8 @@ export function SavedDeckEmptyState({
             </span>
             <h4 className="text-sm font-bold text-[#e5e2e1]">Sorting</h4>
             <p className="text-xs text-[#bbcbbb] font-medium leading-relaxed">
-              You can sort decks by sector and funding stage or any custom way
-              you want.
+              You can sort documents by sector and funding stage or any custom
+              way you want.
             </p>
           </div>
           <div className="space-y-2">

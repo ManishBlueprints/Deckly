@@ -23,6 +23,7 @@ import { DangerZoneSection } from "../components/dashboard/form-sections/DangerZ
 import { DataRoomDocument } from "../types";
 import { dataRoomService } from "../services/dataRoomService";
 import { useAuth } from "../contexts/AuthContext";
+import { DataRoomCreateTour } from "../components/tours/DataRoomCreateTour";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
 import { useQueryClient } from "@tanstack/react-query";
@@ -323,6 +324,7 @@ function ManageDataRoom() {
 
   return (
     <DashboardLayout title="Data Rooms" showFab={false}>
+      <DataRoomCreateTour isEditMode={isEditMode} />
       <div className="max-w-3xl mx-auto w-full px-4 md:px-6 space-y-6 pb-20 pt-6">
         {/* Back + Title */}
         <div className="flex items-center gap-4 relative z-10 border-b border-white/5 pb-6">
@@ -351,7 +353,10 @@ function ManageDataRoom() {
         )}
 
         {/* ──── Section 1: Room Identity ──── */}
-        <div className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative">
+        <div 
+          data-tour="room-branding"
+          className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative"
+        >
           <div className="px-6 py-4 border-b border-white/5">
             <h2 className="text-sm font-medium text-white">Room Branding</h2>
           </div>
@@ -519,7 +524,10 @@ function ManageDataRoom() {
         </div>
 
         {/* ──── Section 2: Documents ──── */}
-        <div className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative">
+        <div 
+          data-tour="room-assets"
+          className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative"
+        >
           <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
             <h2 className="text-sm font-medium text-white">YOUR ASSETS</h2>
             {documents.length > 0 && (
@@ -567,7 +575,10 @@ function ManageDataRoom() {
         </div>
 
         {/* ──── Section 3: Access Controls ──── */}
-        <div className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative">
+        <div 
+          data-tour="room-security"
+          className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative"
+        >
           <div className="px-6 py-4 border-b border-white/5">
             <h2 className="text-sm font-medium text-white">
               Security & Access

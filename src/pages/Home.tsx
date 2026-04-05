@@ -1,9 +1,9 @@
+import { useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useDecks } from "../hooks/useDecks";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DashboardView } from "../components/dashboard/DashboardView";
 import { EmptyStateOverlay } from "../components/dashboard/EmptyStateOverlay";
-import { WorkspaceSetupModal } from "../components/dashboard/WorkspaceSetupModal";
 import { HomeTour } from "../components/tours/HomeTour";
 
 function Home() {
@@ -17,6 +17,17 @@ function Home() {
   } = useDecks(session?.user?.id);
 
   const error = queryError ? (queryError as Error).message : null;
+
+  // Force open workspace settings if it's a new profile
+  useEffect(() => {
+    if (profile && !profile.handle && !loading) {
+      // Small delay to ensure Sidebar listener is ready
+      const timer = setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("deckly:open-settings"));
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [profile, loading]);
 
   if (error) {
     return (
@@ -67,13 +78,6 @@ function Home() {
 
   return (
     <DashboardLayout title="Dashboard">
-      <WorkspaceSetupModal
-        isOpen={!!profile && !profile.handle}
-        userId={session?.user?.id || ""}
-        onComplete={() => {
-          window.location.reload();
-        }}
-      />
       <HomeTour deckCount={decks.length} />
       {decks.length === 0 ? <EmptyStateOverlay /> : <DashboardView />}
     </DashboardLayout>

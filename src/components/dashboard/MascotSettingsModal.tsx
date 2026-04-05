@@ -15,6 +15,7 @@ import { deckService } from "../../services/deckService";
 import { userService } from "../../services/userService";
 import { normalizeSlug } from "../../utils/slug";
 import penguinMascot from "../../assets/penguine.png";
+import { useTourState } from "../../contexts/TourContext";
 
 interface MascotSettingsModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export function MascotSettingsModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { markTourComplete } = useTourState();
 
   // Workspace settings
   const [roomName, setRoomName] = useState(branding?.room_name || "");
@@ -130,6 +132,13 @@ export function MascotSettingsModal({
           window.location.reload();
         }
       }
+
+      // Mark onboarding as complete so it doesn't pop up again
+      if (userProfile && !userProfile.handle) {
+        await markTourComplete("onboarding_completed");
+      }
+
+      onClose();
     } catch {
       setError("Failed to save workspace settings.");
     } finally {
@@ -309,12 +318,12 @@ export function MascotSettingsModal({
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
                         <>
-                          Save Workspace <Check size={14} />
+                          {!userProfile?.handle ? "Finalize Setup" : "Save Workspace"} <Check size={14} />
                         </>
                       )}
                     </button>
 
-                    {branding?.logo_url && (
+                      {branding?.logo_url && (
                       <button
                         onClick={handleResetLogo}
                         disabled={uploading}
@@ -322,7 +331,7 @@ export function MascotSettingsModal({
                         title="Reset to Default"
                       >
                         <Trash2 size={16} />
-                        Reset
+                        Reset Logo
                       </button>
                     )}
                   </div>

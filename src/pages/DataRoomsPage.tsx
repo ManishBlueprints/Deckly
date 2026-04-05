@@ -81,8 +81,9 @@ function DataRoomsPage() {
             <button
               onClick={() => !isAtLimit && navigate("/rooms/new")}
               disabled={isAtLimit}
+              data-tour="new-room-btn"
               className={cn(
-                "tour-new-room-target flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-xs rounded-lg transition-all active:scale-95 w-full sm:w-auto",
+                "flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-xs rounded-lg transition-all active:scale-95 w-full sm:w-auto",
                 isAtLimit
                   ? "bg-surface-low text-slate-500 border border-[#222] cursor-not-allowed"
                   : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90",
@@ -143,7 +144,8 @@ function DataRoomsPage() {
             </p>
             <button
               onClick={() => navigate("/rooms/new")}
-              className="tour-new-room-target flex items-center gap-2 px-6 py-2.5 bg-deckly-primary text-slate-950 font-semibold text-xs rounded-md transition-all active:scale-95"
+              data-tour="new-room-btn"
+              className="flex items-center gap-2 px-6 py-2.5 bg-deckly-primary text-slate-950 font-semibold text-xs rounded-md transition-all active:scale-95"
             >
               <Plus size={16} />
               Create First Room

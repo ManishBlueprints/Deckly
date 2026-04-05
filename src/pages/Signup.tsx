@@ -21,6 +21,13 @@ function Signup() {
     document.title = "Sign Up | Deckly";
   }, []);
 
+  const formatErrorMessage = (msg: string) => {
+    if (msg.toLocaleLowerCase().includes("password should contain at least one character of each")) {
+      return "Password must be at least 8 characters long and include an uppercase letter, a number, and a special character.";
+    }
+    return msg;
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -45,7 +52,8 @@ function Signup() {
         setTimeout(() => navigate("/login"), 4000);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      const rawMessage = err instanceof Error ? err.message : String(err);
+      setError(formatErrorMessage(rawMessage));
     } finally {
       setLoading(false);
     }
@@ -225,7 +233,7 @@ function Signup() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
                 />
 
                 {error && (

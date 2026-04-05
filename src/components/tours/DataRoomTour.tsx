@@ -12,7 +12,7 @@ export const DataRoomTour: React.FC = () => {
   const steps: Step[] = useMemo(
     () => [
       {
-        target: ".tour-new-room-target",
+        target: '[data-tour="new-room-btn"]',
         content: (
           <div className="text-left space-y-4">
             <h3 className="text-xl font-bold text-white mb-2">Create a Data Room</h3>
@@ -24,19 +24,8 @@ export const DataRoomTour: React.FC = () => {
         ),
         placement: "bottom",
         disableBeacon: true,
-      },
-      {
-        target: "body",
-        content: (
-          <div className="text-left space-y-4">
-            <h3 className="text-xl font-bold text-white mb-2">Elite Security</h3>
-            <p className="text-slate-300 text-sm">
-              You can lock down your data room with passcode protection or require an email wall. 
-              Keep your sensitive IP secure.
-            </p>
-          </div>
-        ),
-        placement: "center",
+        spotlightClicks: true, // Allow clicking the actual button
+        buttons: ["back"], // Show only back, no next/last
       },
     ],
     []

@@ -7,8 +7,6 @@ interface JoyrideWrapperProps {
   onEvent?: (data: EventData) => void;
   continuous?: boolean;
   scrollToFirstStep?: boolean;
-  showProgress?: boolean;
-  showSkipButton?: boolean;
 }
 
 export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
@@ -17,8 +15,6 @@ export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
   onEvent,
   continuous = true,
   scrollToFirstStep = true,
-  showProgress = false,
-  showSkipButton = true,
 }) => {
   return (
     <Joyride
@@ -27,6 +23,9 @@ export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
       onEvent={onEvent}
       continuous={continuous}
       scrollToFirstStep={scrollToFirstStep}
+      locale={{
+        last: "Finish", // Use Finish instead of Last
+      }}
       styles={{
         tooltip: {
           borderRadius: "0px", // Sharp corners as per global CSS
@@ -46,6 +45,7 @@ export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
           color: "#c8c6c5",
         },
       }}
+      debug={false}
       options={{
         arrowColor: "#2a2a2a", // surface-high
         backgroundColor: "#2a2a2a",
@@ -53,10 +53,6 @@ export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
         primaryColor: "#54e98a",
         textColor: "#e5e2e1",
         zIndex: 10000,
-        showProgress,
-        buttons: showSkipButton 
-          ? ['back', 'close', 'primary', 'skip'] 
-          : ['back', 'close', 'primary'],
       }}
     />
   );

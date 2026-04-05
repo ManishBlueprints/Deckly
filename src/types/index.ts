@@ -108,6 +108,9 @@ export interface TutorialState {
   home_completed?: boolean;
   content_completed?: boolean;
   data_room_completed?: boolean;
+  data_room_create_completed?: boolean;
+  upload_completed?: boolean;
+  onboarding_completed?: boolean;
 }
 
 export interface UserProfile {
