@@ -16,7 +16,7 @@ export function SavedDeckEmptyState({
         {/* Artistic Empty State Representation */}
         <div className="relative mb-12 inline-block">
           {/* Background Layers */}
-          <div className="absolute inset-0 bg-[#54e98a]/5 blur-[80px] rounded-full scale-150"></div>
+          <div className="absolute inset-0 bg-[#54e98a]/5 blur-[80px] scale-150"></div>
 
           {/* Asymmetric Graphic Elements */}
           <div className="relative flex items-center justify-center">
@@ -25,7 +25,7 @@ export function SavedDeckEmptyState({
               initial={{ opacity: 0, rotate: -10, x: 20 }}
               animate={{ opacity: 1, rotate: -3, x: 16 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="w-48 h-48 md:w-64 md:h-64 border border-[#3d4a3e]/20 rounded-lg flex items-center justify-center bg-[#0e0e0e] shadow-2xl"
+              className="w-48 h-48 md:w-64 md:h-64 border border-[#3d4a3e]/20 flex items-center justify-center bg-[#0e0e0e] shadow-2xl"
             >
               <span className="material-symbols-outlined text-[#54e98a]/10 text-6xl md:text-8xl">
                 folder_open
@@ -37,14 +37,14 @@ export function SavedDeckEmptyState({
               initial={{ opacity: 0, rotate: 10, x: -20 }}
               animate={{ opacity: 1, rotate: 6, x: -16 }}
               transition={{ duration: 0.8 }}
-              className="absolute w-48 h-48 md:w-64 md:h-64 border border-[#54e98a]/30 rounded-lg flex items-center justify-center bg-[#1c1b1b] shadow-2xl backdrop-blur-sm"
+              className="absolute w-48 h-48 md:w-64 md:h-64 border border-[#54e98a]/30 flex items-center justify-center bg-[#1c1b1b] shadow-2xl backdrop-blur-sm"
             >
               <div className="flex flex-col items-center">
                 <span className="material-symbols-outlined text-[#54e98a] text-4xl md:text-6xl mb-4">
                   auto_awesome
                 </span>
-                <div className="w-24 md:w-32 h-1 bg-[#54e98a]/20 rounded-full mb-2"></div>
-                <div className="w-16 md:w-20 h-1 bg-[#54e98a]/10 rounded-full"></div>
+                <div className="w-24 md:w-32 h-1 bg-[#54e98a]/20 mb-2"></div>
+                <div className="w-16 md:w-20 h-1 bg-[#54e98a]/10"></div>
               </div>
             </motion.div>
           </div>
@@ -67,7 +67,7 @@ export function SavedDeckEmptyState({
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={onCreateFolder}
-              className="px-8 py-4 bg-[#54e98a] text-[#003919] rounded-lg font-bold text-sm tracking-tight flex items-center space-x-3 hover:shadow-[0_0_30px_rgba(84,233,138,0.3)] transition-all duration-300 active:scale-95 group"
+              className="px-8 py-4 bg-[#54e98a] text-[#003919] font-bold text-sm tracking-tight flex items-center space-x-3 transition-all duration-300 active:scale-95 group"
             >
               <span className="material-symbols-outlined">
                 create_new_folder
@@ -131,13 +131,13 @@ export function SavedDeckEmptyState({
                 transition: { duration: 0.2 },
               }}
               transition={{ duration: 0.5, delay: 1.5 }}
-              className="hidden md:block bg-[#1c1b1b]/95 backdrop-blur-2xl border border-[#3d4a3e]/20 p-5 rounded-2xl shadow-2xl max-w-xs relative group"
+              className="hidden md:block bg-[#1c1b1b]/95 backdrop-blur-2xl border border-[#3d4a3e]/20 p-5 shadow-2xl max-w-xs relative group"
             >
               {/* Close Button */}
               <button
                 onClick={() => setShowTip(false)}
                 aria-label="Dismiss tip"
-                className="absolute -top-2 -right-2 w-6 h-6 bg-[#0e0e0e] border border-[#3d4a3e]/20 rounded-full flex items-center justify-center text-[#bbcbbb]/40 hover:text-[#54e98a] transition-colors shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#54e98a]"
+                className="absolute -top-2 -right-2 w-6 h-6 bg-[#0e0e0e] border border-[#3d4a3e]/20 flex items-center justify-center text-[#bbcbbb]/40 hover:text-[#54e98a] transition-colors shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#54e98a]"
               >
                 <span className="material-symbols-outlined text-xs">close</span>
               </button>

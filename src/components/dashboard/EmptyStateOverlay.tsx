@@ -21,24 +21,24 @@ const tutorialSteps = [
     title: "Deep Analytics",
     description:
       "Track every click. See exactly which slides investors spent the most time on and get real-time view alerts.",
-    color: "text-emerald-500",
-    glow: "bg-emerald-500/20",
+    color: "text-deckly-primary",
+    glow: "bg-deckly-primary/10",
   },
   {
     icon: ShieldCheck,
     title: "Ironclad Security",
     description:
       "Protect your data with password protection, email gating, and self-destructing links.",
-    color: "text-blue-500",
-    glow: "bg-blue-500/20",
+    color: "text-deckly-primary",
+    glow: "bg-deckly-primary/10",
   },
   {
     icon: Layers,
     title: "Virtual Data Rooms",
     description:
       "Group multiple pitch decks and documents into one professional, namespaced link for your investors.",
-    color: "text-violet-500",
-    glow: "bg-violet-500/20",
+    color: "text-deckly-primary",
+    glow: "bg-deckly-primary/10",
   },
   {
     icon: Palette,
@@ -46,7 +46,7 @@ const tutorialSteps = [
     description:
       "Make it yours. Upload your logo, set your colors, and personalize the viewer experience with your brand.",
     color: "text-deckly-primary",
-    glow: "bg-deckly-primary/20",
+    glow: "bg-deckly-primary/10",
   },
 ];
 
@@ -84,10 +84,10 @@ export function EmptyStateOverlay() {
       >
         <div className="space-y-12 pb-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <div className="bg-white/5 rounded-[32px] border border-white/10 h-64 shadow-2xl" />
-            <div className="bg-white/5 rounded-[32px] border border-white/10 h-64 shadow-2xl" />
+            <div className="bg-white/5 border border-white/10 h-64 shadow-2xl" />
+            <div className="bg-white/5 border border-white/10 h-64 shadow-2xl" />
           </div>
-          <div className="bg-white/5 rounded-[32px] border border-white/10 h-80 shadow-2xl" />
+          <div className="bg-white/5 border border-white/10 h-80 shadow-2xl" />
         </div>
       </div>
 
@@ -99,9 +99,9 @@ export function EmptyStateOverlay() {
           transition={{ duration: 0.6, ease: "easeOut" }}
           className="w-full max-w-2xl mx-auto px-4"
         >
-          <div className="bg-[#09090b]/80 backdrop-blur-3xl rounded-[40px] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 md:p-12 text-center relative overflow-hidden group glass-shiny min-h-[520px] flex flex-col justify-between">
-            {/* Dynamic Ambient Glow */}
-            <AnimatePresence>
+          <div className="bg-surface-card border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 md:p-12 text-center relative overflow-hidden group min-h-[520px] flex flex-col justify-between">
+            {/* Ambient Glow */}
+            <AnimatePresence mode="wait">
               <motion.div
                 key={currentStep}
                 initial={{ opacity: 0 }}
@@ -127,14 +127,14 @@ export function EmptyStateOverlay() {
               <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none px-2 z-20">
                 <button
                   onClick={prevStep}
-                  className="p-3 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-90 pointer-events-auto shadow-2xl backdrop-blur-md"
+                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-90 pointer-events-auto shadow-2xl backdrop-blur-md"
                   aria-label="Previous feature"
                 >
                   <ChevronLeft size={20} />
                 </button>
                 <button
                   onClick={nextStep}
-                  className="p-3 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-90 pointer-events-auto shadow-2xl backdrop-blur-md"
+                  className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-90 pointer-events-auto shadow-2xl backdrop-blur-md"
                   aria-label="Next feature"
                 >
                   <ChevronRight size={20} />
@@ -151,7 +151,7 @@ export function EmptyStateOverlay() {
                   className="space-y-6"
                 >
                   <div
-                    className={`w-24 h-24 mx-auto rounded-[32px] bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-2xl relative transition-all group-hover:scale-105 duration-500`}
+                    className={`w-24 h-24 mx-auto bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-2xl relative transition-all group-hover:scale-105 duration-500`}
                   >
                     <step.icon
                       size={44}
@@ -180,10 +180,10 @@ export function EmptyStateOverlay() {
                   <button
                     key={i}
                     onClick={() => setCurrentStep(i)}
-                    className={`h-1.5 rounded-full transition-all duration-500 ${
+                    className={`h-1.5 transition-all duration-500 ${
                       i === currentStep
                         ? "w-10 bg-deckly-primary"
-                        : "w-2 bg-white/10 hover:bg-white/20"
+                        : "w-4 bg-white/10 hover:bg-white/20"
                     }`}
                   />
                 ))}
@@ -192,7 +192,7 @@ export function EmptyStateOverlay() {
               {/* Action Bar - Centered */}
               <div className="pt-8 border-t border-white/5 flex justify-center">
                 <Link to="/upload" className="w-full max-w-md" id="tour-upload-deck-btn">
-                  <Button className="w-full h-14 rounded-2xl bg-deckly-primary hover:bg-deckly-primary/90 text-slate-900 font-bold text-xs uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(34,197,94,0.3)] transition-all active:scale-95 border-none group/btn">
+                  <Button className="w-full h-14 rounded-none bg-deckly-primary hover:bg-deckly-primary/90 text-slate-900 font-bold text-xs uppercase tracking-[0.2em] transition-all active:scale-95 border-none group/btn">
                     <Upload
                       size={18}
                       className="mr-3 transition-transform group-hover/btn:-translate-y-1"
