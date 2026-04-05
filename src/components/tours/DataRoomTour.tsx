@@ -3,11 +3,34 @@ import { EventData, Step, STATUS } from "react-joyride";
 import { JoyrideWrapper } from "./JoyrideWrapper";
 import { useTourState } from "../../contexts/TourContext";
 
-export const DataRoomTour: React.FC = () => {
+interface DataRoomTourProps {
+  hasRooms: boolean;
+  isLoading: boolean;
+}
+
+export const DataRoomTour: React.FC<DataRoomTourProps> = ({ hasRooms, isLoading }) => {
   const { hasCompletedTour, markTourComplete } = useTourState();
 
   const isTourComplete = hasCompletedTour("data_room_completed");
-  const run = !isTourComplete;
+
+  React.useEffect(() => {
+    // If they already created a room, quietly mark the tour as complete so it doesn't pop up
+    if (hasRooms && !isTourComplete) {
+      markTourComplete("data_room_completed");
+    }
+  }, [hasRooms, isTourComplete, markTourComplete]);
+
+  const [isReady, setIsReady] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isLoading && !hasRooms && !isTourComplete) {
+      // Small delay to ensure the target button is fully mounted before tour kicks in
+      const timer = setTimeout(() => setIsReady(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, hasRooms, isTourComplete]);
+
+  const run = !isTourComplete && !hasRooms && isReady;
 
   const steps: Step[] = useMemo(
     () => [
@@ -31,13 +54,16 @@ export const DataRoomTour: React.FC = () => {
     []
   );
 
-  const handleJoyrideEvent = (data: EventData) => {
-    const { status } = data;
+  const handleJoyrideEvent = React.useCallback(
+    (data: EventData) => {
+      const { status } = data;
 
-    if (([STATUS.FINISHED, STATUS.SKIPPED] as string[]).includes(status)) {
-      markTourComplete("data_room_completed");
-    }
-  };
+      if (([STATUS.FINISHED, STATUS.SKIPPED] as string[]).includes(status)) {
+        markTourComplete("data_room_completed");
+      }
+    },
+    [markTourComplete]
+  );
 
   if (!run) return null;
 
