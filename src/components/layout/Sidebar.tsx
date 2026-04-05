@@ -271,7 +271,10 @@ export function Sidebar() {
       {createPortal(
         <MascotSettingsModal
           isOpen={showSettings}
-          onClose={() => setShowSettings(false)}
+          onClose={() => {
+            setShowSettings(false);
+            window.dispatchEvent(new CustomEvent("deckly:settings-closed"));
+          }}
           branding={branding}
           onUpdate={(newBranding) => setBranding(newBranding)}
           userProfile={profile || undefined}

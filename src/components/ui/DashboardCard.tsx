@@ -21,7 +21,7 @@ export function DashboardCard({
   return (
     <div
       className={cn(
-        "rounded-lg border border-border h-full bg-surface-card",
+        "rounded-none border border-border h-full bg-surface-card",
         !className?.includes("overflow-") && "overflow-hidden",
         className,
       )}

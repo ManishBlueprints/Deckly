@@ -26,7 +26,7 @@ function DataRoomsPage() {
 
   return (
     <DashboardLayout title="Data Rooms">
-      <DataRoomTour />
+      <DataRoomTour hasRooms={rooms.length > 0} isLoading={loading} />
       <div className="space-y-8 animate-in fade-in duration-700 relative">
         {rooms.length > 0 && (
           <div className="flex flex-col gap-1.5">
