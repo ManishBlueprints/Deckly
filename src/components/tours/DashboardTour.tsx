@@ -8,11 +8,41 @@ export const DashboardTour: React.FC = () => {
   const [isReady, setIsReady] = React.useState(false);
 
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      const exists = !!document.querySelector('[data-tour="stat-card-0"]');
-      if (exists) setIsReady(true);
-    }, 1000);
-    return () => clearTimeout(timer);
+    const TARGET_SELECTOR = '[data-tour="stat-card-0"]';
+
+    const checkReady = () => {
+      const exists = !!document.querySelector(TARGET_SELECTOR);
+      if (exists) {
+        setIsReady(true);
+        return true;
+      }
+      return false;
+    };
+
+    // 1. Check immediately if already in DOM
+    if (checkReady()) return;
+
+    // 2. Observe mutations for faster detection than polling
+    const observer = new MutationObserver(() => {
+      if (checkReady()) {
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    // 3. Safety fallback stop observing
+    const safetyTimeout = setTimeout(() => {
+      observer.disconnect();
+    }, 5000);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(safetyTimeout);
+    };
   }, []);
 
   const isTourComplete = hasCompletedTour("dashboard_completed");
