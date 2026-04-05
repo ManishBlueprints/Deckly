@@ -1,17 +1,16 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { EventData, Step, STATUS } from "react-joyride";
 import { JoyrideWrapper } from "./JoyrideWrapper";
 import { useTourState } from "../../contexts/TourContext";
 
 export const DashboardTour: React.FC = () => {
   const { hasCompletedTour, markTourComplete } = useTourState();
-  const [isReady, setIsReady] = React.useState(false);
+  const [isReady, setIsReady] = useState(false);
 
-  React.useEffect(() => {
-    const TARGET_SELECTOR = '[data-tour="stat-card-0"]';
-
-    const checkReady = () => {
-      const exists = !!document.querySelector(TARGET_SELECTOR);
+  useEffect(() => {
+    // Faster, reactive element detection instead of a fixed 1s timeout
+    const checkElement = () => {
+      const exists = !!document.querySelector('[data-tour="stat-card-0"]');
       if (exists) {
         setIsReady(true);
         return true;
@@ -19,29 +18,21 @@ export const DashboardTour: React.FC = () => {
       return false;
     };
 
-    // 1. Check immediately if already in DOM
-    if (checkReady()) return;
+    if (checkElement()) return;
 
-    // 2. Observe mutations for faster detection than polling
-    const observer = new MutationObserver(() => {
-      if (checkReady()) {
-        observer.disconnect();
+    const interval = setInterval(() => {
+      if (checkElement()) {
+        clearInterval(interval);
       }
-    });
+    }, 100);
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-
-    // 3. Safety fallback stop observing
-    const safetyTimeout = setTimeout(() => {
-      observer.disconnect();
-    }, 5000);
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+    }, 5000); // 5s max wait
 
     return () => {
-      observer.disconnect();
-      clearTimeout(safetyTimeout);
+      clearInterval(interval);
+      clearTimeout(timeout);
     };
   }, []);
 

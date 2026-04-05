@@ -14,8 +14,6 @@ export const ContentTour: React.FC = () => {
 
   // Wait for the table to render and targets to be TRULY available and visible
   React.useEffect(() => {
-    let checkInterval: number;
-    
     const checkForTargets = () => {
       const targetAnalytics = document.querySelector('[data-tour="analytics-btn"]') as HTMLElement;
       const fallbackAnalytics = document.querySelector(".tour-analytics-btn") as HTMLElement;
@@ -32,18 +30,24 @@ export const ContentTour: React.FC = () => {
       
       if (hasDecks && analyticsVisible && editVisible && deleteVisible) {
         setIsReady(true);
-        clearInterval(checkInterval);
+        return true;
       }
+      return false;
     };
 
-    // Initial delay + interval check
-    const timeout = setTimeout(() => {
-      checkInterval = window.setInterval(checkForTargets, 500);
-    }, 1500); // 1.5s delay to be safe
+    if (checkForTargets()) return;
+
+    const intervalId = window.setInterval(() => {
+      if (checkForTargets()) clearInterval(intervalId);
+    }, 100);
+
+    const timeoutId = setTimeout(() => {
+      clearInterval(intervalId);
+    }, 5000);
 
     return () => {
-      clearTimeout(timeout);
-      clearInterval(checkInterval);
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
     };
   }, [hasDecks]);
 
@@ -82,6 +86,7 @@ export const ContentTour: React.FC = () => {
           </div>
         ),
         placement: "bottom" as const,
+        disableBeacon: true,
         disableScrolling: true,
       },
       {
@@ -95,6 +100,7 @@ export const ContentTour: React.FC = () => {
           </div>
         ),
         placement: "bottom-end" as const,
+        disableBeacon: true,
         disableScrolling: true,
       },
     ],

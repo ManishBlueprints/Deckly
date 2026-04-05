@@ -24,9 +24,29 @@ export const DataRoomTour: React.FC<DataRoomTourProps> = ({ hasRooms, isLoading 
 
   React.useEffect(() => {
     if (!isLoading && !hasRooms && !isTourComplete) {
-      // Small delay to ensure the target button is fully mounted before tour kicks in
-      const timer = setTimeout(() => setIsReady(true), 500);
-      return () => clearTimeout(timer);
+      const checkElement = () => {
+        const exists = !!document.querySelector('[data-tour="new-room-btn"]');
+        if (exists) {
+          setIsReady(true);
+          return true;
+        }
+        return false;
+      };
+
+      if (checkElement()) return;
+
+      const interval = setInterval(() => {
+        if (checkElement()) clearInterval(interval);
+      }, 100);
+
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+      }, 5000);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
     }
   }, [isLoading, hasRooms, isTourComplete]);
 
