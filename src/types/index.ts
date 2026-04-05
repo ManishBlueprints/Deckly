@@ -111,6 +111,7 @@ export interface TutorialState {
   data_room_create_completed?: boolean;
   upload_completed?: boolean;
   onboarding_completed?: boolean;
+  dashboard_completed?: boolean;
 }
 
 export interface UserProfile {
