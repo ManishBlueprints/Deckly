@@ -74,7 +74,7 @@ function Home() {
           window.location.reload();
         }}
       />
-      <HomeTour />
+      <HomeTour deckCount={decks.length} />
       {decks.length === 0 ? <EmptyStateOverlay /> : <DashboardView />}
     </DashboardLayout>
   );

@@ -3,11 +3,15 @@ import { EventData, Step, EVENTS, STATUS } from "react-joyride";
 import { JoyrideWrapper } from "./JoyrideWrapper";
 import { useTourState } from "../../contexts/TourContext";
 
-export const HomeTour: React.FC = () => {
+interface HomeTourProps {
+  deckCount: number;
+}
+
+export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
   const { hasCompletedTour, markTourComplete } = useTourState();
 
   const isTourComplete = hasCompletedTour("home_completed");
-  const run = !isTourComplete;
+  const run = !isTourComplete && deckCount === 0;
 
   const steps: Step[] = useMemo(
     () => [
@@ -87,8 +91,6 @@ export const HomeTour: React.FC = () => {
       markTourComplete("home_completed");
     }
   };
-
-  if (!run) return null;
 
   return (
     <JoyrideWrapper

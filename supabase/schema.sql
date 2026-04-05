@@ -43,12 +43,18 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+    IF auth.uid() IS NULL THEN
+        RAISE EXCEPTION 'unauthenticated';
+    END IF;
+
     UPDATE public.profiles
     SET tutorial_state = COALESCE(tutorial_state, '{}'::jsonb) || p_state,
         updated_at = NOW()
     WHERE id = auth.uid();
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.update_tutorial_state(JSONB) TO authenticated;
 
 -- 1. DECKS TABLE
 CREATE TABLE IF NOT EXISTS public.decks (

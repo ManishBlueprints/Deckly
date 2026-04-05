@@ -121,20 +121,20 @@ export function DecksTable({
                 </button>
                 <Link
                   to={`/analytics/${deck.id}`}
-                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-md transition-all"
+                  className="tour-analytics-btn p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-md transition-all"
                 >
                   <BarChart3 size={16} />
                 </Link>
                 <Link
                   to={`/edit/${deck.id}`}
-                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-md transition-all"
+                  className="tour-edit-btn p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-md transition-all"
                 >
                   <Pencil size={16} />
                 </Link>
                 <button
                   onClick={() => handleDeleteClick(deck)}
                   disabled={deleteTarget?.id === deck.id}
-                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-red-400 hover:border-red-900/50 hover:bg-red-500/10 rounded-md transition-all disabled:opacity-50"
+                  className="tour-delete-btn p-2.5 bg-surface-low border border-border text-slate-400 hover:text-red-400 hover:border-red-900/50 hover:bg-red-500/10 rounded-md transition-all disabled:opacity-50"
                 >
                   <Trash2 size={16} />
                 </button>
