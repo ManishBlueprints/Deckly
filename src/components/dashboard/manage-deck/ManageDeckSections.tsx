@@ -75,6 +75,7 @@ export function ManageDeckUploadSection({
         }}
         tabIndex={0}
         role="button"
+        id="tour-upload-dropzone"
         aria-label="Upload document"
         className={cn(
           "relative group cursor-pointer border border-border border-dashed rounded-lg p-8 md:p-12 text-center transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-deckly-primary/50",
@@ -360,7 +361,7 @@ export function ManageDeckAccessSection({
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   return (
-    <div className="pt-6 border-t border-white/5 space-y-6">
+    <div id="tour-security-panel" className="pt-6 border-t border-white/5 space-y-6">
       <div className="flex items-center gap-2 mb-2">
         <Lock size={16} className="text-deckly-primary" />
         <h3 className="text-sm font-medium text-white">Security & Access</h3>
@@ -598,6 +599,7 @@ export function ManageDeckActionsSection({
   return (
     <div className="flex flex-col gap-3 pt-6 border-t border-white/5">
       <Button
+        id="tour-upload-finalize"
         type="submit"
         disabled={loading}
         aria-busy={loading}

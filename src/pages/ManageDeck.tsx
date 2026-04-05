@@ -17,6 +17,7 @@ import {
   ManageDeckFeedbackSection,
   ManageDeckUploadSection,
 } from "../components/dashboard/manage-deck/ManageDeckSections";
+import { UploadTour } from "../components/tours/UploadTour";
 
 function ManageDeck() {
   const [searchParams] = useSearchParams();
@@ -164,6 +165,7 @@ function ManageDeck() {
 
   return (
     <DashboardLayout title={editId ? "Refine Deck" : "Add New Asset"}>
+      <UploadTour />
       <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto w-full space-y-6">
         <div className="mb-2">
           <h2 className="text-xl md:text-2xl font-semibold text-white tracking-tight">
