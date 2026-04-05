@@ -7,6 +7,7 @@ import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { useDataRoomsWithMeta } from "../hooks/useDataRooms";
 import { cn } from "@/lib/utils";
 import { DataRoom } from "../types";
+import { DataRoomTour } from "../components/tours/DataRoomTour";
 
 function DataRoomsPage() {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ function DataRoomsPage() {
 
   return (
     <DashboardLayout title="Data Rooms">
+      <DataRoomTour />
       <div className="space-y-8 animate-in fade-in duration-700 relative">
         {rooms.length > 0 && (
           <div className="flex flex-col gap-1.5">
@@ -80,7 +82,7 @@ function DataRoomsPage() {
               onClick={() => !isAtLimit && navigate("/rooms/new")}
               disabled={isAtLimit}
               className={cn(
-                "flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-xs rounded-lg transition-all active:scale-95 w-full sm:w-auto",
+                "tour-new-room-target flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-xs rounded-lg transition-all active:scale-95 w-full sm:w-auto",
                 isAtLimit
                   ? "bg-surface-low text-slate-500 border border-[#222] cursor-not-allowed"
                   : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90",
@@ -141,7 +143,7 @@ function DataRoomsPage() {
             </p>
             <button
               onClick={() => navigate("/rooms/new")}
-              className="flex items-center gap-2 px-6 py-2.5 bg-deckly-primary text-slate-950 font-semibold text-xs rounded-md transition-all active:scale-95"
+              className="tour-new-room-target flex items-center gap-2 px-6 py-2.5 bg-deckly-primary text-slate-950 font-semibold text-xs rounded-md transition-all active:scale-95"
             >
               <Plus size={16} />
               Create First Room

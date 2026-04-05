@@ -191,7 +191,7 @@ export function EmptyStateOverlay() {
 
               {/* Action Bar - Centered */}
               <div className="pt-8 border-t border-white/5 flex justify-center">
-                <Link to="/upload" className="w-full max-w-md">
+                <Link to="/upload" className="w-full max-w-md" id="tour-upload-deck-btn">
                   <Button className="w-full h-14 rounded-2xl bg-deckly-primary hover:bg-deckly-primary/90 text-slate-900 font-bold text-xs uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(34,197,94,0.3)] transition-all active:scale-95 border-none group/btn">
                     <Upload
                       size={18}

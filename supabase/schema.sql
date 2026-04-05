@@ -11,9 +11,13 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     handle TEXT UNIQUE,
     avatar_url TEXT,
     tier TEXT DEFAULT 'FREE', -- FREE, PRO, PRO_PLUS
+    tutorial_state JSONB DEFAULT '{}'::jsonb,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Schema Migration for existing profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tutorial_state JSONB DEFAULT '{}'::jsonb;
 
 -- Index for profile handle (removed unused var)
 
@@ -30,6 +34,21 @@ CREATE POLICY "Users can update their own profile" ON public.profiles
 
 CREATE POLICY "Users can insert their own profile" ON public.profiles
     FOR INSERT WITH CHECK ((select auth.uid()) = id);
+
+-- RPC for updating tutorial state efficiently
+CREATE OR REPLACE FUNCTION public.update_tutorial_state(p_state JSONB)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    UPDATE public.profiles
+    SET tutorial_state = COALESCE(tutorial_state, '{}'::jsonb) || p_state,
+        updated_at = NOW()
+    WHERE id = auth.uid();
+END;
+$$;
 
 -- 1. DECKS TABLE
 CREATE TABLE IF NOT EXISTS public.decks (

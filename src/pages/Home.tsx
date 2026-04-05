@@ -4,6 +4,7 @@ import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DashboardView } from "../components/dashboard/DashboardView";
 import { EmptyStateOverlay } from "../components/dashboard/EmptyStateOverlay";
 import { WorkspaceSetupModal } from "../components/dashboard/WorkspaceSetupModal";
+import { HomeTour } from "../components/tours/HomeTour";
 
 function Home() {
   const { session, profile } = useAuth();
@@ -73,6 +74,7 @@ function Home() {
           window.location.reload();
         }}
       />
+      <HomeTour />
       {decks.length === 0 ? <EmptyStateOverlay /> : <DashboardView />}
     </DashboardLayout>
   );
