@@ -44,25 +44,25 @@ export function ConfirmModal({
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          className="relative w-full max-w-sm bg-[#09090b] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl"
+          className="relative w-full max-w-sm bg-surface-card border border-white/10 rounded-none overflow-hidden shadow-2xl"
         >
-          {/* Subtle Green Branding Gradient */}
-          <div className="absolute -top-20 -right-20 w-40 h-40 bg-deckly-primary/10 blur-[60px] rounded-full pointer-events-none" />
           <div className="p-8 text-center">
             {/* Icon */}
             <div
               className={cn(
-                "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 border",
+                "w-16 h-16 rounded-none flex items-center justify-center mx-auto mb-6 border",
                 variant === "danger"
-                  ? "bg-red-500/10 text-red-500 border-red-500/20"
-                  : "bg-deckly-primary/10 text-deckly-primary border-deckly-primary/20",
+                  ? "bg-red-500/10 text-red-500 border-red-500/10"
+                  : "bg-deckly-primary/10 text-deckly-primary border-deckly-primary/10",
               )}
             >
               <AlertTriangle size={32} />
             </div>
 
-            <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-            <p className="text-sm text-slate-400 leading-relaxed active:select-none mb-8">
+            <h3 className="text-xl font-headline font-bold uppercase tracking-tight text-white mb-2">
+              {title}
+            </h3>
+            <p className="text-sm text-slate-400 leading-relaxed active:select-none mb-8 px-4 font-medium">
               {message}
             </p>
 
@@ -71,10 +71,10 @@ export function ConfirmModal({
                 onClick={onConfirm}
                 disabled={isLoading}
                 className={cn(
-                  "w-full py-4 rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98]",
+                  "w-full h-14 rounded-none text-xs font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 active:scale-[0.98] border-none shadow-none",
                   variant === "danger"
-                    ? "bg-red-500 text-white hover:bg-red-600 shadow-red-500/10"
-                    : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90 shadow-deckly-primary/10",
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90",
                 )}
               >
                 {isLoading ? (
@@ -87,7 +87,7 @@ export function ConfirmModal({
               <button
                 onClick={onClose}
                 disabled={isLoading}
-                className="w-full py-4 text-slate-500 hover:text-white text-xs font-black uppercase tracking-widest transition-colors disabled:opacity-30"
+                className="w-full py-4 text-slate-500 hover:text-white text-xs font-bold uppercase tracking-[0.2em] transition-colors disabled:opacity-30"
               >
                 {cancelText}
               </button>
@@ -97,7 +97,7 @@ export function ConfirmModal({
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="absolute top-6 right-6 p-2 text-slate-500 hover:text-white hover:bg-white/5 rounded-full transition-all disabled:opacity-0"
+            className="absolute top-6 right-6 p-2 text-slate-500 hover:text-white hover:bg-white/5 rounded-none transition-all disabled:opacity-0"
           >
             <X size={20} />
           </button>

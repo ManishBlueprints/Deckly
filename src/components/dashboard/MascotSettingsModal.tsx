@@ -3,6 +3,7 @@ import {
   X,
   Upload,
   Trash2,
+  RotateCcw,
   Camera,
   Loader2,
   Info,
@@ -36,7 +37,7 @@ export function MascotSettingsModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { markTourComplete } = useTourState();
+  const { markTourComplete, resetTours } = useTourState();
 
   // Workspace settings
   const [roomName, setRoomName] = useState(branding?.room_name || "");
@@ -90,8 +91,9 @@ export function MascotSettingsModal({
         logo_url: publicUrl,
       });
       onUpdate(updated);
-    } catch {
-      setError("Failed to upload image. Please try again.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Failed to upload image. Please try again.");
     } finally {
       setUploading(false);
       // Reset input value so the same file can be selected again
@@ -108,8 +110,9 @@ export function MascotSettingsModal({
         logo_url: null,
       });
       onUpdate(updated);
-    } catch {
-      setError("Failed to reset logo.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Failed to reset logo.");
     } finally {
       setUploading(false);
     }
@@ -150,8 +153,9 @@ export function MascotSettingsModal({
         window.location.reload();
         return; // Prevent further execution during reload
       }
-    } catch {
-      setError("Failed to save workspace settings.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "Failed to save workspace settings.");
     } finally {
       setSaving(false);
     }
@@ -160,7 +164,7 @@ export function MascotSettingsModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -173,7 +177,7 @@ export function MascotSettingsModal({
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="relative w-full max-w-md bg-surface-card border border-white/5 rounded-none overflow-hidden shadow-2xl"
+            className="relative w-full max-w-md bg-surface-card border-x border-t sm:border border-white/5 rounded-none overflow-hidden shadow-2xl"
           >
             {/* Header */}
             <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-surface-card">
@@ -194,7 +198,7 @@ export function MascotSettingsModal({
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 max-h-[calc(100vh-140px)] overflow-y-auto custom-scrollbar">
+            <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 max-h-[80vh] sm:max-h-[calc(100vh-140px)] overflow-y-auto custom-scrollbar pb-32 sm:pb-6">
               {/* Workspace Identity Section */}
               <div className="space-y-6">
                 <div>
@@ -243,7 +247,29 @@ export function MascotSettingsModal({
                     </div>
                   </div>
 
-                  {workspaceSlug !== userProfile?.handle && (
+                  {workspaceSlug !== userProfile?.handle && isSlugAvailable === false && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-2 flex items-center gap-2 text-red-500"
+                    >
+                      <AlertCircle size={14} />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Handle already taken</span>
+                    </motion.div>
+                  )}
+
+                  {workspaceSlug !== userProfile?.handle && workspaceSlug.length > 0 && workspaceSlug.length < 3 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-2 flex items-center gap-2 text-slate-500"
+                    >
+                      <Info size={14} />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Too short (min 3 chars)</span>
+                    </motion.div>
+                  )}
+
+                  {workspaceSlug !== userProfile?.handle && isSlugAvailable === true && (
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -345,6 +371,29 @@ export function MascotSettingsModal({
                         Reset Logo
                       </button>
                     )}
+
+                    <div className="pt-4 mt-4 border-t border-white/5 space-y-4">
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <Info size={14} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Tutorial Settings</span>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await resetTours();
+                            onClose();
+                            window.location.reload();
+                          } catch (err: unknown) {
+                            const message = err instanceof Error ? err.message : String(err);
+                            setError(message || "Failed to reset tutorials.");
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-none border border-white/10 transition-all text-[10px] font-bold uppercase tracking-widest"
+                      >
+                        <RotateCcw size={16} className="opacity-50" />
+                        Reset All Tutorials
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -66,8 +66,8 @@ export function DecksTable({
             .fill(0)
             .map((_, i) => (
               <div key={i} className="p-4 space-y-3">
-                <div className="h-4 w-40 bg-surface-lowest animate-pulse rounded-md" />
-                <div className="h-3 w-24 bg-surface-lowest animate-pulse rounded-md" />
+                <div className="h-4 w-40 bg-surface-lowest animate-pulse rounded-none" />
+                <div className="h-3 w-24 bg-surface-lowest animate-pulse rounded-none" />
               </div>
             ))
         ) : decks.length === 0 ? (
@@ -84,7 +84,7 @@ export function DecksTable({
                   "opacity-50 pointer-events-none",
               )}
             >
-              <div className="p-2.5 bg-surface-low rounded-md text-slate-500 shrink-0 border border-border">
+              <div className="p-2.5 bg-surface-low rounded-none text-slate-500 shrink-0 border border-border">
                 <FileText size={18} />
               </div>
               <div className="flex-1 min-w-0">
@@ -106,7 +106,7 @@ export function DecksTable({
                 <button
                   onClick={() => handleCopyLink(deck.slug, deck.id)}
                   className={cn(
-                    "p-2.5 rounded-md transition-all border",
+                    "p-2.5 rounded-none transition-all border",
                     copiedId === deck.id
                       ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
                       : "bg-surface-low border-border text-slate-400 hover:text-white",
@@ -121,20 +121,20 @@ export function DecksTable({
                 </button>
                 <Link
                   to={`/analytics/${deck.id}`}
-                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-md transition-all"
+                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-none transition-all"
                 >
                   <BarChart3 size={16} />
                 </Link>
                 <Link
                   to={`/edit/${deck.id}`}
-                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-md transition-all"
+                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-none transition-all"
                 >
                   <Pencil size={16} />
                 </Link>
                 <button
                   onClick={() => handleDeleteClick(deck)}
                   disabled={deleteTarget?.id === deck.id}
-                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-md transition-all disabled:opacity-50"
+                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-none transition-all disabled:opacity-50"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -179,25 +179,25 @@ export function DecksTable({
                 .map((_, i) => (
                   <TableRow key={i} className="border-border">
                     <TableCell className="px-6 py-4">
-                      <div className="h-4 w-40 bg-surface-lowest animate-pulse rounded-md" />
+                      <div className="h-4 w-40 bg-surface-lowest animate-pulse rounded-none" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-4 w-24 bg-surface-lowest animate-pulse rounded-md" />
+                      <div className="h-4 w-24 bg-surface-lowest animate-pulse rounded-none" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-8 w-24 bg-surface-lowest animate-pulse rounded-md mx-auto" />
+                      <div className="h-8 w-24 bg-surface-lowest animate-pulse rounded-none mx-auto" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-4 w-8 bg-surface-lowest animate-pulse rounded mx-auto" />
+                      <div className="h-4 w-8 bg-surface-lowest animate-pulse rounded-none mx-auto" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-4 w-8 bg-surface-lowest animate-pulse rounded mx-auto" />
+                      <div className="h-4 w-8 bg-surface-lowest animate-pulse rounded-none mx-auto" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-4 w-24 bg-surface-lowest animate-pulse rounded mx-auto" />
+                      <div className="h-4 w-24 bg-surface-lowest animate-pulse rounded-none mx-auto" />
                     </TableCell>
                     <TableCell className="px-6 py-4 text-right">
-                      <div className="h-8 w-20 bg-surface-lowest animate-pulse rounded-md ml-auto" />
+                      <div className="h-8 w-20 bg-surface-lowest animate-pulse rounded-none ml-auto" />
                     </TableCell>
                   </TableRow>
                 ))
@@ -226,7 +226,7 @@ export function DecksTable({
                       target="_blank"
                       className="flex items-center gap-3 transition-all group/title"
                     >
-                      <div className="p-2 bg-surface-lowest rounded-md text-slate-500 group-hover:text-deckly-primary transition-colors border border-border">
+                      <div className="p-2 bg-surface-lowest rounded-none text-slate-500 group-hover:text-deckly-primary transition-colors border border-border">
                         <FileText size={16} />
                       </div>
                       <span className="font-medium text-slate-300 group-hover/title:text-deckly-primary transition-colors">
@@ -247,7 +247,7 @@ export function DecksTable({
                     <button
                       onClick={() => handleCopyLink(deck.slug, deck.id)}
                       className={cn(
-                        "text-xs px-4 py-2 rounded-md transition-all flex items-center gap-2 mx-auto border",
+                        "text-xs px-4 py-2 rounded-none transition-all flex items-center gap-2 mx-auto border",
                         copiedId === deck.id
                           ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
                           : "bg-surface-lowest border-border text-slate-400 hover:text-white hover:border-border",
@@ -284,7 +284,7 @@ export function DecksTable({
                       <Link
                         to={`/analytics/${deck.id}`}
                         data-tour="analytics-btn"
-                        className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-md transition-all"
+                        className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-none transition-all"
                         title="View Detailed Analytics"
                       >
                         <BarChart3 size={16} />
@@ -292,7 +292,7 @@ export function DecksTable({
                       <Link
                         to={`/edit/${deck.id}`}
                         data-tour="edit-btn"
-                        className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-md transition-all"
+                        className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-none transition-all"
                         title="Edit Deck"
                       >
                         <Pencil size={16} />
@@ -301,7 +301,7 @@ export function DecksTable({
                         onClick={() => handleDeleteClick(deck)}
                         data-tour="delete-btn"
                         disabled={deleteTarget?.id === deck.id}
-                        className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-900/50 rounded-md transition-all disabled:opacity-50"
+                        className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-900/50 rounded-none transition-all disabled:opacity-50"
                         title="Delete Deck"
                       >
                         <Trash2 size={16} />
