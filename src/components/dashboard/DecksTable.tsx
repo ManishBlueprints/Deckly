@@ -134,7 +134,7 @@ export function DecksTable({
                 <button
                   onClick={() => handleDeleteClick(deck)}
                   disabled={deleteTarget?.id === deck.id}
-                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-red-400 hover:border-red-900/50 hover:bg-red-500/10 rounded-md transition-all disabled:opacity-50"
+                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:text-white rounded-md transition-all disabled:opacity-50"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -283,6 +283,7 @@ export function DecksTable({
                     <div className="flex items-center justify-end gap-2">
                       <Link
                         to={`/analytics/${deck.id}`}
+                        data-tour="analytics-btn"
                         className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-md transition-all"
                         title="View Detailed Analytics"
                       >
@@ -290,6 +291,7 @@ export function DecksTable({
                       </Link>
                       <Link
                         to={`/edit/${deck.id}`}
+                        data-tour="edit-btn"
                         className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-md transition-all"
                         title="Edit Deck"
                       >
@@ -297,6 +299,7 @@ export function DecksTable({
                       </Link>
                       <button
                         onClick={() => handleDeleteClick(deck)}
+                        data-tour="delete-btn"
                         disabled={deleteTarget?.id === deck.id}
                         className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-900/50 rounded-md transition-all disabled:opacity-50"
                         title="Delete Deck"

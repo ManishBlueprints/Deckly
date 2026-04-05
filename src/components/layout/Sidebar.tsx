@@ -13,7 +13,7 @@ import { Link, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import penguinMascot from "../../assets/penguine.png";
 import { useAuth } from "../../contexts/AuthContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
 
@@ -60,6 +60,14 @@ export function Sidebar() {
   const [showSettings, setShowSettings] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
 
+  // Listen for programmatic open requests (e.g., from HomeTour)
+  useEffect(() => {
+    const handleOpenSettings = () => setShowSettings(true);
+    window.addEventListener("deckly:open-settings", handleOpenSettings);
+    return () =>
+      window.removeEventListener("deckly:open-settings", handleOpenSettings);
+  }, []);
+
   function toggleCollapsed() {
     const next = !isCollapsed;
     setIsCollapsed(next);
@@ -100,6 +108,7 @@ export function Sidebar() {
         >
           {/* Logo icon */}
           <button
+            id="tour-workspace-settings"
             onClick={() => setShowSettings(true)}
             title="Workspace Settings"
             className="w-10 h-10 bg-surface-low border border-white/5 flex items-center justify-center shrink-0 hover:border-primary transition-colors overflow-hidden relative group"

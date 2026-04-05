@@ -23,6 +23,7 @@ import { DangerZoneSection } from "../components/dashboard/form-sections/DangerZ
 import { DataRoomDocument } from "../types";
 import { dataRoomService } from "../services/dataRoomService";
 import { useAuth } from "../contexts/AuthContext";
+import { DataRoomCreateTour } from "../components/tours/DataRoomCreateTour";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
 import { useQueryClient } from "@tanstack/react-query";
@@ -38,11 +39,25 @@ function ManageDataRoom() {
   // Tier limit safety check for create mode
   useEffect(() => {
     if (isEditMode) return;
+
+    let isMounted = true;
     const tier: Tier = (profile?.tier as Tier) || "FREE";
     const max = TIER_CONFIG[tier].maxDataRooms;
-    dataRoomService.getDataRooms().then((rooms) => {
-      if (rooms.length >= max) navigate("/rooms");
-    });
+
+    dataRoomService
+      .getDataRooms()
+      .then((rooms) => {
+        if (isMounted && rooms.length >= max) {
+          navigate("/rooms");
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to check room limits", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [isEditMode, profile, navigate]);
 
   // Form state
@@ -186,11 +201,14 @@ function ManageDataRoom() {
   // Reorder documents
   const handleReorder = useCallback(
     async (orderedDeckIds: string[]) => {
-      // Optimistic reorder
-      const reordered = orderedDeckIds.map((id, i) => {
-        const doc = documents.find((d) => d.deck_id === id)!;
-        return { ...doc, display_order: i };
-      });
+      // Reorder documents safely
+      const reordered = orderedDeckIds
+        .map((id, i) => {
+          const doc = documents.find((d) => d.deck_id === id);
+          return doc ? { ...doc, display_order: i } : null;
+        })
+        .filter((d): d is DataRoomDocument => d !== null);
+
       setDocuments(reordered);
 
       if (isEditMode) {
@@ -212,7 +230,7 @@ function ManageDataRoom() {
       return;
     }
 
-    if (!isSlugAvailable && !isEditMode) {
+    if (isSlugAvailable === false) {
       setError("This URL slug is already taken. Please choose another.");
       return;
     }
@@ -323,6 +341,7 @@ function ManageDataRoom() {
 
   return (
     <DashboardLayout title="Data Rooms" showFab={false}>
+      <DataRoomCreateTour isEditMode={isEditMode} />
       <div className="max-w-3xl mx-auto w-full px-4 md:px-6 space-y-6 pb-20 pt-6">
         {/* Back + Title */}
         <div className="flex items-center gap-4 relative z-10 border-b border-white/5 pb-6">
@@ -351,7 +370,10 @@ function ManageDataRoom() {
         )}
 
         {/* ──── Section 1: Room Identity ──── */}
-        <div className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative">
+        <div 
+          data-tour="room-branding"
+          className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative"
+        >
           <div className="px-6 py-4 border-b border-white/5">
             <h2 className="text-sm font-medium text-white">Room Branding</h2>
           </div>
@@ -519,7 +541,10 @@ function ManageDataRoom() {
         </div>
 
         {/* ──── Section 2: Documents ──── */}
-        <div className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative">
+        <div 
+          data-tour="room-assets"
+          className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative"
+        >
           <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
             <h2 className="text-sm font-medium text-white">YOUR ASSETS</h2>
             {documents.length > 0 && (
@@ -567,7 +592,10 @@ function ManageDataRoom() {
         </div>
 
         {/* ──── Section 3: Access Controls ──── */}
-        <div className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative">
+        <div 
+          data-tour="room-security"
+          className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative"
+        >
           <div className="px-6 py-4 border-b border-white/5">
             <h2 className="text-sm font-medium text-white">
               Security & Access
