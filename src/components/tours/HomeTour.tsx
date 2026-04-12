@@ -112,10 +112,7 @@ export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
     const { status } = data;
 
     // Handle manual clicks: if it's stage 0 and they click next/open (which evaluates to FINISHED on a 1-step tour)
-    if (
-      currentStage === 0 &&
-      status === STATUS.FINISHED
-    ) {
+    if (currentStage === 0 && status === STATUS.FINISHED) {
       window.dispatchEvent(new CustomEvent("deckly:open-settings"));
     }
 

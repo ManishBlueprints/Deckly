@@ -15,19 +15,37 @@ export const ContentTour: React.FC = () => {
   // Wait for the table to render and targets to be TRULY available and visible
   React.useEffect(() => {
     const checkForTargets = () => {
-      const targetAnalytics = document.querySelector('[data-tour="analytics-btn"]') as HTMLElement;
-      const fallbackAnalytics = document.querySelector(".tour-analytics-btn") as HTMLElement;
-      
-      const targetEdit = document.querySelector('[data-tour="edit-btn"]') as HTMLElement;
-      const fallbackEdit = document.querySelector(".tour-edit-btn") as HTMLElement;
+      const targetAnalytics = document.querySelector(
+        '[data-tour="analytics-btn"]',
+      ) as HTMLElement;
+      const fallbackAnalytics = document.querySelector(
+        ".tour-analytics-btn",
+      ) as HTMLElement;
 
-      const targetDelete = document.querySelector('[data-tour="delete-btn"]') as HTMLElement;
-      const fallbackDelete = document.querySelector(".tour-delete-btn") as HTMLElement;
+      const targetEdit = document.querySelector(
+        '[data-tour="edit-btn"]',
+      ) as HTMLElement;
+      const fallbackEdit = document.querySelector(
+        ".tour-edit-btn",
+      ) as HTMLElement;
 
-      const analyticsVisible = Boolean(targetAnalytics?.offsetParent || fallbackAnalytics?.offsetParent);
-      const editVisible = Boolean(targetEdit?.offsetParent || fallbackEdit?.offsetParent);
-      const deleteVisible = Boolean(targetDelete?.offsetParent || fallbackDelete?.offsetParent);
-      
+      const targetDelete = document.querySelector(
+        '[data-tour="delete-btn"]',
+      ) as HTMLElement;
+      const fallbackDelete = document.querySelector(
+        ".tour-delete-btn",
+      ) as HTMLElement;
+
+      const analyticsVisible = Boolean(
+        targetAnalytics?.offsetParent || fallbackAnalytics?.offsetParent,
+      );
+      const editVisible = Boolean(
+        targetEdit?.offsetParent || fallbackEdit?.offsetParent,
+      );
+      const deleteVisible = Boolean(
+        targetDelete?.offsetParent || fallbackDelete?.offsetParent,
+      );
+
       if (hasDecks && analyticsVisible && editVisible && deleteVisible) {
         setIsReady(true);
         return true;
@@ -52,7 +70,7 @@ export const ContentTour: React.FC = () => {
   }, [hasDecks]);
 
   const isTourComplete = hasCompletedTour("content_completed");
-  
+
   // Trigger only if there's at least one deck rendered on the table,
   // tour is not complete, and we've verified the DOM targets are visible.
   const run = !isTourComplete && hasDecks && isReady;
@@ -63,10 +81,13 @@ export const ContentTour: React.FC = () => {
         target: '[data-tour="analytics-btn"]',
         content: (
           <div className="text-left space-y-4">
-            <h3 className="text-xl font-bold text-white mb-2">Next Step: Analytics 📊</h3>
+            <h3 className="text-xl font-bold text-white mb-2">
+              Next Step: Analytics 📊
+            </h3>
             <p className="text-slate-300 text-sm">
-              Great job uploading! Now, click here to see your <strong>Analytics</strong>. 
-              Find out exactly which slide is losing you investors.
+              Great job uploading! Now, click here to see your{" "}
+              <strong>Analytics</strong>. Find out exactly which slide is losing
+              you investors.
             </p>
           </div>
         ),
@@ -78,10 +99,12 @@ export const ContentTour: React.FC = () => {
         target: '[data-tour="edit-btn"]',
         content: (
           <div className="text-left space-y-4">
-            <h3 className="text-xl font-bold text-white mb-2">Non-Destructive Edits</h3>
+            <h3 className="text-xl font-bold text-white mb-2">
+              Non-Destructive Edits
+            </h3>
             <p className="text-slate-300 text-sm">
-              Fixed a typo? Update the file here. 
-              The link stays exactly the same—no need to resend emails!
+              Fixed a typo? Update the file here. The link stays exactly the
+              same—no need to resend emails!
             </p>
           </div>
         ),
@@ -93,9 +116,12 @@ export const ContentTour: React.FC = () => {
         target: '[data-tour="delete-btn"]',
         content: (
           <div className="text-left space-y-4">
-            <h3 className="text-xl font-bold text-white mb-2">Complete Control</h3>
+            <h3 className="text-xl font-bold text-white mb-2">
+              Complete Control
+            </h3>
             <p className="text-slate-300 text-sm">
-              Close the round? Delete the deck to revoke all public access instantly.
+              Close the round? Delete the deck to revoke all public access
+              instantly.
             </p>
           </div>
         ),
@@ -104,24 +130,23 @@ export const ContentTour: React.FC = () => {
         disableScrolling: true,
       },
     ],
-    []
+    [],
   );
 
   const handleJoyrideEvent = (data: EventData) => {
     const { status, action } = data;
-    
+
     // Only mark as complete if the user actually finished or skipped it manually.
     // If it was skipped automatically because of visibility issues, 'action' would be 'start' or 'update' usually.
-    if (status === STATUS.FINISHED || (status === STATUS.SKIPPED && action === "close")) {
+    if (
+      status === STATUS.FINISHED ||
+      (status === STATUS.SKIPPED && action === "close")
+    ) {
       markTourComplete("content_completed");
     }
   };
 
   return (
-    <JoyrideWrapper
-      steps={steps}
-      run={run}
-      onEvent={handleJoyrideEvent}
-    />
+    <JoyrideWrapper steps={steps} run={run} onEvent={handleJoyrideEvent} />
   );
 };

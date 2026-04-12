@@ -47,7 +47,8 @@ export const DashboardTour: React.FC = () => {
           <div className="text-left space-y-4">
             <h3 className="text-xl font-bold text-white mb-2">Total Visits</h3>
             <p className="text-slate-300 text-sm">
-              This shows the total number of unique visits across all your active decks.
+              This shows the total number of unique visits across all your
+              active decks.
             </p>
           </div>
         ),
@@ -60,7 +61,8 @@ export const DashboardTour: React.FC = () => {
           <div className="text-left space-y-4">
             <h3 className="text-xl font-bold text-white mb-2">Time Spent</h3>
             <p className="text-slate-300 text-sm">
-              Track how much time investors are spending interacting with your content.
+              Track how much time investors are spending interacting with your
+              content.
             </p>
           </div>
         ),
@@ -84,9 +86,13 @@ export const DashboardTour: React.FC = () => {
         target: '[data-tour="engagement-chart"]',
         content: (
           <div className="text-left space-y-4">
-            <h3 className="text-xl font-bold text-white mb-2">Engagement Over Time</h3>
+            <h3 className="text-xl font-bold text-white mb-2">
+              Engagement Over Time
+            </h3>
             <p className="text-slate-300 text-sm">
-              This chart visualizes your activity over the last 7 days. Switch between Visits, Duration, and Saves to see detailed daily breakdowns.
+              This chart visualizes your activity over the last 7 days. Switch
+              between Visits, Duration, and Saves to see detailed daily
+              breakdowns.
             </p>
           </div>
         ),
@@ -97,9 +103,12 @@ export const DashboardTour: React.FC = () => {
         target: '[data-tour="top-decks"]',
         content: (
           <div className="text-left space-y-4">
-            <h3 className="text-xl font-bold text-white mb-2">Top Performing Decks</h3>
+            <h3 className="text-xl font-bold text-white mb-2">
+              Top Performing Decks
+            </h3>
             <p className="text-slate-300 text-sm">
-              Quickly identify which assets are gaining the most traction in your portfolio.
+              Quickly identify which assets are gaining the most traction in
+              your portfolio.
             </p>
           </div>
         ),
@@ -107,7 +116,7 @@ export const DashboardTour: React.FC = () => {
         disableBeacon: true,
       },
     ],
-    []
+    [],
   );
 
   const handleJoyrideEvent = (data: EventData) => {
@@ -120,10 +129,6 @@ export const DashboardTour: React.FC = () => {
   if (!run) return null;
 
   return (
-    <JoyrideWrapper
-      steps={steps}
-      run={run}
-      onEvent={handleJoyrideEvent}
-    />
+    <JoyrideWrapper steps={steps} run={run} onEvent={handleJoyrideEvent} />
   );
 };

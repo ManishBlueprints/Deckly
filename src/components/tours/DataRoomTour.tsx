@@ -8,7 +8,10 @@ interface DataRoomTourProps {
   isLoading: boolean;
 }
 
-export const DataRoomTour: React.FC<DataRoomTourProps> = ({ hasRooms, isLoading }) => {
+export const DataRoomTour: React.FC<DataRoomTourProps> = ({
+  hasRooms,
+  isLoading,
+}) => {
   const { hasCompletedTour, markTourComplete } = useTourState();
 
   const isTourComplete = hasCompletedTour("data_room_completed");
@@ -58,10 +61,12 @@ export const DataRoomTour: React.FC<DataRoomTourProps> = ({ hasRooms, isLoading 
         target: '[data-tour="new-room-btn"]',
         content: (
           <div className="text-left space-y-4">
-            <h3 className="text-xl font-bold text-white mb-2">Create a Data Room</h3>
+            <h3 className="text-xl font-bold text-white mb-2">
+              Create a Data Room
+            </h3>
             <p className="text-slate-300 text-sm">
-              Data rooms let you bundle multiple decks and files into one secure space. 
-              Click here to create your first.
+              Data rooms let you bundle multiple decks and files into one secure
+              space. Click here to create your first.
             </p>
           </div>
         ),
@@ -71,7 +76,7 @@ export const DataRoomTour: React.FC<DataRoomTourProps> = ({ hasRooms, isLoading 
         buttons: ["back"], // Show only back, no next/last
       },
     ],
-    []
+    [],
   );
 
   const handleJoyrideEvent = React.useCallback(
@@ -82,16 +87,12 @@ export const DataRoomTour: React.FC<DataRoomTourProps> = ({ hasRooms, isLoading 
         markTourComplete("data_room_completed");
       }
     },
-    [markTourComplete]
+    [markTourComplete],
   );
 
   if (!run) return null;
 
   return (
-    <JoyrideWrapper
-      steps={steps}
-      run={run}
-      onEvent={handleJoyrideEvent}
-    />
+    <JoyrideWrapper steps={steps} run={run} onEvent={handleJoyrideEvent} />
   );
 };

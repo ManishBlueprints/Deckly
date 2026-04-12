@@ -15,17 +15,20 @@ export function UploadTour() {
   const steps: Step[] = [
     {
       target: "#tour-upload-dropzone",
-      content: "First, select your pitch deck or document here. We support PDF, PPTX, and more!",
+      content:
+        "First, select your pitch deck or document here. We support PDF, PPTX, and more!",
       placement: "bottom",
     },
     {
       target: "#tour-security-panel",
-      content: "Next, set up your security. You can require emails, add passwords, or set an expiration date.",
+      content:
+        "Next, set up your security. You can require emails, add passwords, or set an expiration date.",
       placement: "top",
     },
     {
       target: "#tour-upload-finalize",
-      content: "Once you're ready, click here to finalize and upload your deck!",
+      content:
+        "Once you're ready, click here to finalize and upload your deck!",
       placement: "top",
     },
   ];
