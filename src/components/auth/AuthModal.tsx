@@ -107,6 +107,8 @@ export function AuthModal({
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
               By joining, you agree to our{" "}
               <Link to="/privacy" className="text-[#54e98a] hover:underline">Privacy Policy</Link>
+              {" "}and{" "}
+              <Link to="/terms" className="text-[#54e98a] hover:underline">Terms of Service</Link>
             </p>
           </div>
         </motion.div>

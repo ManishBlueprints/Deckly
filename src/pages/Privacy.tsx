@@ -168,7 +168,9 @@ const Privacy = () => {
               </div>
               <div className="p-4 border border-white/5 bg-white/[0.01] flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
                 <span className="text-slate-500">Payments</span>
-                <span className="text-slate-300 text-right">Stripe</span>
+                <span className="text-slate-300 text-right">
+                  Third-Party Payment Gateway
+                </span>
               </div>
             </div>
           </section>
@@ -254,7 +256,7 @@ const Privacy = () => {
               7. Children's Privacy
             </h2>
             <p className="text-slate-400 leading-relaxed">
-              Our Service is not directed to individuals under the age of 16 (or
+              Our Service is not directed to individuals under the age of 18 (or
               the applicable legal age in your jurisdiction). We do not
               knowingly collect personal data from children. If we become aware
               of an unauthorized registration by a minor, we will delete their
@@ -358,28 +360,17 @@ const Privacy = () => {
             {/* Horizontal Links */}
             <ul className="flex flex-wrap items-center gap-6 md:gap-10">
               <li>
+                <span className="text-[#54e98a] text-sm md:text-base font-bold cursor-default">
+                  Privacy Policy
+                </span>
+              </li>
+              <li>
                 <Link
-                  to="/privacy"
+                  to="/terms"
                   className="text-white hover:text-[#54e98a] text-sm md:text-base font-bold transition-colors"
                 >
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <div className="text-slate-600 hover:text-slate-400 text-sm md:text-base font-bold transition-colors cursor-not-allowed group relative flex items-center">
                   Terms of Service
-                  <span className="absolute -top-3 -right-6 px-1 py-0.5 bg-white/5 text-[8px] font-bold uppercase tracking-widest rounded-sm opacity-0 group-hover:opacity-100 transition-opacity -translate-y-1 group-hover:translate-y-0 text-slate-400">
-                    Soon
-                  </span>
-                </div>
-              </li>
-              <li>
-                <div className="text-slate-600 hover:text-slate-400 text-sm md:text-base font-bold transition-colors cursor-not-allowed group relative flex items-center">
-                  Cookie Policy
-                  <span className="absolute -top-3 -right-6 px-1 py-0.5 bg-white/5 text-[8px] font-bold uppercase tracking-widest rounded-sm opacity-0 group-hover:opacity-100 transition-opacity -translate-y-1 group-hover:translate-y-0 text-slate-400">
-                    Soon
-                  </span>
-                </div>
+                </Link>
               </li>
             </ul>
           </div>
@@ -391,7 +382,7 @@ const Privacy = () => {
               <img
                 src={logo}
                 alt="Deckly"
-                className="w-[8vw] h-[8vw] object-contain hidden sm:block"
+                className="w-[12vw] h-[12vw] object-contain hidden sm:block"
               />
               <h1 className="text-[14vw] sm:text-[12vw] leading-none font-bold tracking-tighter text-white select-none lowercase">
                 deckly

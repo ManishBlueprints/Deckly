@@ -39,7 +39,10 @@ export const DataRoomTour: React.FC<DataRoomTourProps> = ({
       if (checkElement()) return;
 
       const interval = setInterval(() => {
-        if (checkElement()) clearInterval(interval);
+        if (checkElement()) {
+          clearInterval(interval);
+          clearTimeout(timeout);
+        }
       }, 100);
 
       const timeout = setTimeout(() => {

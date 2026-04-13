@@ -28,6 +28,7 @@ const DataRoomViewer = lazy(() => import("./pages/DataRoomViewer"));
 const SavedDecks = lazy(() => import("./pages/SavedDecks"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
 
 const LoadingFallback = () => (
   <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
@@ -177,6 +178,10 @@ const AppContent = () => {
           <Route
             path="/privacy"
             element={<Privacy />}
+          />
+          <Route
+            path="/terms"
+            element={<Terms />}
           />
           <Route
             path="/admin"
