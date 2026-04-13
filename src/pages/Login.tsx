@@ -214,9 +214,17 @@ function Login() {
             </p>
           </div>
 
-          <p className="mt-8 text-[10px] text-slate-600 font-bold text-center leading-relaxed">
-            © 2026 Deckly by Manish
-          </p>
+          <div className="mt-8 flex flex-col items-center gap-4">
+            <Link 
+              to="/privacy" 
+              className="text-[10px] font-bold text-slate-600 uppercase tracking-widest hover:text-slate-400 transition-colors underline underline-offset-4"
+            >
+              Privacy Policy
+            </Link>
+            <p className="text-[10px] text-slate-700 font-bold uppercase tracking-[0.2em]">
+              © 2026 Deckly by Manish
+            </p>
+          </div>
         </div>
       </div>
     </div>

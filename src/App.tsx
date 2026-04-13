@@ -27,6 +27,7 @@ const DataRoomDetail = lazy(() => import("./pages/DataRoomDetail"));
 const DataRoomViewer = lazy(() => import("./pages/DataRoomViewer"));
 const SavedDecks = lazy(() => import("./pages/SavedDecks"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const Privacy = lazy(() => import("./pages/Privacy"));
 
 const LoadingFallback = () => (
   <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
@@ -172,6 +173,10 @@ const AppContent = () => {
           <Route
             path="/saved-decks"
             element={session ? <SavedDecks /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/privacy"
+            element={<Privacy />}
           />
           <Route
             path="/admin"

@@ -44,6 +44,8 @@ export const DataRoomTour: React.FC<DataRoomTourProps> = ({
 
       const timeout = setTimeout(() => {
         clearInterval(interval);
+        console.warn("[DataRoomTour] Target selector [data-tour=\"new-room-btn\"] not found after 5s polling. Triggering fallback isReady state to prevent silent failure.");
+        setIsReady(true);
       }, 5000);
 
       return () => {
