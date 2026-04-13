@@ -560,7 +560,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
 
               {/* Feature Intro */}
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">
-                {tierKey === "FREE" ? "What's included:" : `Everything on ${prevTier}, plus:`}
+                {tierKey === "FREE" ? "What's included:" : `Everything on ${prevTier === "PRO_PLUS" ? "Pro+" : prevTier}, plus:`}
               </p>
 
               {/* Features List */}

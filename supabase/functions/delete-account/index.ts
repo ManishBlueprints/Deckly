@@ -66,7 +66,12 @@ Deno.serve(async (req: Request) => {
           .from("decks")
           .list(path, { limit: pageSize, offset });
 
-        if (listError || !items || items.length === 0) {
+        if (listError) {
+          console.error(`[delete-account] Failed to list storage directory '${path}':`, listError.message);
+          throw listError;
+        }
+
+        if (!items || items.length === 0) {
           hasMore = false;
           break;
         }
