@@ -18,8 +18,8 @@ function DataRoomsPage() {
   const tier: Tier = (profile?.tier as Tier) || "FREE";
   const tierConfig = TIER_CONFIG[tier];
   const maxRooms = tierConfig.maxDataRooms;
-  const isAtLimit = rooms.length >= maxRooms;
-  const isUnlimited = maxRooms === Infinity;
+  const isUnlimited = maxRooms === -1;
+  const isAtLimit = !isUnlimited && rooms.length >= maxRooms;
 
   const loading = isLoading && rooms.length === 0;
   const isRefreshing = isFetching;
