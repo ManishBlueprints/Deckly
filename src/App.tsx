@@ -29,6 +29,7 @@ const SavedDecks = lazy(() => import("./pages/SavedDecks"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
+const Profile = lazy(() => import("./pages/Profile"));
 
 const LoadingFallback = () => (
   <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
@@ -182,6 +183,10 @@ const AppContent = () => {
           <Route
             path="/terms"
             element={<Terms />}
+          />
+          <Route
+            path="/profile"
+            element={session ? <Profile /> : <Navigate to="/login" />}
           />
           <Route
             path="/admin"
