@@ -75,53 +75,62 @@ function Profile() {
       <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="relative w-full max-w-6xl h-[85vh] bg-surface-lowest border border-border overflow-hidden shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] flex"
+        className="relative w-full max-w-6xl h-[95vh] md:h-[85vh] bg-surface-lowest border border-border overflow-hidden shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] flex flex-col md:flex-row"
       >
         {/* Left Sidebar */}
-        <div className="w-64 bg-surface-low border-r border-border flex flex-col shrink-0">
+        <div className="w-full md:w-64 bg-surface-low border-b md:border-b-0 md:border-r border-border flex flex-col shrink-0">
           {/* User Header */}
-          <div className="p-6 border-b border-border">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 bg-surface-container border border-border overflow-hidden flex items-center justify-center">
-                {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-muted-foreground font-bold text-lg">
-                    {profile?.full_name?.charAt(0) || "U"}
-                  </span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-white truncate">
-                  {profile?.full_name?.split(" ")[0] || "User"}
-                </p>
-                <span
-                  className={cn(
-                    "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm border inline-block mt-1",
-                    tier === "FREE"
-                      ? "bg-slate-800/50 text-slate-500 border-white/5"
-                      : tier === "PRO"
-                        ? "bg-amber-400 text-slate-950 border-amber-500/50"
-                        : "bg-purple-600 text-white border-purple-500/50"
+          <div className="p-4 md:p-6 border-b border-border relative">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-surface-container border border-border overflow-hidden flex items-center justify-center">
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-muted-foreground font-bold text-base md:text-lg">
+                      {profile?.full_name?.charAt(0) || "U"}
+                    </span>
                   )}
-                >
-                  {TIER_CONFIG[tier].label}
-                </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm font-bold text-white truncate">
+                    {profile?.full_name?.split(" ")[0] || "User"}
+                  </p>
+                  <span
+                    className={cn(
+                      "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm border inline-block mt-0.5 md:mt-1",
+                      tier === "FREE"
+                        ? "bg-slate-800/50 text-slate-500 border-white/5"
+                        : tier === "PRO"
+                          ? "bg-amber-400 text-slate-950 border-amber-500/50"
+                          : "bg-purple-600 text-white border-purple-500/50"
+                    )}
+                  >
+                    {TIER_CONFIG[tier].label}
+                  </span>
+                </div>
               </div>
+              
+              <button
+                onClick={() => navigate(-1)}
+                className="md:hidden p-2 text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+              >
+                <X size={20} />
+              </button>
             </div>
             {profile?.handle && (
-              <p className="text-[10px] text-muted-foreground truncate opacity-60">@{profile.handle}</p>
+              <p className="text-[10px] text-muted-foreground truncate opacity-60 mt-2 md:mt-0">@{profile.handle}</p>
             )}
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-3 space-y-1">
+          <nav className="flex md:flex-col overflow-x-auto md:overflow-x-visible no-scrollbar p-2 md:p-3 gap-1">
             {sections.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setActiveSection(id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all group",
+                  "flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm font-medium transition-all group shrink-0",
                   activeSection === id
                     ? "bg-deckly-primary/10 text-deckly-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-high"
@@ -137,19 +146,19 @@ function Profile() {
         {/* Right Content */}
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
           {/* Sticky Header */}
-          <div className="sticky top-0 z-40 bg-surface-lowest/80 backdrop-blur-md border-b border-border px-8 py-5 flex items-center justify-between shrink-0">
+          <div className="sticky top-0 z-40 bg-surface-lowest/80 backdrop-blur-md border-b border-border px-4 md:px-8 py-4 md:py-5 flex items-center justify-between shrink-0">
             <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em]">
               {sections.find(s => s.id === activeSection)?.label || activeSection}
             </h2>
             <button
               onClick={() => navigate(-1)}
-              className="p-1.5 text-slate-500 hover:text-slate-950 hover:bg-deckly-primary transition-all duration-300"
+              className="hidden md:block p-1.5 text-slate-500 hover:text-slate-950 hover:bg-deckly-primary transition-all duration-300"
             >
               <X size={18} />
             </button>
           </div>
 
-          <div className="p-8 pt-6 max-w-4xl mx-auto w-full">
+          <div className="p-4 md:p-8 pt-4 md:pt-6 max-w-4xl mx-auto w-full">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSection}
@@ -298,8 +307,8 @@ function IdentitySection() {
   return (
     <div className="space-y-6">
       {/* Logo Upload */}
-      <div className="bg-surface-low border border-border p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+      <div className="bg-surface-low border border-border p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
           <div className="relative group/mascot">
             <div className="w-24 h-24 bg-surface-lowest border border-border flex items-center justify-center p-3">
               <img
@@ -482,7 +491,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
           <button
             onClick={() => setBillingCycle("monthly")}
             className={cn(
-              "px-8 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+              "flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
               billingCycle === "monthly"
                 ? "bg-surface-highest text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -493,14 +502,14 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
           <button
             onClick={() => setBillingCycle("yearly")}
             className={cn(
-              "relative px-8 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center gap-2",
+              "relative flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2",
               billingCycle === "yearly"
                 ? "bg-surface-highest text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
             Yearly
-            <span className="text-[8px] bg-deckly-primary/20 text-deckly-primary px-1.5 py-0.5 font-bold tracking-normal uppercase">
+            <span className="hidden sm:inline-block text-[8px] bg-deckly-primary/20 text-deckly-primary px-1.5 py-0.5 font-bold tracking-normal uppercase">
               Save 20%
             </span>
           </button>

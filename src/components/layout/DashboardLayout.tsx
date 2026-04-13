@@ -98,8 +98,24 @@ export function DashboardLayout({
               {currentLabel}
             </span>
           </div>
-          {/* Notification Bell — top right */}
-          {profile?.id && <NotificationBell userId={profile.id} />}{" "}
+
+          <div className="flex items-center gap-2 md:gap-3">
+            {profile?.id && <NotificationBell userId={profile.id} />}
+            
+            {/* Mobile Profile Link */}
+            <button 
+              onClick={() => navigate("/profile")}
+              className="md:hidden w-8 h-8 rounded-full bg-surface-low border border-white/5 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/30 transition-all active:scale-90"
+            >
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-[11px] font-bold text-primary/60">
+                  {profile?.full_name?.charAt(0).toUpperCase() || "U"}
+                </span>
+              )}
+            </button>
+          </div>
         </header>
 
         {/* Content Area */}
