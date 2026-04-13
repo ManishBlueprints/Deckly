@@ -40,8 +40,9 @@ const Button: React.FC<ButtonProps> = ({
 
   return (
     <motion.button
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={{ y: -1 }}
+      whileTap={{ y: 0 }}
+      transition={{ duration: 0.1 }}
       type={type}
       onClick={onClick}
       disabled={disabled || loading}

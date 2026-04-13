@@ -105,6 +105,36 @@ export function SavedDecksView() {
     [editingFolder, actions]
   );
 
+  // --- Shared stable handlers for rows ---
+  const handleMoveToFolder = useCallback((deckLibraryId: string, folderId: string | null) => {
+    actions.moveDeck(deckLibraryId, folderId);
+  }, [actions]);
+
+  const handleUpdateTags = useCallback((deckLibraryId: string, tagIds: string[]) => {
+    actions.updateDeckTags(deckLibraryId, tagIds);
+  }, [actions]);
+
+  const handleSaveNote = useCallback((deckId: string, note: string) => {
+    return actions.saveNote(deckId, note);
+  }, [actions]);
+
+  const handleUnsaveRequest = useCallback((deck: SavedDeckOrganized) => {
+    setUnsaveTarget(deck);
+  }, []);
+
+  const handleEditFolderRequest = useCallback((f: LibraryFolder) => {
+    setEditingFolder(f);
+    setIsCreateFolderModalOpen(true);
+  }, []);
+
+  const handleDeleteFolderRequest = useCallback((f: LibraryFolder) => {
+    setDeletingFolder(f);
+  }, []);
+
+  const handleFolderClick = useCallback((folderId: string) => {
+    setSelectedFolderId((prev) => (prev === folderId ? "uncategorized" : folderId));
+  }, []);
+
   // --- Loading / error / empty states ---
   if (isError) {
     return (
@@ -194,9 +224,10 @@ export function SavedDecksView() {
           <AnimatePresence>
             {isFilterOpen && (
               <motion.div
-                initial={{ height: 0, opacity: 0 }}
+                initial={false}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.15 }}
                 className="overflow-hidden"
               >
                 <div className="p-6 bg-surface-card border border-white/5 flex flex-col md:flex-row gap-6">
@@ -282,14 +313,9 @@ export function SavedDecksView() {
                   key={folder.id}
                   folder={folder}
                   isActive={selectedFolderId === folder.id}
-                  onClick={() =>
-                    setSelectedFolderId(selectedFolderId === folder.id ? "uncategorized" : folder.id)
-                  }
-                  onEdit={(f) => {
-                    setEditingFolder(f);
-                    setIsCreateFolderModalOpen(true);
-                  }}
-                  onDelete={(f) => setDeletingFolder(f)}
+                  onClick={() => handleFolderClick(folder.id)}
+                  onEdit={handleEditFolderRequest}
+                  onDelete={handleDeleteFolderRequest}
                 />
               ))}
             </div>
@@ -319,18 +345,14 @@ export function SavedDecksView() {
             <div className="space-y-4">
               <AnimatePresence mode="popLayout" initial={false}>
                 {filteredDecks.length === 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="py-32 text-center"
-                  >
+                  <div className="py-32 text-center">
                     <div className="w-20 h-20 bg-surface-card flex items-center justify-center text-[#54e98a]/20 mx-auto border border-white/5 mb-6">
                       <span className="material-symbols-outlined text-4xl">inventory_2</span>
                     </div>
                     <p className="text-[#bbcbbb]/40 font-bold">
                       No documents matching the current filter
                     </p>
-                  </motion.div>
+                  </div>
                 ) : (
                   filteredDecks.map((deck) => (
                     <DocumentRow
@@ -338,10 +360,10 @@ export function SavedDecksView() {
                       deck={deck}
                       folders={folders}
                       tags={tags}
-                      onMoveToFolder={(folderId) => actions.moveDeck(deck.library_id, folderId)}
-                      onUpdateTags={(tagIds) => actions.updateDeckTags(deck.library_id, tagIds)}
-                      onSaveNote={(note) => actions.saveNote(deck.deck_id, note)}
-                      onUnsave={() => setUnsaveTarget(deck)}
+                      onMoveToFolder={(folderId) => handleMoveToFolder(deck.library_id, folderId)}
+                      onUpdateTags={(tagIds) => handleUpdateTags(deck.library_id, tagIds)}
+                      onSaveNote={(note) => handleSaveNote(deck.deck_id, note)}
+                      onUnsave={() => handleUnsaveRequest(deck)}
                       isUnsaving={unsaveTarget?.library_id === deck.library_id}
                     />
                   ))

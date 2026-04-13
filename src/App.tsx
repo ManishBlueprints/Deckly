@@ -27,6 +27,8 @@ const DataRoomDetail = lazy(() => import("./pages/DataRoomDetail"));
 const DataRoomViewer = lazy(() => import("./pages/DataRoomViewer"));
 const SavedDecks = lazy(() => import("./pages/SavedDecks"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
 
 const LoadingFallback = () => (
   <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
@@ -79,7 +81,7 @@ const AppContent = () => {
     if (loading) {
       timeout = setTimeout(() => {
         setShowSlowMessage(true);
-      }, 3000); // Reduced from 8s to 3s for faster user feedback
+      }, 1500); // Reduced from 3s to 1.5s for even faster user feedback
     } else {
       setShowSlowMessage(false);
     }
@@ -172,6 +174,14 @@ const AppContent = () => {
           <Route
             path="/saved-decks"
             element={session ? <SavedDecks /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/privacy"
+            element={<Privacy />}
+          />
+          <Route
+            path="/terms"
+            element={<Terms />}
           />
           <Route
             path="/admin"

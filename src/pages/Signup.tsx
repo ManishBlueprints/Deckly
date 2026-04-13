@@ -271,27 +271,21 @@ function Signup() {
             </p>
           </div>
 
-          <p className="mt-6 text-[10px] text-slate-600 font-bold text-center leading-relaxed">
+          <p className="mt-6 text-[10px] text-slate-600 font-bold text-center leading-relaxed italic opacity-80">
             By signing up you agree to our{" "}
-            <a 
-              href="/terms"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link 
+              to="/terms"
               className="underline cursor-pointer hover:text-slate-400 transition-colors"
-              aria-label="Terms and Conditions"
             >
               terms and conditions
-            </a>{" "}
+            </Link>{" "}
             and our{" "}
-            <a 
-              href="/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link 
+              to="/privacy"
               className="underline cursor-pointer hover:text-slate-400 transition-colors"
-              aria-label="Privacy Policy"
             >
               privacy policy
-            </a>
+            </Link>
           </p>
         </div>
       </div>

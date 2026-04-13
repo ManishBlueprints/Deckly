@@ -65,7 +65,7 @@ export function NotificationBell({ userId }: NotificationBellProps) {
       {isOpen && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-2 z-50"
+          className="fixed inset-x-4 top-16 mt-3 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 z-50"
         >
           <NotificationPanel
             userId={userId}
