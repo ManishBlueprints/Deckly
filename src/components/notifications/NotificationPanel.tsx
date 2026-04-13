@@ -26,7 +26,7 @@ export function NotificationPanel({ userId, onClose }: NotificationPanelProps) {
     }
   };
   return (
-    <div className="w-full max-w-[380px] max-h-[480px] bg-[#0e0e0e] border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+    <div className="w-[calc(100vw-2rem)] sm:w-[440px] max-h-[480px] bg-[#0e0e0e] border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0">
         <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wide">

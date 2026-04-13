@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 import { X, Github } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../services/supabase";
@@ -102,9 +103,12 @@ export function AuthModal({
             </button>
           </div>
 
-          <div className="mt-8 pt-8 border-t border-white/5 text-center">
-            <p className="text-xs text-slate-500 font-medium">
-              By joining, you agree to our Terms of Service and Privacy Policy.
+          <div className="mt-8 pt-6 border-t border-white/5 text-center">
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+              By joining, you agree to our{" "}
+              <Link to="/privacy" className="text-[#54e98a] hover:underline">Privacy Policy</Link>
+              {" "}and{" "}
+              <Link to="/terms" className="text-[#54e98a] hover:underline">Terms of Service</Link>
             </p>
           </div>
         </motion.div>
