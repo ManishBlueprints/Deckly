@@ -76,11 +76,12 @@ export function AnalyticsDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Stats column — left, stacked vertically */}
         <div className="lg:col-span-4 grid grid-rows-3 gap-6">
-          {overviewItems.map((item) => {
+          {overviewItems.map((item, index) => {
             const Icon = item.icon;
             return (
               <div
                 key={item.label}
+                data-tour={`stat-card-${index}`}
                 className="bg-surface-card border border-white/5 p-6 flex flex-col justify-between group hover:brightness-110 transition-all"
               >
                 <div className="flex justify-between items-start">
@@ -102,7 +103,10 @@ export function AnalyticsDashboard() {
         </div>
 
         {/* Chart — right */}
-        <div className="lg:col-span-8 bg-surface-card border border-white/5 flex flex-col min-h-[380px]">
+        <div
+          data-tour="engagement-chart"
+          className="lg:col-span-8 bg-surface-card border border-white/5 flex flex-col min-h-[380px]"
+        >
           <Tabs defaultValue="VISITS" className="flex-1 flex flex-col h-full">
             {/* Header: title+subtitle left, tabs right */}
             <div className="flex items-center justify-between px-8 py-5 border-b border-white/5">

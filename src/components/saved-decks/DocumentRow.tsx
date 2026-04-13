@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { memo, useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { GripVertical } from "lucide-react";
@@ -23,7 +23,7 @@ interface DocumentRowProps {
   isUnsaving?: boolean;
 }
 
-export function DocumentRow({
+export const DocumentRow = memo(function DocumentRow({
   deck,
   folders,
   tags,
@@ -103,9 +103,6 @@ export function DocumentRow({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
       className={cn(
         "bg-surface-card border border-white/5 p-6 flex flex-col md:flex-row items-center gap-6 group hover:border-[#54e98a]/20 transition-all",
         isUnsaving && "opacity-50 pointer-events-none"
@@ -193,4 +190,4 @@ export function DocumentRow({
       </div>
     </motion.div>
   );
-}
+});

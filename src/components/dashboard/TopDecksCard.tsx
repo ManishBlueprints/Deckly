@@ -32,7 +32,7 @@ export function TopDecksCard() {
     return `${mins}m ${secs}s`;
   };
   return (
-    <div className="flex flex-col h-full">
+    <div data-tour="top-decks" className="flex flex-col h-full">
       {/* Section heading — same style as screen.png */}
       <div className="flex items-end justify-between mb-6 pb-4 border-b border-white/5">
         <div>

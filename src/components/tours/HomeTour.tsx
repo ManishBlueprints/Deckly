@@ -16,16 +16,31 @@ export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
 
   // 1. Wait for components to animate in and DOM to stabilize
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // 2. Only signal ready if the target elements exist in DOM
+    const checkTarget = () => {
       const targetExists =
         !!document.querySelector("#tour-upload-deck-btn") &&
         !!document.querySelector("#tour-workspace-settings");
       if (targetExists) {
         setIsReady(true);
+        return true;
       }
-    }, 1000);
-    return () => clearTimeout(timer);
+      return false;
+    };
+
+    if (checkTarget()) return;
+
+    const interval = setInterval(() => {
+      if (checkTarget()) clearInterval(interval);
+    }, 100);
+
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   }, [deckCount]);
 
   // 3. Listen for modal closure to advance tour
@@ -97,10 +112,7 @@ export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
     const { status } = data;
 
     // Handle manual clicks: if it's stage 0 and they click next/open (which evaluates to FINISHED on a 1-step tour)
-    if (
-      currentStage === 0 &&
-      status === STATUS.FINISHED
-    ) {
+    if (currentStage === 0 && status === STATUS.FINISHED) {
       window.dispatchEvent(new CustomEvent("deckly:open-settings"));
     }
 

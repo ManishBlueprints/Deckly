@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Folder, Edit2, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { LibraryFolder } from "../../types";
@@ -13,7 +14,7 @@ interface FolderCardProps {
   onDelete?: (folder: LibraryFolder) => void;
 }
 
-export function FolderCard({
+export const FolderCard = memo(function FolderCard({
   folder,
   isNew,
   onClick,
@@ -58,8 +59,9 @@ export function FolderCard({
     <motion.div
       role="button"
       tabIndex={0}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={{ y: -2 }}
+      whileTap={{ y: 0 }}
+      transition={{ duration: 0.1 }}
       onClick={onClick}
       onKeyDown={handleKeyDown}
         className={cn(
@@ -131,4 +133,4 @@ export function FolderCard({
       </div>
     </motion.div>
   );
-}
+});
