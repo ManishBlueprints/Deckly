@@ -9,7 +9,7 @@ import {
   ChevronLeft,
   Settings,
 } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "../../utils/cn";
 import penguinMascot from "../../assets/penguine.png";
 import { useAuth } from "../../contexts/AuthContext";
@@ -56,7 +56,6 @@ const TIER_CONFIG = {
 
 export function Sidebar() {
   const location = useLocation();
-  const navigate = useNavigate();
   const { profile, signOut, branding, setBranding } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
@@ -214,8 +213,8 @@ export function Sidebar() {
       {/* ── User Profile Footer ── */}
       <div className={cn("px-6 mt-auto shrink-0")}>
         <div className={cn("flex flex-col gap-1", isCollapsed && "items-center")}>
-          <div
-            onClick={() => navigate("/profile")}
+          <Link
+            to="/profile"
             className="flex items-center gap-3 border-t border-white/5 pt-4 cursor-pointer hover:bg-white/5 -mx-2 px-2 py-1 rounded transition-colors"
           >
             <div className="w-8 h-8 bg-surface-high overflow-hidden shrink-0 flex items-center justify-center">
@@ -257,17 +256,18 @@ export function Sidebar() {
 
                 <button
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     signOut();
                   }}
                   className="p-2 text-red-400 hover:text-white hover:bg-red-500 bg-red-500/10 border border-red-500/20 rounded transition-all shrink-0 group/logout"
                   title="Sign Out"
                 >
-                  <LogOut size={14} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+                  <LogOut size={14} strokeWidth={2.5} className="group-hover/logout:scale-110 transition-transform" />
                 </button>
               </>
             )}
-          </div>
+          </Link>
         </div>
       </div>
 

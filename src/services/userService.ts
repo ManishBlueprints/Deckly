@@ -134,6 +134,9 @@ export const userService = {
     }
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    if (!supabaseUrl) {
+      throw new Error("Missing VITE_SUPABASE_URL environment variable.");
+    }
     const functionUrl = `${supabaseUrl}/functions/v1/delete-account`;
 
     const response = await fetch(functionUrl, {

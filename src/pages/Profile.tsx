@@ -50,7 +50,8 @@ function Profile() {
     window.scrollTo(0, 0);
   }, []);
 
-  const tier: Tier = (profile?.tier as Tier) || "FREE";
+  const isValidTier = (t: string | undefined | null): t is Tier => ["FREE", "PRO", "PRO_PLUS"].includes(t as string);
+  const tier: Tier = isValidTier(profile?.tier) ? profile.tier : "FREE";
 
   const sections: { id: ProfileSection; label: string; icon: React.ElementType }[] = [
     { id: "identity", label: "Identity", icon: User },
@@ -189,24 +190,29 @@ function IdentitySection() {
   }, [branding?.room_name, profile?.handle]);
 
   useEffect(() => {
+    let isMounted = true;
     if (workspaceSlug === profile?.handle || workspaceSlug.length < 3) {
       setIsSlugAvailable(null);
       return;
     }
 
     const timer = setTimeout(async () => {
+      if (!isMounted) return;
       setIsCheckingSlug(true);
       try {
         const available = await userService.isHandleAvailable(workspaceSlug);
-        setIsSlugAvailable(available);
+        if (isMounted) setIsSlugAvailable(available);
       } catch {
-        setIsSlugAvailable(false);
+        if (isMounted) setIsSlugAvailable(false);
       } finally {
-        setIsCheckingSlug(false);
+        if (isMounted) setIsCheckingSlug(false);
       }
     }, 500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [workspaceSlug, profile?.handle]);
 
   const currentLogo = branding?.logo_url || penguinMascot;
@@ -419,7 +425,7 @@ function IdentitySection() {
 
         <button
           onClick={handleSave}
-          disabled={saving || (workspaceSlug !== profile?.handle && !isSlugAvailable)}
+          disabled={saving || isCheckingSlug || (workspaceSlug !== profile?.handle && !isSlugAvailable)}
           className="w-full py-4 bg-deckly-primary text-primary-foreground font-bold uppercase tracking-[0.2em] text-[10px] hover:brightness-110 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {saving ? (
@@ -554,7 +560,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
 
               {/* Feature Intro */}
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">
-                {tierKey === "FREE" ? "What's included:" : `Everything on ${prevTier === "PRO_PLUS" ? "Pro+" : prevTier}, plus:`}
+                {tierKey === "FREE" ? "What's included:" : `Everything on ${prevTier}, plus:`}
               </p>
 
               {/* Features List */}
@@ -580,7 +586,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
                           {label}
                         </span>
                         <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5 truncate">
-                          {format ? format(val as never) : (val === Infinity ? "Unlimited" : (typeof val === "boolean" ? (val ? "Yes" : "No") : val))}
+                          {format ? format(val as never) : (val === -1 ? "Unlimited" : (typeof val === "boolean" ? (val ? "Yes" : "No") : val))}
                         </span>
                       </div>
                     </div>

@@ -54,45 +54,53 @@ Deno.serve(async (req: Request) => {
   try {
     // --- Step 1: Purge all storage objects owned by this user ---
     // Files are stored under `decks/{userId}/...` paths
-    const { data: userFolder, error: listError } = await adminClient.storage
-      .from("decks")
-      .list(userId, { limit: 1000 });
+    const filePaths: string[] = [];
 
-    if (!listError && userFolder && userFolder.length > 0) {
-      // Recursively collect all file paths under the user's folder
-      const filePaths: string[] = [];
+    const traverseFolder = async (path: string) => {
+      const pageSize = 1000;
+      let offset = 0;
+      let hasMore = true;
 
-      for (const item of userFolder) {
-        if (item.id) {
-          // It's a file
-          filePaths.push(`${userId}/${item.name}`);
-        } else {
-          // It's a subfolder — list its contents
-          const { data: subFiles } = await adminClient.storage
-            .from("decks")
-            .list(`${userId}/${item.name}`, { limit: 1000 });
+      while (hasMore) {
+        const { data: items, error: listError } = await adminClient.storage
+          .from("decks")
+          .list(path, { limit: pageSize, offset });
 
-          if (subFiles) {
-            for (const subFile of subFiles) {
-              if (subFile.id) {
-                filePaths.push(`${userId}/${item.name}/${subFile.name}`);
-              }
-            }
+        if (listError || !items || items.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        for (const item of items) {
+          if (item.id) {
+            // It's a file
+            filePaths.push(`${path}/${item.name}`);
+          } else {
+            // It's a subfolder
+            await traverseFolder(`${path}/${item.name}`);
           }
         }
-      }
 
-      if (filePaths.length > 0) {
-        console.log(`[delete-account] Removing ${filePaths.length} storage objects for user ${userId}`);
-        // Delete in batches of 100 (Supabase limit)
-        const BATCH = 100;
-        for (let i = 0; i < filePaths.length; i += BATCH) {
-          const chunk = filePaths.slice(i, i + BATCH);
-          const { error: removeError } = await adminClient.storage.from("decks").remove(chunk);
-          if (removeError) {
-            console.error(`[delete-account] Storage remove error:`, removeError.message);
-            // Non-fatal: continue with account deletion
-          }
+        if (items.length < pageSize) {
+          hasMore = false;
+        } else {
+          offset += pageSize;
+        }
+      }
+    }
+
+    await traverseFolder(userId);
+
+    if (filePaths.length > 0) {
+      console.log(`[delete-account] Removing ${filePaths.length} storage objects for user ${userId}`);
+      // Delete in batches of 100 (Supabase limit)
+      const BATCH = 100;
+      for (let i = 0; i < filePaths.length; i += BATCH) {
+        const chunk = filePaths.slice(i, i + BATCH);
+        const { error: removeError } = await adminClient.storage.from("decks").remove(chunk);
+        if (removeError) {
+          console.error(`[delete-account] Storage remove error:`, removeError.message);
+          // Non-fatal: continue with account deletion
         }
       }
     }

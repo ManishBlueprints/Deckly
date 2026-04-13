@@ -147,7 +147,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     await userService.deleteAccount();
     // The auth row is gone — clear local state and redirect
     queryClient.clear();
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Sign out after deletion failed (best effort):", err);
+    }
   };
 
   return (
