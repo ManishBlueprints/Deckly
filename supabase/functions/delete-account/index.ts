@@ -127,7 +127,7 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[delete-account] Critical error:", message);
-    return new Response(JSON.stringify({ error: "Failed to delete account", detail: message }), {
+    return new Response(JSON.stringify({ error: "Failed to delete account" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
