@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { Monitor, FileText, Eye } from "lucide-react";
+import { Monitor, FileText, Eye, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { DataRoom } from "../../types";
 
 interface DataRoomCardProps {
@@ -14,11 +15,15 @@ export function DataRoomCard({
   totalVisitors,
 }: DataRoomCardProps) {
   const navigate = useNavigate();
+  const isExpired = room.expires_at ? new Date(room.expires_at) < new Date() : false;
 
   return (
     <button
       onClick={() => navigate(`/rooms/${room.id}`)}
-      className="w-full text-left bg-surface-card border border-border rounded-lg p-5 md:p-6 hover:border-deckly-primary/30 transition-all duration-300 group relative overflow-hidden shadow-sm active:scale-[0.99]"
+      className={cn(
+        "w-full text-left bg-surface-card border rounded-lg p-5 md:p-6 hover:border-deckly-primary/30 transition-all duration-300 group relative overflow-hidden shadow-sm active:scale-[0.99]",
+        isExpired ? "border-red-500/20" : "border-border"
+      )}
     >
       {/* Pattern Overlay */}
       <div
@@ -50,9 +55,17 @@ export function DataRoomCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="text-base font-semibold text-slate-200 group-hover:text-deckly-primary transition-colors truncate">
-            {room.name}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-slate-200 group-hover:text-deckly-primary transition-colors truncate">
+              {room.name}
+            </h3>
+            {isExpired && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-[9px] font-bold text-red-500 uppercase tracking-wider animate-pulse">
+                <AlertCircle size={10} />
+                Expired
+              </span>
+            )}
+          </div>
           {room.description && (
             <p className="text-xs text-slate-500 line-clamp-2 mt-0.5 leading-relaxed">
               {room.description}

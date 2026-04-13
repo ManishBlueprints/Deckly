@@ -10,6 +10,7 @@ import { analyticsService } from "../services/analyticsService";
 import { supabase } from "../services/supabase";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
 import { getDataRoomPath } from "../utils/url";
+import { cn } from "@/lib/utils";
 
 function DataRoomViewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
@@ -66,7 +67,8 @@ function DataRoomViewer() {
 
       // Check expiry
       if (data.expires_at && new Date(data.expires_at) < new Date()) {
-        setError("This data room link has expired.");
+        setError("LINK_EXPIRED");
+        setRoom(data); // Keep room data for context
         return;
       }
 
@@ -182,22 +184,41 @@ function DataRoomViewer() {
             className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-[#0d0d0d]"
           >
             <div className="max-w-md w-full bg-[#111] border border-[#222] rounded-lg p-10 text-center shadow-xl">
-              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto mb-6">
+              <div className={cn(
+                "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6",
+                error === "LINK_EXPIRED" ? "bg-amber-500/10 text-amber-500" : "bg-red-500/10 text-red-500"
+              )}>
                 <AlertCircle size={32} />
               </div>
               <h2 className="text-xl font-bold text-white mb-3">
-                Access Restricted
+                {error === "LINK_EXPIRED" ? "Link Expired" : "Access Restricted"}
               </h2>
               <p className="text-slate-500 text-sm leading-relaxed mb-8">
-                {error ||
-                  "The document you're looking for might have been moved or the link has expired."}
+                {error === "LINK_EXPIRED" 
+                  ? `The secure link for "${room?.name || 'this room'}" has reached its expiration date.` 
+                  : (error || "The document you're looking for might have been moved or the link has expired.")
+                }
               </p>
-              <Link to="/">
-                <button className="w-full px-6 py-3 bg-white text-black font-semibold rounded-md flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors">
-                  <ArrowLeft size={18} />
-                  Return to Dashboard
-                </button>
-              </Link>
+              {error === "LINK_EXPIRED" ? (
+                <div className="space-y-3">
+                  <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-md text-xs text-amber-500/80 italic">
+                    Contact the room administrator to request a new access link.
+                  </div>
+                  <Link to="/">
+                    <button className="w-full px-6 py-3 bg-surface-lowest text-white font-semibold rounded-md flex items-center justify-center gap-2 hover:bg-surface-low transition-colors border border-white/5">
+                      <ArrowLeft size={18} />
+                      Exit Room
+                    </button>
+                  </Link>
+                </div>
+              ) : (
+                <Link to="/">
+                  <button className="w-full px-6 py-3 bg-white text-black font-semibold rounded-md flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors">
+                    <ArrowLeft size={18} />
+                    Return to Dashboard
+                  </button>
+                </Link>
+              )}
             </div>
           </motion.div>
         ) : !isUnlocked && roomAsDeck && room ? (
