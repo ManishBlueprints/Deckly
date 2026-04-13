@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
+import { userService } from "../services/userService";
 import { UserProfile, BrandingSettings } from "../types";
 import { useProfile, useBranding } from "../hooks/useAuthQueries";
 
@@ -16,6 +17,8 @@ interface AuthContextType {
   setBranding: (branding: BrandingSettings | null) => void;
   refreshBranding: () => Promise<void>;
   signOut: () => Promise<void>;
+  signOutAllDevices: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   initializationError: string | null;
 }
 
@@ -131,7 +134,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    queryClient.clear(); // Clear all queries on sign out for security
+    queryClient.clear();
+  };
+
+  const signOutAllDevices = async () => {
+    // scope: 'global' revokes ALL refresh tokens across every device/browser
+    await supabase.auth.signOut({ scope: "global" });
+    queryClient.clear();
+  };
+
+  const deleteAccount = async () => {
+    await userService.deleteAccount();
+    // The auth row is gone — clear local state and redirect
+    queryClient.clear();
+    await supabase.auth.signOut();
   };
 
   return (
@@ -146,6 +162,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         refreshProfile,
         refreshBranding,
         signOut,
+        signOutAllDevices,
+        deleteAccount,
         initializationError,
       }}
     >

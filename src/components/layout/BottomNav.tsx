@@ -5,6 +5,7 @@ import {
   Bookmark,
   Plus,
   Upload,
+  User,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "../../utils/cn";
@@ -19,6 +20,7 @@ const navItems = [
 const rightNavItems = [
   { icon: DoorOpen, label: "Rooms", href: "/rooms" },
   { icon: Bookmark, label: "Saved", href: "/saved-decks" },
+  { icon: User, label: "Profile", href: "/profile" },
 ];
 
 export function BottomNav() {

@@ -7,6 +7,11 @@ export interface TierConfig {
   maxDataRooms: number;
   allowInteractive: boolean;
   allowOffice: boolean;
+  maxDecks: number;
+  aiSummariesPerDay: number;
+  supportedFormats: string[];
+  teamMembers: number;
+  prioritySupport: boolean;
 }
 
 export const TIER_CONFIG: Record<Tier, TierConfig> = {
@@ -17,6 +22,11 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxDataRooms: 1,
     allowInteractive: false,
     allowOffice: false,
+    maxDecks: 10,
+    aiSummariesPerDay: 0,
+    supportedFormats: ["PDF"],
+    teamMembers: 0,
+    prioritySupport: false,
   },
   PRO: {
     days: 90,
@@ -25,6 +35,11 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxDataRooms: 5,
     allowInteractive: true,
     allowOffice: true,
+    maxDecks: 50,
+    aiSummariesPerDay: 10,
+    supportedFormats: ["PDF", "XLSX", "DOCX", "PPT"],
+    teamMembers: 0,
+    prioritySupport: false,
   },
   PRO_PLUS: {
     days: 365,
@@ -33,6 +48,11 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxDataRooms: Infinity,
     allowInteractive: true,
     allowOffice: true,
+    maxDecks: Infinity,
+    aiSummariesPerDay: Infinity,
+    supportedFormats: ["PDF", "XLSX", "DOCX", "PPT"],
+    teamMembers: 5,
+    prioritySupport: true,
   },
 };
 
