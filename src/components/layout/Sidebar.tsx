@@ -16,6 +16,10 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
+import { useQueryClient } from "@tanstack/react-query";
+import { deckService } from "../../services/deckService";
+import { dataRoomService } from "../../services/dataRoomService";
+import { organizerService } from "../../services/organizerService";
 
 const NAV_ITEMS = [
   { icon: LayoutGrid, label: "Dashboard", href: "/" },
@@ -58,7 +62,53 @@ export function Sidebar() {
   const location = useLocation();
   const { profile, signOut, branding, setBranding } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
+   const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
+   const queryClient = useQueryClient();
+
+   // Prefetching logic for sidebar items
+   const handleMouseEnter = (item: typeof NAV_ITEMS[0]) => {
+     if (item.disabled) return;
+     const userId = profile?.id;
+
+     // 1. Preload Component Chunk
+     const preloads: Record<string, () => Promise<unknown>> = {
+       "/": () => import("../../pages/Home"),
+       "/content": () => import("../../pages/ContentPage"),
+       "/rooms": () => import("../../pages/DataRoomsPage"),
+       "/saved-decks": () => import("../../pages/SavedDecks"),
+       "/profile": () => import("../../pages/Profile"),
+     };
+
+     if (preloads[item.href]) {
+       preloads[item.href]().catch(() => {});
+     }
+
+     // 2. Prefetch Data (Metadata only)
+     if (item.href === "/content" && userId) {
+       queryClient.prefetchQuery({
+         queryKey: ["decks", userId],
+         queryFn: () => deckService.getDecksWithAnalytics(userId),
+       });
+     } else if (item.href === "/rooms") {
+       queryClient.prefetchQuery({
+         queryKey: ["data-rooms"],
+         queryFn: () => dataRoomService.getDataRooms(),
+       });
+     } else if (item.href === "/saved-decks" && userId) {
+       queryClient.prefetchQuery({
+         queryKey: ["library-decks", userId],
+         queryFn: () => organizerService.getSavedDecksOrganized(userId),
+       });
+       queryClient.prefetchQuery({
+         queryKey: ["library-folders", userId],
+         queryFn: () => organizerService.getFolders(userId),
+       });
+       queryClient.prefetchQuery({
+         queryKey: ["library-tags", userId],
+         queryFn: () => organizerService.getTags(userId),
+       });
+     }
+   };
 
   // Listen for programmatic open requests (e.g., from HomeTour)
   useEffect(() => {
@@ -203,6 +253,7 @@ export function Sidebar() {
               to={item.href} 
               title={isCollapsed ? item.label : undefined}
               className={className}
+              onMouseEnter={() => handleMouseEnter(item)}
             >
               {inner}
             </Link>
@@ -213,9 +264,10 @@ export function Sidebar() {
       {/* ── User Profile Footer ── */}
       <div className={cn("px-6 mt-auto shrink-0")}>
         <div className={cn("flex flex-col gap-1", isCollapsed && "items-center")}>
-          <Link
+            <Link
             to="/profile"
             className="flex items-center gap-3 border-t border-white/5 pt-4 cursor-pointer hover:bg-white/5 -mx-2 px-2 py-1 rounded transition-colors"
+            onMouseEnter={() => handleMouseEnter({ icon: Settings, label: "Profile", href: "/profile" })}
           >
             <div className="w-8 h-8 bg-surface-high overflow-hidden shrink-0 flex items-center justify-center">
               {profile?.avatar_url ? (

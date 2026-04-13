@@ -2,6 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { Monitor, FileText, Eye, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DataRoom } from "../../types";
+import { useQueryClient } from "@tanstack/react-query";
+import { dataRoomService } from "../../services/dataRoomService";
 
 interface DataRoomCardProps {
   room: DataRoom;
@@ -15,11 +17,39 @@ export function DataRoomCard({
   totalVisitors,
 }: DataRoomCardProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isExpired = room.expires_at ? new Date(room.expires_at) < new Date() : false;
+
+  const handleMouseEnter = () => {
+    if (isExpired) return;
+
+    // 1. Preload Component Chunk
+    import("../../pages/DataRoomDetail").catch(() => {});
+
+    // 2. Prefetch Data (Metadata + Documents - lightweight)
+    queryClient.prefetchQuery({
+      queryKey: ["data-room-meta", room.id],
+      queryFn: async () => {
+        const [docCount, analytics] = await Promise.all([
+          dataRoomService.getDocumentCount(room.id),
+          dataRoomService.getDataRoomAnalytics(room.id),
+        ]);
+        return { docCount, visitors: analytics.totalVisitors };
+      },
+      staleTime: 30000,
+    });
+
+    queryClient.prefetchQuery({
+      queryKey: ["data-room-documents", room.id],
+      queryFn: () => dataRoomService.getDocuments(room.id),
+      staleTime: 30000,
+    });
+  };
 
   return (
     <button
       onClick={() => navigate(`/rooms/${room.id}`)}
+      onMouseEnter={handleMouseEnter}
       className={cn(
         "w-full text-left bg-surface-card border rounded-lg p-5 md:p-6 hover:border-deckly-primary/30 transition-all duration-300 group relative overflow-hidden shadow-sm active:scale-[0.99]",
         isExpired ? "border-red-500/20" : "border-border"

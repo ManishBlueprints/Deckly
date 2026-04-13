@@ -204,19 +204,21 @@ function DataRoomViewer() {
                   <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-md text-xs text-amber-500/80 italic">
                     Contact the room administrator to request a new access link.
                   </div>
-                  <Link to="/">
-                    <button className="w-full px-6 py-3 bg-surface-lowest text-white font-semibold rounded-md flex items-center justify-center gap-2 hover:bg-surface-low transition-colors border border-white/5">
-                      <ArrowLeft size={18} />
-                      Exit Room
-                    </button>
+                  <Link 
+                    to="/"
+                    className="w-full px-6 py-3 bg-surface-lowest text-white font-semibold rounded-md flex items-center justify-center gap-2 hover:bg-surface-low transition-colors border border-white/5"
+                  >
+                    <ArrowLeft size={18} />
+                    Exit Room
                   </Link>
                 </div>
               ) : (
-                <Link to="/">
-                  <button className="w-full px-6 py-3 bg-white text-black font-semibold rounded-md flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors">
-                    <ArrowLeft size={18} />
-                    Return to Dashboard
-                  </button>
+                <Link 
+                  to="/"
+                  className="w-full px-6 py-3 bg-white text-black font-semibold rounded-md flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors"
+                >
+                  <ArrowLeft size={18} />
+                  Return to Dashboard
                 </Link>
               )}
             </div>

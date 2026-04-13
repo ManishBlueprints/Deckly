@@ -247,9 +247,16 @@ function ManageDataRoom() {
       return;
     }
 
-    if (expiryEnabled && new Date(expiryDate) < new Date(new Date().setHours(0,0,0,0))) {
-      toast.error("Expiration date must be today or in the future.");
-      return;
+    if (expiryEnabled && expiryDate) {
+      const [year, month, day] = expiryDate.split('-').map(Number);
+      const localExpiry = new Date(year, month - 1, day);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (localExpiry < today) {
+        toast.error("Expiration date must be today or in the future.");
+        return;
+      }
     }
 
     setSaving(true);
@@ -282,7 +289,7 @@ function ManageDataRoom() {
             await dataRoomService.addDocuments(room.id, deckIds);
           } catch (docErr) {
             console.error("Room created but failed to add documents:", docErr);
-            // We don't block navigation here as the room itself is created correctly
+            toast.warning(`Room created, but couldn't attach documents: ${docErr instanceof Error ? docErr.message : 'Unknown error'}. You can add them from the edit page.`);
           }
         }
       }
