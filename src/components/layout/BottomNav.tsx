@@ -46,9 +46,9 @@ export function BottomNav() {
         )}
       </AnimatePresence>
 
-      <nav className="md:hidden fixed bottom-6 left-3 right-3 z-50 bg-[#09090b]/60 backdrop-blur-3xl border border-white/5 flex items-center justify-between px-1 py-1.5 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] safe-area-pb glass-shiny glass-emerald-border">
+      <nav className="md:hidden fixed bottom-6 left-4 right-4 z-50 bg-[#09090b]/80 backdrop-blur-3xl border border-white/5 flex items-center justify-between px-2 py-2 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] safe-area-pb glass-shiny glass-emerald-border">
         {/* Left Items */}
-        <div className="flex-1 flex items-center justify-around">
+        <div className="flex-1 flex items-center justify-around gap-1">
           {navItems.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -56,22 +56,28 @@ export function BottomNav() {
                 key={item.label}
                 to={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-1 py-1 px-1 rounded-xl transition-all duration-300 flex-1 relative group min-w-0",
+                  "flex flex-col items-center gap-1.5 py-1 px-1 rounded-2xl transition-all duration-300 flex-1 relative group min-w-0",
                   isActive ? "text-deckly-primary" : "text-slate-500",
                 )}
               >
                 <item.icon 
                   size={isActive ? 20 : 18} 
                   fill="currentColor"
-                  className={cn("transition-all", !isActive && "opacity-40")}
+                  className={cn("transition-all duration-300", !isActive && "opacity-30")}
                 />
-                <span className="text-[9px] font-bold uppercase tracking-tight truncate w-full px-1 text-center">
+                <span className="text-[9px] font-bold uppercase tracking-widest truncate w-full px-1 text-center font-manrope">
                   {item.label}
                 </span>
                 {isActive && (
                   <motion.div
+                    layoutId="bottom-nav-active"
+                    className="absolute inset-0 bg-deckly-primary/5 rounded-2xl -z-10"
+                  />
+                )}
+                {isActive && (
+                  <motion.div
                     layoutId="bottom-nav-dot"
-                    className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-deckly-primary rounded-full"
+                    className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-deckly-primary rounded-full shadow-[0_0_8px_rgba(34,197,94,0.5)]"
                   />
                 )}
               </Link>
@@ -131,7 +137,7 @@ export function BottomNav() {
         </div>
 
         {/* Right Items */}
-        <div className="flex-1 flex items-center justify-around">
+        <div className="flex-1 flex items-center justify-around gap-1">
           {rightNavItems.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -139,22 +145,28 @@ export function BottomNav() {
                 key={item.label}
                 to={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-1 py-1 px-1 rounded-xl transition-all duration-300 flex-1 relative group min-w-0",
+                  "flex flex-col items-center gap-1.5 py-1 px-1 rounded-2xl transition-all duration-300 flex-1 relative group min-w-0",
                   isActive ? "text-deckly-primary" : "text-slate-500",
                 )}
               >
                 <item.icon 
                   size={isActive ? 20 : 18} 
                   fill="currentColor"
-                  className={isActive ? "" : "opacity-40"}
+                  className={cn("transition-all duration-300", !isActive && "opacity-30")}
                 />
-                <span className="text-[9px] font-bold uppercase tracking-tight truncate w-full px-1 text-center">
+                <span className="text-[9px] font-bold uppercase tracking-widest truncate w-full px-1 text-center font-manrope">
                   {item.label}
                 </span>
                 {isActive && (
                   <motion.div
+                    layoutId="bottom-nav-active"
+                    className="absolute inset-0 bg-deckly-primary/5 rounded-2xl -z-10"
+                  />
+                )}
+                {isActive && (
+                  <motion.div
                     layoutId="bottom-nav-dot"
-                    className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-deckly-primary rounded-full"
+                    className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-deckly-primary rounded-full shadow-[0_0_8px_rgba(34,197,94,0.5)]"
                   />
                 )}
               </Link>

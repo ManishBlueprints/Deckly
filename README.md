@@ -34,12 +34,18 @@
 
 - **📊 Built-in Analytics**  
   Track deck engagement, slide drop-offs, and revisit signals using PostHog — with configurable analytics retention.
+ 
+- **🎓 Interactive Product Tours**  
+  Step-by-step guided walkthroughs across the dashboard, library, and data rooms to accelerate user onboarding.
 
 - **🔐 Privacy-First by Design**  
   No forced email capture, optional anonymous viewing, and minimal data collection by default.
 
 - **📱 Mobile-First UI**  
-  Native app feel with bottom navigation and responsive dashboard layouts.
+  Native app feel with bottom navigation and responsive dashboard layouts, optimized for founders on the move.
+ 
+- **🛡️ Secure Account Deletion**  
+  Permanent and recursive data purging ensures all storage assets and database records are permanently wiped upon account closure.
 
 ---
 
