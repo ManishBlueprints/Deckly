@@ -101,14 +101,18 @@ export function DashboardLayout({
 
           <div className="flex items-center gap-2 md:gap-3">
             {profile?.id && <NotificationBell userId={profile.id} />}
-            
+
             {/* Mobile Profile Link */}
-            <button 
+            <button
               onClick={() => navigate("/profile")}
               className="md:hidden w-8 h-8 rounded-full bg-surface-low border border-white/5 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/30 transition-all active:scale-90"
             >
               {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                <img
+                  src={profile.avatar_url}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <span className="text-[11px] font-bold text-primary/60">
                   {profile?.full_name?.charAt(0).toUpperCase() || "U"}
@@ -136,36 +140,46 @@ export function DashboardLayout({
 
             {/* Popout Options */}
             {fabOpen && (
-              <div className="absolute bottom-full right-0 mb-3 flex flex-col gap-2 w-48 bg-deckly-background border border-white/5 p-1.5 rounded-lg shadow-xl z-[100]">
+              <div className="absolute bottom-full right-0 mb-5 flex flex-col gap-3 w-64 bg-surface-low border border-white/10 p-2.5 rounded-[24px] shadow-2xl shadow-primary/10 z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200">
                 <button
                   onClick={() => handleFabAction("/rooms/new")}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-white/5 transition-colors text-slate-200"
+                  className="w-full flex items-center gap-5 px-5 py-4 rounded-2xl hover:bg-primary/10 transition-all group text-slate-200 hover:text-primary"
                 >
-                  <RoomIcon size={16} />
-                  <span className="text-sm font-medium">New Room</span>
+                  <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                    <RoomIcon size={24} />
+                  </div>
+                  <div className="flex flex-col items-start translate-y-[1px]">
+                    <span className="text-base font-bold tracking-tight">New Room</span>
+                    <span className="text-[11px] text-slate-500 font-medium uppercase tracking-widest mt-0.5">Create workspace</span>
+                  </div>
                 </button>
-
+ 
                 <button
                   onClick={() => handleFabAction("/upload")}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-white/5 transition-colors text-slate-200"
+                  className="w-full flex items-center gap-5 px-5 py-4 rounded-2xl hover:bg-primary/10 transition-all group text-slate-200 hover:text-primary"
                 >
-                  <Upload size={16} />
-                  <span className="text-sm font-medium">New Deck</span>
+                  <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                    <Upload size={24} />
+                  </div>
+                  <div className="flex flex-col items-start translate-y-[1px]">
+                    <span className="text-base font-bold tracking-tight">New Deck</span>
+                    <span className="text-[11px] text-slate-500 font-medium uppercase tracking-widest mt-0.5">Upload assets</span>
+                  </div>
                 </button>
               </div>
             )}
-
+ 
             {/* FAB Button */}
             <button
               onClick={() => setFabOpen(!fabOpen)}
-              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 z-[100] relative border border-white/10 shadow-md
-                ${fabOpen ? "bg-deckly-background text-white" : "bg-deckly-primary text-slate-950 hover:bg-emerald-400"}
+              className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 z-[100] relative border border-white/10 shadow-lg hover:scale-110 active:scale-95
+                ${fabOpen ? "bg-[#1a1a1a] text-white" : "bg-deckly-primary text-slate-950 hover:bg-emerald-400 hover:shadow-primary/30"}
               `}
             >
               <div
-                className={`transition-transform duration-200 ${fabOpen ? "rotate-45" : ""}`}
+                className={`transition-transform duration-300 ${fabOpen ? "rotate-45" : ""}`}
               >
-                <Plus size={24} strokeWidth={2.5} />
+                <Plus size={36} strokeWidth={2.5} />
               </div>
             </button>
           </div>

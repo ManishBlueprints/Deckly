@@ -84,6 +84,8 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-family: "Manrope", sans-serif;
+    letter-spacing: -0.02em;
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
