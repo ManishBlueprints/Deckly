@@ -10,6 +10,8 @@ import { dataRoomService } from "../services/dataRoomService";
 import { analyticsService } from "../services/analyticsService";
 import { organizerService } from "../services/organizerService";
 
+const DEFAULT_STALE_TIME = 30000;
+
 function Home() {
   const { session, profile } = useAuth();
 
@@ -36,6 +38,7 @@ function Home() {
   // Layer 1: Global Preloading (Main lists and code chunks)
   const queryClient = useQueryClient();
   useEffect(() => {
+    const preloadTimers: ReturnType<typeof setTimeout>[] = [];
     if (session?.user?.id && !loading) {
       // Small delay to ensure initial render is smooth
       const timer = setTimeout(() => {
@@ -46,33 +49,33 @@ function Home() {
         queryClient.prefetchQuery({
           queryKey: ["data-rooms"],
           queryFn: () => dataRoomService.getDataRooms(),
-          staleTime: 30000,
+          staleTime: DEFAULT_STALE_TIME,
         });
 
         // User Stats
         queryClient.prefetchQuery({
           queryKey: ["user-total-stats", userId, "all"],
           queryFn: () => analyticsService.getUserTotalStats(userId),
-          staleTime: 30000,
+          staleTime: DEFAULT_STALE_TIME,
         });
 
         // Saved Decks List (Complete Collection)
         queryClient.prefetchQuery({
           queryKey: ["library-decks", userId],
           queryFn: () => organizerService.getSavedDecksOrganized(userId),
-          staleTime: 30000,
+          staleTime: DEFAULT_STALE_TIME,
         });
 
         queryClient.prefetchQuery({
           queryKey: ["library-folders", userId],
           queryFn: () => organizerService.getFolders(userId),
-          staleTime: 30000,
+          staleTime: DEFAULT_STALE_TIME,
         });
 
         queryClient.prefetchQuery({
           queryKey: ["library-tags", userId],
           queryFn: () => organizerService.getTags(userId),
-          staleTime: 30000,
+          staleTime: DEFAULT_STALE_TIME,
         });
 
         // 2. Code Preloading (Lazy chunks)
@@ -86,11 +89,15 @@ function Home() {
         
         // Execute preloads sequentially to avoid network congestion
         preloadPages.forEach((preload, idx) => {
-          setTimeout(() => preload().catch(() => {}), idx * 500);
+          const pTimer = setTimeout(() => preload().catch(() => {}), idx * 500);
+          preloadTimers.push(pTimer);
         });
       }, 1000);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        preloadTimers.forEach(t => clearTimeout(t));
+      };
     }
   }, [session?.user?.id, loading, queryClient]);
 

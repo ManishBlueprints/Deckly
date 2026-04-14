@@ -22,6 +22,7 @@ interface DocumentRowProps {
   onUnsave: () => void;
   isUnsaving?: boolean;
 }
+let viewerPreloaded = false;
 
 export const DocumentRow = memo(function DocumentRow({
   deck,
@@ -41,6 +42,7 @@ export const DocumentRow = memo(function DocumentRow({
   const [isSavingNote, setIsSavingNote] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveJustCompletedRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -51,6 +53,10 @@ export const DocumentRow = memo(function DocumentRow({
   }, []);
 
   useEffect(() => {
+    if (saveJustCompletedRef.current) {
+      saveJustCompletedRef.current = false;
+      return;
+    }
     if (!isEditingNote) {
       setNote(deck.investor_note || "");
     }
@@ -75,9 +81,8 @@ export const DocumentRow = memo(function DocumentRow({
     setIsSavingNote(true);
     try {
       await onSaveNote(note);
-      // Optimistically update prop to prevent useEffect from reverting state 
-      // before parent rerenders with new data
-      deck.investor_note = note;
+      saveJustCompletedRef.current = true;
+      // Skip the next useEffect sync to keep local optimistic state
     } catch (err) {
       toast.error("Failed to save note", {
         description: err instanceof Error ? err.message : String(err),
@@ -101,8 +106,11 @@ export const DocumentRow = memo(function DocumentRow({
   };
 
   const handleMouseEnter = () => {
-    // Preload Viewer chunk on hover
-    import("../../pages/Viewer").catch(() => {});
+    // Preload Viewer chunk on hover only once
+    if (!viewerPreloaded) {
+      viewerPreloaded = true;
+      import("../../pages/Viewer").catch(() => {});
+    }
   };
 
   return (

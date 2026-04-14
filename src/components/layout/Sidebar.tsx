@@ -88,24 +88,29 @@ export function Sidebar() {
        queryClient.prefetchQuery({
          queryKey: ["decks", userId],
          queryFn: () => deckService.getDecksWithAnalytics(userId),
+         staleTime: 5 * 60 * 1000,
        });
      } else if (item.href === "/rooms") {
        queryClient.prefetchQuery({
          queryKey: ["data-rooms"],
          queryFn: () => dataRoomService.getDataRooms(),
+         staleTime: 5 * 60 * 1000,
        });
      } else if (item.href === "/saved-decks" && userId) {
        queryClient.prefetchQuery({
          queryKey: ["library-decks", userId],
          queryFn: () => organizerService.getSavedDecksOrganized(userId),
+         staleTime: 5 * 60 * 1000,
        });
        queryClient.prefetchQuery({
          queryKey: ["library-folders", userId],
          queryFn: () => organizerService.getFolders(userId),
+         staleTime: 5 * 60 * 1000,
        });
        queryClient.prefetchQuery({
          queryKey: ["library-tags", userId],
          queryFn: () => organizerService.getTags(userId),
+         staleTime: 5 * 60 * 1000,
        });
      }
    };
