@@ -11,11 +11,17 @@ interface FormInputProps extends React.ComponentProps<typeof Input> {
 }
 
 const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
-  ({ label, icon: Icon, rightElement, error, className, ...props }, ref) => {
+  ({ label, icon: Icon, rightElement, error, id, className, ...props }, ref) => {
+    const generatedId = React.useId()
+    const inputId = id || generatedId
+
     return (
       <div className={cn("flex flex-col gap-2 w-full", className)}>
         {label && (
-          <Label className="text-sm font-medium text-slate-400 px-1">
+          <Label 
+            htmlFor={inputId}
+            className="text-sm font-medium text-slate-400 px-1"
+          >
             {label}
           </Label>
         )}
@@ -27,6 +33,7 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
           )}
           <Input
             ref={ref}
+            id={inputId}
             className={cn(
               Icon && "pl-12",
               rightElement && "pr-12",

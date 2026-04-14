@@ -6,20 +6,28 @@ import { Label } from "./label"
 interface FormTextareaProps extends React.ComponentProps<typeof Textarea> {
   label?: string
   error?: string | null
+  containerClassName?: string
 }
 
 const FormTextarea = React.forwardRef<HTMLTextAreaElement, FormTextareaProps>(
-  ({ label, error, className, ...props }, ref) => {
+  ({ label, error, className, containerClassName, id, ...props }, ref) => {
+    const generatedId = React.useId()
+    const textareaId = id || generatedId
+
     return (
-      <div className={cn("flex flex-col gap-2 w-full", className)}>
+      <div className={cn("flex flex-col gap-2 w-full", containerClassName)}>
         {label && (
-          <Label className="text-sm font-medium text-slate-400 px-1">
+          <Label 
+            htmlFor={textareaId}
+            className="text-sm font-medium text-slate-400 px-1"
+          >
             {label}
           </Label>
         )}
         <div className="relative">
           <Textarea
             ref={ref}
+            id={textareaId}
             className={cn(
               error && "border-destructive focus-visible:ring-destructive",
               "min-h-[120px] bg-slate-900 border-white/10 rounded-none focus-visible:bg-slate-800 transition-all",

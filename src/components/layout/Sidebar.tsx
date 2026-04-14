@@ -54,7 +54,8 @@ const TIER_CONFIG = {
   },
   PRO_PLUS: {
     label: "Pro Plus",
-    className: "bg-purple-600 text-white border-purple-500/50 shadow-[0_0_15px_rgba(147,51,234,0.3)]",
+    className:
+      "bg-purple-600 text-white border-purple-500/50 shadow-[0_0_15px_rgba(147,51,234,0.3)]",
   },
 };
 
@@ -62,58 +63,58 @@ export function Sidebar() {
   const location = useLocation();
   const { profile, signOut, branding, setBranding } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
-   const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
-   const queryClient = useQueryClient();
+  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
+  const queryClient = useQueryClient();
 
-   // Prefetching logic for sidebar items
-   const handleMouseEnter = (item: typeof NAV_ITEMS[0]) => {
-     if (item.disabled) return;
-     const userId = profile?.id;
+  // Prefetching logic for sidebar items
+  const handleMouseEnter = (item: (typeof NAV_ITEMS)[0]) => {
+    if (item.disabled) return;
+    const userId = profile?.id;
 
-     // 1. Preload Component Chunk
-     const preloads: Record<string, () => Promise<unknown>> = {
-       "/": () => import("../../pages/Home"),
-       "/content": () => import("../../pages/ContentPage"),
-       "/rooms": () => import("../../pages/DataRoomsPage"),
-       "/saved-decks": () => import("../../pages/SavedDecks"),
-       "/profile": () => import("../../pages/Profile"),
-     };
+    // 1. Preload Component Chunk
+    const preloads: Record<string, () => Promise<unknown>> = {
+      "/": () => import("../../pages/Home"),
+      "/content": () => import("../../pages/ContentPage"),
+      "/rooms": () => import("../../pages/DataRoomsPage"),
+      "/saved-decks": () => import("../../pages/SavedDecks"),
+      "/profile": () => import("../../pages/Profile"),
+    };
 
-     if (preloads[item.href]) {
-       preloads[item.href]().catch(() => {});
-     }
+    if (preloads[item.href]) {
+      preloads[item.href]().catch(() => {});
+    }
 
-     // 2. Prefetch Data (Metadata only)
-     if (item.href === "/content" && userId) {
-       queryClient.prefetchQuery({
-         queryKey: ["decks", userId],
-         queryFn: () => deckService.getDecksWithAnalytics(userId),
-         staleTime: 5 * 60 * 1000,
-       });
-     } else if (item.href === "/rooms") {
-       queryClient.prefetchQuery({
-         queryKey: ["data-rooms"],
-         queryFn: () => dataRoomService.getDataRooms(),
-         staleTime: 5 * 60 * 1000,
-       });
-     } else if (item.href === "/saved-decks" && userId) {
-       queryClient.prefetchQuery({
-         queryKey: ["library-decks", userId],
-         queryFn: () => organizerService.getSavedDecksOrganized(userId),
-         staleTime: 5 * 60 * 1000,
-       });
-       queryClient.prefetchQuery({
-         queryKey: ["library-folders", userId],
-         queryFn: () => organizerService.getFolders(userId),
-         staleTime: 5 * 60 * 1000,
-       });
-       queryClient.prefetchQuery({
-         queryKey: ["library-tags", userId],
-         queryFn: () => organizerService.getTags(userId),
-         staleTime: 5 * 60 * 1000,
-       });
-     }
-   };
+    // 2. Prefetch Data (Metadata only)
+    if (item.href === "/content" && userId) {
+      queryClient.prefetchQuery({
+        queryKey: ["decks", userId],
+        queryFn: () => deckService.getDecksWithAnalytics(userId),
+        staleTime: 5 * 60 * 1000,
+      });
+    } else if (item.href === "/rooms") {
+      queryClient.prefetchQuery({
+        queryKey: ["data-rooms"],
+        queryFn: () => dataRoomService.getDataRooms(),
+        staleTime: 5 * 60 * 1000,
+      });
+    } else if (item.href === "/saved-decks" && userId) {
+      queryClient.prefetchQuery({
+        queryKey: ["library-decks", userId],
+        queryFn: () => organizerService.getSavedDecksOrganized(userId),
+        staleTime: 5 * 60 * 1000,
+      });
+      queryClient.prefetchQuery({
+        queryKey: ["library-folders", userId],
+        queryFn: () => organizerService.getFolders(userId),
+        staleTime: 5 * 60 * 1000,
+      });
+      queryClient.prefetchQuery({
+        queryKey: ["library-tags", userId],
+        queryFn: () => organizerService.getTags(userId),
+        staleTime: 5 * 60 * 1000,
+      });
+    }
+  };
 
   // Listen for programmatic open requests (e.g., from HomeTour)
   useEffect(() => {
@@ -203,14 +204,18 @@ export function Sidebar() {
 
           const Content = (
             <div
-              className={isActive ? "text-primary bg-primary/10 p-1 scale-110 flex shrink-0 transition-all" : "text-slate-500 group-hover:text-slate-200 flex shrink-0 transition-all"}
+              className={
+                isActive
+                  ? "text-primary bg-primary/10 p-1 scale-110 flex shrink-0 transition-all"
+                  : "text-slate-500 group-hover:text-slate-200 flex shrink-0 transition-all"
+              }
             >
-              <item.icon 
-                size={isCollapsed ? 20 : 18} 
+              <item.icon
+                size={isCollapsed ? 20 : 18}
                 fill="currentColor"
                 className={cn(
                   "transition-all",
-                  !isActive && "opacity-40 group-hover:opacity-100"
+                  !isActive && "opacity-40 group-hover:opacity-100",
                 )}
               />
             </div>
@@ -220,10 +225,12 @@ export function Sidebar() {
             <>
               {Content}
               {!isCollapsed && (
-                <span className={cn(
-                  "text-sm font-medium tracking-wide truncate flex-1 uppercase",
-                  isActive ? "text-primary" : "text-inherit"
-                )}>
+                <span
+                  className={cn(
+                    "text-sm font-medium tracking-wide truncate flex-1 uppercase",
+                    isActive ? "text-primary" : "text-inherit",
+                  )}
+                >
                   {item.label}
                 </span>
               )}
@@ -234,13 +241,15 @@ export function Sidebar() {
             "flex items-center gap-3 px-6 py-3 transition-all relative group",
             isActive
               ? "bg-[#3a3939] text-primary border-l-2 border-primary"
-              : item.disabled ? "opacity-30 pointer-events-none" : "text-slate-500 hover:text-white hover:bg-[#1c1c1c]",
+              : item.disabled
+                ? "opacity-30 pointer-events-none"
+                : "text-slate-500 hover:text-white hover:bg-[#1c1c1c]",
             isCollapsed && "justify-center px-0",
           );
 
           if (item.disabled) {
             return (
-              <div 
+              <div
                 key={item.label}
                 title={isCollapsed ? item.label : undefined}
                 aria-disabled="true"
@@ -253,9 +262,9 @@ export function Sidebar() {
           }
 
           return (
-            <Link 
+            <Link
               key={item.label}
-              to={item.href} 
+              to={item.href}
               title={isCollapsed ? item.label : undefined}
               className={className}
               onMouseEnter={() => handleMouseEnter(item)}
@@ -268,11 +277,19 @@ export function Sidebar() {
 
       {/* ── User Profile Footer ── */}
       <div className={cn("px-6 mt-auto shrink-0")}>
-        <div className={cn("flex flex-col gap-1", isCollapsed && "items-center")}>
-            <Link
+        <div
+          className={cn("flex flex-col gap-1", isCollapsed && "items-center")}
+        >
+          <Link
             to="/profile"
             className="flex items-center gap-3 border-t border-white/5 pt-4 cursor-pointer hover:bg-white/5 -mx-2 px-2 py-1 rounded transition-colors"
-            onMouseEnter={() => handleMouseEnter({ icon: Settings, label: "Profile", href: "/profile" })}
+            onMouseEnter={() =>
+              handleMouseEnter({
+                icon: Settings,
+                label: "Profile",
+                href: "/profile",
+              })
+            }
           >
             <div className="w-8 h-8 bg-surface-high overflow-hidden shrink-0 flex items-center justify-center">
               {profile?.avatar_url ? (
@@ -296,12 +313,17 @@ export function Sidebar() {
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
                     {(() => {
-                      const tierConfig = (profile?.tier && TIER_CONFIG[profile?.tier as keyof typeof TIER_CONFIG]) || TIER_CONFIG.FREE;
+                      const tierConfig =
+                        (profile?.tier &&
+                          TIER_CONFIG[
+                            profile?.tier as keyof typeof TIER_CONFIG
+                          ]) ||
+                        TIER_CONFIG.FREE;
                       return (
                         <span
                           className={cn(
-                            "text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm border",
-                            tierConfig.className
+                            "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm border",
+                            tierConfig.className,
                           )}
                         >
                           {tierConfig.label}
@@ -320,7 +342,11 @@ export function Sidebar() {
                   className="p-2 text-red-400 hover:text-white hover:bg-red-500 bg-red-500/10 border border-red-500/20 rounded transition-all shrink-0 group/logout"
                   title="Sign Out"
                 >
-                  <LogOut size={14} strokeWidth={2.5} className="group-hover/logout:scale-110 transition-transform" />
+                  <LogOut
+                    size={14}
+                    strokeWidth={2.5}
+                    className="group-hover/logout:scale-110 transition-transform"
+                  />
                 </button>
               </>
             )}

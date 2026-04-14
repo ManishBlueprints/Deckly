@@ -24,10 +24,14 @@ import { cn } from "../../lib/utils";
 
 export function SavedDecksView() {
   const { session } = useAuth();
-  const { decks, folders, tags, isLoading, isError, actions } = useLibrary(session?.user?.id);
+  const { decks, folders, tags, isLoading, isError, actions } = useLibrary(
+    session?.user?.id,
+  );
 
   // --- UI state only ---
-  const [selectedFolderId, setSelectedFolderId] = useState<string | "uncategorized">("uncategorized");
+  const [selectedFolderId, setSelectedFolderId] = useState<
+    string | "uncategorized"
+  >("uncategorized");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -35,12 +39,18 @@ export function SavedDecksView() {
   // Modal state
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [isManageTagsModalOpen, setIsManageTagsModalOpen] = useState(false);
-  const [editingFolder, setEditingFolder] = useState<LibraryFolder | null>(null);
+  const [editingFolder, setEditingFolder] = useState<LibraryFolder | null>(
+    null,
+  );
 
   // Confirm dialog state
-  const [unsaveTarget, setUnsaveTarget] = useState<SavedDeckOrganized | null>(null);
+  const [unsaveTarget, setUnsaveTarget] = useState<SavedDeckOrganized | null>(
+    null,
+  );
   const [isUnsavingInProgress, setIsUnsavingInProgress] = useState(false);
-  const [deletingFolder, setDeletingFolder] = useState<LibraryFolder | null>(null);
+  const [deletingFolder, setDeletingFolder] = useState<LibraryFolder | null>(
+    null,
+  );
   const [isDeletingInProgress, setIsDeletingInProgress] = useState(false);
 
   // --- Derived / filtered list ---
@@ -53,13 +63,14 @@ export function SavedDecksView() {
             ? deck.folder_id === null
             : deck.folder_id === selectedFolderId;
         const matchesTag =
-          selectedTagId === null || deck.tags.some((t) => t.id === selectedTagId);
+          selectedTagId === null ||
+          deck.tags.some((t) => t.id === selectedTagId);
         const matchesSearch =
           searchQuery === "" ||
           deck.title.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesFolder && matchesTag && matchesSearch;
       }),
-    [decks, selectedFolderId, selectedTagId, searchQuery]
+    [decks, selectedFolderId, selectedTagId, searchQuery],
   );
 
   // --- Confirm: Unsave deck ---
@@ -70,7 +81,10 @@ export function SavedDecksView() {
       await actions.unsaveDeck(unsaveTarget.deck_id);
       setUnsaveTarget(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to remove deck from library.";
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to remove deck from library.";
       console.error("Failed to unsave deck:", err);
       toast.error(errorMessage);
     } finally {
@@ -84,10 +98,12 @@ export function SavedDecksView() {
     setIsDeletingInProgress(true);
     try {
       await actions.deleteFolder(deletingFolder);
-      if (selectedFolderId === deletingFolder.id) setSelectedFolderId("uncategorized");
+      if (selectedFolderId === deletingFolder.id)
+        setSelectedFolderId("uncategorized");
       setDeletingFolder(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to delete folder.";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to delete folder.";
       console.error("Failed to delete folder:", err);
       toast.error(errorMessage);
     } finally {
@@ -101,7 +117,7 @@ export function SavedDecksView() {
       await actions.createFolder(name, color, tagNames);
       setIsCreateFolderModalOpen(false);
     },
-    [actions]
+    [actions],
   );
 
   const handleSaveEditFolder = useCallback(
@@ -111,21 +127,30 @@ export function SavedDecksView() {
       setEditingFolder(null);
       setIsCreateFolderModalOpen(false);
     },
-    [editingFolder, actions]
+    [editingFolder, actions],
   );
 
   // --- Shared stable handlers for rows ---
-  const handleMoveToFolder = useCallback((deckLibraryId: string, folderId: string | null) => {
-    actions.moveDeck(deckLibraryId, folderId);
-  }, [actions]);
+  const handleMoveToFolder = useCallback(
+    (deckLibraryId: string, folderId: string | null) => {
+      actions.moveDeck(deckLibraryId, folderId);
+    },
+    [actions],
+  );
 
-  const handleUpdateTags = useCallback((deckLibraryId: string, tagIds: string[]) => {
-    actions.updateDeckTags(deckLibraryId, tagIds);
-  }, [actions]);
+  const handleUpdateTags = useCallback(
+    (deckLibraryId: string, tagIds: string[]) => {
+      actions.updateDeckTags(deckLibraryId, tagIds);
+    },
+    [actions],
+  );
 
-  const handleSaveNote = useCallback((deckId: string, note: string) => {
-    return actions.saveNote(deckId, note);
-  }, [actions]);
+  const handleSaveNote = useCallback(
+    (deckId: string, note: string) => {
+      return actions.saveNote(deckId, note);
+    },
+    [actions],
+  );
 
   const handleUnsaveRequest = useCallback((deck: SavedDeckOrganized) => {
     setUnsaveTarget(deck);
@@ -141,7 +166,9 @@ export function SavedDecksView() {
   }, []);
 
   const handleFolderClick = useCallback((folderId: string) => {
-    setSelectedFolderId((prev) => (prev === folderId ? "uncategorized" : folderId));
+    setSelectedFolderId((prev) =>
+      prev === folderId ? "uncategorized" : folderId,
+    );
   }, []);
 
   // --- Loading / error / empty states ---
@@ -152,9 +179,12 @@ export function SavedDecksView() {
           <Filter size={32} />
         </div>
         <div className="text-center space-y-2">
-          <h3 className="text-xl font-bold text-white">Failed to load library</h3>
+          <h3 className="text-xl font-bold text-white">
+            Failed to load library
+          </h3>
           <p className="text-slate-400 max-w-sm">
-            There was a problem connecting to the server. Please check your connection and try again.
+            There was a problem connecting to the server. Please check your
+            connection and try again.
           </p>
         </div>
         <button
@@ -178,7 +208,9 @@ export function SavedDecksView() {
   if (decks.length === 0 && folders.length === 0) {
     return (
       <div className="min-h-[calc(100vh-140px)] bg-deckly-background overflow-hidden">
-        <SavedDeckEmptyState onCreateFolder={() => setIsCreateFolderModalOpen(true)} />
+        <SavedDeckEmptyState
+          onCreateFolder={() => setIsCreateFolderModalOpen(true)}
+        />
         <CreateFolderModal
           isOpen={isCreateFolderModalOpen}
           onClose={() => setIsCreateFolderModalOpen(false)}
@@ -194,11 +226,10 @@ export function SavedDecksView() {
     <div className="min-h-[calc(100vh-140px)] bg-deckly-background">
       <main className="overflow-y-auto custom-scrollbar">
         <div className="p-6 md:p-12 space-y-16 w-full max-w-[1600px] mx-auto">
-
           {/* Main Header */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-0">
             <div className="space-y-3">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#54e98a]">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#54e98a]">
                 Asset Repository
               </span>
               <h1 className="text-6xl font-headline font-extrabold text-[#e5e2e1] tracking-tighter">
@@ -213,7 +244,7 @@ export function SavedDecksView() {
                   "flex items-center gap-3 px-6 py-3 border text-xs font-bold transition-all",
                   isFilterOpen
                     ? "bg-[#54e98a]/10 border-[#54e98a]/20 text-[#54e98a]"
-                    : "bg-surface-low border-border text-[#bbcbbb]/60 hover:text-white"
+                    : "bg-surface-low border-border text-[#bbcbbb]/60 hover:text-white",
                 )}
               >
                 <Filter size={14} />
@@ -272,15 +303,19 @@ export function SavedDecksView() {
                         return (
                           <button
                             key={tag.id}
-                            onClick={() => setSelectedTagId(isSelected ? null : tag.id)}
+                            onClick={() =>
+                              setSelectedTagId(isSelected ? null : tag.id)
+                            }
                             className={cn(
-                              "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all border",
+                              "px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all border",
                               isSelected
                                 ? "border-transparent text-[#131313]"
-                                : "bg-surface-container border-border hover:border-white/20"
+                                : "bg-surface-container border-border hover:border-white/20",
                             )}
                             style={{
-                              backgroundColor: isSelected ? tag.color : undefined,
+                              backgroundColor: isSelected
+                                ? tag.color
+                                : undefined,
                               color: isSelected ? "#131313" : tag.color,
                             }}
                           >
@@ -291,7 +326,7 @@ export function SavedDecksView() {
                       {selectedTagId && (
                         <button
                           onClick={() => setSelectedTagId(null)}
-                          className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all bg-surface-container border border-red-500/20 text-red-400 hover:bg-red-500/10"
+                          className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all bg-surface-container border border-red-500/20 text-red-400 hover:bg-red-500/10"
                         >
                           Clear
                         </button>
@@ -307,7 +342,9 @@ export function SavedDecksView() {
           <div className="space-y-8">
             <div className="flex items-center gap-4">
               <div className="w-8 h-1 bg-[#54e98a] rounded-full" />
-              <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">Active Folders</h2>
+              <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
+                Active Folders
+              </h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <FolderCard
@@ -342,7 +379,7 @@ export function SavedDecksView() {
                 </h2>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#bbcbbb]/20">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bbcbbb]/20">
                   Total Inventory
                 </p>
                 <p className="text-lg font-headline font-bold text-[#e5e2e1]">
@@ -356,7 +393,9 @@ export function SavedDecksView() {
                 {filteredDecks.length === 0 ? (
                   <div className="py-32 text-center">
                     <div className="w-20 h-20 bg-surface-card flex items-center justify-center text-[#54e98a]/20 mx-auto border border-white/5 mb-6">
-                      <span className="material-symbols-outlined text-4xl">inventory_2</span>
+                      <span className="material-symbols-outlined text-4xl">
+                        inventory_2
+                      </span>
                     </div>
                     <p className="text-[#bbcbbb]/40 font-bold">
                       No documents matching the current filter
@@ -369,8 +408,12 @@ export function SavedDecksView() {
                       deck={deck}
                       folders={folders}
                       tags={tags}
-                      onMoveToFolder={(folderId) => handleMoveToFolder(deck.library_id, folderId)}
-                      onUpdateTags={(tagIds) => handleUpdateTags(deck.library_id, tagIds)}
+                      onMoveToFolder={(folderId) =>
+                        handleMoveToFolder(deck.library_id, folderId)
+                      }
+                      onUpdateTags={(tagIds) =>
+                        handleUpdateTags(deck.library_id, tagIds)
+                      }
                       onSaveNote={(note) => handleSaveNote(deck.deck_id, note)}
                       onUnsave={() => handleUnsaveRequest(deck)}
                       isUnsaving={unsaveTarget?.library_id === deck.library_id}
@@ -384,16 +427,26 @@ export function SavedDecksView() {
       </main>
 
       {/* Modals */}
-      <AlertDialog open={!!unsaveTarget} onOpenChange={(open) => !open && setUnsaveTarget(null)}>
+      <AlertDialog
+        open={!!unsaveTarget}
+        onOpenChange={(open) => {
+          if (!open && !isUnsavingInProgress) {
+            setUnsaveTarget(null);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Document</AlertDialogTitle>
             <AlertDialogDescription>
-              Remove "{unsaveTarget?.title}" from your library? Your private notes will be lost.
+              Remove "{unsaveTarget?.title}" from your library? Your private
+              notes will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isUnsavingInProgress}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isUnsavingInProgress}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700 text-white"
               onClick={(e) => {
@@ -418,7 +471,11 @@ export function SavedDecksView() {
         existingTags={tags}
         initialData={
           editingFolder
-            ? { name: editingFolder.name, color: editingFolder.color, tags: editingFolder.tags.map((t) => t.name) }
+            ? {
+                name: editingFolder.name,
+                color: editingFolder.color,
+                tags: editingFolder.tags.map((t) => t.name),
+              }
             : null
         }
       />
@@ -432,16 +489,27 @@ export function SavedDecksView() {
         onDelete={actions.deleteTag}
       />
 
-      <AlertDialog open={!!deletingFolder} onOpenChange={(open) => !open && setDeletingFolder(null)}>
+      <AlertDialog
+        open={!!deletingFolder}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingInProgress) {
+            setDeletingFolder(null);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Folder</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deletingFolder?.name}"? Documents inside will not be deleted but will become Uncategorized.
+              Are you sure you want to delete "{deletingFolder?.name}"?
+              Documents inside will not be deleted but will become
+              Uncategorized.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingInProgress}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeletingInProgress}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700 text-white"
               onClick={(e) => {

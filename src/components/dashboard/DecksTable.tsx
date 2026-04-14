@@ -323,7 +323,14 @@ export function DecksTable({
           </TableBody>
         </Table>
       </div>
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog 
+        open={!!deleteTarget} 
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Deck</AlertDialogTitle>

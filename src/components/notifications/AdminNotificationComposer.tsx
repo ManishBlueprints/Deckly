@@ -75,11 +75,12 @@ export function AdminNotificationComposer() {
       });
 
       // Defensive check for the returned count (handles both direct number and { count } object)
-      const count = typeof result === 'number' 
-        ? result 
-        : (result && typeof (result as { count?: number }).count === 'number') 
-          ? (result as { count?: number }).count! 
-          : 0;
+      const count =
+        typeof result === "number"
+          ? result
+          : result && typeof (result as { count?: number }).count === "number"
+            ? (result as { count?: number }).count!
+            : 0;
 
       toast.success(`Broadcast sent to ${count} users`);
       resetForm();
@@ -138,7 +139,7 @@ export function AdminNotificationComposer() {
         )}
 
         {mode === "broadcast" && (
-          <div 
+          <div
             className="bg-destructive/10 border-l-4 border-destructive px-6 py-4 rounded-none text-sm flex items-center gap-4"
             role="alert"
             aria-live="assertive"
@@ -194,7 +195,7 @@ export function AdminNotificationComposer() {
               <div className="w-12 h-12 bg-red-500/10 flex items-center justify-center border border-red-500/20">
                 <AlertTriangle size={24} className="text-red-500" />
               </div>
-              <h3 className="text-2xl font-black text-white uppercase tracking-tighter">
+              <h3 className="text-2xl font-bold text-white uppercase tracking-tighter">
                 Confirm <span className="text-red-500">Broadcast</span>
               </h3>
             </div>
@@ -213,7 +214,9 @@ export function AdminNotificationComposer() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <AlertDialogCancel asChild>
-                <Button variant="ghost" className="rounded-none">Abort</Button>
+                <Button variant="ghost" className="rounded-none">
+                  Abort
+                </Button>
               </AlertDialogCancel>
               <AlertDialogAction asChild>
                 <Button

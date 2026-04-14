@@ -151,7 +151,7 @@ export function DeckSettingsForm({
           slug,
           imageAssets.map((asset) => asset.blob),
           undefined,
-          stagingVersion
+          stagingVersion,
         );
         finalPages = imageUrls.map((url, idx) => ({
           image_url: url,
@@ -186,19 +186,24 @@ export function DeckSettingsForm({
             .from("decks")
             .remove([prevDocPath])
             .catch((cleanupErr) =>
-              console.warn("Failed to clean up old document:", cleanupErr)
+              console.warn("Failed to clean up old document:", cleanupErr),
             );
         }
-        
+
         // Also clean up old slide images that are no longer used
         if (deck.pages) {
-          const oldUrls = deck.pages.map(p => p.image_url);
-          const newUrls = new Set(finalPages.map(p => p.image_url));
-          const actuallyDelete = oldUrls.filter(url => !newUrls.has(url));
+          const oldUrls = deck.pages.map((p) => p.image_url);
+          const newUrls = new Set(finalPages.map((p) => p.image_url));
+          const actuallyDelete = oldUrls.filter((url) => !newUrls.has(url));
           if (actuallyDelete.length > 0) {
-            await deckStorageService.deleteSlideImages(actuallyDelete).catch(
-              cleanupErr => console.warn("Failed to clean up old slide images:", cleanupErr)
-            );
+            await deckStorageService
+              .deleteSlideImages(actuallyDelete)
+              .catch((cleanupErr) =>
+                console.warn(
+                  "Failed to clean up old slide images:",
+                  cleanupErr,
+                ),
+              );
           }
         }
       }
@@ -277,7 +282,7 @@ export function DeckSettingsForm({
       <div className="flex justify-end pt-6 mt-6 border-t border-white/5">
         {isProcessing && (
           <div className="flex-1 mr-6 space-y-3">
-            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
               <span className="text-slate-500">Processing Assets</span>
               <span className="text-deckly-primary">
                 {completionPercentage}%

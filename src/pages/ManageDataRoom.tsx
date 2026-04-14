@@ -703,7 +703,11 @@ function ManageDataRoom() {
       {/* Delete Confirmation */}
       <AlertDialog
         open={showDeleteConfirm}
-        onOpenChange={(open) => !open && setShowDeleteConfirm(false)}
+        onOpenChange={(open) => {
+          if (!open && !saving) {
+            setShowDeleteConfirm(false);
+          }
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
