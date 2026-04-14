@@ -394,7 +394,14 @@ LANGUAGE plpgsql
 SET search_path = public
 AS $$
 BEGIN
-  IF NEW.view_password IS NOT NULL AND NEW.view_password IS DISTINCT FROM OLD.view_password THEN
+  -- Handle NULL or empty string password clears
+  IF NEW.view_password IS NULL OR NEW.view_password = '' THEN
+    NEW.view_password = NULL;
+    RETURN NEW;
+  END IF;
+
+  -- Only hash if it changed and isn't already hashed
+  IF NEW.view_password IS DISTINCT FROM OLD.view_password THEN
     IF NEW.view_password NOT LIKE '$2a$%' AND NEW.view_password NOT LIKE '$2b$%' AND NEW.view_password NOT LIKE '$2y$%' THEN
       NEW.view_password = crypt(NEW.view_password, gen_salt('bf'));
     END IF;
@@ -478,7 +485,14 @@ DECLARE
     v_hashed_pw TEXT;
     v_ip TEXT := current_setting('request.headers', true)::json->>'x-forwarded-for';
 BEGIN
-    SELECT view_password INTO v_hashed_pw FROM public.decks WHERE slug = p_slug;
+    SELECT view_password INTO v_hashed_pw 
+    FROM public.decks 
+    WHERE slug = p_slug 
+      AND (expires_at IS NULL OR expires_at > NOW());
+
+    IF NOT FOUND THEN
+        RETURN FALSE;
+    END IF;
 
     -- Return early if no password is set to bypass rate limiting overhead/spam
     IF v_hashed_pw IS NULL THEN
@@ -518,7 +532,14 @@ DECLARE
     v_hashed_pw TEXT;
     v_ip TEXT := current_setting('request.headers', true)::json->>'x-forwarded-for';
 BEGIN
-    SELECT view_password INTO v_hashed_pw FROM public.data_rooms WHERE slug = p_slug;
+    SELECT view_password INTO v_hashed_pw 
+    FROM public.data_rooms 
+    WHERE slug = p_slug 
+      AND (expires_at IS NULL OR expires_at > NOW());
+
+    IF NOT FOUND THEN
+        RETURN FALSE;
+    END IF;
 
     -- Return early if no password is set to bypass rate limiting overhead/spam
     IF v_hashed_pw IS NULL THEN
@@ -556,7 +577,10 @@ AS $$
 DECLARE
     v_deck RECORD;
 BEGIN
-    SELECT * INTO v_deck FROM public.decks WHERE slug = p_slug;
+    SELECT * INTO v_deck 
+    FROM public.decks 
+    WHERE slug = p_slug 
+      AND (expires_at IS NULL OR expires_at > NOW());
     -- Enforce exact password check via RPC helper (shared error prevents slug enumeration)
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Unauthorized';
@@ -581,7 +605,10 @@ DECLARE
     v_room RECORD;
     v_documents jsonb;
 BEGIN
-    SELECT * INTO v_room FROM public.data_rooms WHERE slug = p_slug;
+    SELECT * INTO v_room 
+    FROM public.data_rooms 
+    WHERE slug = p_slug 
+      AND (expires_at IS NULL OR expires_at > NOW());
     -- Shared error prevents slug enumeration
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Unauthorized';

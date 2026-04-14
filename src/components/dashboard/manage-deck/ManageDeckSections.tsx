@@ -238,7 +238,7 @@ export function ManageDeckDetailsSection({
           </Label>
           <div className="relative group/slug">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none z-10">
-              <span className="text-sm text-slate-500">
+              <span className="text-sm text-deckly-primary">
                 {authHandle || userProfile?.handle || "..."}/
               </span>
             </div>

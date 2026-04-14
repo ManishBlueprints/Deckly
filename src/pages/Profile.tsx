@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { useNavigate } from "react-router-dom";
 import {
@@ -191,39 +192,32 @@ function IdentitySection() {
 
   const [roomName, setRoomName] = useState(branding?.room_name || "");
   const [workspaceSlug, setWorkspaceSlug] = useState(profile?.handle || "");
-  const [isCheckingSlug, setIsCheckingSlug] = useState(false);
-  const [isSlugAvailable, setIsSlugAvailable] = useState<boolean | null>(null);
+  const [debouncedSlug, setDebouncedSlug] = useState(workspaceSlug);
 
   useEffect(() => {
     if (branding?.room_name) setRoomName(branding.room_name);
-    if (profile?.handle) setWorkspaceSlug(profile.handle);
+    if (profile?.handle) {
+      setWorkspaceSlug(profile.handle);
+      setDebouncedSlug(profile.handle);
+    }
   }, [branding?.room_name, profile?.handle]);
 
   useEffect(() => {
-    let isMounted = true;
-    if (workspaceSlug === profile?.handle || workspaceSlug.length < 3) {
-      setIsSlugAvailable(null);
-      return;
-    }
+    const timer = setTimeout(() => setDebouncedSlug(workspaceSlug), 500);
+    return () => clearTimeout(timer);
+  }, [workspaceSlug]);
 
-    const timer = setTimeout(async () => {
-      if (!isMounted) return;
-      setIsCheckingSlug(true);
-      try {
-        const available = await userService.isHandleAvailable(workspaceSlug);
-        if (isMounted) setIsSlugAvailable(available);
-      } catch {
-        if (isMounted) setIsSlugAvailable(false);
-      } finally {
-        if (isMounted) setIsCheckingSlug(false);
-      }
-    }, 500);
+  const needsCheck = debouncedSlug.length >= 3 && debouncedSlug !== profile?.handle;
 
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [workspaceSlug, profile?.handle]);
+  const { data: slugData, isFetching: isCheckingSlug } = useQuery({
+    queryKey: ["handle-available", debouncedSlug],
+    queryFn: () => userService.isHandleAvailable(debouncedSlug),
+    enabled: needsCheck,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const isSlugAvailable = needsCheck ? slugData : null;
 
   const currentLogo = branding?.logo_url || penguinMascot;
 
@@ -282,10 +276,10 @@ function IdentitySection() {
       }
 
       let shouldReload = false;
-      if (workspaceSlug !== profile?.handle && isSlugAvailable) {
+      if (debouncedSlug !== profile?.handle && isSlugAvailable) {
         if (profile?.id) {
           await userService.updateProfile(profile.id, {
-            handle: workspaceSlug,
+            handle: debouncedSlug,
           });
           shouldReload = true;
         }
@@ -435,7 +429,7 @@ function IdentitySection() {
 
         <button
           onClick={handleSave}
-          disabled={saving || isCheckingSlug || (workspaceSlug !== profile?.handle && !isSlugAvailable)}
+          disabled={saving || isCheckingSlug || workspaceSlug !== debouncedSlug || (debouncedSlug !== profile?.handle && !isSlugAvailable)}
           className="w-full py-4 bg-deckly-primary text-primary-foreground font-bold uppercase tracking-[0.2em] text-[10px] hover:brightness-110 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {saving ? (

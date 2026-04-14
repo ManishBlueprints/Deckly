@@ -22,9 +22,18 @@ import AnalyticsModal from "../dashboard/AnalyticsModal";
 import DeckDetailPanel from "./DeckDetailPanel";
 import { Deck, BrandingSettings } from "../../types";
 import { cn } from "../../lib/utils";
-import Button from "../common/Button";
+import { Button } from "../ui/button";
 import { useAuth } from "../../contexts/AuthContext";
-import { ConfirmModal } from "../common/ConfirmModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 import { getDeckShareUrl, getDeckPath } from "../../utils/url";
 
 interface DeckListProps {
@@ -442,7 +451,7 @@ function DeckList({
               processing and analytics for you.
             </p>
             <Link to="/upload">
-              <Button size="large" className="group flex items-center gap-2">
+              <Button size="lg" className="group flex items-center gap-2">
                 Upload First Deck
                 <Plus
                   size={20}
@@ -696,16 +705,29 @@ function DeckList({
         )}
       </AnimatePresence>
 
-      <ConfirmModal
-        isOpen={resetTarget}
-        onClose={() => setResetTarget(false)}
-        onConfirm={handleConfirmReset}
-        isLoading={isResetting}
-        title="Reset Branding"
-        message="Are you sure you want to reset your room name and banner to defaults? This action cannot be undone."
-        confirmText="Reset Branding"
-        variant="danger"
-      />
+      <AlertDialog open={resetTarget} onOpenChange={setResetTarget}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Branding</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to reset your room name and banner to defaults? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isResetting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmReset();
+              }}
+              disabled={isResetting}
+            >
+              {isResetting ? "Resetting..." : "Reset Branding"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AnimatePresence>
         {error && (

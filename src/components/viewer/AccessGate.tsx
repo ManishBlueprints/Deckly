@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck } from "lucide-react";
 import { Deck } from "../../types";
 import { deckService } from "../../services/deckService";
-import Card from "../common/Card";
-import Input from "../common/Input";
-import Button from "../common/Button";
+import { Card } from "../ui/card";
+import { FormInput } from "../ui/form-input";
+import { Button } from "../ui/button";
 
 interface AccessGateProps {
   deck: Deck;
@@ -146,8 +146,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
       >
         <Card
           variant="glass"
-          className="p-10 md:p-14 rounded-3xl text-center"
-          hoverable={false}
+          className="p-10 md:p-14 text-center"
         >
           <div className="flex flex-col items-center">
             {/* Visual Icon */}
@@ -183,7 +182,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                   >
-                    <Input
+                    <FormInput
                       label="AUTHORIZED EMAIL"
                       type="email"
                       placeholder="name@company.com"
@@ -204,7 +203,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                   >
-                    <Input
+                    <FormInput
                       label="ACCESS PERMIT"
                       type="password"
                       placeholder="••••••••"
@@ -232,8 +231,8 @@ const AccessGate: React.FC<AccessGateProps> = ({
 
               <Button
                 type="submit"
-                variant="primary"
-                size="large"
+                variant="default"
+                size="lg"
                 fullWidth
                 loading={isVerifying}
                 icon={ArrowRight}

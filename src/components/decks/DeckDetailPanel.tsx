@@ -24,11 +24,22 @@ import { Deck } from "../../types";
 import { cn } from "../../lib/utils";
 import { getDeckPath } from "../../utils/url";
 
-// Common Components
-import Button from "../common/Button";
-import Input from "../common/Input";
-import Toggle from "../common/Toggle";
-import Card from "../common/Card";
+// UI Components
+import { Button } from "../ui/button";
+import { FormInput } from "../ui/form-input";
+import { Switch } from "../ui/switch";
+import { Card } from "../ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
 
 // Set worker source for pdfjs-dist
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -308,7 +319,7 @@ function DeckDetailPanel({
             target="_blank"
             rel="noreferrer"
           >
-            <Button variant="ghost" size="small" icon={ExternalLink}>
+            <Button variant="ghost" size="sm" icon={ExternalLink}>
               View Room
             </Button>
           </a>
@@ -397,7 +408,7 @@ function DeckDetailPanel({
           <section className="space-y-8">
             <SectionHeader>Management</SectionHeader>
             <div className="flex flex-col gap-6">
-              <Input
+              <FormInput
                 label="Asset Name"
                 placeholder="Rename"
                 value={editValues.title}
@@ -406,7 +417,7 @@ function DeckDetailPanel({
                 }
               />
 
-              <Input
+              <FormInput
                 label="Access Path"
                 placeholder="Slug"
                 value={editValues.slug}
@@ -462,11 +473,13 @@ function DeckDetailPanel({
               </div>
 
               <div className="flex flex-col gap-4 p-5 rounded-3xl bg-white/[0.02] border border-white/5">
-                <Toggle
-                  label="Enable Link Expiration"
-                  enabled={expiryEnabled}
-                  onToggle={setExpiryEnabled}
-                />
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <span className="text-sm font-medium text-slate-300">Enable Link Expiration</span>
+                  <Switch
+                    checked={expiryEnabled}
+                    onCheckedChange={setExpiryEnabled}
+                  />
+                </div>
                 <AnimatePresence>
                   {expiryEnabled && (
                     <motion.div
@@ -474,7 +487,7 @@ function DeckDetailPanel({
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                     >
-                      <Input
+                      <FormInput
                         type="date"
                         value={expiryDate}
                         onChange={(e) => setExpiryDate(e.target.value)}
@@ -495,17 +508,21 @@ function DeckDetailPanel({
                 </div>
 
                 <div className="space-y-1">
-                  <Toggle
-                    label="Require Email to View"
-                    enabled={requireEmail}
-                    onToggle={setRequireEmail}
-                  />
+                  <div className="flex items-center justify-between gap-4 py-3">
+                    <span className="text-sm font-medium text-slate-300">Require Email to View</span>
+                    <Switch
+                      checked={requireEmail}
+                      onCheckedChange={setRequireEmail}
+                    />
+                  </div>
                   <div className="h-px bg-white/5 mx-1" />
-                  <Toggle
-                    label="Password Protected"
-                    enabled={requirePassword}
-                    onToggle={setRequirePassword}
-                  />
+                  <div className="flex items-center justify-between gap-4 py-3">
+                    <span className="text-sm font-medium text-slate-300">Password Protected</span>
+                    <Switch
+                      checked={requirePassword}
+                      onCheckedChange={setRequirePassword}
+                    />
+                  </div>
                 </div>
 
                 <AnimatePresence>
@@ -517,7 +534,7 @@ function DeckDetailPanel({
                       className="overflow-hidden"
                     >
                       <div className="relative">
-                        <Input
+                        <FormInput
                           label="Viewing Password"
                           type={showPasswordField ? "text" : "password"}
                           value={viewPassword}
@@ -555,7 +572,6 @@ function DeckDetailPanel({
             <div className="grid grid-cols-2 gap-4">
               <Card
                 variant="solid"
-                hoverable={false}
                 className="p-4 bg-white/[0.02] border-white/5 flex items-center gap-4"
               >
                 <div className="w-10 h-10 bg-deckly-primary/10 text-deckly-primary rounded-xl flex items-center justify-center shrink-0">
@@ -573,7 +589,6 @@ function DeckDetailPanel({
 
               <Card
                 variant="solid"
-                hoverable={false}
                 className="p-4 bg-white/[0.02] border-white/5 flex items-center gap-4"
               >
                 <div className="w-10 h-10 bg-deckly-secondary/10 text-deckly-secondary rounded-xl flex items-center justify-center shrink-0">
@@ -605,20 +620,40 @@ function DeckDetailPanel({
 
         {/* Global Actions */}
         <div className="sticky bottom-0 left-0 right-0 p-8 bg-slate-900/60 backdrop-blur-3xl border-t border-white/10 flex gap-4 z-50 mt-auto">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                disabled={isSaving}
+                icon={Trash2}
+                className="px-6 rounded-none shadow-xl shadow-red-500/10"
+              />
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Asset</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{deck.title}"? This action cannot be undone and will remove all associated analytics data.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => onDelete(deck)}
+                >
+                  Confirm Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <Button
-            variant="danger"
-            onClick={() => onDelete(deck)}
-            disabled={isSaving}
-            icon={Trash2}
-            className="px-6 rounded-2xl shadow-xl shadow-red-500/10"
-          />
-          <Button
-            variant="primary"
+            variant="default"
             fullWidth
             onClick={handleSave}
             loading={isSaving}
             icon={Save}
-            className="rounded-2xl py-4 font-bold uppercase tracking-widest shadow-2xl shadow-deckly-primary/20"
+            className="rounded-none py-4 font-bold uppercase tracking-widest shadow-2xl shadow-deckly-primary/20"
           >
             {isSaving ? uploadProgress || "Saving" : "Sync Changes"}
           </Button>

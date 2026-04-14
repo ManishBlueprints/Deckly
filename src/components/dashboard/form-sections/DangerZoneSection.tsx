@@ -13,7 +13,7 @@ export function DangerZoneSection({ onDelete }: DangerZoneSectionProps) {
             <Trash2 size={24} className="text-red-500" />
           </div>
           <div className="text-left">
-            <p className="text-sm font-black uppercase tracking-tight text-red-500 leading-tight">
+            <p className="text-sm font-bold uppercase tracking-tight text-red-500 leading-tight">
               Delete Asset
             </p>
             <p className="text-xs uppercase font-bold tracking-widest text-red-500/70 mt-1.5">
@@ -26,7 +26,7 @@ export function DangerZoneSection({ onDelete }: DangerZoneSectionProps) {
           <button
             type="button"
             onClick={onDelete}
-            className="w-full sm:w-auto h-14 px-8 rounded-none font-black text-xs uppercase tracking-[0.2em] bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 transition-all flex items-center justify-center gap-2"
+            className="w-full sm:w-auto h-14 px-8 rounded-none font-bold text-xs uppercase tracking-[0.2em] bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 transition-all flex items-center justify-center gap-2"
           >
             <Trash2 size={16} />
             Delete Asset

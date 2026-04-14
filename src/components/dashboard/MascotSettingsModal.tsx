@@ -247,43 +247,51 @@ export function MascotSettingsModal({
                     </div>
                   </div>
 
-                  {workspaceSlug !== userProfile?.handle && isSlugAvailable === false && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mt-2 flex items-center gap-2 text-red-500"
-                    >
-                      <AlertCircle size={14} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Handle already taken</span>
-                    </motion.div>
-                  )}
+                  {workspaceSlug !== userProfile?.handle &&
+                    isSlugAvailable === false && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-2 flex items-center gap-2 text-red-500"
+                      >
+                        <AlertCircle size={14} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">
+                          Handle already taken
+                        </span>
+                      </motion.div>
+                    )}
 
-                  {workspaceSlug !== userProfile?.handle && workspaceSlug.length > 0 && workspaceSlug.length < 3 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mt-2 flex items-center gap-2 text-slate-500"
-                    >
-                      <Info size={14} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Too short (min 3 chars)</span>
-                    </motion.div>
-                  )}
+                  {workspaceSlug !== userProfile?.handle &&
+                    workspaceSlug.length > 0 &&
+                    workspaceSlug.length < 3 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-2 flex items-center gap-2 text-slate-500"
+                      >
+                        <Info size={14} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">
+                          Too short (min 3 chars)
+                        </span>
+                      </motion.div>
+                    )}
 
-                  {workspaceSlug !== userProfile?.handle && isSlugAvailable === true && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-none flex gap-3"
-                    >
-                      <AlertCircle
-                        size={16}
-                        className="text-red-500 shrink-0 mt-0.5"
-                      />
-                      <p className="text-[10px] text-red-500 font-bold uppercase tracking-[0.15em] leading-relaxed">
-                        Warning: Changing this breaks all shared links.
-                      </p>
-                    </motion.div>
-                  )}
+                  {workspaceSlug !== userProfile?.handle &&
+                    isSlugAvailable === true && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-none flex gap-3"
+                      >
+                        <AlertCircle
+                          size={16}
+                          className="text-red-500 shrink-0 mt-0.5"
+                        />
+                        <p className="text-[10px] text-red-500 font-bold uppercase tracking-[0.15em] leading-relaxed">
+                          Warning: Changing this breaks all shared links.
+                        </p>
+                      </motion.div>
+                    )}
                 </div>
 
                 <button
@@ -349,18 +357,21 @@ export function MascotSettingsModal({
                         (workspaceSlug !== userProfile?.handle &&
                           !isSlugAvailable)
                       }
-                      className="w-full py-3.5 bg-deckly-primary text-slate-950 font-black uppercase tracking-[0.2em] text-[10px] rounded-none hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                      className="w-full py-3.5 bg-deckly-primary text-slate-950 font-bold uppercase tracking-[0.2em] text-[10px] rounded-none hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
                     >
                       {saving ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
                         <>
-                          {!userProfile?.handle ? "Finalize Setup" : "Save Workspace"} <Check size={14} />
+                          {!userProfile?.handle
+                            ? "Finalize Setup"
+                            : "Save Workspace"}{" "}
+                          <Check size={14} />
                         </>
                       )}
                     </button>
 
-                      {branding?.logo_url && (
+                    {branding?.logo_url && (
                       <button
                         onClick={handleResetLogo}
                         disabled={uploading}
@@ -375,7 +386,9 @@ export function MascotSettingsModal({
                     <div className="pt-4 mt-4 border-t border-white/5 space-y-4">
                       <div className="flex items-center gap-2 text-slate-500">
                         <Info size={14} />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Tutorial Settings</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest">
+                          Tutorial Settings
+                        </span>
                       </div>
                       <button
                         onClick={async () => {
@@ -384,7 +397,8 @@ export function MascotSettingsModal({
                             onClose();
                             window.location.reload();
                           } catch (err: unknown) {
-                            const message = err instanceof Error ? err.message : String(err);
+                            const message =
+                              err instanceof Error ? err.message : String(err);
                             setError(message || "Failed to reset tutorials.");
                           }
                         }}

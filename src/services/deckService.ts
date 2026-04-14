@@ -184,7 +184,6 @@ const deckCrudService = {
     let query = supabase
       .from("decks")
       .select("id")
-      .eq("user_id", session.user.id)
       .eq("slug", slug);
 
     if (excludeId) {

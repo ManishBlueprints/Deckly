@@ -28,6 +28,17 @@ import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
 import { useQueryClient } from "@tanstack/react-query";
 import { getDataRoomShareUrl } from "../utils/url";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 
 function ManageDataRoom() {
   const { roomId } = useParams();
@@ -81,7 +92,7 @@ function ManageDataRoom() {
   const [saving, setSaving] = useState(false);
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: isSlugAvailable, isLoading: isCheckingSlug } =
     useCheckDataRoomSlug(slug, isEditMode ? roomId : undefined);
@@ -113,7 +124,7 @@ function ManageDataRoom() {
         setDocuments(docs);
       } catch (err) {
         console.error("Failed to load room", err);
-        setError("Failed to load data room");
+        toast.error("Failed to load data room");
       } finally {
         setLoading(false);
       }
@@ -145,7 +156,7 @@ function ManageDataRoom() {
         setIconUrl(url);
       } catch (err) {
         console.error("Failed to upload icon", err);
-        setError("Failed to upload icon");
+        toast.error("Failed to upload icon");
       } finally {
         setUploadingIcon(false);
       }
@@ -225,74 +236,92 @@ function ManageDataRoom() {
 
   // Save / Create
   const handleSave = async () => {
+    // Basic validation
     if (!name.trim() || !slug.trim()) {
-      setError("Name and slug are required");
+      toast.error("Room name and URL slug are required.");
       return;
     }
 
     if (isSlugAvailable === false) {
-      setError("This URL slug is already taken. Please choose another.");
+      toast.error("This URL slug is already taken. Please choose another.");
       return;
     }
 
+    // Security validation
+    if (requirePassword && !viewPassword.trim()) {
+      toast.error("Security Key is required when 'Gate Access' is enabled.");
+      return;
+    }
+
+    if (expiryEnabled && !expiryDate) {
+      toast.error("Please select an expiration date.");
+      return;
+    }
+
+    if (expiryEnabled && expiryDate) {
+      const [year, month, day] = expiryDate.split('-').map(Number);
+      const localExpiry = new Date(year, month - 1, day);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (localExpiry < today) {
+        toast.error("Expiration date must be today or in the future.");
+        return;
+      }
+    }
+
     setSaving(true);
-    setError("");
 
     try {
+      const roomPayload = {
+        name: name.trim(),
+        slug: slug.trim(),
+        description: description.trim() || undefined,
+        icon_url: iconUrl || undefined,
+        require_email: requireEmail,
+        require_password: requirePassword,
+        view_password: requirePassword ? viewPassword : undefined,
+        expires_at:
+          expiryEnabled && expiryDate
+            ? new Date(expiryDate).toISOString()
+            : null,
+      };
+
       if (isEditMode) {
-        await dataRoomService.updateDataRoom(roomId!, {
-          name: name.trim(),
-          slug: slug.trim(),
-          description: description.trim() || undefined,
-          icon_url: iconUrl || undefined,
-          require_email: requireEmail,
-          require_password: requirePassword,
-          view_password: requirePassword ? viewPassword : undefined,
-          expires_at:
-            expiryEnabled && expiryDate
-              ? new Date(expiryDate).toISOString()
-              : null,
-        });
-        navigate("/rooms");
+        await dataRoomService.updateDataRoom(roomId!, roomPayload);
       } else {
-        const room = await dataRoomService.createDataRoom({
-          name: name.trim(),
-          slug: slug.trim(),
-          description: description.trim() || undefined,
-          icon_url: iconUrl || undefined,
-        });
+        // Atomic creation with all settings
+        const room = await dataRoomService.createDataRoom(roomPayload);
 
-        // Update access settings
-        if (requireEmail || requirePassword || expiryEnabled) {
-          await dataRoomService.updateDataRoom(room.id, {
-            require_email: requireEmail,
-            require_password: requirePassword,
-            view_password: requirePassword ? viewPassword : undefined,
-            expires_at:
-              expiryEnabled && expiryDate
-                ? new Date(expiryDate).toISOString()
-                : null,
-          });
-        }
-
-        // Add documents
+        // Add documents after successful room initiation
         const deckIds = documents.map((d) => d.deck_id);
         if (deckIds.length > 0) {
-          await dataRoomService.addDocuments(room.id, deckIds);
+          try {
+            await dataRoomService.addDocuments(room.id, deckIds);
+          } catch (docErr) {
+            console.error("Room created but failed to add documents:", docErr);
+            toast.warning(`Room created, but couldn't attach documents: ${docErr instanceof Error ? docErr.message : 'Unknown error'}. You can add them from the edit page.`);
+          }
         }
-
-        navigate("/rooms");
       }
 
       // Invalidate queries to refresh dashboard/rooms
       queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
       queryClient.invalidateQueries({
-        queryKey: ["user-total-stats", profile?.id],
+          queryKey: ["user-total-stats", profile?.id],
       });
+      
+      navigate("/rooms");
     } catch (err: unknown) {
       console.error("Failed to save", err);
-      const e = err as { message?: string };
-      setError(e?.message || "Failed to save data room");
+      const e = err as { message?: string; code?: string };
+      
+      // Handle unique constraint violation for slug
+      if (e?.code === '23505' || e?.message?.includes('unique constraint "data_rooms_slug_key"')) {
+        toast.error("This URL slug is already taken. Please choose another.");
+      } else {
+        toast.error(e?.message || "Failed to save data room");
+      }
     } finally {
       setSaving(false);
     }
@@ -301,6 +330,7 @@ function ManageDataRoom() {
   // Delete
   const handleDelete = async () => {
     if (!isEditMode) return;
+    setSaving(true);
     try {
       await dataRoomService.deleteDataRoom(roomId!);
       queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
@@ -310,6 +340,9 @@ function ManageDataRoom() {
       navigate("/rooms");
     } catch (err) {
       console.error("Failed to delete room", err);
+      toast.error("Failed to delete data room");
+      setSaving(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -361,13 +394,6 @@ function ManageDataRoom() {
             </p>
           </div>
         </div>
-
-        {/* Error */}
-        {error && (
-          <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-md text-sm text-red-500">
-            {error}
-          </div>
-        )}
 
         {/* ──── Section 1: Room Identity ──── */}
         <div 
@@ -455,7 +481,7 @@ function ManageDataRoom() {
               </label>
               <div className="flex gap-3">
                 <div className="flex-1 flex items-center bg-surface-container border border-white/10 rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary transition-all focus-within:bg-surface-container h-11 relative">
-                  <span className="pl-3 pr-1 text-sm text-slate-500 select-none whitespace-nowrap">
+                  <span className="pl-3 pr-1 text-sm text-deckly-primary select-none whitespace-nowrap">
                     /{profile?.handle}/room/
                   </span>
                   <input
@@ -475,17 +501,39 @@ function ManageDataRoom() {
                   )}
                 </div>
                 {slug && (
-                  <button
-                    onClick={handleCopyLink}
-                    className="flex items-center justify-center w-11 h-11 bg-surface-container border border-white/10 rounded-md text-slate-400 hover:text-white transition-all shrink-0"
-                    title="Copy share link"
-                  >
-                    {copied ? (
-                      <Check size={16} className="text-deckly-primary" />
-                    ) : (
-                      <Copy size={16} />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCopyLink}
+                      disabled={expiryEnabled && !!expiryDate && new Date(expiryDate) < new Date()}
+                      className="flex items-center justify-center w-11 h-11 bg-surface-container border border-white/10 rounded-md text-slate-400 hover:text-white transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group relative"
+                      title={expiryEnabled && !!expiryDate && new Date(expiryDate) < new Date() ? "Link Expired" : "Copy share link"}
+                    >
+                      {copied ? (
+                        <Check size={16} className="text-deckly-primary" />
+                      ) : (
+                        <Copy size={16} />
+                      )}
+                      
+                      {expiryEnabled && !!expiryDate && new Date(expiryDate) < new Date() && (
+                        <div className="absolute -top-1 px-1.5 py-0.5 bg-red-500 text-[8px] text-white font-bold rounded uppercase tracking-tighter whitespace-nowrap">
+                          Expired
+                        </div>
+                      )}
+                    </button>
+
+                    {expiryEnabled && !!expiryDate && new Date(expiryDate) < new Date() && (
+                      <button
+                        onClick={() => {
+                          const expiryEl = document.getElementById('security-section');
+                          expiryEl?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="h-11 px-4 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-500 rounded-md text-xs font-bold transition-all flex items-center gap-2"
+                      >
+                        <Plus size={14} />
+                        Reactivate Link
+                      </button>
                     )}
-                  </button>
+                  </div>
                 )}
               </div>
               <AnimatePresence>
@@ -593,6 +641,7 @@ function ManageDataRoom() {
 
         {/* ──── Section 3: Access Controls ──── */}
         <div 
+          id="security-section"
           data-tour="room-security"
           className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative"
         >
@@ -624,7 +673,7 @@ function ManageDataRoom() {
               <h2 className="text-sm font-medium text-red-500">Danger Zone</h2>
             </div>
             <div className="p-6">
-              <DangerZoneSection onDelete={handleDelete} />
+              <DangerZoneSection onDelete={() => setShowDeleteConfirm(true)} />
             </div>
           </div>
         )}
@@ -650,6 +699,39 @@ function ManageDataRoom() {
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={showDeleteConfirm}
+        onOpenChange={(open) => {
+          if (!open && !saving) {
+            setShowDeleteConfirm(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. All visitor analytics will be
+              permanently removed. Your decks remain safe.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              disabled={saving}
+            >
+              {saving ? "Deleting..." : "Delete Room"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Document Picker Modal */}
       <DocumentPicker
