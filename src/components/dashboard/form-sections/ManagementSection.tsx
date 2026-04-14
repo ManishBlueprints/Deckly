@@ -57,7 +57,7 @@ export function ManagementSection({
           </Label>
           <div className="relative group/slug">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none z-10 transition-opacity">
-              <span className="text-sm text-slate-500">{userHandle}/</span>
+              <span className="text-sm text-deckly-primary">{userHandle}/</span>
             </div>
             <Input
               id="slug"

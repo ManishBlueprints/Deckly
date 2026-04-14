@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Plus,
@@ -30,6 +29,16 @@ import {
 } from "../services/interestSignalService";
 import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
 import { getDataRoomShareUrl } from "../utils/url";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 
 /* ───────── helpers ───────── */
 function formatDate(iso: string) {
@@ -148,6 +157,7 @@ function DataRoomDetail() {
 
   const handleDeleteRoom = async () => {
     if (!roomId) return;
+    setLoading(true);
     try {
       await dataRoomService.deleteDataRoom(roomId);
       queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
@@ -157,6 +167,8 @@ function DataRoomDetail() {
       navigate("/rooms");
     } catch (err) {
       console.error("Failed to delete room", err);
+      setConfirmDelete(false);
+      setLoading(false);
     }
   };
 
@@ -462,50 +474,34 @@ function DataRoomDetail() {
         </div>
       </div>
 
-      {/* ── Delete Modal ── */}
-      <AnimatePresence>
-        {confirmDelete && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setConfirmDelete(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.98, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.98, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-surface-card border border-[#222] rounded-lg p-6 max-w-sm w-full shadow-2xl text-center"
+      {/* ── Delete Confirmation ── */}
+      <AlertDialog
+        open={confirmDelete}
+        onOpenChange={(open) => !open && setConfirmDelete(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {room.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this room? This action cannot be
+              undone and all visitors will be revoked access. Your original decks remain intact.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteRoom();
+              }}
+              disabled={loading}
             >
-              <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-md flex items-center justify-center mx-auto mb-5">
-                <Trash2 size={20} className="text-red-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2">
-                Delete {room.name}?
-              </h3>
-              <p className="text-sm text-slate-500 mb-6">
-                This permanently deletes the room. Your decks remain intact.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="flex-1 px-4 py-2 bg-surface-low border border-[#333] text-slate-400 font-semibold text-sm rounded-md hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteRoom}
-                  className="flex-1 px-4 py-2 bg-red-500 text-white font-semibold text-sm rounded-md hover:bg-red-600 transition-colors"
-                >
-                  Delete
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              {loading ? "Deleting..." : "Delete Room"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Document Picker */}
       <DocumentPicker

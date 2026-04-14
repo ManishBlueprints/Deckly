@@ -16,8 +16,8 @@ import { Deck, DeckStats } from "../../types";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../contexts/AuthContext";
 import { getTierConfig } from "../../constants/tiers";
-import Button from "../common/Button";
-import Card from "../common/Card";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 interface AnalyticsModalProps {
@@ -193,7 +193,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                 </p>
               </div>
               <Button
-                variant="secondary"
+                variant="outline"
                 onClick={handleRetry}
                 icon={RefreshCcw}
                 className="bg-white/5 border-white/10 hover:bg-white/10 text-white"
@@ -206,7 +206,6 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
               <div className="grid grid-cols-2 gap-4">
                 <Card
                   variant="solid"
-                  hoverable={false}
                   className="p-5 border-white/10 bg-white/[0.02]"
                 >
                   <div className="flex items-center gap-3 mb-4">
@@ -224,7 +223,6 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
 
                 <Card
                   variant="solid"
-                  hoverable={false}
                   className="p-5 border-white/10 bg-white/[0.02]"
                 >
                   <div className="flex items-center gap-3 mb-4">
@@ -375,7 +373,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
           <div className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase tracking-widest">
             <Zap size={14} className="text-deckly-primary" /> Real-time Sync
           </div>
-          <Button onClick={onClose} size="medium">
+          <Button onClick={onClose} size="sm" className="px-6">
             Done
           </Button>
         </footer>

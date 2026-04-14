@@ -11,8 +11,19 @@ import {
   DropdownMenuPortal,
   DropdownMenuCheckboxItem,
 } from "../ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 import { LibraryFolder, LibraryTag, SavedDeckOrganized } from "../../types";
 import { cn } from "../../utils/cn";
+import { useState } from "react";
 
 interface DeckActionMenuProps {
   deck: SavedDeckOrganized;
@@ -31,8 +42,11 @@ export function DeckActionMenu({
   onUpdateTags,
   onUnsave,
 }: DeckActionMenuProps) {
+  const [showUnsaveConfirm, setShowUnsaveConfirm] = useState(false);
+
   return (
-    <DropdownMenu>
+    <>
+      <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Deck actions"
         className="p-2.5 bg-[#1c1b1b] border border-[#3d4a3e]/10 text-[#bbcbbb]/40 hover:text-[#54e98a] transition-all shadow-xl outline-none group-focus-within:border-[#54e98a]/30"
@@ -148,16 +162,47 @@ export function DeckActionMenu({
 
         <DropdownMenuSeparator className="bg-[#1c1b1b] my-2" />
 
-        <DropdownMenuItem
-          onClick={onUnsave}
-          className="text-[#ff4d4d]/60 data-[highlighted]:bg-[#ff4d4d]/10 data-[highlighted]:text-[#ff4d4d] cursor-pointer px-4 py-3 transition-colors flex items-center gap-3"
-        >
-          <span className="material-symbols-outlined text-lg">
-            bookmark_remove
-          </span>
-          <span className="font-bold text-sm">Remove from Saved</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              setShowUnsaveConfirm(true);
+            }}
+            className="text-[#ff4d4d]/60 data-[highlighted]:bg-[#ff4d4d]/10 data-[highlighted]:text-[#ff4d4d] cursor-pointer px-4 py-3 transition-colors flex items-center gap-3"
+          >
+            <span className="material-symbols-outlined text-lg">
+              bookmark_remove
+            </span>
+            <span className="font-bold text-sm">Remove from Saved</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog
+        open={showUnsaveConfirm}
+        onOpenChange={setShowUnsaveConfirm}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from Saved?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove "{deck.title}" from your saved
+              decks? You can still access it via the original URL if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                onUnsave();
+                setShowUnsaveConfirm(false);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

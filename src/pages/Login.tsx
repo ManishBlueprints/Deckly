@@ -5,8 +5,8 @@ import { supabase } from "../services/supabase";
 import { Lock, Mail } from "lucide-react";
 import penguinMascot from "../assets/penguine.png";
 import logo from "../assets/Deckly.png";
-import Button from "../components/common/Button";
-import Input from "../components/common/Input";
+import { Button } from "../components/ui/button";
+import { FormInput } from "../components/ui/form-input";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -160,7 +160,7 @@ function Login() {
           </div>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <Input
+            <FormInput
               label="Email Address"
               type="email"
               placeholder="name@company.com"
@@ -170,7 +170,7 @@ function Login() {
               required
             />
 
-            <Input
+            <FormInput
               label="Password"
               type="password"
               placeholder="password"
@@ -194,7 +194,7 @@ function Login() {
             <Button
               type="submit"
               fullWidth
-              size="large"
+              size="lg"
               loading={loading}
               className="font-bold tracking-widest uppercase py-3 mt-2"
             >

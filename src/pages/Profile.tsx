@@ -276,10 +276,10 @@ function IdentitySection() {
       }
 
       let shouldReload = false;
-      if (workspaceSlug !== profile?.handle && isSlugAvailable) {
+      if (debouncedSlug !== profile?.handle && isSlugAvailable) {
         if (profile?.id) {
           await userService.updateProfile(profile.id, {
-            handle: workspaceSlug,
+            handle: debouncedSlug,
           });
           shouldReload = true;
         }
@@ -429,7 +429,7 @@ function IdentitySection() {
 
         <button
           onClick={handleSave}
-          disabled={saving || isCheckingSlug || (workspaceSlug !== profile?.handle && !isSlugAvailable)}
+          disabled={saving || isCheckingSlug || workspaceSlug !== debouncedSlug || (debouncedSlug !== profile?.handle && !isSlugAvailable)}
           className="w-full py-4 bg-deckly-primary text-primary-foreground font-bold uppercase tracking-[0.2em] text-[10px] hover:brightness-110 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {saving ? (

@@ -4,7 +4,16 @@ import { LibraryFolder, SavedDeckOrganized } from "../../types";
 import { Loader2, Filter, Tag, Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { ConfirmModal } from "../common/ConfirmModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 import { SavedDeckEmptyState } from "./SavedDeckEmptyState";
 import { CreateFolderModal } from "./CreateFolderModal";
 import { FolderCard } from "./FolderCard";
@@ -375,16 +384,29 @@ export function SavedDecksView() {
       </main>
 
       {/* Modals */}
-      <ConfirmModal
-        isOpen={!!unsaveTarget}
-        onClose={() => setUnsaveTarget(null)}
-        onConfirm={handleConfirmUnsave}
-        isLoading={isUnsavingInProgress}
-        title="Remove Document"
-        message={`Remove "${unsaveTarget?.title}" from your library? Your private notes will be lost.`}
-        confirmText="Remove Now"
-        variant="danger"
-      />
+      <AlertDialog open={!!unsaveTarget} onOpenChange={(open) => !open && setUnsaveTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove "{unsaveTarget?.title}" from your library? Your private notes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUnsavingInProgress}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmUnsave();
+              }}
+              disabled={isUnsavingInProgress}
+            >
+              {isUnsavingInProgress ? "Removing..." : "Remove Now"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CreateFolderModal
         isOpen={isCreateFolderModalOpen}
@@ -410,16 +432,29 @@ export function SavedDecksView() {
         onDelete={actions.deleteTag}
       />
 
-      <ConfirmModal
-        isOpen={!!deletingFolder}
-        onClose={() => setDeletingFolder(null)}
-        onConfirm={handleConfirmDeleteFolder}
-        isLoading={isDeletingInProgress}
-        title="Delete Folder"
-        message={`Are you sure you want to delete "${deletingFolder?.name}"? Documents inside will not be deleted but will become Uncategorized.`}
-        confirmText="Delete Folder"
-        variant="danger"
-      />
+      <AlertDialog open={!!deletingFolder} onOpenChange={(open) => !open && setDeletingFolder(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Folder</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deletingFolder?.name}"? Documents inside will not be deleted but will become Uncategorized.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingInProgress}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmDeleteFolder();
+              }}
+              disabled={isDeletingInProgress}
+            >
+              {isDeletingInProgress ? "Deleting..." : "Delete Folder"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

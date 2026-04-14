@@ -29,6 +29,16 @@ import { normalizeSlug } from "../utils/slug";
 import { useQueryClient } from "@tanstack/react-query";
 import { getDataRoomShareUrl } from "../utils/url";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 
 function ManageDataRoom() {
   const { roomId } = useParams();
@@ -82,6 +92,7 @@ function ManageDataRoom() {
   const [saving, setSaving] = useState(false);
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: isSlugAvailable, isLoading: isCheckingSlug } =
     useCheckDataRoomSlug(slug, isEditMode ? roomId : undefined);
@@ -319,6 +330,7 @@ function ManageDataRoom() {
   // Delete
   const handleDelete = async () => {
     if (!isEditMode) return;
+    setSaving(true);
     try {
       await dataRoomService.deleteDataRoom(roomId!);
       queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
@@ -328,6 +340,9 @@ function ManageDataRoom() {
       navigate("/rooms");
     } catch (err) {
       console.error("Failed to delete room", err);
+      toast.error("Failed to delete data room");
+      setSaving(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -466,7 +481,7 @@ function ManageDataRoom() {
               </label>
               <div className="flex gap-3">
                 <div className="flex-1 flex items-center bg-surface-container border border-white/10 rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary transition-all focus-within:bg-surface-container h-11 relative">
-                  <span className="pl-3 pr-1 text-sm text-slate-500 select-none whitespace-nowrap">
+                  <span className="pl-3 pr-1 text-sm text-deckly-primary select-none whitespace-nowrap">
                     /{profile?.handle}/room/
                   </span>
                   <input
@@ -658,7 +673,7 @@ function ManageDataRoom() {
               <h2 className="text-sm font-medium text-red-500">Danger Zone</h2>
             </div>
             <div className="p-6">
-              <DangerZoneSection onDelete={handleDelete} />
+              <DangerZoneSection onDelete={() => setShowDeleteConfirm(true)} />
             </div>
           </div>
         )}
@@ -684,6 +699,35 @@ function ManageDataRoom() {
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog
+        open={showDeleteConfirm}
+        onOpenChange={(open) => !open && setShowDeleteConfirm(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. All visitor analytics will be
+              permanently removed. Your decks remain safe.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              disabled={saving}
+            >
+              {saving ? "Deleting..." : "Delete Room"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Document Picker Modal */}
       <DocumentPicker
