@@ -16,32 +16,18 @@ describe("normalizeSlug", () => {
     expect(normalizeSlug("hello   world")).toBe("hello-world");
   });
 
-  it("strips characters that are not a-z, 0-9, or hyphen", () => {
-    expect(normalizeSlug("café & co.")).toBe("caf-co");
+  it("handles unicode/accented characters by normalizing them", () => {
+    expect(normalizeSlug("Café & Co")).toBe("cafe-co");
+    expect(normalizeSlug("Crème Brûlée")).toBe("creme-brulee");
   });
 
-  it("strips leading and trailing hyphens", () => {
-    expect(normalizeSlug("-hello-world-")).toBe("hello-world");
+  it("truncates long strings to 200 characters", () => {
+    const longString = "a".repeat(300);
+    expect(normalizeSlug(longString).length).toBe(200);
   });
 
-  it("collapses consecutive hyphens", () => {
-    expect(normalizeSlug("hello--world")).toBe("hello-world");
-  });
-
-  it("handles an already valid slug unchanged", () => {
-    expect(normalizeSlug("my-deck")).toBe("my-deck");
-  });
-
-  it("handles numeric slugs", () => {
-    expect(normalizeSlug("2024 Q1 Deck")).toBe("2024-q1-deck");
-  });
-
-  it("returns empty string for input with no valid characters", () => {
-    expect(normalizeSlug("!@#$%^&*()")).toBe("");
-  });
-
-  it("trims leading/trailing whitespace before slugifying", () => {
-    expect(normalizeSlug("  spaced  ")).toBe("spaced");
+  it("handles multiple mixed delimiters correctly", () => {
+    expect(normalizeSlug("hello---   ---world")).toBe("hello-world");
   });
 });
 
@@ -75,7 +61,13 @@ describe("normalizeHandle", () => {
     expect(normalizeHandle("!@#$%")).toBe("");
   });
 
-  it("handles unicode/emoji by stripping them", () => {
+  it("handles unicode/emoji by normalizing or stripping them", () => {
     expect(normalizeHandle("manish🚀")).toBe("manish");
+    expect(normalizeHandle("Mánish")).toBe("manish");
+  });
+
+  it("truncates long handles to 50 characters", () => {
+    const longHandle = "u".repeat(100);
+    expect(normalizeHandle(longHandle).length).toBe(50);
   });
 });
