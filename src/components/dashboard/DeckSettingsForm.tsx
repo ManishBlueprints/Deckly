@@ -209,6 +209,11 @@ export function DeckSettingsForm({
           }
         }
       }
+
+      // Clear rollback tracking since DB commit succeeded
+      uploadedFileName = "";
+      uploadedSlideImageKeys = [];
+
       onUpdate(updated);
       setUploadProgress("Changes Synced!");
       timeoutRef.current = setTimeout(() => {

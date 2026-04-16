@@ -234,6 +234,12 @@ function ManageDataRoom() {
     [isEditMode, roomId, documents, queryClient],
   );
 
+  const parsedExpiry = expiryEnabled && expiryDate ? expiryDate.split('-').map(Number) : null;
+  const expiryInstant = parsedExpiry 
+    ? new Date(Date.UTC(parsedExpiry[0], parsedExpiry[1] - 1, parsedExpiry[2], 23, 59, 59, 999)) 
+    : null;
+  const isExpired = expiryInstant ? expiryInstant.getTime() < Date.now() : false;
+
   // Save / Create
   const handleSave = async () => {
     // Basic validation
@@ -258,16 +264,9 @@ function ManageDataRoom() {
       return;
     }
 
-    if (expiryEnabled && expiryDate) {
-      const [year, month, day] = expiryDate.split('-').map(Number);
-      const localExpiry = new Date(year, month - 1, day);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (localExpiry < today) {
-        toast.error("Expiration date must be today or in the future.");
-        return;
-      }
+    if (expiryEnabled && expiryDate && isExpired) {
+      toast.error("Expiration date must be today or in the future.");
+      return;
     }
 
     setSaving(true);
@@ -281,10 +280,7 @@ function ManageDataRoom() {
         require_email: requireEmail,
         require_password: requirePassword,
         view_password: requirePassword ? viewPassword : undefined,
-        expires_at:
-          expiryEnabled && expiryDate
-            ? new Date(expiryDate).toISOString()
-            : null,
+        expires_at: expiryInstant ? expiryInstant.toISOString() : null,
       };
 
       if (isEditMode) {
@@ -504,9 +500,9 @@ function ManageDataRoom() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleCopyLink}
-                      disabled={expiryEnabled && !!expiryDate && new Date(expiryDate) < new Date()}
+                      disabled={isExpired}
                       className="flex items-center justify-center w-11 h-11 bg-surface-container border border-white/10 rounded-md text-slate-400 hover:text-white transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group relative"
-                      title={expiryEnabled && !!expiryDate && new Date(expiryDate) < new Date() ? "Link Expired" : "Copy share link"}
+                      title={isExpired ? "Link Expired" : "Copy share link"}
                     >
                       {copied ? (
                         <Check size={16} className="text-deckly-primary" />
@@ -514,14 +510,14 @@ function ManageDataRoom() {
                         <Copy size={16} />
                       )}
                       
-                      {expiryEnabled && !!expiryDate && new Date(expiryDate) < new Date() && (
+                      {isExpired && (
                         <div className="absolute -top-1 px-1.5 py-0.5 bg-red-500 text-[8px] text-white font-bold rounded uppercase tracking-tighter whitespace-nowrap">
                           Expired
                         </div>
                       )}
                     </button>
 
-                    {expiryEnabled && !!expiryDate && new Date(expiryDate) < new Date() && (
+                    {isExpired && (
                       <button
                         onClick={() => {
                           const expiryEl = document.getElementById('security-section');
