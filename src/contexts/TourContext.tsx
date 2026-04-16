@@ -13,46 +13,49 @@ interface TourContextType {
 
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
-export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const { profile, session, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
 
   const hasCompletedTour = useCallback(
     (tourId: keyof TutorialState) => {
-      // If we don't have a session AND we are not in an initializing state, 
-      // we default to true to avoid nagging guest users.
-      // However, during app startup, we should return false so we don't accidentally
-      // skip tours while the user data is still being fetched.
+      // If we don't have a session, return false to ensure tours are shown
+      // during app startup while user data is still being fetched.
+      // Note: This means guest users will also see tours.
       if (!session) {
         return false;
       }
-      
       // If session exists but profile is missing, it's loading or being created,
       // so we assume the tour is NOT yet complete.
       if (!profile) return false;
-      
+
       return !!profile.tutorial_state?.[tourId];
     },
-    [profile, session]
+    [profile, session],
   );
 
   const markTourComplete = useCallback(
     async (tourId: keyof TutorialState) => {
       if (!session?.user?.id) return;
-      
+
       const updateData: Partial<TutorialState> = { [tourId]: true };
 
       // Optimistic Update
-      queryClient.setQueryData(["profile", session.user.id], (old: UserProfile | undefined) => {
-        if (!old) return old;
-        return {
-          ...old,
-          tutorial_state: {
-            ...old.tutorial_state,
-            [tourId]: true,
-          },
-        };
-      });
+      queryClient.setQueryData(
+        ["profile", session.user.id],
+        (old: UserProfile | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            tutorial_state: {
+              ...old.tutorial_state,
+              [tourId]: true,
+            },
+          };
+        },
+      );
 
       // Update backend via RPC
       const { error } = await supabase.rpc("update_tutorial_state", {
@@ -65,22 +68,25 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshProfile();
       }
     },
-    [session, queryClient, refreshProfile]
+    [session, queryClient, refreshProfile],
   );
 
   const resetTours = useCallback(async () => {
     if (!session?.user?.id) return;
 
-    queryClient.setQueryData(["profile", session.user.id], (old: UserProfile | undefined) => {
-      if (!old) return old;
-      return {
-        ...old,
-        tutorial_state: {},
-      };
-    });
+    queryClient.setQueryData(
+      ["profile", session.user.id],
+      (old: UserProfile | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          tutorial_state: {},
+        };
+      },
+    );
 
     // We can clear it by passing an empty JSON or setting specifically false flags
-    // Since our RPC uses || (concatenation) in PostgreSQL, resetting requires 
+    // Since our RPC uses || (concatenation) in PostgreSQL, resetting requires
     // a different RPC or standard update. Let's just update the profile table directly.
     const { error } = await supabase
       .from("profiles")
@@ -88,8 +94,8 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .eq("id", session.user.id);
 
     if (error) {
-       console.error("Failed to reset tutorial state", error);
-       refreshProfile();
+      console.error("Failed to reset tutorial state", error);
+      refreshProfile();
     }
   }, [session, queryClient, refreshProfile]);
 
@@ -99,7 +105,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
       markTourComplete,
       resetTours,
     }),
-    [hasCompletedTour, markTourComplete, resetTours]
+    [hasCompletedTour, markTourComplete, resetTours],
   );
 
   return <TourContext.Provider value={value}>{children}</TourContext.Provider>;

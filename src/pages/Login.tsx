@@ -208,7 +208,7 @@ function Login() {
           <form onSubmit={handleLogin} className="flex flex-col gap-5">
             {/* Email Input */}
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+              <label htmlFor="email" className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                 INSTITUTIONAL EMAIL
               </label>
               <div className="relative">
@@ -216,6 +216,7 @@ function Login() {
                   <Mail size={18} />
                 </div>
                 <input
+                  id="email"
                   type="email"
                   placeholder="name@firm.com"
                   value={email}
@@ -229,21 +230,17 @@ function Login() {
             {/* Password Input */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                <label htmlFor="password" className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                   PASSWORD
                 </label>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-[#22C55E] hover:text-[#22C55E]/80 transition-colors"
-                >
-                  FORGOT?
-                </button>
+
               </div>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
                   <Lock size={18} />
                 </div>
                 <input
+                  id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••••"
                   value={password}
@@ -255,6 +252,7 @@ function Login() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
