@@ -95,6 +95,7 @@ export function DeckSettingsForm({
   const handleSave = async () => {
     // Track the uploaded file path so it can be cleaned up if any later step fails
     let uploadedFileName: string | null = null;
+    let uploadedSlideImageKeys: string[] = [];
 
     setError(null); // Clear previous errors
     setIsSaving(true);
@@ -153,6 +154,7 @@ export function DeckSettingsForm({
           undefined,
           stagingVersion,
         );
+        uploadedSlideImageKeys = imageUrls;
         finalPages = imageUrls.map((url, idx) => ({
           image_url: url,
           page_number: idx + 1,
@@ -225,6 +227,16 @@ export function DeckSettingsForm({
           .catch((removeErr) =>
             console.error(
               "Failed to remove orphaned upload during error recovery:",
+              removeErr,
+            ),
+          );
+      }
+      if (uploadedSlideImageKeys.length > 0) {
+        await deckStorageService
+          .deleteSlideImages(uploadedSlideImageKeys)
+          .catch((removeErr) =>
+            console.error(
+              "Failed to remove orphaned slide images during error recovery:",
               removeErr,
             ),
           );

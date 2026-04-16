@@ -15,21 +15,49 @@ export function UploadTour() {
   const steps: Step[] = [
     {
       target: "#tour-upload-dropzone",
-      content:
-        "First, select your pitch deck or document here. We support PDF, PPTX, and more!",
+      content: (
+        <div className="text-left space-y-4">
+          <h3 className="text-xl font-bold text-white mb-2">
+            Upload Your Document
+          </h3>
+          <p className="text-slate-300 text-sm">
+            First, select your pitch deck or document here. We support{" "}
+            <strong>PDF, PPTX, and more</strong>!
+          </p>
+        </div>
+      ),
       placement: "bottom",
+      skipBeacon: true,
     },
     {
       target: "#tour-security-panel",
-      content:
-        "Next, set up your security. You can require emails, add passwords, or set an expiration date.",
+      content: (
+        <div className="text-left space-y-4">
+          <h3 className="text-xl font-bold text-white mb-2">
+            Secure Your Assets
+          </h3>
+          <p className="text-slate-300 text-sm">
+            Next, set up your security. You can <strong>require emails</strong>,
+            add <strong>passwords</strong>, or set an expiration date.
+          </p>
+        </div>
+      ),
       placement: "top",
+      skipBeacon: true,
     },
     {
       target: "#tour-upload-finalize",
-      content:
-        "Once you're ready, click here to finalize and upload your deck!",
+      content: (
+        <div className="text-left space-y-4">
+          <h3 className="text-xl font-bold text-white mb-2">Ready to Go?</h3>
+          <p className="text-slate-300 text-sm">
+            Once you're ready, click here to finalize and{" "}
+            <strong>upload your deck</strong>!
+          </p>
+        </div>
+      ),
       placement: "top",
+      skipBeacon: true,
     },
   ];
 
