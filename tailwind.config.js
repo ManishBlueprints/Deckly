@@ -64,6 +64,10 @@ export default {
           5: "hsl(var(--chart-5))",
         },
       },
+      fontFamily: {
+        sans: ["Manrope", "sans-serif"],
+        headline: ["Manrope", "sans-serif"],
+      },
       backdropBlur: {
         xs: "2px",
       },

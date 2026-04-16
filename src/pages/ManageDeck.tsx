@@ -18,6 +18,7 @@ import {
   ManageDeckUploadSection,
 } from "../components/dashboard/manage-deck/ManageDeckSections";
 import { UploadTour } from "../components/tours/UploadTour";
+import { ArrowLeft } from "lucide-react";
 
 function ManageDeck() {
   const [searchParams] = useSearchParams();
@@ -99,7 +100,7 @@ function ManageDeck() {
       return;
     }
 
-    const currentTier = (userProfile?.tier as keyof typeof TIER_CONFIG) || "FREE";
+    const currentTier = (userProfile.tier as keyof typeof TIER_CONFIG) || "FREE";
     const config = TIER_CONFIG[currentTier];
 
     if (ext !== "pdf" && !config.allowOffice) {
@@ -167,15 +168,27 @@ function ManageDeck() {
     <DashboardLayout title={editId ? "Refine Deck" : "Add New Asset"}>
       <UploadTour />
       <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto w-full space-y-6">
-        <div className="mb-2">
-          <h2 className="text-xl md:text-2xl font-semibold text-white tracking-tight">
-            {editId ? "Refine Deck" : "Add New Asset"}
-          </h2>
-          <p className="text-sm text-slate-400 mt-1">
-            {editId
-              ? "Update your pitch deck details and slides."
-              : "Upload a document to your data room."}
-          </p>
+        {/* Back + Title */}
+        <div className="flex items-center gap-4 relative z-10 border-b border-white/5 pb-6">
+          <button
+            onClick={() =>
+              navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content")
+            }
+            className="flex-shrink-0 w-10 h-10 rounded-md bg-surface-lowest border border-white/10 flex items-center justify-center text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 transition-all shadow-sm"
+            title={returnToRoom ? "Return to Room" : "Return to Assets"}
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg md:text-xl font-semibold text-white tracking-tight truncate">
+              {editId ? "Refine Deck" : "Add New Asset"}
+            </h1>
+            <p className="text-xs text-slate-400 mt-0.5 truncate">
+              {editId
+                ? "Update your pitch deck details and slides."
+                : "Upload a document to your data room."}
+            </p>
+          </div>
         </div>
 
         <DashboardCard className="p-6 md:p-8 border-border relative overflow-hidden">

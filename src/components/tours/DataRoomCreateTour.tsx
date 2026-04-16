@@ -46,7 +46,7 @@ export const DataRoomCreateTour: React.FC<DataRoomCreateTourProps> = ({
           </div>
         ),
         placement: "bottom",
-        disableBeacon: true,
+        skipBeacon: true,
         disableScrolling: true,
       },
       {
@@ -64,7 +64,7 @@ export const DataRoomCreateTour: React.FC<DataRoomCreateTourProps> = ({
           </div>
         ),
         placement: "bottom",
-        disableBeacon: true,
+        skipBeacon: true,
         disableScrolling: true,
       },
       {
@@ -83,7 +83,7 @@ export const DataRoomCreateTour: React.FC<DataRoomCreateTourProps> = ({
           </div>
         ),
         placement: "top",
-        disableBeacon: true,
+        skipBeacon: true,
         disableScrolling: true,
       },
     ],

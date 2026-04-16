@@ -1,12 +1,18 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Send, User, AlertTriangle } from "lucide-react";
 import {
   useSendAdminMessage,
   useSendBroadcastAll,
 } from "../../hooks/useAdminNotifications";
-import Button from "../common/Button";
-import Input from "../common/Input";
-import Textarea from "../common/Textarea";
+import { Button } from "../ui/button";
+import { FormInput } from "../ui/form-input";
+import { FormTextarea } from "../ui/form-textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+} from "../ui/alert-dialog";
 import { toast } from "sonner";
 
 type SendMode = "single" | "broadcast";
@@ -20,53 +26,11 @@ export function AdminNotificationComposer() {
 
   const sendMessage = useSendAdminMessage();
   const sendBroadcastAll = useSendBroadcastAll();
-  const modalRef = useRef<HTMLDivElement>(null);
 
-  // Accessibility: Focus management and Escape key handling
+  // Confirmation logic is now handled by AlertDialog state
   useEffect(() => {
     if (!showConfirm) return;
-
-    const previousFocus = document.activeElement as HTMLElement;
-    modalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Close on Escape
-      if (e.key === "Escape") {
-        setShowConfirm(false);
-        return;
-      }
-
-      // Focus trap
-      if (e.key === "Tab") {
-        const focusableElements = modalRef.current?.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (!focusableElements) return;
-
-        const firstElement = focusableElements[0] as HTMLElement;
-        const lastElement = focusableElements[
-          focusableElements.length - 1
-        ] as HTMLElement;
-
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            e.preventDefault();
-            lastElement.focus();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement.focus();
-          }
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      previousFocus?.focus();
-    };
+    // AlertDialog handles focus trap and escape key natively
   }, [showConfirm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,11 +75,12 @@ export function AdminNotificationComposer() {
       });
 
       // Defensive check for the returned count (handles both direct number and { count } object)
-      const count = typeof result === 'number' 
-        ? result 
-        : (result && typeof (result as { count?: number }).count === 'number') 
-          ? (result as { count?: number }).count! 
-          : 0;
+      const count =
+        typeof result === "number"
+          ? result
+          : result && typeof (result as { count?: number }).count === "number"
+            ? (result as { count?: number }).count!
+            : 0;
 
       toast.success(`Broadcast sent to ${count} users`);
       resetForm();
@@ -165,7 +130,7 @@ export function AdminNotificationComposer() {
 
         {/* Recipient Input — only for single user mode */}
         {mode === "single" && (
-          <Input
+          <FormInput
             label="User ID"
             placeholder="Enter user UUID..."
             value={userId}
@@ -174,7 +139,7 @@ export function AdminNotificationComposer() {
         )}
 
         {mode === "broadcast" && (
-          <div 
+          <div
             className="bg-destructive/10 border-l-4 border-destructive px-6 py-4 rounded-none text-sm flex items-center gap-4"
             role="alert"
             aria-live="assertive"
@@ -188,7 +153,7 @@ export function AdminNotificationComposer() {
         )}
 
         {/* Title */}
-        <Input
+        <FormInput
           label="Title"
           placeholder="Notification title..."
           value={title}
@@ -197,7 +162,7 @@ export function AdminNotificationComposer() {
         />
 
         {/* Message */}
-        <Textarea
+        <FormTextarea
           label="Message"
           placeholder="Notification message..."
           value={message}
@@ -216,71 +181,60 @@ export function AdminNotificationComposer() {
             (mode === "single" && !userId.trim())
           }
           fullWidth
-          variant={mode === "broadcast" ? "danger" : "primary"}
+          variant={mode === "broadcast" ? "destructive" : "default"}
         >
           {mode === "single" ? "Send to User" : "Broadcast to All Users"}
         </Button>
       </form>
 
       {/* Confirmation Modal */}
-      {showConfirm && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="confirm-modal-title"
-        >
-          <div
-            ref={modalRef}
-            tabIndex={-1}
-            className="w-full max-w-lg bg-surface-low border border-border rounded-none shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden focus:outline-none"
-          >
-            <div className="p-10">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 bg-destructive/10 flex items-center justify-center border border-destructive/20">
-                  <AlertTriangle size={24} className="text-destructive" />
-                </div>
-                <h3
-                  id="confirm-modal-title"
-                  className="text-2xl font-black text-white uppercase tracking-tighter"
-                >
-                  Confirm <span className="text-destructive">Broadcast</span>
-                </h3>
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent className="w-full max-w-lg bg-slate-900 border border-white/10 p-0 overflow-hidden">
+          <div className="p-10">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-12 h-12 bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                <AlertTriangle size={24} className="text-red-500" />
               </div>
-              <p className="text-sm text-muted-foreground mb-6 uppercase tracking-wider">
-                You are authorizing a global broadcast to{" "}
-                <strong className="text-white">all users</strong>.
+              <h3 className="text-2xl font-bold text-white uppercase tracking-tighter">
+                Confirm <span className="text-red-500">Broadcast</span>
+              </h3>
+            </div>
+            <p className="text-sm text-neutral-400 mb-6 uppercase tracking-wider">
+              You are authorizing a global broadcast to{" "}
+              <strong className="text-white">all users</strong>.
+            </p>
+            <div className="bg-slate-950 border border-white/5 p-6 mb-10">
+              <p className="text-xs uppercase tracking-widest text-deckly-primary font-bold mb-2">
+                Payload Preview
               </p>
-              <div className="bg-surface-container border border-border p-6 mb-10">
-                <p className="text-xs uppercase tracking-widest text-primary font-bold mb-2">
-                  Payload Preview
-                </p>
-                <p className="text-lg font-bold text-white mb-2">{title}</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {message}
-                </p>
-              </div>
-              <div className="flex gap-4">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowConfirm(false)}
-                  fullWidth
-                >
+              <p className="text-lg font-bold text-white mb-2">{title}</p>
+              <p className="text-sm text-neutral-400 leading-relaxed">
+                {message}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <AlertDialogCancel asChild>
+                <Button variant="ghost" className="rounded-none">
                   Abort
                 </Button>
+              </AlertDialogCancel>
+              <AlertDialogAction asChild>
                 <Button
-                  variant="danger"
-                  onClick={doSendBroadcast}
+                  variant="destructive"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    doSendBroadcast();
+                  }}
                   loading={sendBroadcastAll.isPending}
-                  fullWidth
+                  className="rounded-none"
                 >
                   Authorize Send
                 </Button>
-              </div>
+              </AlertDialogAction>
             </div>
           </div>
-        </div>
-      )}
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -47,8 +47,8 @@ export function AccessProtectionSection({
             className={cn(
               "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer",
               requireEmail
-                ? "bg-background border-deckly-primary"
-                : "bg-[#2B2B2B] border-white/10 hover:border-white/20",
+                ? "bg-background border-deckly-primary/50"
+                : "bg-surface-container border-white/10 hover:border-white/20",
             )}
             onClick={() => setRequireEmail(!requireEmail)}
           >
@@ -85,8 +85,8 @@ export function AccessProtectionSection({
             className={cn(
               "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer",
               requirePassword
-                ? "bg-background border-deckly-primary"
-                : "bg-[#2B2B2B] border-white/10 hover:border-white/20",
+                ? "bg-background border-deckly-primary/50"
+                : "bg-surface-container border-white/10 hover:border-white/20",
             )}
             onClick={() => setRequirePassword(!requirePassword)}
           >
@@ -140,7 +140,10 @@ export function AccessProtectionSection({
                     value={viewPassword}
                     onChange={(e) => setViewPassword(e.target.value)}
                     placeholder="Enter strong password..."
-                    className="h-11 pr-12 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 transition-all focus:bg-[#2B2B2B]"
+                    className={cn(
+                      "h-11 pr-12 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 transition-all focus:bg-[#2B2B2B]",
+                      requirePassword && !viewPassword.trim() && "border-red-500/50"
+                    )}
                   />
                   <button
                     type="button"
@@ -164,8 +167,8 @@ export function AccessProtectionSection({
           className={cn(
             "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer mt-4",
             expiryEnabled
-              ? "bg-background border-deckly-primary"
-              : "bg-[#2B2B2B] border-white/10 hover:border-white/20",
+              ? "bg-background border-deckly-primary/50"
+              : "bg-surface-container border-white/10 hover:border-white/20",
           )}
           onClick={() => {
             const next = !expiryEnabled;

@@ -46,10 +46,10 @@ body {
   color: #54e98a;
 }
 
-/* Curator Utility Classes */
+/* Manrope Utility Class (Now Global Default) */
 .font-headline {
-  font-family: Manrope, sans-serif;
-  letter-spacing: -0.02em;
+  font-family: inherit;
+  letter-spacing: inherit;
 }
 .text-curator-primary {
   color: hsl(var(--brand-primary));
@@ -548,7 +548,6 @@ body {
 }
 
 .hero-section h1 {
-  font-family: "Outfit", sans-serif;
   font-size: clamp(3rem, 10vw, 5.5rem);
   font-weight: 900;
   margin-bottom: 0;
@@ -583,7 +582,6 @@ body {
   border: none;
   border-bottom: 2px solid var(--accent-primary);
   color: white;
-  font-family: "Outfit", sans-serif;
   font-size: 2rem;
   font-weight: 800;
   padding: 0.5rem;
@@ -648,37 +646,6 @@ body {
   font-size: 1.1rem;
 }
 
-.fab-button {
-  position: fixed;
-  bottom: 3rem;
-  right: 3rem;
-  width: 64px;
-  height: 64px;
-  background: linear-gradient(
-    135deg,
-    var(--accent-primary) 0%,
-    var(--highlight-color) 100%
-  );
-  color: #1b1926;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  box-shadow: 0 10px 25px rgba(177, 140, 254, 0.4);
-  transition: var(--transition-smooth);
-  z-index: 100;
-}
-
-.fab-button:hover {
-  transform: scale(1.1) rotate(90deg);
-  box-shadow: 0 15px 35px rgba(177, 140, 254, 0.6);
-  background: linear-gradient(
-    135deg,
-    var(--accent-hover) 0%,
-    var(--highlight-color) 100%
-  );
-}
 
 .deck-grid {
   display: flex;
