@@ -67,6 +67,7 @@ function DataRoomDetail() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [roomSignals, setRoomSignals] = useState<VisitorSignal[]>([]);
   const [signalsLoading, setSignalsLoading] = useState(true);
@@ -157,7 +158,7 @@ function DataRoomDetail() {
 
   const handleDeleteRoom = async () => {
     if (!roomId) return;
-    setLoading(true);
+    setDeleting(true);
     try {
       await dataRoomService.deleteDataRoom(roomId);
       queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
@@ -168,7 +169,7 @@ function DataRoomDetail() {
     } catch (err) {
       console.error("Failed to delete room", err);
       setConfirmDelete(false);
-      setLoading(false);
+      setDeleting(false);
     }
   };
 
@@ -478,7 +479,7 @@ function DataRoomDetail() {
       <AlertDialog
         open={confirmDelete}
         onOpenChange={(open) => {
-          if (!open && !loading) {
+          if (!open && !deleting) {
             setConfirmDelete(false);
           }
         }}
@@ -492,16 +493,16 @@ function DataRoomDetail() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700 text-white"
               onClick={(e) => {
                 e.preventDefault();
                 handleDeleteRoom();
               }}
-              disabled={loading}
+              disabled={deleting}
             >
-              {loading ? "Deleting..." : "Delete Room"}
+              {deleting ? "Deleting..." : "Delete Room"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
