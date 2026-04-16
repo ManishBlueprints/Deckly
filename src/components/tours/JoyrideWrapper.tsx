@@ -9,6 +9,7 @@ interface JoyrideWrapperProps {
   scrollToFirstStep?: boolean;
   stepIndex?: number;
   locale?: Record<string, string>;
+  debug?: boolean;
 }
 
 export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
@@ -19,20 +20,23 @@ export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
   scrollToFirstStep = true,
   stepIndex,
   locale,
+  debug,
 }) => {
-  // Memoize steps to inject disableBeacon natively if not present
+  // Memoize steps to inject skipBeacon natively if not present
   const processedSteps: Step[] = React.useMemo(
     () =>
       steps.map((step) => ({
         ...step,
-        // Some versions of Joyride might not have disableBeacon on the Step type,
-        // but it is handled at runtime. We use a safe cast if needed.
-        disableBeacon:
-          (step as Record<string, unknown>).disableBeacon !== undefined
-            ? !!(step as Record<string, unknown>).disableBeacon
-            : true,
+        // react-joyride v3 uses skipBeacon, whereas older/other versions used disableBeacon.
+        // We support both here and default to true to avoid hidden beacons.
+        skipBeacon:
+          (step as Record<string, unknown>).skipBeacon !== undefined
+            ? !!(step as Record<string, unknown>).skipBeacon
+            : (step as Record<string, unknown>).disableBeacon !== undefined
+              ? !!(step as Record<string, unknown>).disableBeacon
+              : true,
       })),
-    [steps],
+    [steps]
   );
 
   return (
@@ -92,7 +96,7 @@ export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
           },
         } as Partial<Styles>
       }
-      debug={false}
+      debug={debug}
     />
   );
 };

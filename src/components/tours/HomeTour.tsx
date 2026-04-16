@@ -9,7 +9,7 @@ interface HomeTourProps {
 }
 
 export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
-  const { profile } = useAuth();
+  useAuth();
   const { hasCompletedTour, markTourComplete } = useTourState();
   const [isReady, setIsReady] = useState(false);
   const [currentStage, setCurrentStage] = useState(0);
@@ -17,9 +17,11 @@ export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
   // 1. Wait for components to animate in and DOM to stabilize
   useEffect(() => {
     const checkTarget = () => {
-      const targetExists =
-        !!document.querySelector("#tour-upload-deck-btn") &&
-        !!document.querySelector("#tour-workspace-settings");
+      const uploadBtn = document.querySelector("#tour-upload-deck-btn");
+      const settingsBtn = document.querySelector("#tour-workspace-settings");
+      
+      const targetExists = !!uploadBtn && !!settingsBtn;
+      
       if (targetExists) {
         setIsReady(true);
         return true;
@@ -31,17 +33,17 @@ export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
 
     const interval = setInterval(() => {
       if (checkTarget()) clearInterval(interval);
-    }, 100);
+    }, 200);
 
     const timeout = setTimeout(() => {
       clearInterval(interval);
-    }, 5000);
+    }, 10000);
 
     return () => {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [deckCount]);
+  }, [deckCount, isReady]);
 
   // 3. Listen for modal closure to advance tour
   useEffect(() => {
@@ -56,7 +58,7 @@ export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
   }, [currentStage]);
 
   const isTourComplete = hasCompletedTour("home_completed");
-  const run = !!profile?.handle && !isTourComplete && isReady;
+  const run = !isTourComplete && isReady;
 
   // Split steps to act as separate uncontrolled tours.
   // This physically works around react-joyride's controlled bug keeping the beacon active.
@@ -78,7 +80,7 @@ export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
             </div>
           ),
           placement: "right" as const,
-          disableBeacon: true,
+          skipBeacon: true,
           spotlightClicks: true,
           disableOverlayClose: true,
           // Instead of typical 'Next', maybe we don't have back/next. But we can show it for UX.
@@ -102,7 +104,7 @@ export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
           </div>
         ),
         placement: "bottom" as const,
-        disableBeacon: true,
+        skipBeacon: true,
         spotlightClicks: true,
       },
     ];
@@ -137,6 +139,7 @@ export const HomeTour: React.FC<HomeTourProps> = ({ deckCount }) => {
       run={run}
       onEvent={handleJoyrideEvent}
       locale={currentStage === 0 ? { last: "Open" } : undefined}
+      debug={false}
     />
   );
 };

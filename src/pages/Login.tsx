@@ -129,10 +129,10 @@ function Login() {
         >
           <div className="bg-white/5 backdrop-blur-sm border-l-2 border-[#22C55E] px-4 py-3 min-w-[140px]">
             <p className="text-[#22C55E] text-xs font-semibold uppercase tracking-wider mb-1">
-              BUILD FOR
+              BUILT FOR
             </p>
             <p className="text-white text-lg font-bold">Founders</p>
-          </div>
+          </div>{" "}
           <div className="bg-white/5 backdrop-blur-sm border-l-2 border-[#22C55E] px-4 py-3 min-w-[140px]">
             <p className="text-[#22C55E] text-xs font-semibold uppercase tracking-wider mb-1">
               DETAILED

@@ -13,7 +13,7 @@ import { organizerService } from "../services/organizerService";
 const DEFAULT_STALE_TIME = 30000;
 
 function Home() {
-  const { session, profile } = useAuth();
+  const { session } = useAuth();
 
   const {
     data: decks = [],
@@ -24,16 +24,7 @@ function Home() {
 
   const error = queryError ? (queryError as Error).message : null;
 
-  // Force open workspace settings if it's a new profile
-  useEffect(() => {
-    if (profile && !profile.handle && !loading) {
-      // Small delay to ensure Sidebar listener is ready
-      const timer = setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("deckly:open-settings"));
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [profile, loading]);
+
 
   // Layer 1: Global Preloading (Main lists and code chunks)
   const queryClient = useQueryClient();

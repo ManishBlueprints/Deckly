@@ -19,8 +19,14 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const hasCompletedTour = useCallback(
     (tourId: keyof TutorialState) => {
-      // If no session, they can't have a tutorial state, so default to true to avoid nagging guests.
-      if (!session) return true;
+      // If we don't have a session AND we are not in an initializing state, 
+      // we default to true to avoid nagging guest users.
+      // However, during app startup, we should return false so we don't accidentally
+      // skip tours while the user data is still being fetched.
+      if (!session) {
+        return false;
+      }
+      
       // If session exists but profile is missing, it's loading or being created,
       // so we assume the tour is NOT yet complete.
       if (!profile) return false;
