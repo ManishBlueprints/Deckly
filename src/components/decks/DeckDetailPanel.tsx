@@ -626,6 +626,8 @@ function DeckDetailPanel({
                 variant="destructive"
                 disabled={isSaving}
                 icon={Trash2}
+                aria-label="Delete deck"
+                title="Delete deck"
                 className="px-6 rounded-none shadow-xl shadow-red-500/10"
               />
             </AlertDialogTrigger>

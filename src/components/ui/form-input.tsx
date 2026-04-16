@@ -14,6 +14,7 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
   ({ label, icon: Icon, rightElement, error, id, className, ...props }, ref) => {
     const generatedId = React.useId()
     const inputId = id || generatedId
+    const errorId = `${inputId}-error`
 
     return (
       <div className={cn("flex flex-col gap-2 w-full", className)}>
@@ -34,6 +35,8 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
           <Input
             ref={ref}
             id={inputId}
+            aria-invalid={!!error}
+            aria-describedby={error ? errorId : undefined}
             className={cn(
               Icon && "pl-12",
               rightElement && "pr-12",
@@ -49,7 +52,7 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
           )}
         </div>
         {error && (
-          <span className="text-xs text-destructive px-1 font-medium animate-in fade-in slide-in-from-top-1">
+          <span id={errorId} className="text-xs text-destructive px-1 font-medium animate-in fade-in slide-in-from-top-1">
             {error}
           </span>
         )}
