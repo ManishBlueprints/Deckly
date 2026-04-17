@@ -9,7 +9,13 @@ import { toast } from "sonner";
 import { cn } from "../../utils/cn";
 
 function formatSavedDate(date: Date): string {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase();
+  return date
+    .toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    .toUpperCase();
 }
 
 interface DocumentRowProps {
@@ -22,6 +28,7 @@ interface DocumentRowProps {
   onUnsave: () => void;
   isUnsaving?: boolean;
 }
+let viewerPreloaded = false;
 
 export const DocumentRow = memo(function DocumentRow({
   deck,
@@ -41,6 +48,7 @@ export const DocumentRow = memo(function DocumentRow({
   const [isSavingNote, setIsSavingNote] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveJustCompletedRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -51,6 +59,10 @@ export const DocumentRow = memo(function DocumentRow({
   }, []);
 
   useEffect(() => {
+    if (saveJustCompletedRef.current) {
+      saveJustCompletedRef.current = false;
+      return;
+    }
     if (!isEditingNote) {
       setNote(deck.investor_note || "");
     }
@@ -75,9 +87,8 @@ export const DocumentRow = memo(function DocumentRow({
     setIsSavingNote(true);
     try {
       await onSaveNote(note);
-      // Optimistically update prop to prevent useEffect from reverting state 
-      // before parent rerenders with new data
-      deck.investor_note = note;
+      saveJustCompletedRef.current = true;
+      // Skip the next useEffect sync to keep local optimistic state
     } catch (err) {
       toast.error("Failed to save note", {
         description: err instanceof Error ? err.message : String(err),
@@ -100,12 +111,21 @@ export const DocumentRow = memo(function DocumentRow({
     }
   };
 
+  const handleMouseEnter = () => {
+    // Preload Viewer chunk on hover only once
+    if (!viewerPreloaded) {
+      viewerPreloaded = true;
+      import("../../pages/Viewer").catch(() => {});
+    }
+  };
+
   return (
     <motion.div
       layout
+      onMouseEnter={handleMouseEnter}
       className={cn(
         "bg-surface-card border border-white/5 p-6 flex flex-col md:flex-row items-center gap-6 group hover:border-[#54e98a]/20 transition-all",
-        isUnsaving && "opacity-50 pointer-events-none"
+        isUnsaving && "opacity-50 pointer-events-none",
       )}
     >
       <div className="flex items-center gap-4 w-full flex-1">
@@ -127,11 +147,11 @@ export const DocumentRow = memo(function DocumentRow({
             </Link>
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] font-black uppercase text-[#bbcbbb]/30 tracking-widest">
+            <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
               {deck.user_handle}
             </span>
             <span className="w-1 h-1 bg-[#bbcbbb]/10 rounded-full" />
-            <span className="text-[10px] font-black uppercase text-[#bbcbbb]/30 tracking-widest">
+            <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
               Interactive Deck
             </span>
           </div>
@@ -147,29 +167,33 @@ export const DocumentRow = memo(function DocumentRow({
         {/* Note Snippet — inline editable */}
         <div className="hidden xl:block flex-1 max-w-[300px]">
           {isEditingNote ? (
-              <textarea
-                ref={textareaRef}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                onBlur={handleNoteSave}
-                onKeyDown={handleNoteKeyDown}
-                rows={2}
-                placeholder="Write a note..."
-                className="w-full bg-surface-lowest border border-deckly-primary/30 px-3 py-2 text-xs text-slate-200 placeholder:text-[#bbcbbb]/20 resize-none focus:outline-none focus:border-deckly-primary/60 transition-colors"
-              />
+            <textarea
+              ref={textareaRef}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onBlur={handleNoteSave}
+              onKeyDown={handleNoteKeyDown}
+              rows={2}
+              placeholder="Write a note..."
+              className="w-full bg-surface-lowest border border-deckly-primary/30 px-3 py-2 text-xs text-slate-200 placeholder:text-[#bbcbbb]/20 resize-none focus:outline-none focus:border-deckly-primary/60 transition-colors"
+            />
           ) : (
             <button
               onClick={handleNoteClick}
               title="Click to edit note"
               className="text-left w-full group/note"
             >
-              <p className={cn(
-                "text-xs font-medium italic line-clamp-1 leading-relaxed transition-colors",
-                note ? "text-[#bbcbbb]/60 group-hover/note:text-[#bbcbbb]/90" : "text-[#bbcbbb]/20 group-hover/note:text-[#bbcbbb]/40"
-              )}>
+              <p
+                className={cn(
+                  "text-xs font-medium italic line-clamp-1 leading-relaxed transition-colors",
+                  note
+                    ? "text-[#bbcbbb]/60 group-hover/note:text-[#bbcbbb]/90"
+                    : "text-[#bbcbbb]/20 group-hover/note:text-[#bbcbbb]/40",
+                )}
+              >
                 {note || "Add a note..."}
               </p>
-              <p className="text-[9px] font-black uppercase text-[#bbcbbb]/20 tracking-[0.1em] mt-1">
+              <p className="text-[9px] font-bold uppercase text-[#bbcbbb]/20 tracking-[0.1em] mt-1">
                 {isSavingNote ? "SAVING..." : `SAVED ${savedDateStr}`}
               </p>
             </button>

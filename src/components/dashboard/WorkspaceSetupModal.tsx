@@ -107,7 +107,7 @@ export function WorkspaceSetupModal({
               </div>
 
               <div className="text-center space-y-2 sm:space-y-3 mb-8 sm:mb-12">
-                <h2 className="text-xl sm:text-3xl font-black text-white tracking-[0.2em] uppercase">
+                <h2 className="text-xl sm:text-3xl font-bold text-white tracking-[0.2em] uppercase">
                   Initiate Workspace
                 </h2>
                 <p className="text-slate-400 text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
@@ -185,7 +185,7 @@ export function WorkspaceSetupModal({
                   disabled={
                     !name.trim() || !slug.trim() || !isAvailable || isSaving
                   }
-                  className="w-full py-4 bg-deckly-primary text-slate-950 font-black uppercase tracking-[0.2em] text-xs rounded-none hover:bg-opacity-90 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-2xl shadow-deckly-primary/20 mt-4 flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-deckly-primary text-slate-950 font-bold uppercase tracking-[0.2em] text-xs rounded-none hover:bg-opacity-90 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-2xl shadow-deckly-primary/20 mt-4 flex items-center justify-center gap-2"
                 >
                   {isSaving ? (
                     <Loader2 size={18} className="animate-spin" />

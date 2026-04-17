@@ -46,7 +46,7 @@ export const FolderCard = memo(function FolderCard({
             create_new_folder
           </span>
         </div>
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#bbcbbb]/30 group-hover:text-[#54e98a]/60">
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bbcbbb]/30 group-hover:text-[#54e98a]/60">
           New Collection
         </span>
       </motion.div>
@@ -64,7 +64,7 @@ export const FolderCard = memo(function FolderCard({
       transition={{ duration: 0.1 }}
       onClick={onClick}
       onKeyDown={handleKeyDown}
-        className={cn(
+      className={cn(
         "h-[240px] w-full bg-surface-card border border-white/5 p-8 flex flex-col items-start text-left group transition-all relative overflow-hidden cursor-pointer",
         isActive &&
           "ring-2 ring-[#54e98a]/40 border-[#54e98a]/20 shadow-[0_0_40px_rgba(84,233,138,0.1)]",
@@ -119,7 +119,7 @@ export const FolderCard = memo(function FolderCard({
             <TagChip key={tag.id} tag={tag} />
           ))}
           {folder.tags.length > 2 && (
-            <span className="text-[8px] font-black text-[#bbcbbb]/20 uppercase ml-1">
+            <span className="text-[8px] font-bold text-[#bbcbbb]/20 uppercase ml-1">
               +{folder.tags.length - 2} More
             </span>
           )}
@@ -127,7 +127,7 @@ export const FolderCard = memo(function FolderCard({
       </div>
 
       <div className="pt-4 border-t border-white/5 w-full">
-        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-[#bbcbbb]/20">
+        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/20">
           {folder.deck_count} Document{folder.deck_count !== 1 ? "s" : ""}
         </span>
       </div>

@@ -27,9 +27,9 @@ export const deckBrandingService = {
         .from("branding")
         .select("*")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error) throw error;
       return data as BrandingSettings;
     });
   },
@@ -93,9 +93,9 @@ export const deckBrandingService = {
       .from("branding")
       .select("logo_url")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
-    if (fetchError && fetchError.code !== "PGRST116") {
+    if (fetchError) {
       console.warn("Failed to fetch current branding:", fetchError);
     }
 

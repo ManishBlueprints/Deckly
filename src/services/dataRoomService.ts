@@ -11,6 +11,10 @@ export const dataRoomService = {
     slug: string;
     description?: string;
     icon_url?: string;
+    require_email?: boolean;
+    require_password?: boolean;
+    view_password?: string;
+    expires_at?: string | null;
   }): Promise<DataRoom> {
     return withRetry(async () => {
       const userId = await getRequiredSessionUserId();
@@ -24,7 +28,10 @@ export const dataRoomService = {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("[dataRoomService] createDataRoom failed:", error);
+        throw error;
+      }
       return data as DataRoom;
     });
   },
@@ -348,7 +355,6 @@ export const dataRoomService = {
       let query = supabase
         .from("data_rooms")
         .select("id")
-        .eq("user_id", userId)
         .eq("slug", slug);
 
       if (excludeId) {

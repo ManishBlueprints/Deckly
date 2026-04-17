@@ -12,7 +12,16 @@ import { BarChart3, Pencil, Trash2, FileText, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getDeckShareUrl, getDeckPath } from "../../utils/url";
 import { DeckWithAnalytics } from "../../types";
-import { ConfirmModal } from "../common/ConfirmModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 import { cn } from "../../utils/cn";
 
 interface DecksTableProps {
@@ -314,16 +323,36 @@ export function DecksTable({
           </TableBody>
         </Table>
       </div>
-      <ConfirmModal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleConfirmDelete}
-        isLoading={isDeleting}
-        title="Delete Deck"
-        message={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone and all analytics will be lost.`}
-        confirmText="Delete Deck"
-        variant="danger"
-      />
+      <AlertDialog 
+        open={!!deleteTarget} 
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Deck</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteTarget?.title}"? This action cannot be undone and all analytics will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmDelete();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Deck"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardCard>
   );
 }

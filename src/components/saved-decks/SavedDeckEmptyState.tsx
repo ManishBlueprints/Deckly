@@ -85,7 +85,7 @@ export function SavedDeckEmptyState({
           className="mt-16 md:mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left border-t border-[#3d4a3e]/10 pt-12"
         >
           <div className="space-y-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[#54e98a]">
+            <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#54e98a]">
               Curation
             </span>
             <h4 className="text-sm font-bold text-[#e5e2e1]">Sorting</h4>
@@ -95,7 +95,7 @@ export function SavedDeckEmptyState({
             </p>
           </div>
           <div className="space-y-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[#54e98a]">
+            <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#54e98a]">
               Intelligence
             </span>
             <h4 className="text-sm font-bold text-[#e5e2e1]">
@@ -106,7 +106,7 @@ export function SavedDeckEmptyState({
             </p>
           </div>
           <div className="space-y-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[#54e98a]">
+            <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#54e98a]">
               Security
             </span>
             <h4 className="text-sm font-bold text-[#e5e2e1]">Vault Privacy</h4>
@@ -147,7 +147,7 @@ export function SavedDeckEmptyState({
                   tips_and_updates
                 </span>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#e5e2e1]/40 mb-1">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#e5e2e1]/40 mb-1">
                     Quick Tip
                   </p>
                   <p className="text-[11px] text-[#bbcbbb] leading-tight font-medium">

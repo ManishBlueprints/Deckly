@@ -20,7 +20,13 @@ const FOLDER_COLORS = [
   { id: "red", value: "#ef4444" },
 ];
 
-export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = [], initialData }: CreateFolderModalProps) {
+export function CreateFolderModal({
+  isOpen,
+  onClose,
+  onCreate,
+  existingTags = [],
+  initialData,
+}: CreateFolderModalProps) {
   const [name, setName] = useState("");
   const [selectedColor, setSelectedColor] = useState(FOLDER_COLORS[0].value);
   const [tags, setTags] = useState<string[]>([]);
@@ -105,7 +111,9 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                     {initialData ? "Edit Folder" : "Create New Folder"}
                   </h2>
                   <p className="text-[#bbcbbb]/60 text-sm leading-relaxed font-medium">
-                    {initialData ? "Update your collection's name, color, and tags." : "Organize your investment pipeline by creating a dedicated collection for specific sectors, stages, or research themes."}
+                    {initialData
+                      ? "Update your collection's name, color, and tags."
+                      : "Organize your investment pipeline by creating a dedicated collection for specific sectors, stages, or research themes."}
                   </p>
                 </div>
 
@@ -113,7 +121,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                 <div className="space-y-6">
                   {/* Folder Name */}
                   <div className="space-y-2.5">
-                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
                       FOLDER NAME
                     </label>
                     <input
@@ -128,7 +136,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
 
                   {/* Folder Identity (Colors) */}
                   <div className="space-y-2.5">
-                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
                       FOLDER IDENTITY
                     </label>
                     <div className="flex items-center gap-3 ml-1">
@@ -137,14 +145,14 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                           key={color.id}
                           onClick={() => setSelectedColor(color.value)}
                           className={`w-8 h-8 transition-all relative ${
-                            selectedColor === color.value 
-                              ? "ring-2 ring-white/10 ring-offset-4 ring-offset-[#232323] scale-110" 
+                            selectedColor === color.value
+                              ? "ring-2 ring-white/10 ring-offset-4 ring-offset-[#232323] scale-110"
                               : "hover:scale-105 opacity-80 hover:opacity-100"
                           }`}
                           style={{ backgroundColor: color.value }}
                         >
                           {selectedColor === color.value && (
-                            <motion.div 
+                            <motion.div
                               layoutId="activeColor"
                               className="absolute inset-0 border-2 border-white/20"
                             />
@@ -156,15 +164,19 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
 
                   {/* Add Tags */}
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
                       ADD TAGS
                     </label>
                     <div className="flex flex-wrap gap-2 mb-3">
                       {tags.map((tagName) => {
-                        const existingTag = existingTags.find(t => t.name.toUpperCase() === tagName.toUpperCase());
-                        const baseColor = existingTag ? existingTag.color : '#666666';
+                        const existingTag = existingTags.find(
+                          (t) => t.name.toUpperCase() === tagName.toUpperCase(),
+                        );
+                        const baseColor = existingTag
+                          ? existingTag.color
+                          : "#666666";
                         return (
-                          <div 
+                          <div
                             key={tagName}
                             className="flex items-center gap-1.5 px-2.5 py-1.5 group border transition-colors"
                             style={{
@@ -172,13 +184,13 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                               borderColor: `${baseColor}30`,
                             }}
                           >
-                            <span 
-                              className="text-[9px] font-black uppercase tracking-wider"
+                            <span
+                              className="text-[9px] font-bold uppercase tracking-wider"
                               style={{ color: baseColor }}
                             >
                               {tagName}
                             </span>
-                            <button 
+                            <button
                               onClick={() => removeTag(tagName)}
                               className="opacity-50 hover:opacity-100 hover:text-red-400 transition-all"
                               style={{ color: baseColor }}
@@ -189,7 +201,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                         );
                       })}
                     </div>
-                    
+
                     <div className="relative group">
                       <input
                         type="text"
@@ -200,11 +212,11 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                         }}
                         onFocus={() => setShowTagSuggestions(true)}
                         onBlur={() => setShowTagSuggestions(false)}
-                        onKeyDown={(e) => e.key === 'Enter' && addTag()}
+                        onKeyDown={(e) => e.key === "Enter" && addTag()}
                         placeholder="Add more tags..."
                         className="w-full bg-surface-card border border-white/5 px-4 py-3.5 text-xs text-[#e5e2e1] placeholder-[#bbcbbb]/10 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/20 transition-all font-medium pr-10"
                       />
-                      <button 
+                      <button
                         onClick={() => addTag()}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-[#bbcbbb]/20 hover:text-[#54e98a] transition-colors"
                       >
@@ -213,31 +225,37 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
 
                       {/* Tag Suggestions Dropdown */}
                       <AnimatePresence>
-                        {showTagSuggestions && filteredSuggestions.length > 0 && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 5 }}
-                            className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#2a2a2a] border border-white/10 shadow-xl overflow-hidden max-h-48 overflow-y-auto custom-scrollbar"
-                          >
-                            {filteredSuggestions.map((suggestion) => (
-                              <div
-                                key={suggestion.id}
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  addTag(suggestion.name);
-                                }}
-                                className="px-4 py-2 hover:bg-white/5 cursor-pointer flex items-center gap-2"
-                              >
-                                <div 
-                                  className="w-2 h-2 rounded-full" 
-                                  style={{ backgroundColor: suggestion.color || '#666666' }} 
-                                />
-                                <span className="text-sm font-medium text-[#e5e2e1]">{suggestion.name}</span>
-                              </div>
-                            ))}
-                          </motion.div>
-                        )}
+                        {showTagSuggestions &&
+                          filteredSuggestions.length > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 5 }}
+                              className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#2a2a2a] border border-white/10 shadow-xl overflow-hidden max-h-48 overflow-y-auto custom-scrollbar"
+                            >
+                              {filteredSuggestions.map((suggestion) => (
+                                <div
+                                  key={suggestion.id}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    addTag(suggestion.name);
+                                  }}
+                                  className="px-4 py-2 hover:bg-white/5 cursor-pointer flex items-center gap-2"
+                                >
+                                  <div
+                                    className="w-2 h-2 rounded-full"
+                                    style={{
+                                      backgroundColor:
+                                        suggestion.color || "#666666",
+                                    }}
+                                  />
+                                  <span className="text-sm font-medium text-[#e5e2e1]">
+                                    {suggestion.name}
+                                  </span>
+                                </div>
+                              ))}
+                            </motion.div>
+                          )}
                       </AnimatePresence>
                     </div>
                   </div>
@@ -254,7 +272,7 @@ export function CreateFolderModal({ isOpen, onClose, onCreate, existingTags = []
                   <button
                     onClick={handleCreate}
                     disabled={isLoading || !name.trim()}
-                    className="px-8 py-3.5 bg-[#54e98a] text-[#003919] font-black text-sm tracking-tight flex items-center gap-2 hover:shadow-[0_0_20px_rgba(84,233,138,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none"
+                    className="px-8 py-3.5 bg-[#54e98a] text-[#003919] font-bold text-sm tracking-tight flex items-center gap-2 hover:shadow-[0_0_20px_rgba(84,233,138,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none"
                   >
                     {isLoading ? (
                       <Loader2 size={16} className="animate-spin" />

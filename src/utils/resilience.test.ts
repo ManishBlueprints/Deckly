@@ -20,18 +20,35 @@ describe("withRetry", () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  it("retries on NetworkError and eventually succeeds", async () => {
-    const networkError = new TypeError("NetworkError when attempting to fetch resource");
+  it("retries with exponential backoff and eventually succeeds", async () => {
+    vi.useFakeTimers();
+    const networkError = new TypeError("Failed to fetch");
     const fn = vi
       .fn()
       .mockRejectedValueOnce(networkError)
       .mockRejectedValueOnce(networkError)
       .mockResolvedValue("success");
 
-    // Use zero delay to avoid needing fake timers for this success case
-    const result = await withRetry(fn, { maxRetries: 3, initialDelay: 0, backoffFactor: 1 });
-    expect(result).toBe("success");
+    const promise = withRetry(fn, { 
+      maxRetries: 3, 
+      initialDelay: 1000, 
+      backoffFactor: 2 
+    });
+
+    // 1st attempt fails
+    await vi.runAllTicks();
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    // Wait for 1st retry (1000ms)
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fn).toHaveBeenCalledTimes(2);
+
+    // Wait for 2nd retry (2000ms)
+    await vi.advanceTimersByTimeAsync(2000);
     expect(fn).toHaveBeenCalledTimes(3);
+
+    const result = await promise;
+    expect(result).toBe("success");
   });
 
   it("throws immediately on a non-network error without retrying", async () => {
@@ -39,29 +56,31 @@ describe("withRetry", () => {
     const fn = vi.fn().mockRejectedValue(appError);
 
     await expect(withRetry(fn, { maxRetries: 3 })).rejects.toThrow("Permission denied");
-    // Should only have been called once — no retry on non-network errors
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
   it("throws after exhausting all retries for a network error", async () => {
+    vi.useFakeTimers();
     const networkError = new TypeError("Failed to fetch");
     const fn = vi.fn().mockRejectedValue(networkError);
 
-    await expect(
-      withRetry(fn, { maxRetries: 2, initialDelay: 0, backoffFactor: 1 }),
-    ).rejects.toThrow("Failed to fetch");
-    // Initial attempt + 2 retries = 3 total calls
+    const promise = withRetry(fn, { maxRetries: 2, initialDelay: 500, backoffFactor: 2 });
+    
+    // Attach the rejection handler BEFORE running the timers that cause the rejection
+    const rejectionExpectation = expect(promise).rejects.toThrow("Failed to fetch");
+
+    // Now run the timers
+    await vi.runAllTimersAsync();
+
+    await rejectionExpectation;
     expect(fn).toHaveBeenCalledTimes(3);
   });
 
-  it("respects the maxRetries option", async () => {
+  it("handles maxRetries: 0 by only attempting once", async () => {
     const networkError = new TypeError("NetworkError");
     const fn = vi.fn().mockRejectedValue(networkError);
 
-    await expect(
-      withRetry(fn, { maxRetries: 1, initialDelay: 0, backoffFactor: 1 }),
-    ).rejects.toThrow();
-    // 1 initial + 1 retry = 2
-    expect(fn).toHaveBeenCalledTimes(2);
+    await expect(withRetry(fn, { maxRetries: 0 })).rejects.toThrow();
+    expect(fn).toHaveBeenCalledTimes(1);
   });
 });

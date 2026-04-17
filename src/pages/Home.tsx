@@ -5,9 +5,15 @@ import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DashboardView } from "../components/dashboard/DashboardView";
 import { EmptyStateOverlay } from "../components/dashboard/EmptyStateOverlay";
 import { HomeTour } from "../components/tours/HomeTour";
+import { useQueryClient } from "@tanstack/react-query";
+import { dataRoomService } from "../services/dataRoomService";
+import { analyticsService } from "../services/analyticsService";
+import { organizerService } from "../services/organizerService";
+
+const DEFAULT_STALE_TIME = 30000;
 
 function Home() {
-  const { session, profile } = useAuth();
+  const { session } = useAuth();
 
   const {
     data: decks = [],
@@ -18,16 +24,73 @@ function Home() {
 
   const error = queryError ? (queryError as Error).message : null;
 
-  // Force open workspace settings if it's a new profile
+
+
+  // Layer 1: Global Preloading (Main lists and code chunks)
+  const queryClient = useQueryClient();
   useEffect(() => {
-    if (profile && !profile.handle && !loading) {
-      // Small delay to ensure Sidebar listener is ready
+    const preloadTimers: ReturnType<typeof setTimeout>[] = [];
+    if (session?.user?.id && !loading) {
+      // Small delay to ensure initial render is smooth
       const timer = setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("deckly:open-settings"));
-      }, 500);
-      return () => clearTimeout(timer);
+        const userId = session.user.id;
+
+        // 1. Data Prefetching (Main lists - metadata only)
+        // Data Rooms List
+        queryClient.prefetchQuery({
+          queryKey: ["data-rooms"],
+          queryFn: () => dataRoomService.getDataRooms(),
+          staleTime: DEFAULT_STALE_TIME,
+        });
+
+        // User Stats
+        queryClient.prefetchQuery({
+          queryKey: ["user-total-stats", userId, "all"],
+          queryFn: () => analyticsService.getUserTotalStats(userId),
+          staleTime: DEFAULT_STALE_TIME,
+        });
+
+        // Saved Decks List (Complete Collection)
+        queryClient.prefetchQuery({
+          queryKey: ["library-decks", userId],
+          queryFn: () => organizerService.getSavedDecksOrganized(userId),
+          staleTime: DEFAULT_STALE_TIME,
+        });
+
+        queryClient.prefetchQuery({
+          queryKey: ["library-folders", userId],
+          queryFn: () => organizerService.getFolders(userId),
+          staleTime: DEFAULT_STALE_TIME,
+        });
+
+        queryClient.prefetchQuery({
+          queryKey: ["library-tags", userId],
+          queryFn: () => organizerService.getTags(userId),
+          staleTime: DEFAULT_STALE_TIME,
+        });
+
+        // 2. Code Preloading (Lazy chunks)
+        const preloadPages = [
+          () => import("./DataRoomsPage"),
+          () => import("./ContentPage"),
+          () => import("./SavedDecks"),
+          () => import("./Profile"),
+          () => import("./Viewer"),
+        ];
+        
+        // Execute preloads sequentially to avoid network congestion
+        preloadPages.forEach((preload, idx) => {
+          const pTimer = setTimeout(() => preload().catch(() => {}), idx * 500);
+          preloadTimers.push(pTimer);
+        });
+      }, 1000);
+
+      return () => {
+        clearTimeout(timer);
+        preloadTimers.forEach(t => clearTimeout(t));
+      };
     }
-  }, [profile, loading]);
+  }, [session?.user?.id, loading, queryClient]);
 
   if (error) {
     return (
