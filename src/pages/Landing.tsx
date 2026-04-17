@@ -133,11 +133,6 @@ export default function Landing() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useScroll({
-    target: containerRef,
-    offset: ["start start", "end end"],
-  });
-
   return (
     <div className="bg-background text-on-surface selection:bg-primary selection:text-on-primary min-h-screen font-['Manrope'] overflow-hidden">
       {/* TopNavBar -> Industrial Mesh */}
@@ -167,7 +162,7 @@ export default function Landing() {
           </button>
           <button
             onClick={() => navigate("/signup")}
-            className="bg-primary text-on-primary px-8 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary transition-all"
+            className="bg-primary text-on-primary px-8 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all"
           >
             Get Started
           </button>
@@ -217,7 +212,7 @@ export default function Landing() {
               <motion.div variants={fadeInUp} className="flex flex-wrap gap-4">
                 <button
                   onClick={() => navigate("/signup")}
-                  className="bg-primary text-on-primary px-8 py-4 font-black text-xs uppercase tracking-widest hover:bg-primary transition-all flex items-center justify-center gap-2"
+                  className="bg-primary text-on-primary px-8 py-4 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
                 >
                   Get Started Free
                   <ArrowUpRight size={16} />
@@ -344,7 +339,7 @@ export default function Landing() {
               {/* For Founders */}
               <motion.div
                 variants={fadeInUp}
-                className="p-12 md:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-container-low/30 hover:bg-white/[0.01] transition-colors duration-500"
+                className="p-12 md:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.01] transition-colors duration-500"
               >
                 <div className="mb-12 flex items-center gap-6">
                   <div className="w-16 h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)]">
@@ -397,7 +392,7 @@ export default function Landing() {
               {/* For Investors */}
               <motion.div
                 variants={fadeInUp}
-                className="p-12 md:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-container-low/30 hover:bg-white/[0.01] transition-colors duration-500"
+                className="p-12 md:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.01] transition-colors duration-500"
               >
                 <div className="mb-12 flex items-center gap-6">
                   <div className="w-16 h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)]">
@@ -858,11 +853,11 @@ function FeatureCard({ feature, index }: FeatureCardProps) {
             {feature.desc}
           </p>
 
-          <div className="mt-8 flex items-center gap-4 text-primary font-black text-[10px] cursor-pointer group-hover:gap-6 transition-all uppercase tracking-widest">
+          <div className="mt-8 flex items-center gap-4 text-primary font-black text-[10px] transition-all uppercase tracking-widest">
             Read documentation{" "}
             <ArrowUpRight
               size={14}
-              className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-all"
+              className="transition-all"
             />
           </div>
         </div>
