@@ -1,12 +1,20 @@
 import React from "react";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
-import { Plus, Upload, Home as RoomIcon } from "lucide-react";
+import { Plus, Upload, Home as RoomIcon, User, LogOut } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
 import { NotificationBell } from "../notifications/NotificationBell";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -21,7 +29,7 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { branding, setBranding, profile } = useAuth();
+  const { branding, setBranding, profile, signOut } = useAuth();
   const [fabOpen, setFabOpen] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
 
@@ -103,22 +111,65 @@ export function DashboardLayout({
             {profile?.id && <NotificationBell userId={profile.id} />}
 
             {/* Mobile Profile Link */}
-            <button
-              onClick={() => navigate("/profile")}
-              className="md:hidden w-8 h-8 rounded-full bg-surface-low border border-white/5 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/30 transition-all active:scale-90"
-            >
-              {profile?.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-[11px] font-bold text-primary/60">
-                  {profile?.full_name?.charAt(0).toUpperCase() || "U"}
-                </span>
-              )}
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="md:hidden w-8 h-8 rounded-full bg-surface-low border border-white/5 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/30 transition-all active:scale-90"
+                >
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-[11px] font-bold text-primary/60">
+                      {profile?.full_name?.charAt(0).toUpperCase() || "U"}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 mt-2">
+                <DropdownMenuLabel className="flex items-center gap-3 py-3 px-3 font-bold text-slate-100">
+                  {profile?.avatar_url ? (
+                    <div className="w-8 h-8 rounded-full bg-surface-low border border-white/10 overflow-hidden shrink-0">
+                      <img
+                        src={profile.avatar_url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                      <span className="text-[11px] font-bold text-primary">
+                        {profile?.full_name?.charAt(0).toUpperCase() || "U"}
+                      </span>
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold truncate leading-tight">
+                      {profile?.full_name || "Account"}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => navigate("/profile")}
+                  className="flex items-center gap-2 py-3 cursor-pointer"
+                >
+                  <User size={16} className="text-primary" />
+                  <span className="font-bold text-slate-200">Edit Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={signOut}
+                  className="flex items-center gap-2 py-3 cursor-pointer text-red-400 focus:text-red-400 focus:bg-red-400/10"
+                >
+                  <LogOut size={16} />
+                  <span className="font-bold">Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 

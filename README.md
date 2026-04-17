@@ -6,45 +6,42 @@
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- **🎯 Smooth, App-Like Deck Viewing**  
+- **Smooth, App-Like Deck Viewing**  
   A custom slide-based viewer that turns static PDFs into fast, responsive experiences with a native-app feel on any device.
 
-- **⚡ Client-Side Rendering**  
+- **Client-Side Rendering**  
   Decks are processed directly in the browser into high-resolution slides, reducing backend load and improving privacy and speed.
 
-- **🔄 Same-Link Deck Updates**  
+- **Same-Link Deck Updates**  
   Replace or update your pitch deck while keeping the **same shareable link** — no need to resend links after small fixes or iterations.
 
-- **🗂 Data Rooms (Multiple Decks)**  
+- **Data Rooms (Multiple Decks)**  
   Group related decks into data rooms for structured sharing during fundraising or reviews.
 
-- **⏳ Link Expiration & Access Control**  
+- **Link Expiration & Access Control**  
   Set expiration dates, disable downloads, and control how your deck is accessed.
 
-- **🔗 One-Click Sharing**  
+- **One-Click Sharing**  
   Instant share links with clipboard feedback for a frictionless workflow.
 
-- **🧠 Investor-Friendly Experience**  
+- **Investor-Friendly Experience**  
   Investors can save decks, add private notes, tag startups, and revisit decks without losing context.
 
-- **🤖 AI-Powered Deck Summaries**  
+- **AI-Powered Deck Summaries**  
   Automatically generate concise, investor-focused summaries to quickly understand what a deck is about.
 
-- **📊 Built-in Analytics**  
+- **Built-in Analytics**  
   Track deck engagement, slide drop-offs, and revisit signals using PostHog — with configurable analytics retention.
- 
-- **🎓 Interactive Product Tours**  
-  Step-by-step guided walkthroughs across the dashboard, library, and data rooms to accelerate user onboarding.
 
-- **🔐 Privacy-First by Design**  
+- **Privacy-First by Design**  
   No forced email capture, optional anonymous viewing, and minimal data collection by default.
 
-- **📱 Mobile-First UI**  
+- **Mobile-First UI**  
   Native app feel with bottom navigation and responsive dashboard layouts, optimized for founders on the move.
- 
-- **🛡️ Secure Account Deletion**  
+
+- **Secure Account Deletion**  
   Permanent and recursive data purging ensures all storage assets and database records are permanently wiped upon account closure.
 
 ---
