@@ -14,6 +14,16 @@ export default {
           background: "hsl(var(--brand-neutral) / <alpha-value>)",
           card: "rgba(38, 38, 38, 0.7)", /* #262626 at 0.7 */
         },
+        "on-surface": "#e5e2e1",
+        "on-surface-variant": "#bbcbbb",
+        "surface-container-lowest": "#0e0e0e",
+        "surface-container-low": "#1c1b1b",
+        "surface-container": "#201f1f",
+        "surface-container-high": "#2a2a2a",
+        "surface-container-highest": "#353534",
+        "surface-bright": "#3a3939",
+        "on-primary": "#003919",
+        "outline-variant": "#3d4a3e",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
