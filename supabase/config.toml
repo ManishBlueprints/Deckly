@@ -364,3 +364,9 @@ enabled = true
 verify_jwt = false  # Scheduled function, no JWT required
 import_map = "./functions/cleanup-temp/deno.json"
 entrypoint = "./functions/cleanup-temp/index.ts"
+
+[functions.delete-account]
+enabled = true
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/delete-account/index.ts"
