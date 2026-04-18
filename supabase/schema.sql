@@ -24,6 +24,8 @@ CREATE INDEX IF NOT EXISTS idx_profiles_handle ON public.profiles(handle);
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR PROFILES
+-- Drop legacy prod public-access policy (profiles_public VIEW serves public data now)
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone." ON public.profiles; -- prod legacy
 DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 CREATE POLICY "Users can view their own profile" ON public.profiles
     FOR SELECT USING ((select auth.uid()) = id);
@@ -41,7 +43,7 @@ CREATE OR REPLACE FUNCTION public.update_tutorial_state(p_state JSONB)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
     IF auth.uid() IS NULL THEN
@@ -137,16 +139,16 @@ CREATE POLICY "Owners can manage data room documents" ON public.data_room_docume
     USING (
         EXISTS (
             SELECT 1 FROM public.data_rooms dr 
-            WHERE dr.id = data_room_id AND dr.user_id = auth.uid()
+            WHERE dr.id = data_room_id AND dr.user_id = (select auth.uid())
         )
     )
     WITH CHECK (
         EXISTS (
             SELECT 1 FROM public.data_rooms dr 
-            WHERE dr.id = data_room_id AND dr.user_id = auth.uid()
+            WHERE dr.id = data_room_id AND dr.user_id = (select auth.uid())
         ) AND EXISTS (
             SELECT 1 FROM public.decks d 
-            WHERE d.id = deck_id AND d.user_id = auth.uid()
+            WHERE d.id = deck_id AND d.user_id = (select auth.uid())
         )
     );
 
@@ -223,7 +225,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
   RETURN QUERY
@@ -278,11 +280,18 @@ ALTER TABLE public.deck_page_views ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.deck_stats ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR DECKS
+-- Drop legacy prod policies (public access is now via decks_public VIEW)
+DROP POLICY IF EXISTS "Anyone can view decks" ON public.decks;
+DROP POLICY IF EXISTS "Public can view decks by slug" ON public.decks;
 DROP POLICY IF EXISTS "Users can manage their own decks" ON public.decks;
 CREATE POLICY "Users can manage their own decks" ON public.decks
     FOR ALL USING ((select auth.uid()) = user_id);
 
 -- POLICIES FOR BRANDING
+-- Drop legacy prod policies
+DROP POLICY IF EXISTS "Allow public read access" ON public.branding;
+DROP POLICY IF EXISTS "Anyone can view branding" ON public.branding;
+DROP POLICY IF EXISTS "Public can read branding" ON public.branding;
 DROP POLICY IF EXISTS "Users can manage their own branding" ON public.branding;
 CREATE POLICY "Users can manage their own branding" ON public.branding
     FOR ALL USING ((select auth.uid()) = user_id);
@@ -291,13 +300,9 @@ DROP POLICY IF EXISTS "Branding is viewable by everyone" ON public.branding;
 CREATE POLICY "Branding is viewable by everyone" ON public.branding
     FOR SELECT USING (true);
 
--- POLICIES FOR ANALYTICS (Public insertion, Owner viewing)
-DROP POLICY IF EXISTS "Public can log valid page views" ON public.deck_page_views;
-CREATE POLICY "Public can log valid page views" ON public.deck_page_views
-    FOR INSERT WITH CHECK (
-        EXISTS (SELECT 1 FROM public.decks_public WHERE id = deck_id)
-    );
-
+-- POLICIES FOR ANALYTICS (Public insertion is created AFTER views below to avoid dependency error)
+-- Owners can view their own page views
+DROP POLICY IF EXISTS "Public can check own views" ON public.deck_page_views; -- prod legacy
 DROP POLICY IF EXISTS "Owners can view their page views" ON public.deck_page_views;
 CREATE POLICY "Owners can view their page views" ON public.deck_page_views
     FOR SELECT USING (EXISTS (
@@ -305,23 +310,88 @@ CREATE POLICY "Owners can view their page views" ON public.deck_page_views
     ));
 
 DROP POLICY IF EXISTS "Owners can manage their own stats" ON public.deck_stats;
+DROP POLICY IF EXISTS "Owners can view their stats" ON public.deck_stats;         -- redundant
+DROP POLICY IF EXISTS "Users can view their own deck stats" ON public.deck_stats; -- prod legacy
 CREATE POLICY "Owners can manage their own stats" ON public.deck_stats
     FOR ALL USING (EXISTS (
         SELECT 1 FROM public.decks d WHERE d.id = deck_id AND d.user_id = (select auth.uid())
     ));
 
-DROP POLICY IF EXISTS "Owners can view their stats" ON public.deck_stats;
-CREATE POLICY "Owners can view their stats" ON public.deck_stats
-    FOR SELECT USING ((select auth.uid()) = user_id);
+-- =============================================================================
+-- STORAGE BUCKETS & POLICIES
+-- Buckets are created idempotently. Policies are dropped and recreated each run.
+-- =============================================================================
 
--- STORAGE BUCKETS
--- You must manually create a public bucket named 'decks' in the Supabase Dashboard.
--- Then apply these policies in the Storage tab:
+-- Create buckets if they don't exist
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('decks', 'decks', true)
+ON CONFLICT (id) DO NOTHING;
 
-/*
-  1. ALL: Authenticated users can upload to their own folder (e.g., userId/...)
-  2. SELECT: Anyone can read from the bucket (since it's public)
-*/
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('assets', 'assets', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- ---- DECKS BUCKET ----
+-- Authenticated users can upload/update/delete files in their own folder (user_id prefix)
+DROP POLICY IF EXISTS "Authenticated users can upload to their own decks folder" ON storage.objects;
+CREATE POLICY "Authenticated users can upload to their own decks folder"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+    bucket_id = 'decks' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Authenticated users can update their own deck files" ON storage.objects;
+CREATE POLICY "Authenticated users can update their own deck files"
+ON storage.objects FOR UPDATE TO authenticated
+USING (
+    bucket_id = 'decks' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Authenticated users can delete their own deck files" ON storage.objects;
+CREATE POLICY "Authenticated users can delete their own deck files"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+    bucket_id = 'decks' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Anyone can read decks bucket" ON storage.objects;
+CREATE POLICY "Anyone can read decks bucket"
+ON storage.objects FOR SELECT TO anon, authenticated
+USING (bucket_id = 'decks');
+
+-- ---- ASSETS BUCKET ----
+-- Same pattern for profile avatars, banners, logos, etc.
+DROP POLICY IF EXISTS "Authenticated users can upload to their own assets folder" ON storage.objects;
+CREATE POLICY "Authenticated users can upload to their own assets folder"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+    bucket_id = 'assets' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Authenticated users can update their own asset files" ON storage.objects;
+CREATE POLICY "Authenticated users can update their own asset files"
+ON storage.objects FOR UPDATE TO authenticated
+USING (
+    bucket_id = 'assets' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Authenticated users can delete their own asset files" ON storage.objects;
+CREATE POLICY "Authenticated users can delete their own asset files"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+    bucket_id = 'assets' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Anyone can read assets bucket" ON storage.objects;
+CREATE POLICY "Anyone can read assets bucket"
+ON storage.objects FOR SELECT TO anon, authenticated
+USING (bucket_id = 'assets');
 
 -- MIGRATIONS (for multi-document support)
 ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS file_type TEXT DEFAULT 'pdf';
@@ -381,6 +451,13 @@ GRANT SELECT ON public.profiles TO anon, authenticated;
 -- GRANT VIEW PERMISSIONS --
 GRANT SELECT ON public.decks_public TO anon, authenticated;
 GRANT SELECT ON public.data_rooms_public TO anon, authenticated;
+
+-- Public INSERT policy must be here (AFTER decks_public view is created above)
+DROP POLICY IF EXISTS "Public can log valid page views" ON public.deck_page_views;
+CREATE POLICY "Public can log valid page views" ON public.deck_page_views
+    FOR INSERT WITH CHECK (
+        EXISTS (SELECT 1 FROM public.decks_public WHERE id = deck_id)
+    );
 
 -- RATE LIMITING FOR PASSWORD CHECKS
 CREATE TABLE IF NOT EXISTS public.auth_rate_limits (
@@ -767,6 +844,7 @@ CREATE OR REPLACE FUNCTION public.count_unique_visitors(p_deck_id UUID)
 RETURNS INTEGER
 LANGUAGE sql
 SECURITY DEFINER
+SET search_path = public, extensions
 AS $$
   SELECT COUNT(DISTINCT visitor_id)::INTEGER
   FROM public.deck_page_views
@@ -778,6 +856,7 @@ CREATE OR REPLACE FUNCTION public.get_deck_locations(p_deck_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, extensions
 AS $$
 BEGIN
   RETURN jsonb_build_object(
@@ -836,21 +915,29 @@ CREATE INDEX IF NOT EXISTS idx_page_views_visitor ON public.deck_page_views(deck
 ALTER TABLE public.investor_library ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR INVESTOR LIBRARY
+-- Drop current and legacy prod policy names
 DROP POLICY IF EXISTS "Users can manage their own library" ON public.investor_library;
-CREATE POLICY "Users can manage their own library" ON public.investor_library
-    FOR ALL USING ((select auth.uid()) = user_id);
-
 DROP POLICY IF EXISTS "Owners can view bookmarks of their decks" ON public.investor_library;
-CREATE POLICY "Owners can view bookmarks of their decks" 
-ON public.investor_library 
-FOR SELECT 
-USING (
-  EXISTS (
-    SELECT 1 FROM public.decks 
-    WHERE decks.id = deck_id 
-    AND decks.user_id = (select auth.uid())
-  )
-);
+
+-- Merged SELECT: own entries + deck-owner visibility (eliminates multiple_permissive_policies)
+CREATE POLICY "Users can read library entries" ON public.investor_library
+    FOR SELECT USING (
+        (select auth.uid()) = user_id
+        OR EXISTS (
+            SELECT 1 FROM public.decks
+            WHERE decks.id = deck_id AND decks.user_id = (select auth.uid())
+        )
+    );
+
+-- Explicit write policies (owner only)
+CREATE POLICY "Users can insert into their own library" ON public.investor_library
+    FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can update their own library" ON public.investor_library
+    FOR UPDATE USING ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can delete from their own library" ON public.investor_library
+    FOR DELETE USING ((select auth.uid()) = user_id);
 
 
 -- 9. INVESTOR NOTES
@@ -929,27 +1016,31 @@ ALTER TABLE public.library_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.library_folder_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.library_deck_tags ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
+-- Drop prod legacy names before creating
+DROP POLICY IF EXISTS "Owner only folders" ON public.library_folders; -- prod legacy
 DROP POLICY IF EXISTS "Owner only" ON public.library_folders;
 CREATE POLICY "Owner only" ON public.library_folders
-    FOR ALL USING (auth.uid() = user_id);
+    FOR ALL USING ((select auth.uid()) = user_id);
 
+DROP POLICY IF EXISTS "Owner only tags" ON public.library_tags; -- prod legacy
 DROP POLICY IF EXISTS "Owner only" ON public.library_tags;
 CREATE POLICY "Owner only" ON public.library_tags
-    FOR ALL USING (auth.uid() = user_id);
+    FOR ALL USING ((select auth.uid()) = user_id);
 
+DROP POLICY IF EXISTS "Owner only folder_tags" ON public.library_folder_tags; -- prod legacy
 DROP POLICY IF EXISTS "Owner only" ON public.library_folder_tags;
 CREATE POLICY "Owner only" ON public.library_folder_tags
     FOR ALL USING (EXISTS (
         SELECT 1 FROM public.library_folders 
-        WHERE id = folder_id AND user_id = auth.uid()
+        WHERE id = folder_id AND user_id = (select auth.uid())
     ));
 
+DROP POLICY IF EXISTS "Owner only deck_tags" ON public.library_deck_tags; -- prod legacy
 DROP POLICY IF EXISTS "Owner only" ON public.library_deck_tags;
 CREATE POLICY "Owner only" ON public.library_deck_tags
     FOR ALL USING (EXISTS (
         SELECT 1 FROM public.investor_library 
-        WHERE id = library_id AND user_id = auth.uid()
+        WHERE id = library_id AND user_id = (select auth.uid())
     ));
 
 -- Indexes for performance
