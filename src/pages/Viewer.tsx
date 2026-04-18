@@ -74,7 +74,11 @@ function Viewer() {
         } else {
           try {
             const payload = await deckService.getDeckPayload(data.slug);
-            setDeck({ ...data, ...payload });
+            // Prefer the short-lived signed_url if the bucket is private
+            const resolvedPayload = payload.signed_url
+              ? { ...payload, file_url: payload.signed_url }
+              : payload;
+            setDeck({ ...data, ...resolvedPayload });
           } catch {
             throw new Error("Failed to load document content.");
           }
@@ -213,7 +217,11 @@ function Viewer() {
             onAccessGranted={async (email, password) => {
               try {
                 const payload = await deckService.getDeckPayload(deck.slug, password);
-                setDeck((prev) => prev ? { ...prev, ...payload } : prev);
+                // Prefer the short-lived signed_url if the bucket is private
+                const resolvedPayload = payload.signed_url
+                  ? { ...payload, file_url: payload.signed_url }
+                  : payload;
+                setDeck((prev) => prev ? { ...prev, ...resolvedPayload } : prev);
                 setIsUnlocked(true);
                 if (email) {
                   setViewerEmail(email);
