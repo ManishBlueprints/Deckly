@@ -40,7 +40,7 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_ANON_KEY")!,
     );
 
-    const { error: rpcError } = await anonClient.rpc("get_deck_payload", {
+    const { data: rpcData, error: rpcError } = await anonClient.rpc("get_deck_payload", {
       p_slug: slug,
       p_password: password ?? null,
     });
@@ -48,6 +48,26 @@ Deno.serve(async (req: Request) => {
     if (rpcError) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Extract the canonical storage path returned by the RPC.
+    // The RPC is SECURITY DEFINER and is the authoritative source of the correct path.
+    const canonicalPath = (rpcData as { storage_path?: string } | null)?.storage_path;
+    if (!canonicalPath) {
+      return new Response(
+        JSON.stringify({ error: "No storage path returned by RPC" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Reject if the caller-supplied path doesn't match the RPC-returned path.
+    // This prevents an IDOR where someone authenticates with slug A but requests
+    // a signed URL for a path belonging to a different deck.
+    if (storage_path !== canonicalPath) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: storage_path mismatch" }),
         { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -62,7 +82,7 @@ Deno.serve(async (req: Request) => {
 
     const { data, error: signError } = await adminClient.storage
       .from("decks")
-      .createSignedUrl(storage_path, EXPIRES_IN_SECONDS);
+      .createSignedUrl(canonicalPath, EXPIRES_IN_SECONDS);
 
     if (signError || !data?.signedUrl) {
       console.error("Failed to create signed URL", signError);

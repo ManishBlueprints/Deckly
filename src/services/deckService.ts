@@ -233,7 +233,7 @@ const deckPublicService = {
   async getDeckPayload(
     slug: string,
     password?: string,
-  ): Promise<{ file_url: string; signed_url?: string; pages: SlidePage[] }> {
+  ): Promise<{ file_url: string; signed_url?: string; expires_in?: number; pages: SlidePage[] }> {
     const { data, error } = await supabase.rpc("get_deck_payload", {
       p_slug: slug,
       p_password: password ?? null,
@@ -244,16 +244,14 @@ const deckPublicService = {
     const payload = data as { file_url: string; storage_path?: string; pages: SlidePage[] };
 
     // If the bucket is private and we have a storage path, fetch a short-lived signed URL.
+    // Errors are thrown so callers know signing failed rather than silently receiving a stale URL.
     if (payload.storage_path) {
-      try {
-        const { data: fnData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
-          body: { slug, password: password ?? null, storage_path: payload.storage_path },
-        });
-        if (!fnError && fnData?.signed_url) {
-          return { ...payload, signed_url: fnData.signed_url };
-        }
-      } catch {
-        // Signing failed — fall through to return file_url for backwards compatibility
+      const { data: fnData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
+        body: { slug, password: password ?? null, storage_path: payload.storage_path },
+      });
+      if (fnError) throw fnError;
+      if (fnData?.signed_url) {
+        return { ...payload, signed_url: fnData.signed_url, expires_in: fnData.expires_in as number | undefined };
       }
     }
 
