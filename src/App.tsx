@@ -14,6 +14,7 @@ import "./App.css";
 
 // Lazy loaded pages
 const Home = lazy(() => import("./pages/Home"));
+const Landing = lazy(() => import("./pages/Landing"));
 const Viewer = lazy(() => import("./pages/Viewer"));
 const ManageDeck = lazy(() => import("./pages/ManageDeck"));
 const Login = lazy(() => import("./pages/Login"));
@@ -197,8 +198,12 @@ const AppContent = () => {
             element={session ? <Navigate to="/admin" replace /> : <Navigate to="/login" replace />}
           />
           <Route
+            path="/landing"
+            element={<Landing />}
+          />
+          <Route
             path="/"
-            element={session ? <Home /> : <Navigate to="/login" />}
+            element={session ? <Home /> : <Navigate to="/landing" />}
           />
           <Route path="/:handle/room/:slug" element={<DataRoomViewer />} />
           <Route path="/:handle/:slug" element={<Viewer />} />

@@ -16,22 +16,25 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Schema Migration for existing profiles
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tutorial_state JSONB DEFAULT '{}'::jsonb;
-
--- Index for profile handle (removed unused var)
+-- Index for profile handle availability checks
+CREATE INDEX IF NOT EXISTS idx_profiles_handle ON public.profiles(handle);
 
 
 -- Enable RLS for profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR PROFILES
+-- Drop legacy prod public-access policy (profiles_public VIEW serves public data now)
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone." ON public.profiles; -- prod legacy
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 CREATE POLICY "Users can view their own profile" ON public.profiles
     FOR SELECT USING ((select auth.uid()) = id);
 
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile" ON public.profiles
     FOR UPDATE USING ((select auth.uid()) = id);
 
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile" ON public.profiles
     FOR INSERT WITH CHECK ((select auth.uid()) = id);
 
@@ -40,7 +43,7 @@ CREATE OR REPLACE FUNCTION public.update_tutorial_state(p_state JSONB)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
     IF auth.uid() IS NULL THEN
@@ -125,25 +128,27 @@ ALTER TABLE public.data_rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.data_room_documents ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR DATA ROOMS
+DROP POLICY IF EXISTS "Users can manage their own data rooms" ON public.data_rooms;
 CREATE POLICY "Users can manage their own data rooms" ON public.data_rooms
     FOR ALL USING ((select auth.uid()) = user_id);
 
 -- POLICIES FOR DATA ROOM DOCUMENTS
+DROP POLICY IF EXISTS "Owners can manage data room documents" ON public.data_room_documents;
 CREATE POLICY "Owners can manage data room documents" ON public.data_room_documents
     FOR ALL
     USING (
         EXISTS (
             SELECT 1 FROM public.data_rooms dr 
-            WHERE dr.id = data_room_id AND dr.user_id = auth.uid()
+            WHERE dr.id = data_room_id AND dr.user_id = (select auth.uid())
         )
     )
     WITH CHECK (
         EXISTS (
             SELECT 1 FROM public.data_rooms dr 
-            WHERE dr.id = data_room_id AND dr.user_id = auth.uid()
+            WHERE dr.id = data_room_id AND dr.user_id = (select auth.uid())
         ) AND EXISTS (
             SELECT 1 FROM public.decks d 
-            WHERE d.id = deck_id AND d.user_id = auth.uid()
+            WHERE d.id = deck_id AND d.user_id = (select auth.uid())
         )
     );
 
@@ -220,7 +225,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
   RETURN QUERY
@@ -275,49 +280,124 @@ ALTER TABLE public.deck_page_views ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.deck_stats ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR DECKS
+-- Drop legacy prod policies (public access is now via decks_public VIEW)
+DROP POLICY IF EXISTS "Anyone can view decks" ON public.decks;
+DROP POLICY IF EXISTS "Public can view decks by slug" ON public.decks;
+DROP POLICY IF EXISTS "Users can manage their own decks" ON public.decks;
 CREATE POLICY "Users can manage their own decks" ON public.decks
     FOR ALL USING ((select auth.uid()) = user_id);
 
 -- POLICIES FOR BRANDING
+-- Drop legacy prod policies
+DROP POLICY IF EXISTS "Allow public read access" ON public.branding;
+DROP POLICY IF EXISTS "Anyone can view branding" ON public.branding;
+DROP POLICY IF EXISTS "Public can read branding" ON public.branding;
+DROP POLICY IF EXISTS "Users can manage their own branding" ON public.branding;
 CREATE POLICY "Users can manage their own branding" ON public.branding
     FOR ALL USING ((select auth.uid()) = user_id);
 
+DROP POLICY IF EXISTS "Branding is viewable by everyone" ON public.branding;
 CREATE POLICY "Branding is viewable by everyone" ON public.branding
     FOR SELECT USING (true);
 
--- POLICIES FOR ANALYTICS (Public insertion, Owner viewing)
-CREATE POLICY "Public can log valid page views" ON public.deck_page_views
-    FOR INSERT WITH CHECK (
-        EXISTS (SELECT 1 FROM public.decks_public WHERE id = deck_id)
-    );
-
+-- POLICIES FOR ANALYTICS (Public insertion is created AFTER views below to avoid dependency error)
+-- Owners can view their own page views
+DROP POLICY IF EXISTS "Public can check own views" ON public.deck_page_views; -- prod legacy
+DROP POLICY IF EXISTS "Owners can view their page views" ON public.deck_page_views;
 CREATE POLICY "Owners can view their page views" ON public.deck_page_views
     FOR SELECT USING (EXISTS (
         SELECT 1 FROM public.decks d WHERE d.id = deck_id AND d.user_id = (select auth.uid())
     ));
 
+DROP POLICY IF EXISTS "Owners can manage their own stats" ON public.deck_stats;
+DROP POLICY IF EXISTS "Owners can view their stats" ON public.deck_stats;         -- redundant
+DROP POLICY IF EXISTS "Users can view their own deck stats" ON public.deck_stats; -- prod legacy
 CREATE POLICY "Owners can manage their own stats" ON public.deck_stats
     FOR ALL USING (EXISTS (
         SELECT 1 FROM public.decks d WHERE d.id = deck_id AND d.user_id = (select auth.uid())
     ));
 
-CREATE POLICY "Owners can view their stats" ON public.deck_stats
-    FOR SELECT USING ((select auth.uid()) = user_id);
+-- =============================================================================
+-- STORAGE BUCKETS & POLICIES
+-- Buckets are created idempotently. Policies are dropped and recreated each run.
+-- =============================================================================
 
--- STORAGE BUCKETS
--- You must manually create a public bucket named 'decks' in the Supabase Dashboard.
--- Then apply these policies in the Storage tab:
+-- Create buckets if they don't exist
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('decks', 'decks', true)
+ON CONFLICT (id) DO NOTHING;
 
-/*
-  1. ALL: Authenticated users can upload to their own folder (e.g., userId/...)
-  2. SELECT: Anyone can read from the bucket (since it's public)
-*/
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('assets', 'assets', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- ---- DECKS BUCKET ----
+-- Authenticated users can upload/update/delete files in their own folder (user_id prefix)
+DROP POLICY IF EXISTS "Authenticated users can upload to their own decks folder" ON storage.objects;
+CREATE POLICY "Authenticated users can upload to their own decks folder"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+    bucket_id = 'decks' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Authenticated users can update their own deck files" ON storage.objects;
+CREATE POLICY "Authenticated users can update their own deck files"
+ON storage.objects FOR UPDATE TO authenticated
+USING (
+    bucket_id = 'decks' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Authenticated users can delete their own deck files" ON storage.objects;
+CREATE POLICY "Authenticated users can delete their own deck files"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+    bucket_id = 'decks' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Anyone can read decks bucket" ON storage.objects;
+CREATE POLICY "Anyone can read decks bucket"
+ON storage.objects FOR SELECT TO anon, authenticated
+USING (bucket_id = 'decks');
+
+-- ---- ASSETS BUCKET ----
+-- Same pattern for profile avatars, banners, logos, etc.
+DROP POLICY IF EXISTS "Authenticated users can upload to their own assets folder" ON storage.objects;
+CREATE POLICY "Authenticated users can upload to their own assets folder"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+    bucket_id = 'assets' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Authenticated users can update their own asset files" ON storage.objects;
+CREATE POLICY "Authenticated users can update their own asset files"
+ON storage.objects FOR UPDATE TO authenticated
+USING (
+    bucket_id = 'assets' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Authenticated users can delete their own asset files" ON storage.objects;
+CREATE POLICY "Authenticated users can delete their own asset files"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+    bucket_id = 'assets' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+);
+
+DROP POLICY IF EXISTS "Anyone can read assets bucket" ON storage.objects;
+CREATE POLICY "Anyone can read assets bucket"
+ON storage.objects FOR SELECT TO anon, authenticated
+USING (bucket_id = 'assets');
 
 -- MIGRATIONS (for multi-document support)
 ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS file_type TEXT DEFAULT 'pdf';
 ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS display_mode TEXT DEFAULT 'raw'; -- 'raw' or 'interactive'
 -- Drop view before altering column type
-DROP VIEW IF EXISTS public.decks_public;
+DROP VIEW IF EXISTS public.decks_public CASCADE;
 ALTER TABLE public.decks ALTER COLUMN pages DROP DEFAULT;
 ALTER TABLE public.decks ALTER COLUMN pages TYPE JSONB USING to_jsonb(pages);
 ALTER TABLE public.decks ALTER COLUMN pages SET DEFAULT '[]'::jsonb;
@@ -329,16 +409,19 @@ ALTER TABLE public.decks ALTER COLUMN pages SET DEFAULT '[]'::jsonb;
 -- 7. SECURITY HARDENING: SECURE ACCESS GATE
 -- This section implements server-side password validation to prevent leakage.
 
+-- Cleanup public views (CASCADE handles dependent RLS policies)
+DROP VIEW IF EXISTS public.profiles_public CASCADE;
+DROP VIEW IF EXISTS public.decks_public CASCADE;
+DROP VIEW IF EXISTS public.data_rooms_public CASCADE;
+
 -- Minimal public profiles view: exposes only id and handle.
 -- Runs with security definer semantics to safely bypass RLS on profiles without exposing sensitive columns.
-DROP VIEW IF EXISTS public.profiles_public CASCADE;
 CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = false) AS
 SELECT id, handle
 FROM public.profiles;
 
 -- Public view for decks (excludes sensitive view_password, file_url, and pages payload)
 -- Runs with security definer semantics to bypass the restricted RLS on decks.
-DROP VIEW IF EXISTS public.decks_public CASCADE;
 CREATE OR REPLACE VIEW public.decks_public WITH (security_invoker = false) AS
 SELECT 
     d.id, d.user_id, d.title, d.slug, d.description, d.status, 
@@ -350,7 +433,6 @@ JOIN public.profiles_public p ON d.user_id = p.id;
 
 -- Public view for data rooms (excludes sensitive view_password and associated documents)
 -- Runs with security definer semantics to bypass the restricted RLS on data_rooms.
-DROP VIEW IF EXISTS public.data_rooms_public CASCADE;
 CREATE OR REPLACE VIEW public.data_rooms_public WITH (security_invoker = false) AS
 SELECT 
     dr.id, dr.user_id, dr.name, dr.slug, dr.description, dr.icon_url, dr.require_email, 
@@ -369,6 +451,13 @@ GRANT SELECT ON public.profiles TO anon, authenticated;
 -- GRANT VIEW PERMISSIONS --
 GRANT SELECT ON public.decks_public TO anon, authenticated;
 GRANT SELECT ON public.data_rooms_public TO anon, authenticated;
+
+-- Public INSERT policy must be here (AFTER decks_public view is created above)
+DROP POLICY IF EXISTS "Public can log valid page views" ON public.deck_page_views;
+CREATE POLICY "Public can log valid page views" ON public.deck_page_views
+    FOR INSERT WITH CHECK (
+        EXISTS (SELECT 1 FROM public.decks_public WHERE id = deck_id)
+    );
 
 -- RATE LIMITING FOR PASSWORD CHECKS
 CREATE TABLE IF NOT EXISTS public.auth_rate_limits (
@@ -391,7 +480,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE OR REPLACE FUNCTION public.hash_password_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
   -- Handle NULL or empty string password clears
@@ -453,7 +542,7 @@ CREATE OR REPLACE FUNCTION public.record_failed_attempt(p_ip TEXT, p_slug TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
     INSERT INTO public.auth_rate_limits (ip_address, target_slug, failed_attempts, last_attempt_at)
@@ -467,7 +556,7 @@ CREATE OR REPLACE FUNCTION public.clear_rate_limit(p_ip TEXT, p_slug TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
     DELETE FROM public.auth_rate_limits WHERE ip_address = p_ip AND target_slug = p_slug;
@@ -479,7 +568,7 @@ CREATE OR REPLACE FUNCTION public.check_deck_password(p_slug TEXT, p_password TE
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER -- runs as owner
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_hashed_pw TEXT;
@@ -526,7 +615,7 @@ CREATE OR REPLACE FUNCTION public.check_data_room_password(p_slug TEXT, p_passwo
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_hashed_pw TEXT;
@@ -572,7 +661,7 @@ CREATE OR REPLACE FUNCTION public.get_deck_payload(p_slug TEXT, p_password TEXT)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_deck RECORD;
@@ -599,7 +688,7 @@ CREATE OR REPLACE FUNCTION public.get_data_room_payload(p_slug TEXT, p_password 
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_room RECORD;
@@ -652,7 +741,7 @@ CREATE OR REPLACE FUNCTION public.record_deck_visit(
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_deck_owner_id UUID;
@@ -755,6 +844,7 @@ CREATE OR REPLACE FUNCTION public.count_unique_visitors(p_deck_id UUID)
 RETURNS INTEGER
 LANGUAGE sql
 SECURITY DEFINER
+SET search_path = public, extensions
 AS $$
   SELECT COUNT(DISTINCT visitor_id)::INTEGER
   FROM public.deck_page_views
@@ -766,6 +856,7 @@ CREATE OR REPLACE FUNCTION public.get_deck_locations(p_deck_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, extensions
 AS $$
 BEGIN
   RETURN jsonb_build_object(
@@ -824,19 +915,29 @@ CREATE INDEX IF NOT EXISTS idx_page_views_visitor ON public.deck_page_views(deck
 ALTER TABLE public.investor_library ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR INVESTOR LIBRARY
-CREATE POLICY "Users can manage their own library" ON public.investor_library
-    FOR ALL USING ((select auth.uid()) = user_id);
+-- Drop current and legacy prod policy names
+DROP POLICY IF EXISTS "Users can manage their own library" ON public.investor_library;
+DROP POLICY IF EXISTS "Owners can view bookmarks of their decks" ON public.investor_library;
 
-CREATE POLICY "Owners can view bookmarks of their decks" 
-ON public.investor_library 
-FOR SELECT 
-USING (
-  EXISTS (
-    SELECT 1 FROM public.decks 
-    WHERE decks.id = deck_id 
-    AND decks.user_id = (select auth.uid())
-  )
-);
+-- Merged SELECT: own entries + deck-owner visibility (eliminates multiple_permissive_policies)
+CREATE POLICY "Users can read library entries" ON public.investor_library
+    FOR SELECT USING (
+        (select auth.uid()) = user_id
+        OR EXISTS (
+            SELECT 1 FROM public.decks
+            WHERE decks.id = deck_id AND decks.user_id = (select auth.uid())
+        )
+    );
+
+-- Explicit write policies (owner only)
+CREATE POLICY "Users can insert into their own library" ON public.investor_library
+    FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can update their own library" ON public.investor_library
+    FOR UPDATE USING ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can delete from their own library" ON public.investor_library
+    FOR DELETE USING ((select auth.uid()) = user_id);
 
 
 -- 9. INVESTOR NOTES
@@ -857,6 +958,7 @@ CREATE INDEX IF NOT EXISTS idx_investor_notes_user_deck ON public.investor_notes
 ALTER TABLE public.investor_notes ENABLE ROW LEVEL SECURITY;
 
 -- POLICIES FOR INVESTOR NOTES
+DROP POLICY IF EXISTS "Notes are strictly private" ON public.investor_notes;
 CREATE POLICY "Notes are strictly private" ON public.investor_notes
     FOR ALL USING ((select auth.uid()) = user_id);
 
@@ -914,23 +1016,31 @@ ALTER TABLE public.library_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.library_folder_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.library_deck_tags ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
+-- Drop prod legacy names before creating
+DROP POLICY IF EXISTS "Owner only folders" ON public.library_folders; -- prod legacy
+DROP POLICY IF EXISTS "Owner only" ON public.library_folders;
 CREATE POLICY "Owner only" ON public.library_folders
-    FOR ALL USING (auth.uid() = user_id);
+    FOR ALL USING ((select auth.uid()) = user_id);
 
+DROP POLICY IF EXISTS "Owner only tags" ON public.library_tags; -- prod legacy
+DROP POLICY IF EXISTS "Owner only" ON public.library_tags;
 CREATE POLICY "Owner only" ON public.library_tags
-    FOR ALL USING (auth.uid() = user_id);
+    FOR ALL USING ((select auth.uid()) = user_id);
 
+DROP POLICY IF EXISTS "Owner only folder_tags" ON public.library_folder_tags; -- prod legacy
+DROP POLICY IF EXISTS "Owner only" ON public.library_folder_tags;
 CREATE POLICY "Owner only" ON public.library_folder_tags
     FOR ALL USING (EXISTS (
         SELECT 1 FROM public.library_folders 
-        WHERE id = folder_id AND user_id = auth.uid()
+        WHERE id = folder_id AND user_id = (select auth.uid())
     ));
 
+DROP POLICY IF EXISTS "Owner only deck_tags" ON public.library_deck_tags; -- prod legacy
+DROP POLICY IF EXISTS "Owner only" ON public.library_deck_tags;
 CREATE POLICY "Owner only" ON public.library_deck_tags
     FOR ALL USING (EXISTS (
         SELECT 1 FROM public.investor_library 
-        WHERE id = library_id AND user_id = auth.uid()
+        WHERE id = library_id AND user_id = (select auth.uid())
     ));
 
 -- Indexes for performance
@@ -948,7 +1058,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
     INSERT INTO public.profiles (id, full_name, avatar_url, created_at, updated_at)
@@ -997,13 +1107,16 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 -- Users can only read / update (mark read) / delete their own notifications.
 -- INSERT is handled exclusively by SECURITY DEFINER functions below, which
 -- bypass RLS — so no open INSERT policy is needed (and would be unsafe).
+DROP POLICY IF EXISTS "notifications_owner_select" ON public.notifications;
 CREATE POLICY "notifications_owner_select" ON public.notifications
     FOR SELECT USING ((SELECT auth.uid()) = user_id);
 
+DROP POLICY IF EXISTS "notifications_owner_update" ON public.notifications;
 CREATE POLICY "notifications_owner_update" ON public.notifications
     FOR UPDATE USING ((SELECT auth.uid()) = user_id)
     WITH CHECK ((SELECT auth.uid()) = user_id);
 
+DROP POLICY IF EXISTS "notifications_owner_delete" ON public.notifications;
 CREATE POLICY "notifications_owner_delete" ON public.notifications
     FOR DELETE USING ((SELECT auth.uid()) = user_id);
 
@@ -1050,7 +1163,7 @@ RETURNS BOOLEAN
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_uid UUID;
@@ -1073,6 +1186,7 @@ GRANT EXECUTE ON FUNCTION public.is_admin(UUID) TO authenticated;
 
 -- Only admins can manage the list (bootstrapped by direct SQL insert)
 -- Defined AFTER is_admin() so the policy can safely reference it.
+DROP POLICY IF EXISTS "Only admins can view admin_emails" ON public.admin_emails;
 CREATE POLICY "Only admins can view admin_emails" ON public.admin_emails
     FOR SELECT USING (public.is_admin());
 -- =============================================================================
@@ -1092,7 +1206,7 @@ CREATE OR REPLACE FUNCTION public.create_notification_internal(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_id UUID;
@@ -1140,7 +1254,7 @@ CREATE OR REPLACE FUNCTION public.create_notification(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY INVOKER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
     IF auth.uid() IS NULL THEN
@@ -1174,7 +1288,7 @@ CREATE OR REPLACE FUNCTION public.create_admin_broadcast(
 RETURNS INTEGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_uid    UUID;
@@ -1211,7 +1325,7 @@ CREATE OR REPLACE FUNCTION public.create_admin_broadcast_all(
 RETURNS INTEGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_count INTEGER;
@@ -1241,7 +1355,7 @@ CREATE OR REPLACE FUNCTION public.cleanup_expired_notifications()
 RETURNS INTEGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_count       INTEGER := 0;
@@ -1280,7 +1394,7 @@ CREATE OR REPLACE FUNCTION public.notify_on_deck_save()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_owner_id   UUID;
@@ -1333,7 +1447,7 @@ CREATE OR REPLACE FUNCTION public.notify_signal_threshold()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_owner_id      UUID;
@@ -1407,7 +1521,7 @@ CREATE OR REPLACE FUNCTION public.notify_on_deck_update()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_investor RECORD;
@@ -1472,7 +1586,7 @@ CREATE OR REPLACE FUNCTION public.get_total_system_users()
 RETURNS INTEGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
     v_count INTEGER;
