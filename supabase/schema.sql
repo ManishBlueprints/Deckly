@@ -734,7 +734,10 @@ BEGIN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 
-    -- Fetch documents and payloads for this room
+    -- Fetch documents and payloads for this room.
+    -- storage_path is extracted from file_url so clients can exchange it for
+    -- a short-lived signed URL via the sign-deck-url Edge Function (same pattern
+    -- as get_deck_payload). file_url is kept for backwards compatibility.
     SELECT COALESCE(jsonb_agg(
         jsonb_build_object(
             'id', d.id,
@@ -745,6 +748,11 @@ BEGIN
             'file_type', d.file_type,
             'display_mode', d.display_mode,
             'file_url', d.file_url,
+            'storage_path', regexp_replace(
+                d.file_url,
+                '^.*/storage/v1/object/(public|sign|authenticated)/decks/',
+                ''
+            ),
             'pages', d.pages
         ) ORDER BY drd.display_order ASC
     ), '[]'::jsonb) INTO v_documents
@@ -947,6 +955,11 @@ ALTER TABLE public.investor_library ENABLE ROW LEVEL SECURITY;
 -- Drop current and legacy prod policy names
 DROP POLICY IF EXISTS "Users can manage their own library" ON public.investor_library;
 DROP POLICY IF EXISTS "Owners can view bookmarks of their decks" ON public.investor_library;
+-- Drop new names too so schema reruns are idempotent
+DROP POLICY IF EXISTS "Users can read library entries" ON public.investor_library;
+DROP POLICY IF EXISTS "Users can insert into their own library" ON public.investor_library;
+DROP POLICY IF EXISTS "Users can update their own library" ON public.investor_library;
+DROP POLICY IF EXISTS "Users can delete from their own library" ON public.investor_library;
 
 -- Merged SELECT: own entries + deck-owner visibility (eliminates multiple_permissive_policies)
 CREATE POLICY "Users can read library entries" ON public.investor_library
