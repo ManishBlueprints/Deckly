@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -39,6 +39,36 @@ function Viewer() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
 
+  // Tracks metadata needed to refresh the signed URL before it expires.
+  // Stored in a ref so the refresh effect doesn't re-run on every render.
+  const signedUrlMeta = useRef<{ slug: string; password?: string; expiresIn: number } | null>(null);
+
+  // Automatically refresh the signed URL ~60 s before it expires.
+  useEffect(() => {
+    if (!isUnlocked || !signedUrlMeta.current) return;
+    const { slug: metaSlug, password: metaPassword, expiresIn } = signedUrlMeta.current;
+    // Schedule refresh 60 s before expiry (minimum 5 s to avoid thrashing).
+    const refreshMs = Math.max((expiresIn - 60) * 1000, 5000);
+    const timerId = setTimeout(async () => {
+      try {
+        const refreshed = await deckService.getDeckPayload(metaSlug, metaPassword);
+        if (refreshed.signed_url) {
+          signedUrlMeta.current = {
+            slug: metaSlug,
+            password: metaPassword,
+            expiresIn: refreshed.expires_in ?? expiresIn,
+          };
+          setDeck((prev) =>
+            prev ? { ...prev, file_url: refreshed.signed_url! } : prev
+          );
+        }
+      } catch {
+        // Refresh failed — viewer will see a load error on next page turn; not fatal.
+      }
+    }, refreshMs);
+    return () => clearTimeout(timerId);
+  }, [isUnlocked, deck?.file_url]); // re-schedule whenever file_url is replaced by a refresh
+
   // TanStack Queries
   const { data: isSaved = false } = useIsDeckSaved(deck?.id, session?.user?.id);
   const saveToLibraryMutation = useSaveToLibraryMutation(session?.user?.id);
@@ -74,7 +104,14 @@ function Viewer() {
         } else {
           try {
             const payload = await deckService.getDeckPayload(data.slug);
-            setDeck({ ...data, ...payload });
+            // Prefer the short-lived signed_url if the bucket is private
+            const resolvedPayload = payload.signed_url
+              ? { ...payload, file_url: payload.signed_url, expires_in: payload.expires_in }
+              : payload;
+            if (payload.signed_url && payload.expires_in) {
+              signedUrlMeta.current = { slug: data.slug, expiresIn: payload.expires_in };
+            }
+            setDeck({ ...data, ...resolvedPayload });
           } catch {
             throw new Error("Failed to load document content.");
           }
@@ -213,7 +250,14 @@ function Viewer() {
             onAccessGranted={async (email, password) => {
               try {
                 const payload = await deckService.getDeckPayload(deck.slug, password);
-                setDeck((prev) => prev ? { ...prev, ...payload } : prev);
+                // Prefer the short-lived signed_url if the bucket is private
+                const resolvedPayload = payload.signed_url
+                  ? { ...payload, file_url: payload.signed_url, expires_in: payload.expires_in }
+                  : payload;
+                if (payload.signed_url && payload.expires_in) {
+                  signedUrlMeta.current = { slug: deck.slug, password, expiresIn: payload.expires_in };
+                }
+                setDeck((prev) => prev ? { ...prev, ...resolvedPayload } : prev);
                 setIsUnlocked(true);
                 if (email) {
                   setViewerEmail(email);
