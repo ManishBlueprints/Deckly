@@ -233,14 +233,31 @@ const deckPublicService = {
   async getDeckPayload(
     slug: string,
     password?: string,
-  ): Promise<{ file_url: string; pages: SlidePage[] }> {
+  ): Promise<{ file_url: string; signed_url?: string; pages: SlidePage[] }> {
     const { data, error } = await supabase.rpc("get_deck_payload", {
       p_slug: slug,
       p_password: password ?? null,
     });
     if (error) throw error;
     if (!data) throw new Error("Deck not found or access denied");
-    return data as { file_url: string; pages: SlidePage[] };
+
+    const payload = data as { file_url: string; storage_path?: string; pages: SlidePage[] };
+
+    // If the bucket is private and we have a storage path, fetch a short-lived signed URL.
+    if (payload.storage_path) {
+      try {
+        const { data: fnData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
+          body: { slug, password: password ?? null, storage_path: payload.storage_path },
+        });
+        if (!fnError && fnData?.signed_url) {
+          return { ...payload, signed_url: fnData.signed_url };
+        }
+      } catch {
+        // Signing failed — fall through to return file_url for backwards compatibility
+      }
+    }
+
+    return payload;
   },
 
   async getDeckBySlugOnly(
