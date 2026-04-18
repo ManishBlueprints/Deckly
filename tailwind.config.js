@@ -14,6 +14,12 @@ export default {
           background: "hsl(var(--brand-neutral) / <alpha-value>)",
           card: "rgba(38, 38, 38, 0.7)", /* #262626 at 0.7 */
         },
+        // Semantic Aliases mapped to HSL Variables
+        "on-surface": "hsl(var(--foreground))",
+        "on-surface-variant": "hsl(var(--muted-foreground))",
+        "on-primary": "hsl(var(--primary-foreground))",
+        "outline-variant": "hsl(var(--border))",
+
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
@@ -45,13 +51,13 @@ export default {
           foreground: "hsl(var(--destructive-foreground))",
         },
         surface: {
-          lowest: "hsl(var(--surface-lowest, 0 0% 5.5%))",
-          low: "hsl(var(--surface-low, 0 0% 8.6%))",
-          card: "hsl(var(--surface-card, 0 0% 8.6%))",
-          container: "hsl(var(--surface-container, 0 0% 11%))",
-          high: "hsl(var(--surface-high, 0 0% 16.5%))",
-          highest: "hsl(var(--surface-highest, 0 0% 20.8%))",
-          bright: "hsl(var(--surface-bright, 0 0% 22.7%))",
+          lowest: "hsl(var(--surface-lowest, var(--background)))",
+          low: "hsl(var(--surface-low))",
+          card: "hsl(var(--surface-card))",
+          container: "hsl(var(--surface-container))",
+          high: "hsl(var(--surface-high))",
+          highest: "hsl(var(--surface-highest))",
+          bright: "hsl(var(--surface-bright))",
         },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
