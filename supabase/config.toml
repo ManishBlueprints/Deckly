@@ -370,3 +370,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/deno.json"
 entrypoint = "./functions/delete-account/index.ts"
+
+[functions.sign-deck-url]
+enabled = true
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/sign-deck-url/index.ts"

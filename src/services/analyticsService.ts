@@ -76,6 +76,11 @@ export const analyticsService = {
       const response = await fetch("/api/geo");
       if (!response.ok) throw new Error("Geo fetch failed");
       
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Geo endpoint did not return JSON");
+      }
+
       const data = await response.json();
       geoCache = {
         country: data.country || "Unknown",

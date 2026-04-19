@@ -1,5 +1,12 @@
 /// <reference types="vitest/globals" />
-import { getDeckPath, getDataRoomPath, getDeckShareUrl, getDataRoomShareUrl } from "./url";
+import {
+  getDeckPath,
+  getDataRoomPath,
+  getDeckShareUrl,
+  getDataRoomShareUrl,
+  getDeckPreviewPath,
+  getDataRoomPreviewPath,
+} from "./url";
 
 describe("url utilities", () => {
   describe("Path Generation", () => {
@@ -18,6 +25,14 @@ describe("url utilities", () => {
     it("encodes handle and slug in data room path", () => {
       // encodeURIComponent does not encode ! but encodes @
       expect(getDataRoomPath("manish!", "data@room")).toBe("/manish!/room/data%40room");
+    });
+
+    it("generates correct deck preview path", () => {
+      expect(getDeckPreviewPath("deck-123")).toBe("/preview/deck/deck-123");
+    });
+
+    it("generates correct data room preview path", () => {
+      expect(getDataRoomPreviewPath("room-123")).toBe("/preview/room/room-123");
     });
   });
 

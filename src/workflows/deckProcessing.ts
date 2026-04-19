@@ -50,6 +50,10 @@ export async function processPdfToImages(
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
+        // Ensure white background (PDF pages are usually white, but PDF.js renders on transparent by default)
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
         await page.render({
           canvasContext: context,
           viewport,
