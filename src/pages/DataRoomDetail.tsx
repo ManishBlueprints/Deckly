@@ -123,9 +123,15 @@ function DataRoomDetail() {
     }
     try {
       setIsUpdatingShareState(true);
-      const updated = await dataRoomService.publishDataRoom(room.id);
-      setRoom(updated);
-      const url = getDataRoomShareUrl(profile.handle, updated.slug);
+      let currentRoom = room;
+
+      // Only publish if not already public
+      if (!currentRoom.is_public) {
+        currentRoom = await dataRoomService.publishDataRoom(room.id);
+        setRoom(currentRoom);
+      }
+
+      const url = getDataRoomShareUrl(profile.handle, currentRoom.slug);
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -354,10 +360,7 @@ function DataRoomDetail() {
             label="Created On"
             value={formatDate(room.created_at)}
           />
-          <div
-            onClick={() => void handleCopyLink()}
-            className="p-4 bg-surface-card border border-[#222] rounded-lg group cursor-pointer hover:border-[#333] transition-all"
-          >
+          <div className="p-4 bg-surface-card border border-[#222] rounded-lg group transition-all">
             <div className="flex items-center gap-2 text-slate-500 mb-1 group-hover:text-deckly-primary transition-colors">
               <LinkIcon size={14} />
               <span className="text-[10px] font-medium">Access Link</span>

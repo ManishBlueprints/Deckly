@@ -5,10 +5,12 @@ import { AlertCircle, ArrowLeft, ChevronRight, FileText } from "lucide-react";
 import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
 import DeckViewer from "../components/viewer/DeckViewer";
 import { dataRoomService } from "../services/dataRoomService";
+import { useAuth } from "../contexts/AuthContext";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
 
 function OwnerDataRoomPreview() {
   const { roomId } = useParams<{ roomId: string }>();
+  const { session } = useAuth();
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
@@ -43,7 +45,10 @@ function OwnerDataRoomPreview() {
           setLoading(true);
           setError(null);
         }
-        const roomData = await dataRoomService.getDataRoomById(roomId);
+        const roomData = await dataRoomService.getDataRoomById(
+          roomId,
+          session?.user?.id,
+        );
         if (!roomData) {
           if (isMounted) setError("Data room not found.");
           return;
@@ -68,7 +73,7 @@ function OwnerDataRoomPreview() {
     return () => {
       isMounted = false;
     };
-  }, [roomId]);
+  }, [roomId, session?.user?.id]);
 
   return (
     <div className="fixed inset-0 bg-[#0d0d0d] flex flex-col items-stretch overflow-hidden">
