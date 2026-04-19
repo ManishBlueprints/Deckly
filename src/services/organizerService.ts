@@ -607,15 +607,15 @@ export const organizerService = {
         if (unresolvedDeckIds.length > 0) {
           const { data: publicDecks, error: publicDecksError } = await supabase
             .rpc("get_decks_public")
-            .select("id, title, slug, file_type, status, description, user_id, user_handle");
+            .select("id, title, slug, file_type, status, description, user_id, user_handle")
+            .in("id", unresolvedDeckIds);
 
           if (publicDecksError) throw publicDecksError;
 
           ((Array.isArray(publicDecks) ? publicDecks : []) as SavedDeckMeta[])
-            .filter((deck: SavedDeckMeta) => unresolvedDeckIds.includes(deck.id))
             .forEach((deck: SavedDeckMeta) => {
             deckMap.set(deck.id, deck as SavedDeckMeta);
-            });
+          });
         }
       }
 
