@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { motion, useScroll, useTransform, Variants } from "framer-motion";
 import screen from "../assets/screen.png";
 import decklyLogo from "../assets/Deckly.png";
@@ -132,44 +132,89 @@ const valueFeatures: ValueFeature[] = [
 export default function Landing() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="bg-background text-on-surface selection:bg-primary selection:text-on-primary min-h-screen font-['Manrope'] overflow-hidden">
-      {/* TopNavBar -> Industrial Mesh */}
-      <nav className="fixed top-0 left-0 w-full z-50 bg-[#0e0e0e]/90 backdrop-blur-md border-b border-white/10 flex justify-between items-center px-6 md:px-12 py-5">
-        <div className="flex items-center gap-4">
-          <div className="p-2.5 bg-primary/5 border border-primary/10">
-            <img
-              src={decklyLogo}
-              alt="Deckly Logo"
-              className="h-5 w-auto"
-              width="20"
-              height="20"
-              decoding="async"
-            />
-          </div>
-          <span className="text-xl font-black tracking-tighter text-white uppercase">
-            Deckly
-          </span>
-        </div>
+      {/* TopNavBar -> Floating Glassmorphic Header */}
+      <nav className="fixed top-0 left-0 w-full z-50 pointer-events-none">
+        <div className="pointer-events-auto border border-white/10 mx-4 md:mx-8 mt-4 md:mt-6 max-w-[1440px] lg:mx-auto bg-background/50 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+          <div className="flex justify-between items-center px-5 md:px-12 py-4 md:py-5">
+            <div className="flex items-center gap-2 md:gap-3">
+              <img
+                src={decklyLogo}
+                alt="Deckly Logo"
+                className="h-8 md:h-9 w-auto"
+                decoding="async"
+              />
+              <span className="text-lg md:text-xl font-bold tracking-tighter text-white ">
+                deckly
+              </span>
+            </div>
 
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate("/login")}
-            className="px-6 py-2 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors"
+            {/* Desktop buttons */}
+            <div className="hidden md:flex items-center gap-4">
+              <button
+                onClick={() => navigate("/login")}
+                className="px-6 py-2 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => navigate("/signup")}
+                className="bg-primary text-on-primary px-8 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all"
+              >
+                Get Started
+              </button>
+            </div>
+
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5"
+              aria-label="Toggle menu"
+            >
+              <span
+                className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "rotate-45 translate-y-[4px]" : ""}`}
+              />
+              <span
+                className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "opacity-0" : ""}`}
+              />
+              <span
+                className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "-rotate-45 -translate-y-[4px]" : ""}`}
+              />
+            </button>
+          </div>
+
+          {/* Mobile dropdown menu */}
+          <div
+            className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${mobileMenuOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"}`}
           >
-            Sign In
-          </button>
-          <button
-            onClick={() => navigate("/signup")}
-            className="bg-primary text-on-primary px-8 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all"
-          >
-            Get Started
-          </button>
+            <div className="flex flex-col gap-2 px-5 pb-5 border-t border-white/10 pt-4">
+              <button
+                onClick={() => {
+                  navigate("/login");
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-3 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary hover:bg-white/[0.02] transition-colors"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => {
+                  navigate("/signup");
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full bg-primary text-on-primary px-4 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all text-center"
+              >
+                Get Started
+              </button>
+            </div>
+          </div>
         </div>
       </nav>
 
-      <main className="relative pt-48 pb-32">
+      <main className="relative pt-28 sm:pt-40 lg:pt-48 pb-20 md:pb-32">
         {/* Subtle Background Grid */}
         <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_#fff_1px,_transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
 
@@ -182,8 +227,8 @@ export default function Landing() {
         </div>
 
         {/* Hero Section -> Industrial Mesh */}
-        <section className="px-10 max-w-[1440px] mx-auto relative z-10">
-          <div className="flex flex-col lg:flex-row items-center gap-20">
+        <section className="px-5 md:px-10 max-w-[1440px] mx-auto relative z-10">
+          <div className="flex flex-col lg:flex-row items-center gap-10 md:gap-20">
             <motion.div
               className="lg:w-1/2"
               initial="hidden"
@@ -197,29 +242,32 @@ export default function Landing() {
               </motion.div>
               <motion.h1
                 variants={fadeInUp}
-                className="text-5xl md:text-7xl leading-[0.95] font-black tracking-tighter mb-8 text-white uppercase"
+                className="text-4xl sm:text-5xl md:text-7xl leading-[0.95] font-black tracking-tighter mb-8 text-white uppercase"
               >
                 Share your pitch. <br />
                 <span className="text-primary">Know who cares.</span>
               </motion.h1>
               <motion.p
                 variants={fadeInUp}
-                className="text-lg md:text-xl text-on-surface-variant mb-10 max-w-xl font-medium leading-relaxed opacity-80"
+                className="text-base md:text-lg lg:text-xl text-on-surface-variant mb-8 md:mb-10 max-w-xl font-medium leading-relaxed opacity-80"
               >
                 Deckly helps founders track real investor interest and helps
                 investors manage deal flow — without inbox chaos.
               </motion.p>
-              <motion.div variants={fadeInUp} className="flex flex-wrap gap-4">
+              <motion.div
+                variants={fadeInUp}
+                className="flex flex-col sm:flex-row gap-3 md:gap-4"
+              >
                 <button
                   onClick={() => navigate("/signup")}
-                  className="bg-primary text-on-primary px-8 py-4 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
+                  className="bg-primary text-on-primary px-6 md:px-8 py-3.5 md:py-4 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   Get Started Free
                   <ArrowUpRight size={16} />
                 </button>
                 <button
                   onClick={() => navigate("/login")}
-                  className="border border-white/10 text-white px-8 py-4 font-black text-xs uppercase tracking-widest hover:bg-white/[0.02] transition-all"
+                  className="border border-white/10 text-white px-6 md:px-8 py-3.5 md:py-4 font-black text-xs uppercase tracking-widest hover:bg-white/[0.02] transition-all w-full sm:w-auto text-center"
                 >
                   See How It Works
                 </button>
@@ -263,7 +311,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="px-10 max-w-[1440px] mx-auto mb-20 mt-32 relative overflow-hidden">
+        <section className="px-5 md:px-10 max-w-[1440px] mx-auto mb-12 md:mb-20 mt-20 md:mt-32 relative overflow-hidden">
           {/* Subtle Industrial Dot Pattern */}
           <div className="absolute inset-0 opacity-[0.12] bg-[radial-gradient(#fff_1px,_transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
@@ -274,7 +322,7 @@ export default function Landing() {
             viewport={{ once: true, amount: 0.2 }}
             variants={fadeInUp}
           >
-            <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-white max-w-2xl uppercase">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-white max-w-2xl uppercase">
               Built for how fundraising <br />
               <span className="text-primary">actually works.</span>
             </h2>
@@ -291,7 +339,7 @@ export default function Landing() {
               <motion.div
                 key={i}
                 variants={fadeInUp}
-                className="p-10 border-r border-b border-white/10 group hover:bg-white/[0.01] transition-colors duration-300"
+                className="p-6 md:p-10 border-r border-b border-white/10 group hover:bg-white/[0.01] transition-colors duration-300"
               >
                 <div className="flex flex-col gap-6">
                   <span className="material-symbols-outlined text-primary text-3xl font-bold">
@@ -312,16 +360,16 @@ export default function Landing() {
         </section>
 
         {/* Split Perspective Section -> Industrial Mesh */}
-        <section className="bg-background py-24 px-6 md:px-10 border-t border-white/5">
+        <section className="bg-background py-16 md:py-24 px-5 md:px-10 border-t border-white/5">
           <div className="max-w-[1440px] mx-auto">
             <motion.div
-              className="text-center mb-24"
+              className="text-center mb-12 md:mb-24"
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, amount: 0.2 }}
               variants={fadeInUp}
             >
-              <h2 className="text-5xl md:text-7xl font-black tracking-tighter text-white">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black tracking-tighter text-white">
                 One workspace. <br />
                 <span className="text-on-surface-variant/40">
                   Two perspectives.
@@ -339,22 +387,22 @@ export default function Landing() {
               {/* For Founders */}
               <motion.div
                 variants={fadeInUp}
-                className="p-12 md:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.01] transition-colors duration-500"
+                className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.01] transition-colors duration-500"
               >
-                <div className="mb-12 flex items-center gap-6">
-                  <div className="w-16 h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)]">
+                <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)]">
                     <span
-                      className="material-symbols-outlined text-3xl"
+                      className="material-symbols-outlined text-2xl md:text-3xl"
                       style={{ fontVariationSettings: "'FILL' 1" }}
                     >
                       rocket_launch
                     </span>
                   </div>
-                  <h3 className="text-4xl font-black tracking-tight text-white uppercase">
+                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase">
                     For Founders
                   </h3>
                 </div>
-                <ul className="space-y-10">
+                <ul className="space-y-6 md:space-y-10">
                   {[
                     {
                       title: "Share with a single link",
@@ -369,15 +417,18 @@ export default function Landing() {
                       desc: "Update slides without breaking links already in investor hands.",
                     },
                   ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-6 group">
+                    <li
+                      key={i}
+                      className="flex items-start gap-4 md:gap-6 group"
+                    >
                       <span
-                        className="material-symbols-outlined text-primary text-3xl font-bold"
+                        className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold"
                         style={{ fontVariationSettings: "'FILL' 1" }}
                       >
                         check_circle
                       </span>
                       <div>
-                        <p className="text-xl font-bold text-white mb-2 leading-none uppercase tracking-tight">
+                        <p className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 leading-none uppercase tracking-tight">
                           {item.title}
                         </p>
                         <p className="text-on-surface-variant text-base font-medium opacity-80">
@@ -392,22 +443,22 @@ export default function Landing() {
               {/* For Investors */}
               <motion.div
                 variants={fadeInUp}
-                className="p-12 md:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.01] transition-colors duration-500"
+                className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.01] transition-colors duration-500"
               >
-                <div className="mb-12 flex items-center gap-6">
-                  <div className="w-16 h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)]">
+                <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)]">
                     <span
-                      className="material-symbols-outlined text-3xl"
+                      className="material-symbols-outlined text-2xl md:text-3xl"
                       style={{ fontVariationSettings: "'FILL' 1" }}
                     >
                       account_balance
                     </span>
                   </div>
-                  <h3 className="text-4xl font-black tracking-tight text-white uppercase">
+                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase">
                     For Investors
                   </h3>
                 </div>
-                <ul className="space-y-10">
+                <ul className="space-y-6 md:space-y-10">
                   {[
                     {
                       title: "Save and organize decks",
@@ -422,15 +473,18 @@ export default function Landing() {
                       desc: "Never lose context on a startup with custom venture-focused tags.",
                     },
                   ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-6 group">
+                    <li
+                      key={i}
+                      className="flex items-start gap-4 md:gap-6 group"
+                    >
                       <span
-                        className="material-symbols-outlined text-primary text-3xl font-bold"
+                        className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold"
                         style={{ fontVariationSettings: "'FILL' 1" }}
                       >
                         check_circle
                       </span>
                       <div>
-                        <p className="text-xl font-bold text-white mb-2 leading-none uppercase tracking-tight">
+                        <p className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 leading-none uppercase tracking-tight">
                           {item.title}
                         </p>
                         <p className="text-on-surface-variant text-base font-medium opacity-80">
@@ -448,11 +502,11 @@ export default function Landing() {
         {/* Features Section -> Dynamic Depth Transition Stack */}
         <section
           ref={containerRef}
-          className="relative py-24 px-6 md:px-10 max-w-[1440px] mx-auto min-h-[250vh]"
+          className="relative py-16 md:py-24 px-5 md:px-10 max-w-[1440px] mx-auto min-h-[150vh] md:min-h-[250vh]"
         >
-          <div className="flex flex-col lg:flex-row gap-20 items-start">
+          <div className="flex flex-col lg:flex-row gap-10 md:gap-20 items-start">
             {/* Left Content: Sticky Title & Progress */}
-            <div className="lg:w-[40%] lg:sticky lg:top-40 h-fit mb-20 lg:mb-0">
+            <div className="lg:w-[40%] lg:sticky lg:top-28 md:lg:top-40 h-fit mb-16 lg:mb-0">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -466,14 +520,14 @@ export default function Landing() {
                   </span>
                 </div>
 
-                <h2 className="text-6xl md:text-7xl font-bold tracking-tight mb-8 text-white leading-tight">
+                <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 md:mb-8 text-white leading-tight">
                   Everything you need <br />
                   <span className="text-on-surface-variant/40">
                     for your fundraise.
                   </span>
                 </h2>
 
-                <p className="text-xl text-on-surface-variant leading-relaxed font-medium">
+                <p className="text-base md:text-xl text-on-surface-variant leading-relaxed font-medium">
                   A heavy-duty platform for deal management. Stored, tracked,
                   and closed in one place.
                 </p>
@@ -481,7 +535,7 @@ export default function Landing() {
             </div>
 
             {/* Right Side: Animated Card Stack */}
-            <div className="lg:w-[60%] w-full flex flex-col gap-20">
+            <div className="lg:w-[60%] w-full flex flex-col gap-20 relative">
               {features.map((feature, i) => (
                 <FeatureCard key={i} feature={feature} index={i} />
               ))}
@@ -490,17 +544,17 @@ export default function Landing() {
         </section>
 
         {/* Workflow Section -> Industrial Mesh */}
-        <section className="py-24 px-10 max-w-[1440px] mx-auto relative group overflow-hidden">
+        <section className="py-16 md:py-24 px-5 md:px-10 max-w-[1440px] mx-auto relative group overflow-hidden">
           {/* Subtle Vertical Dot Pattern - Visibility Increased */}
           <div className="absolute inset-0 opacity-[0.12] bg-[radial-gradient(#fff_1px,_transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
           <motion.div
-            className="text-center mb-24 relative z-10"
+            className="text-center mb-12 md:mb-24 relative z-10"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
             variants={fadeInUp}
           >
-            <h2 className="text-3xl lg:text-5xl font-black tracking-tighter text-white uppercase leading-[0.95]">
+            <h2 className="text-2xl sm:text-3xl lg:text-5xl font-black tracking-tighter text-white uppercase leading-[0.95]">
               From first view <br />
               <span className="text-on-surface-variant/40">
                 to final decision
@@ -518,7 +572,7 @@ export default function Landing() {
               <motion.div
                 key={i}
                 variants={fadeInUp}
-                className="p-8 md:p-12 border-r border-b border-white/10 group hover:bg-white/[0.01] transition-colors duration-500 min-h-[360px] flex flex-col justify-between"
+                className="p-6 md:p-8 lg:p-12 border-r border-b border-white/10 group hover:bg-white/[0.01] transition-colors duration-500 min-h-[280px] md:min-h-[360px] flex flex-col justify-between"
               >
                 <div className="relative">
                   <div className="text-[5rem] font-black text-white/[0.02] absolute -top-10 -left-6 pointer-events-none select-none">
@@ -531,10 +585,10 @@ export default function Landing() {
                 </div>
 
                 <div className="relative z-10">
-                  <h4 className="text-3xl font-bold mb-6 text-white tracking-tight">
+                  <h4 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 text-white tracking-tight">
                     {item.title}
                   </h4>
-                  <p className="text-on-surface-variant leading-relaxed text-lg font-medium opacity-80">
+                  <p className="text-on-surface-variant leading-relaxed text-base md:text-lg font-medium opacity-80">
                     {item.desc}
                   </p>
                 </div>
@@ -544,10 +598,10 @@ export default function Landing() {
         </section>
 
         {/* Value / Features Bullet Section -> Industrial Mesh */}
-        <section className="py-40 relative overflow-hidden border-t border-white/10">
+        <section className="py-20 md:py-40 relative overflow-hidden border-t border-white/10">
           {/* Subtle Industrial Dot Pattern */}
           <div className="absolute inset-0 opacity-[0.12] bg-[radial-gradient(#fff_1px,_transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-          <div className="px-10 max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 relative z-10 items-center">
+          <div className="px-5 md:px-10 max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 md:gap-24 relative z-10 items-center">
             <motion.div
               initial="hidden"
               whileInView="visible"
@@ -555,13 +609,13 @@ export default function Landing() {
               variants={fadeInUp}
               className="max-w-xl"
             >
-              <h2 className="text-5xl md:text-6xl font-black tracking-tighter mb-8 leading-[1.1] text-white">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-6 md:mb-8 leading-[1.1] text-white">
                 Simple, transparent, <br />
                 <span className="text-on-surface-variant/40">
                   and built to scale.
                 </span>
               </h2>
-              <p className="text-on-surface-variant text-xl leading-relaxed mb-12 font-medium">
+              <p className="text-on-surface-variant text-base md:text-xl leading-relaxed mb-8 md:mb-12 font-medium">
                 Fundraising is hard enough. Your tools should be the easiest
                 part of your day. We built Deckly to be invisible, fast, and
                 remarkably powerful.
@@ -588,11 +642,11 @@ export default function Landing() {
                 <motion.div
                   key={i}
                   variants={fadeInUp}
-                  className="flex items-center gap-6 p-8 md:p-10 border-r border-b border-white/10 group hover:bg-white/[0.01] transition-colors duration-300 relative overflow-hidden"
+                  className="flex items-center gap-4 md:gap-6 p-5 md:p-8 lg:p-10 border-r border-b border-white/10 group hover:bg-white/[0.01] transition-colors duration-300 relative overflow-hidden"
                 >
-                  <div className="w-16 h-16 bg-background border border-white/10 flex items-center justify-center shrink-0 group-hover:border-primary/50 transition-colors duration-300 relative z-10">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-background border border-white/10 flex items-center justify-center shrink-0 group-hover:border-primary/50 transition-colors duration-300 relative z-10">
                     <span
-                      className="material-symbols-outlined text-primary text-2xl group-hover:scale-110 transition-transform duration-300"
+                      className="material-symbols-outlined text-primary text-xl md:text-2xl group-hover:scale-110 transition-transform duration-300"
                       style={{ fontVariationSettings: "'FILL' 1" }}
                     >
                       {item.icon}
@@ -600,7 +654,7 @@ export default function Landing() {
                   </div>
 
                   <div className="relative z-10">
-                    <h5 className="font-bold text-xl mb-1 text-white group-hover:text-primary transition-colors duration-300">
+                    <h5 className="font-bold text-lg md:text-xl mb-1 text-white group-hover:text-primary transition-colors duration-300">
                       {item.title}
                     </h5>
                     <p className="text-base text-on-surface-variant leading-relaxed font-medium opacity-80">
@@ -614,9 +668,9 @@ export default function Landing() {
         </section>
 
         {/* Final CTA -> Technical Blueprint Node */}
-        <section className="py-24 px-6 md:px-10 max-w-[1440px] mx-auto relative">
+        <section className="py-16 md:py-24 px-5 md:px-10 max-w-[1440px] mx-auto relative">
           <motion.div
-            className="relative w-full border border-white/10 p-12 md:p-24 text-center bg-[#0e0e0e] group overflow-hidden"
+            className="relative w-full border border-white/10 p-8 md:p-12 lg:p-24 text-center bg-[#0e0e0e] group overflow-hidden"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
@@ -663,13 +717,13 @@ export default function Landing() {
                 </span>
               </div>
 
-              <h2 className="text-4xl md:text-6xl font-black tracking-tighter mb-8 leading-[0.95] text-white uppercase">
+              <h2 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter mb-6 md:mb-8 leading-[0.95] text-white uppercase">
                 Start your fundraise <br />
                 <span className="text-on-surface-variant/40">
                   with total clarity.
                 </span>
               </h2>
-              <p className="text-lg md:text-xl text-on-surface-variant mb-12 font-medium max-w-2xl leading-relaxed opacity-80">
+              <p className="text-base md:text-lg lg:text-xl text-on-surface-variant mb-8 md:mb-12 font-medium max-w-2xl leading-relaxed opacity-80">
                 Share smarter. Track better. Close faster. Don't let your
                 perfect pitch get lost in their inbox.
               </p>
@@ -696,18 +750,18 @@ export default function Landing() {
       </main>
 
       {/* Footer -> Synced with Terms Style */}
-      <footer className="border-t border-white/5 mt-10 relative overflow-hidden pt-24 pb-8 bg-gradient-to-b from-[#0e0e0e] via-[#0e0e0e] to-[#54e98a]/10">
+      <footer className="border-t border-white/5 mt-10 relative overflow-hidden pt-12 md:pt-24 pb-8 bg-gradient-to-b from-[#0e0e0e] via-[#0e0e0e] to-[#54e98a]/10">
         {/* Subtle Background Pattern & Glow */}
         <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_center,_#54e98a_1px,_transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#54e98a]/[0.08] blur-[120px] pointer-events-none rounded-t-[100%]" />
 
         <div className="max-w-6xl mx-auto px-6 relative z-10">
           {/* Top CTA Section */}
-          <div className="max-w-2xl mb-24">
+          <div className="max-w-2xl mb-12 md:mb-24">
             <div className="text-[#54e98a] text-[10px] uppercase font-bold tracking-widest mb-4 flex items-center gap-2">
               <span className="text-xl leading-none -mt-1">+</span> Contact Us
             </div>
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tighter text-white leading-tight">
+            <h2 className="text-2xl md:text-3xl lg:text-5xl font-bold tracking-tighter text-white leading-tight">
               A securing workspace for,{" "}
               <span className="text-slate-500">
                 founders and investors workflows.
@@ -762,7 +816,7 @@ export default function Landing() {
               <img
                 src={decklyLogo}
                 alt="Deckly"
-                className="w-[12vw] h-[12vw] object-contain hidden sm:block"
+                className="w-[18vw] sm:w-[12vw] h-[18vw] sm:h-[12vw] object-contain"
               />
               <h1 className="text-[14vw] sm:text-[12vw] leading-none font-bold tracking-tighter text-white select-none lowercase">
                 deckly
@@ -830,7 +884,7 @@ function FeatureCard({ feature, index }: FeatureCardProps) {
       }}
       className="sticky w-full mb-24 last:mb-0"
     >
-      <div className="p-6 md:p-8 bg-surface-container border border-white/5 rounded-none shadow-[0_50px_100px_rgba(0,0,0,0.8)] group relative overflow-hidden flex flex-col min-h-[420px] justify-center transition-all duration-500 hover:border-primary/20">
+      <div className="p-5 md:p-6 lg:p-8 bg-surface-container border border-white/5 rounded-none shadow-[0_50px_100px_rgba(0,0,0,0.8)] group relative overflow-hidden flex flex-col min-h-[280px] md:min-h-[420px] justify-center transition-all duration-500 hover:border-primary/20">
         {/* Floating Number Accent */}
         <div className="absolute top-6 right-6 text-[8rem] font-black text-white/[0.02] pointer-events-none select-none group-hover:text-primary/[0.03] transition-colors duration-700">
           0{index + 1}
@@ -855,10 +909,7 @@ function FeatureCard({ feature, index }: FeatureCardProps) {
 
           <div className="mt-8 flex items-center gap-4 text-primary font-black text-[10px] transition-all uppercase tracking-widest">
             Read documentation{" "}
-            <ArrowUpRight
-              size={14}
-              className="transition-all"
-            />
+            <ArrowUpRight size={14} className="transition-all" />
           </div>
         </div>
 
