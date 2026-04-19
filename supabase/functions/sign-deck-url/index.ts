@@ -24,72 +24,90 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { slug, password, storage_path, image_paths = [] } = await req.json();
+    const { slug, password, storage_path, image_paths = [], room_slug } = await req.json();
 
-    if (!slug || !storage_path) {
+    if ((!slug && !room_slug)) {
       return new Response(
-        JSON.stringify({ error: "slug and storage_path are required" }),
+        JSON.stringify({ error: "slug or room_slug is required" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("Missing environment variables: SUPABASE_URL or SUPABASE_ANON_KEY");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
     // Use the anon client to call get_deck_payload — this re-validates
     // the slug/password/expiry before we issue a signed URL.
-    const anonClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-    );
+    const anonClient = createClient(supabaseUrl, supabaseAnonKey);
 
-    const { data: rpcData, error: rpcError } = await anonClient.rpc("get_deck_payload", {
-      p_slug: slug,
-      p_password: password ?? null,
-    });
-
-    if (rpcError || !rpcData) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
-    }
+    const validPaths = new Set<string>();
 
     interface DeckPayload {
       storage_path?: string;
       pages?: Array<{ image_url: string } | string>;
     }
-    const payload = rpcData as DeckPayload;
-    const canonicalPath = payload.storage_path;
-    
-    // Create a set of valid storage paths for this deck based on the DB record.
-    // This includes the main PDF and all processed slide images.
-    const validPaths = new Set<string>();
-    if (canonicalPath) validPaths.add(canonicalPath);
-    
-    const pages = Array.isArray(payload.pages) ? payload.pages : [];
-    pages.forEach(page => {
-      // The DB stores image_url (the public URL). We need to extract the storage path
-      // to verify it. Since we don't have the extractStoragePath helper here, 
-      // we'll use a simple marker search.
-      const url = typeof page === 'string' ? page : page.image_url;
-      if (url && typeof url === 'string') {
-        const marker = "/storage/v1/object/public/decks/";
-        const idx = url.indexOf(marker);
-        if (idx !== -1) {
-          validPaths.add(url.substring(idx + marker.length));
-        }
-      }
-    });
 
-    if (!canonicalPath) {
-      return new Response(
-        JSON.stringify({ error: "No storage path returned by RPC" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+    if (room_slug) {
+      // Data room mode
+      const { data: rpcData, error: rpcError } = await anonClient.rpc("get_data_room_payload", {
+        p_slug: room_slug,
+        p_password: password ?? null,
+      });
+
+      if (rpcError || !rpcData) {
+        return new Response(JSON.stringify({ error: "Unauthorized Data Room" }), { status: 403, headers: { "Content-Type": "application/json" } });
+      }
+
+      const payloads = rpcData as DeckPayload[];
+      payloads.forEach(payload => {
+        if (payload.storage_path) validPaths.add(payload.storage_path);
+        (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
+          const url = typeof page === 'string' ? page : page.image_url;
+          if (url && typeof url === 'string') {
+            const marker = "/storage/v1/object/public/decks/";
+            const idx = url.indexOf(marker);
+            if (idx !== -1) validPaths.add(url.substring(idx + marker.length));
+          }
+        });
+      });
+    } else {
+      // Individual deck mode
+      const { data: rpcData, error: rpcError } = await anonClient.rpc("get_deck_payload", {
+        p_slug: slug,
+        p_password: password ?? null,
+      });
+
+      if (rpcError || !rpcData) {
+        return new Response(JSON.stringify({ error: "Unauthorized Deck" }), { status: 403, headers: { "Content-Type": "application/json" } });
+      }
+
+      const payload = rpcData as DeckPayload;
+      if (payload.storage_path) validPaths.add(payload.storage_path);
+      (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
+        const url = typeof page === 'string' ? page : page.image_url;
+        if (url && typeof url === 'string') {
+          const marker = "/storage/v1/object/public/decks/";
+          const idx = url.indexOf(marker);
+          if (idx !== -1) validPaths.add(url.substring(idx + marker.length));
+        }
+      });
     }
 
-    // Reject if any requested path (main or image) is not authorized for this deck.
-    const requestedPaths = [storage_path, ...image_paths];
+    // Reject if any requested path (main or image) is not authorized for this session.
+    const requestedPaths = [];
+    if (storage_path) requestedPaths.push(storage_path);
+    requestedPaths.push(...image_paths);
+
     for (const path of requestedPaths) {
-      if (!validPaths.has(path)) {
+      if (path && !validPaths.has(path)) {
          return new Response(
           JSON.stringify({ error: `Forbidden: path mismatch for ${path}` }),
           { status: 403, headers: { "Content-Type": "application/json" } }
@@ -98,10 +116,16 @@ Deno.serve(async (req: Request) => {
     }
 
     // Auth passed — use service_role to generate signs for ALL requested paths.
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    if (!supabaseServiceKey) {
+      console.error("Missing SUPABASE_SERVICE_ROLE_KEY");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const EXPIRES_IN_SECONDS = 3600; // 1 hour
 
@@ -118,11 +142,34 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Map result: storage_path is always at index 0, images follow.
-    const signedMain = signedData.find(d => d.path === storage_path)?.signedUrl;
-    const signedImages = (image_paths as string[]).map((path: string) => {
-      return signedData.find(d => d.path === path)?.signedUrl || null;
-    });
+    const transformUrl = (url: string | null | undefined) => {
+      if (!url) return url;
+      try {
+        const urlObj = new URL(url);
+        const isInternalHost = urlObj.hostname === "kong" || 
+                              urlObj.hostname.includes("supabase_") || 
+                              urlObj.hostname.includes("storage");
+
+        if (isInternalHost || supabaseUrl.includes("127.0.0.1") || supabaseUrl.includes("localhost") || supabaseUrl.includes("kong")) {
+          const original = url;
+          urlObj.protocol = "http:";
+          urlObj.hostname = "localhost";
+          urlObj.port = "54321";
+          const transformed = urlObj.toString();
+          console.log(`[Local Rewrite] ${original} -> ${transformed}`);
+          return transformed;
+        }
+      } catch (e) {
+        console.error("Failed to parse signed URL:", e);
+      }
+      return url;
+    };
+
+    const signedMain = storage_path ? transformUrl(signedData.find(d => d.path === storage_path)?.signedUrl) : null;
+    const signedImages = (image_paths as string[]).map((path: string) => ({
+      path,
+      signedUrl: transformUrl(signedData.find(d => d.path === path)?.signedUrl) || null,
+    }));
 
     return new Response(
       JSON.stringify({

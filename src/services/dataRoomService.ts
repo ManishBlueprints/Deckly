@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
 import { withRetry } from "../utils/resilience";
+import { extractStoragePath } from "./deckService.shared";
 
 export const dataRoomService = {
   // ── CRUD ────────────────────────────────────────────────
@@ -74,7 +75,7 @@ export const dataRoomService = {
   ): Promise<DataRoom | null> {
     return withRetry(async () => {
       const { data, error } = await supabase
-        .from("data_rooms_public")
+        .rpc("get_data_rooms_public")
         .select("*")
         .eq("slug", slug)
         .eq("user_handle", handle)
@@ -131,10 +132,56 @@ export const dataRoomService = {
 
       if (error) throw error;
 
-      return (data || []).map((d: DataRoomDocument & { deck?: Deck | null }) => ({
+      const documents = (data || []).map((d: DataRoomDocument & { deck?: Deck | null }) => ({
         ...d,
         deck: d.deck || undefined,
       })) as DataRoomDocument[];
+
+      // Hydrate signed URLs for the owner
+      const allPaths: string[] = [];
+      documents.forEach(doc => {
+        if (!doc.deck) return;
+        const mainPath = extractStoragePath(doc.deck.file_url, "decks");
+        if (mainPath) allPaths.push(mainPath);
+        
+        const pages = Array.isArray(doc.deck.pages) ? doc.deck.pages : [];
+        pages.forEach(p => {
+          const pPath = extractStoragePath(p.image_url, "decks");
+          if (pPath) allPaths.push(pPath);
+        });
+      });
+
+      if (allPaths.length > 0) {
+        const { data: signedUrls, error: signError } = await supabase.storage
+          .from("decks")
+          .createSignedUrls(allPaths, 3600);
+        
+        if (signError) {
+          console.error("[dataRoomService] Failed to sign URLs for owner:", signError);
+        } else if (signedUrls) {
+          const urlMap = new Map(signedUrls.map(s => [s.path, s.signedUrl]));
+          
+          documents.forEach(doc => {
+            if (!doc.deck) return;
+            const mainPath = extractStoragePath(doc.deck.file_url, "decks");
+            if (mainPath && urlMap.has(mainPath)) {
+              doc.deck.file_url = urlMap.get(mainPath)!;
+            }
+            
+            if (Array.isArray(doc.deck.pages)) {
+              doc.deck.pages = doc.deck.pages.map(p => {
+                const pPath = extractStoragePath(p.image_url, "decks");
+                if (pPath && urlMap.has(pPath)) {
+                  return { ...p, image_url: urlMap.get(pPath)! };
+                }
+                return p;
+              });
+            }
+          });
+        }
+      }
+
+      return documents;
     });
   },
 
@@ -381,19 +428,70 @@ export const dataRoomService = {
   },
 
   async getDataRoomPayload(slug: string, password?: string): Promise<Deck[]> {
-    const { data, error } = await supabase.rpc("get_data_room_payload", {
+    const { data: rawData, error } = await supabase.rpc("get_data_room_payload", {
       p_slug: slug,
       p_password: password || null,
     });
     if (error) throw error;
-    return data as Deck[];
+
+    const decks = rawData as (Deck & { storage_path?: string })[];
+
+    // Hydrate signed URLs for guests via the sign-deck-url Edge Function
+    const allPaths: string[] = [];
+    decks.forEach(deck => {
+      // Collect slide image paths. We don't batch fetch the main file URLs here
+      // since the viewer mostly needs the slides, but we could if needed.
+      const pages = Array.isArray(deck.pages) ? deck.pages : [];
+      pages.forEach(p => {
+        const pPath = extractStoragePath(p.image_url, "decks");
+        if (pPath) allPaths.push(pPath);
+      });
+    });
+
+    if (allPaths.length > 0) {
+      try {
+        const { data: fnData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
+          body: { 
+            room_slug: slug, 
+            password: password ?? null, 
+            image_paths: allPaths 
+          },
+        });
+
+        if (!fnError && fnData?.signed_pages) {
+          type SignedPageEntry = { path: string; signedUrl: string | null };
+          const signedUrlMap = new Map<string, string>();
+          const signedPages: unknown[] = Array.isArray(fnData.signed_pages) ? fnData.signed_pages : [];
+          
+          signedPages.forEach((signed: any) => {
+            if (signed?.path && signed?.signedUrl) {
+              signedUrlMap.set(signed.path, signed.signedUrl);
+            }
+          });
+
+          decks.forEach(deck => {
+            if (Array.isArray(deck.pages)) {
+              deck.pages = deck.pages.map(p => {
+                const path = extractStoragePath(p.image_url, "decks");
+                const signedUrl = path ? signedUrlMap.get(path) : null;
+                return signedUrl ? { ...p, image_url: signedUrl } : p;
+              });
+            }
+          });
+        }
+      } catch (err) {
+        console.error("[dataRoomService] sign-deck-url invocation failed:", err);
+      }
+    }
+
+    return decks;
   },
 
   async getDataRoomBySlugOnly(
     slug: string,
   ): Promise<{ handle: string; slug: string } | null> {
     const { data, error } = await supabase
-      .from("data_rooms_public")
+      .rpc("get_data_rooms_public")
       .select("user_handle, slug")
       .eq("slug", slug)
       .limit(1)

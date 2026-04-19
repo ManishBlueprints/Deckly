@@ -253,7 +253,7 @@ const deckCrudService = {
 const deckPublicService = {
   async getDeckByHandleAndSlug(handle: string, slug: string): Promise<Deck> {
     const { data, error } = await supabase
-      .from("decks_public")
+      .rpc("get_decks_public")
       .select("*")
       .eq("slug", slug)
       .eq("user_handle", handle)
@@ -304,14 +304,37 @@ const deckPublicService = {
       if (fnError) throw fnError;
 
       if (fnData?.signed_url) {
-        // Create a lookup map for faster, robust path-based URL replacement
+        type SignedPageEntry = { path: string; signedUrl: string | null };
         const signedUrlMap = new Map<string, string>();
-        imagePaths.forEach((path, idx) => {
-          const signed = fnData.signed_pages?.[idx];
-          if (signed) signedUrlMap.set(path, signed);
-        });
+        const signedPages: unknown[] = Array.isArray(fnData.signed_pages) ? fnData.signed_pages : [];
 
-        const signedPages = (payload.pages || []).map((page) => {
+        if (
+          signedPages.length > 0 &&
+          signedPages.every(
+            (signed: unknown): signed is SignedPageEntry =>
+              !!signed && typeof signed === "object" && "path" in signed && "signedUrl" in signed
+          )
+        ) {
+          signedPages.forEach((signed: SignedPageEntry) => {
+            if (signed.signedUrl) signedUrlMap.set(signed.path, signed.signedUrl);
+          });
+        } else if (signedPages.length > 0) {
+          if (imagePaths.length !== signedPages.length) {
+            console.error("sign-deck-url returned mismatched signed_pages length", {
+              imagePaths,
+              signed_pages: fnData.signed_pages,
+            });
+            throw new Error("Signed page URL response did not match requested image paths");
+          }
+
+          signedPages.forEach((signed: unknown, idx: number) => {
+            if (typeof signed === "string") {
+              signedUrlMap.set(imagePaths[idx], signed);
+            }
+          });
+        }
+
+        const hydratedPages = (payload.pages || []).map((page) => {
           const path = extractStoragePath(page.image_url, "decks");
           const signedUrl = path ? signedUrlMap.get(path) : null;
           return signedUrl ? { ...page, image_url: signedUrl } : page;
@@ -321,7 +344,7 @@ const deckPublicService = {
           ...payload, 
           signed_url: fnData.signed_url, 
           expires_in: fnData.expires_in as number | undefined,
-          pages: signedPages
+          pages: hydratedPages
         };
       }
     }
@@ -333,7 +356,7 @@ const deckPublicService = {
     slug: string,
   ): Promise<{ handle: string; slug: string } | null> {
     const { data, error } = await supabase
-      .from("decks_public")
+      .rpc("get_decks_public")
       .select("user_handle, slug")
       .eq("slug", slug)
       .maybeSingle();
