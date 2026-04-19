@@ -24,7 +24,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { slug, password, storage_path, image_paths = [], room_slug } = await req.json();
+    const { slug, password, storage_path, image_paths: rawImagePaths, room_slug } = await req.json();
+    const image_paths: string[] = Array.isArray(rawImagePaths)
+      ? rawImagePaths.filter((p): p is string => typeof p === "string")
+      : [];
 
     if ((!slug && !room_slug)) {
       return new Response(

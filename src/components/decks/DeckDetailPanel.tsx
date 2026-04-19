@@ -22,7 +22,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { Deck } from "../../types";
 import { cn } from "../../lib/utils";
-import { getDeckPath } from "../../utils/url";
+import { getDeckPreviewPath } from "../../utils/url";
 
 // UI Components
 import { Button } from "../ui/button";
@@ -83,7 +83,7 @@ function DeckDetailPanel({
   onShowAnalytics,
   onUpdate,
 }: DeckDetailPanelProps) {
-  const { session, profile } = useAuth();
+  const { session } = useAuth();
   const userId = session?.user?.id;
   const [editValues, setEditValues] = useState({
     title: "",
@@ -97,6 +97,7 @@ function DeckDetailPanel({
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [summaryStats, setSummaryStats] = useState({ views: 0, avgTime: 0 });
   const [isSaving, setIsSaving] = useState(false);
+  const [isUpdatingShareState, setIsUpdatingShareState] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newFile, setNewFile] = useState<File | null>(null);
@@ -260,6 +261,23 @@ function DeckDetailPanel({
 
   if (!deck) return null;
 
+  const handleTogglePublicLink = async () => {
+    setIsUpdatingShareState(true);
+    try {
+      const updated = deck.is_public
+        ? await deckService.unpublishDeck(deck.id)
+        : await deckService.publishDeck(deck.id);
+      onUpdate(updated);
+    } catch (err) {
+      alert(
+        "Failed to update link visibility: " +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    } finally {
+      setIsUpdatingShareState(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
@@ -305,24 +323,23 @@ function DeckDetailPanel({
             </h2>
           </div>
           <a
-            href={
-              profile?.handle ? getDeckPath(profile.handle, deck.slug) : "#"
-            }
-            onClick={(e) => {
-              if (!profile?.handle) {
-                e.preventDefault();
-                alert(
-                  "Please set a handle in your profile settings to view this.",
-                );
-              }
-            }}
+            href={getDeckPreviewPath(deck.id)}
             target="_blank"
             rel="noreferrer"
           >
             <Button variant="ghost" size="sm" icon={ExternalLink}>
-              View Room
+              Preview
             </Button>
           </a>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={deck.is_public ? EyeOff : Eye}
+            onClick={handleTogglePublicLink}
+            disabled={isUpdatingShareState}
+          >
+            {deck.is_public ? "Make Private" : "Enable Link"}
+          </Button>
         </header>
 
         <div className="p-8 space-y-14 pb-48 relative z-10 flex-grow">

@@ -16,6 +16,7 @@ import "./App.css";
 const Home = lazy(() => import("./pages/Home"));
 const Landing = lazy(() => import("./pages/Landing"));
 const Viewer = lazy(() => import("./pages/Viewer"));
+const OwnerDeckPreview = lazy(() => import("./pages/OwnerDeckPreview"));
 const ManageDeck = lazy(() => import("./pages/ManageDeck"));
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
@@ -26,6 +27,7 @@ const DataRoomsPage = lazy(() => import("./pages/DataRoomsPage"));
 const ManageDataRoom = lazy(() => import("./pages/ManageDataRoom"));
 const DataRoomDetail = lazy(() => import("./pages/DataRoomDetail"));
 const DataRoomViewer = lazy(() => import("./pages/DataRoomViewer"));
+const OwnerDataRoomPreview = lazy(() => import("./pages/OwnerDataRoomPreview"));
 const SavedDecks = lazy(() => import("./pages/SavedDecks"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const Privacy = lazy(() => import("./pages/Privacy"));
@@ -146,6 +148,10 @@ const AppContent = () => {
             element={session ? <DeckAnalytics /> : <Navigate to="/login" />}
           />
           <Route
+            path="/preview/deck/:deckId"
+            element={session ? <OwnerDeckPreview /> : <Navigate to="/login" />}
+          />
+          <Route
             path="/edit/:deckId"
             element={session ? <EditDeck /> : <Navigate to="/login" />}
           />
@@ -160,6 +166,10 @@ const AppContent = () => {
           <Route
             path="/rooms/:roomId"
             element={session ? <DataRoomDetail /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/preview/room/:roomId"
+            element={session ? <OwnerDataRoomPreview /> : <Navigate to="/login" />}
           />
           <Route
             path="/rooms/:roomId/edit"

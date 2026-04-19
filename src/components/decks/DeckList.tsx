@@ -34,7 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { getDeckShareUrl, getDeckPath } from "../../utils/url";
+import { getDeckPreviewPath, getDeckShareUrl } from "../../utils/url";
 
 interface DeckListProps {
   decks: Deck[];
@@ -195,6 +195,7 @@ function DeckList({
       return;
     }
     try {
+      await deckService.publishDeck(deck.id);
       const url = getDeckShareUrl(profile.handle, deck.slug);
       await navigator.clipboard.writeText(url);
       setCopiedId(deck.id);
@@ -483,7 +484,7 @@ function DeckList({
                 }}
               >
                 <Link
-                  to={profile?.handle ? getDeckPath(profile.handle, deck.slug) : "#"}
+                  to={getDeckPreviewPath(deck.id)}
                   onClick={(e) => {
                     if (!profile?.handle) {
                       e.preventDefault();

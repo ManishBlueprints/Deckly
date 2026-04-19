@@ -219,6 +219,14 @@ const deckCrudService = {
     return data as Deck;
   },
 
+  async publishDeck(deckId: string, providedUserId?: string): Promise<Deck> {
+    return this.updateDeck(deckId, { is_public: true }, providedUserId);
+  },
+
+  async unpublishDeck(deckId: string, providedUserId?: string): Promise<Deck> {
+    return this.updateDeck(deckId, { is_public: false }, providedUserId);
+  },
+
   async checkSlugAvailable(slug: string, excludeId?: string): Promise<boolean> {
     const session = await getDeckSession();
     if (!session) return true;
@@ -330,6 +338,21 @@ const deckPublicService = {
           signedPages.forEach((signed: unknown, idx: number) => {
             if (typeof signed === "string") {
               signedUrlMap.set(imagePaths[idx], signed);
+            } else if (
+              signed &&
+              typeof signed === "object" &&
+              "path" in signed &&
+              "signedUrl" in signed
+            ) {
+              const entry = signed as SignedPageEntry;
+              if (entry.signedUrl) signedUrlMap.set(entry.path, entry.signedUrl);
+            } else {
+              console.warn(
+                "[deckService] Invalid signedPages entry at index",
+                idx,
+                { entry: signed, imagePaths, signed_pages: fnData.signed_pages }
+              );
+              signedUrlMap.set(imagePaths[idx], null as unknown as string);
             }
           });
         }

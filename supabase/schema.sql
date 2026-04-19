@@ -31,8 +31,6 @@ CREATE POLICY "Users can view their own profile" ON public.profiles
     FOR SELECT USING ((select auth.uid()) = id);
 
 DROP POLICY IF EXISTS "Anyone can view basic profile info" ON public.profiles;
-CREATE POLICY "Anyone can view basic profile info" ON public.profiles
-    FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile" ON public.profiles
@@ -79,6 +77,7 @@ CREATE TABLE IF NOT EXISTS public.decks (
     display_order INTEGER DEFAULT 1,
     require_email BOOLEAN DEFAULT FALSE,
     require_password BOOLEAN DEFAULT FALSE,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
     view_password TEXT,
     unique_visitors INTEGER DEFAULT 0,
     expires_at TIMESTAMPTZ,
@@ -107,6 +106,7 @@ CREATE TABLE IF NOT EXISTS public.data_rooms (
     icon_url TEXT,
     require_email BOOLEAN DEFAULT FALSE,
     require_password BOOLEAN DEFAULT FALSE,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
     view_password TEXT,
     expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -137,8 +137,6 @@ CREATE POLICY "Users can manage their own data rooms" ON public.data_rooms
     FOR ALL USING ((select auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS "Anyone can view data rooms" ON public.data_rooms;
-CREATE POLICY "Anyone can view data rooms" ON public.data_rooms
-    FOR SELECT USING (true);
 
 -- POLICIES FOR DATA ROOM DOCUMENTS
 DROP POLICY IF EXISTS "Owners can manage data room documents" ON public.data_room_documents;
@@ -300,8 +298,6 @@ CREATE POLICY "Users can manage their own decks" ON public.decks
     FOR ALL USING ((select auth.uid()) = user_id);
 
 DROP POLICY IF EXISTS "Anyone can view published decks" ON public.decks;
-CREATE POLICY "Anyone can view published decks" ON public.decks
-    FOR SELECT USING (status = 'published');
 
 -- POLICIES FOR BRANDING
 -- Drop legacy prod policies
@@ -422,6 +418,8 @@ USING (bucket_id = 'assets');
 -- MIGRATIONS (for multi-document support)
 ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS file_type TEXT DEFAULT 'pdf';
 ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS display_mode TEXT DEFAULT 'raw'; -- 'raw' or 'interactive'
+ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.data_rooms ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
 -- Drop view before altering column type
 DROP VIEW IF EXISTS public.decks_public CASCADE;
 ALTER TABLE public.decks ALTER COLUMN pages DROP DEFAULT;
@@ -465,7 +463,10 @@ SELECT
     d.created_at, d.updated_at, d.file_type, d.display_mode,
     p.handle as user_handle
 FROM public.decks d
-JOIN public.profiles p ON d.user_id = p.id;
+JOIN public.profiles p ON d.user_id = p.id
+WHERE d.is_public = TRUE
+  AND d.status <> 'DELETED'
+  AND (d.expires_at IS NULL OR d.expires_at > NOW());
 $$;
 
 -- Public function for data rooms (excludes sensitive view_password and associated documents)
@@ -482,15 +483,23 @@ SELECT
     dr.require_password, dr.expires_at, dr.created_at, dr.updated_at,
     p.handle as user_handle
 FROM public.data_rooms dr
-JOIN public.profiles p ON dr.user_id = p.id;
+JOIN public.profiles p ON dr.user_id = p.id
+WHERE dr.is_public = TRUE
+  AND (dr.expires_at IS NULL OR dr.expires_at > NOW());
 $$;
 
 -- Cleanup the old, insecure "viewable by everyone" policy if it exists.
 DROP POLICY IF EXISTS "Public profile fields are viewable by everyone" ON public.profiles;
 
--- Restore standard table-level SELECT so authenticated users can read all columns of their OWN profile 
--- (as permitted by the "Users can view their own profile" RLS policy above).
-GRANT SELECT ON public.profiles TO anon, authenticated;
+-- Public reads go through SECURITY DEFINER functions above.
+-- Raw table reads stay available to authenticated users and remain filtered by RLS.
+REVOKE SELECT ON public.profiles FROM anon;
+REVOKE SELECT ON public.decks FROM anon;
+REVOKE SELECT ON public.data_rooms FROM anon;
+
+GRANT SELECT ON public.profiles TO authenticated;
+GRANT SELECT ON public.decks TO authenticated;
+GRANT SELECT ON public.data_rooms TO authenticated;
 
 -- GRANT VIEW / FUNCTION PERMISSIONS --
 GRANT EXECUTE ON FUNCTION public.get_profiles_public() TO anon, authenticated;
@@ -722,10 +731,14 @@ BEGIN
     FROM public.decks 
     WHERE slug = p_slug 
       AND (expires_at IS NULL OR expires_at > NOW());
-    -- Enforce exact password check via RPC helper (shared error prevents slug enumeration)
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Unauthorized';
-    ELSIF v_deck.require_password AND NOT public.check_deck_password(p_slug, p_password) THEN
+    ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_deck.user_id
+          AND NOT v_deck.is_public THEN
+        RAISE EXCEPTION 'Unauthorized';
+    ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_deck.user_id
+          AND v_deck.require_password
+          AND NOT public.check_deck_password(p_slug, p_password) THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 
@@ -762,10 +775,14 @@ BEGIN
     FROM public.data_rooms 
     WHERE slug = p_slug 
       AND (expires_at IS NULL OR expires_at > NOW());
-    -- Shared error prevents slug enumeration
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Unauthorized';
-    ELSIF v_room.require_password AND NOT public.check_data_room_password(p_slug, p_password) THEN
+    ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_room.user_id
+          AND NOT v_room.is_public THEN
+        RAISE EXCEPTION 'Unauthorized';
+    ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_room.user_id
+          AND v_room.require_password
+          AND NOT public.check_data_room_password(p_slug, p_password) THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 

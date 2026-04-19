@@ -26,6 +26,14 @@ export const getDataRoomShareUrl = (handle: string, slug: string): string => {
   return `${resolveOrigin()}${getDataRoomPath(handle, slug)}`;
 };
 
+export const getDeckPreviewPath = (deckId: string): string => {
+  return `/preview/deck/${encodeURIComponent(deckId)}`;
+};
+
+export const getDataRoomPreviewPath = (roomId: string): string => {
+  return `/preview/room/${encodeURIComponent(roomId)}`;
+};
+
 export const getDeckPath = (handle: string, slug: string): string => {
   // Encode path segments to handle reserved characters
   return `/${encodeURIComponent(handle)}/${encodeURIComponent(slug)}`;

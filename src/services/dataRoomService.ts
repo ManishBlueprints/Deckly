@@ -106,6 +106,14 @@ export const dataRoomService = {
     });
   },
 
+  async publishDataRoom(id: string): Promise<DataRoom> {
+    return this.updateDataRoom(id, { is_public: true });
+  },
+
+  async unpublishDataRoom(id: string): Promise<DataRoom> {
+    return this.updateDataRoom(id, { is_public: false });
+  },
+
   async deleteDataRoom(id: string): Promise<void> {
     return withRetry(async () => {
       const userId = await getRequiredSessionUserId();
@@ -433,6 +441,7 @@ export const dataRoomService = {
       p_password: password || null,
     });
     if (error) throw error;
+    if (!rawData) return [];
 
     const decks = rawData as (Deck & { storage_path?: string })[];
 
@@ -459,11 +468,10 @@ export const dataRoomService = {
         });
 
         if (!fnError && fnData?.signed_pages) {
-          type SignedPageEntry = { path: string; signedUrl: string | null };
           const signedUrlMap = new Map<string, string>();
-          const signedPages: unknown[] = Array.isArray(fnData.signed_pages) ? fnData.signed_pages : [];
+          const signedPages = (Array.isArray(fnData.signed_pages) ? fnData.signed_pages : []) as { path: string; signedUrl: string | null }[];
           
-          signedPages.forEach((signed: any) => {
+          signedPages.forEach((signed) => {
             if (signed?.path && signed?.signedUrl) {
               signedUrlMap.set(signed.path, signed.signedUrl);
             }
@@ -481,6 +489,7 @@ export const dataRoomService = {
         }
       } catch (err) {
         console.error("[dataRoomService] sign-deck-url invocation failed:", err);
+        throw err;
       }
     }
 

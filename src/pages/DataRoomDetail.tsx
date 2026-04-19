@@ -11,6 +11,7 @@ import {
   Pencil,
   Trash2,
   ExternalLink,
+  EyeOff,
   Users,
   Loader2,
   Monitor,
@@ -28,7 +29,7 @@ import {
   VisitorSignal,
 } from "../services/interestSignalService";
 import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
-import { getDataRoomShareUrl } from "../utils/url";
+import { getDataRoomPreviewPath, getDataRoomShareUrl } from "../utils/url";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +69,7 @@ function DataRoomDetail() {
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isUpdatingShareState, setIsUpdatingShareState] = useState(false);
 
   const [roomSignals, setRoomSignals] = useState<VisitorSignal[]>([]);
   const [signalsLoading, setSignalsLoading] = useState(true);
@@ -112,16 +114,39 @@ function DataRoomDetail() {
   }, [loadAll]);
 
   /* ── actions ── */
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (!room) return;
     if (!profile?.handle) {
       alert("Please set a handle in your profile settings before sharing.");
       return;
     }
-    const url = getDataRoomShareUrl(profile.handle, room.slug);
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      setIsUpdatingShareState(true);
+      const updated = await dataRoomService.publishDataRoom(room.id);
+      setRoom(updated);
+      const url = getDataRoomShareUrl(profile.handle, updated.slug);
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to activate public link", err);
+    } finally {
+      setIsUpdatingShareState(false);
+    }
+  };
+
+  const handleMakePrivate = async () => {
+    if (!room) return;
+
+    try {
+      setIsUpdatingShareState(true);
+      const updated = await dataRoomService.unpublishDataRoom(room.id);
+      setRoom(updated);
+    } catch (err) {
+      console.error("Failed to disable public link", err);
+    } finally {
+      setIsUpdatingShareState(false);
+    }
   };
 
   const handleAddDocuments = async (deckIds: string[]) => {
@@ -244,33 +269,37 @@ function DataRoomDetail() {
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={handleCopyLink}
+                onClick={() => void handleCopyLink()}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all active:scale-95",
                   copied
                     ? "bg-green-500 text-white"
                     : "bg-deckly-primary text-slate-950 hover:opacity-90",
                 )}
+                disabled={isUpdatingShareState}
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
                 <span>{copied ? "Copied!" : "Copy Link"}</span>
               </button>
 
-              <a
-                href={profile?.handle ? getDataRoomShareUrl(profile.handle, room.slug) : "#"}
-                onClick={(e) => {
-                  if (!profile?.handle) {
-                    e.preventDefault();
-                    alert("Please set a handle in your profile settings to view this room.");
-                  }
-                }}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={() => window.open(getDataRoomPreviewPath(room.id), "_blank", "noopener,noreferrer")}
                 className="p-2 bg-surface-low border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"
-                title="Preview Public Room"
+                title="Open private preview"
               >
                 <ExternalLink size={18} />
-              </a>
+              </button>
+
+              {room.is_public && (
+                <button
+                  onClick={() => void handleMakePrivate()}
+                  disabled={isUpdatingShareState}
+                  className="p-2 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                  title="Disable public link"
+                >
+                  <EyeOff size={18} />
+                </button>
+              )}
 
               <button
                 onClick={() => navigate(`/rooms/${roomId}/edit`)}
@@ -309,7 +338,7 @@ function DataRoomDetail() {
             value={formatDate(room.created_at)}
           />
           <div
-            onClick={handleCopyLink}
+            onClick={() => void handleCopyLink()}
             className="p-4 bg-surface-card border border-[#222] rounded-lg group cursor-pointer hover:border-[#333] transition-all"
           >
             <div className="flex items-center gap-2 text-slate-500 mb-1 group-hover:text-deckly-primary transition-colors">
@@ -318,6 +347,9 @@ function DataRoomDetail() {
             </div>
             <p className="text-xs font-medium text-slate-300 truncate">
               /{profile?.handle}/room/{room.slug}
+            </p>
+            <p className="text-[10px] text-slate-500 mt-1">
+              {room.is_public ? "Public link active" : "Private until you copy the link"}
             </p>
           </div>
         </div>

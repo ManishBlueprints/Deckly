@@ -570,14 +570,6 @@ export const organizerService = {
           folder_id,
           created_at,
           last_viewed_at,
-          decks (
-            title,
-            slug,
-            file_type,
-            status,
-            description,
-            user_id
-          ),
           library_deck_tags (
             library_tags (*)
           )
@@ -587,37 +579,50 @@ export const organizerService = {
 
       if (error) throw error;
 
-      // Extract unique user IDs from decks to fetch handles safely since decks->profiles has no explicit FK
-      const ownerIds = [
-        ...new Set(
-          (data as unknown as DeckJoinResult[] || []).map((item) => {
-            const d = Array.isArray(item.decks) ? item.decks[0] : item.decks;
-            return d?.user_id;
-          }).filter(Boolean),
-        ),
-      ] as string[];
-
-      let handlesMap: Record<string, string> = {};
-      if (ownerIds.length > 0) {
-        const { data: profilesData, error: profilesErr } = await supabase
-          .from("profiles")
-          .select("id, handle")
-          .in("id", ownerIds);
-
-        if (profilesErr) {
-          console.error("Failed to fetch user profiles for library handles:", profilesErr);
-        }
-
-        handlesMap = (profilesData || []).reduce((acc, curr) => {
-          acc[curr.id] = curr.handle;
-          return acc;
-        }, {} as Record<string, string>);
-      }
-
-      // Fetch notes for these decks sequentially after library query (parallel ok but library has deck ids)
       const deckIds = (data as unknown as DeckJoinResult[] || []).map((item) =>
         item.deck_id
       );
+
+      type SavedDeckMeta = {
+        id: string;
+        title: string;
+        slug: string;
+        file_type?: string;
+        status?: string;
+        description?: string | null;
+        user_id: string;
+        user_handle?: string | null;
+      };
+
+      const deckMap = new Map<string, SavedDeckMeta>();
+
+      if (deckIds.length > 0) {
+        const { data: ownedDecks, error: ownedDecksError } = await supabase
+          .from("decks")
+          .select("id, title, slug, file_type, status, description, user_id")
+          .in("id", deckIds);
+
+        if (ownedDecksError) throw ownedDecksError;
+
+        (ownedDecks || []).forEach((deck) => {
+          deckMap.set(deck.id, deck as SavedDeckMeta);
+        });
+
+        const unresolvedDeckIds = deckIds.filter((deckId) => !deckMap.has(deckId));
+
+        if (unresolvedDeckIds.length > 0) {
+          const { data: publicDecks, error: publicDecksError } = await supabase
+            .rpc("get_decks_public")
+            .select("id, title, slug, file_type, status, description, user_id, user_handle")
+            .in("id", unresolvedDeckIds);
+
+          if (publicDecksError) throw publicDecksError;
+
+          ((Array.isArray(publicDecks) ? publicDecks : []) as SavedDeckMeta[]).forEach((deck: SavedDeckMeta) => {
+            deckMap.set(deck.id, deck as SavedDeckMeta);
+          });
+        }
+      }
 
       let notesMap: Record<string, string> = {};
       if (deckIds.length > 0) {
@@ -636,10 +641,8 @@ export const organizerService = {
       }
 
       return (data as unknown as DeckJoinResult[] || []).map((item) => {
-        const deckData = Array.isArray(item.decks) ? item.decks[0] : item.decks;
-        const userHandle = deckData?.user_id
-          ? handlesMap[deckData.user_id]
-          : "unknown";
+        const deckData = deckMap.get(item.deck_id);
+        const userHandle = deckData?.user_handle || "unknown";
 
         const rawStatus = deckData?.status;
         const mappedStatus = (rawStatus === "PENDING" || rawStatus === "CONVERTING" || rawStatus === "PROCESSED" || rawStatus === "DELETED") 

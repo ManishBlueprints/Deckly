@@ -10,8 +10,9 @@ import {
 } from "../ui/table";
 import { BarChart3, Pencil, Trash2, FileText, Check } from "lucide-react";
 import { Link } from "react-router-dom";
-import { getDeckShareUrl, getDeckPath } from "../../utils/url";
+import { getDeckShareUrl, getDeckPreviewPath } from "../../utils/url";
 import { DeckWithAnalytics } from "../../types";
+import { deckService } from "../../services/deckService";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,15 +39,28 @@ export function DecksTable({
   onDelete,
 }: DecksTableProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = React.useState<DeckWithAnalytics | null>(null);
+  const [deleteTarget, setDeleteTarget] =
+    React.useState<DeckWithAnalytics | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [publishedIds, setPublishedIds] = React.useState<Set<string>>(
+    new Set(),
+  );
 
-  const handleCopyLink = (slug: string, id: string) => {
-    const url = getDeckShareUrl(userHandle, slug);
-    navigator.clipboard.writeText(url);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopyLink = async (deck: DeckWithAnalytics) => {
+    try {
+      const url = getDeckShareUrl(userHandle, deck.slug);
+      await deckService.publishDeck(deck.id);
+      await navigator.clipboard.writeText(url);
+      setPublishedIds((prev) => new Set(prev).add(deck.id));
+      setCopiedId(deck.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy public link:", err);
+    }
   };
+
+  const isDeckPublic = (deck: DeckWithAnalytics) =>
+    !!deck.is_public || publishedIds.has(deck.id);
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
@@ -98,7 +112,7 @@ export function DecksTable({
               </div>
               <div className="flex-1 min-w-0">
                 <Link
-                  to={getDeckPath(userHandle, deck.slug)}
+                  to={getDeckPreviewPath(deck.id)}
                   target="_blank"
                   className="font-medium text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
                 >
@@ -110,15 +124,20 @@ export function DecksTable({
                     ? ` · ${new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(deck.last_viewed_at)).replace(/\//g, "-")}`
                     : ""}
                 </p>
+                <p className="text-[11px] mt-1 text-slate-500">
+                  {isDeckPublic(deck)
+                    ? "Public link active"
+                    : "Copy link to make it public"}
+                </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
-                  onClick={() => handleCopyLink(deck.slug, deck.id)}
+                  onClick={() => void handleCopyLink(deck)}
                   className={cn(
                     "p-2.5 rounded-none transition-all border",
                     copiedId === deck.id
                       ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
-                      : "bg-surface-low border-border text-slate-400 hover:text-white",
+                      : "bg-green-500 border-green-500 text-slate-950 hover:bg-green-400 hover:border-green-400",
                   )}
                   title="Copy Link"
                 >
@@ -231,7 +250,7 @@ export function DecksTable({
                 >
                   <TableCell className="px-6 py-4">
                     <Link
-                      to={getDeckPath(userHandle, deck.slug)}
+                      to={getDeckPreviewPath(deck.id)}
                       target="_blank"
                       className="flex items-center gap-3 transition-all group/title"
                     >
@@ -242,6 +261,11 @@ export function DecksTable({
                         {deck.title}
                       </span>
                     </Link>
+                    <p className="text-[11px] mt-1 text-slate-500">
+                      {isDeckPublic(deck)
+                        ? "Public link active"
+                        : "Copy link to make it public"}
+                    </p>
                   </TableCell>
                   <TableCell className="py-4 text-slate-500 text-xs">
                     {new Intl.DateTimeFormat("en-GB", {
@@ -254,12 +278,12 @@ export function DecksTable({
                   </TableCell>
                   <TableCell className="py-4 text-center">
                     <button
-                      onClick={() => handleCopyLink(deck.slug, deck.id)}
+                      onClick={() => void handleCopyLink(deck)}
                       className={cn(
                         "text-xs px-4 py-2 rounded-none transition-all flex items-center gap-2 mx-auto border",
                         copiedId === deck.id
                           ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
-                          : "bg-surface-lowest border-border text-slate-400 hover:text-white hover:border-border",
+                          : "bg-green-500 border-green-500 text-slate-950 hover:bg-green-400 hover:border-green-400",
                       )}
                     >
                       {copiedId === deck.id ? (
@@ -323,8 +347,8 @@ export function DecksTable({
           </TableBody>
         </Table>
       </div>
-      <AlertDialog 
-        open={!!deleteTarget} 
+      <AlertDialog
+        open={!!deleteTarget}
         onOpenChange={(open) => {
           if (!open && !isDeleting) {
             setDeleteTarget(null);
@@ -335,7 +359,8 @@ export function DecksTable({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Deck</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deleteTarget?.title}"? This action cannot be undone and all analytics will be lost.
+              Are you sure you want to delete "{deleteTarget?.title}"? This
+              action cannot be undone and all analytics will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
