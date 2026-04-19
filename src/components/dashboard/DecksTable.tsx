@@ -49,6 +49,10 @@ export function DecksTable({
   );
 
   const handleCopyLink = async (deck: DeckWithAnalytics) => {
+    if (!userHandle) {
+      toast.error("Please set a handle in your profile settings before sharing.");
+      return;
+    }
     setPublishingId(deck.id);
     try {
       const url = getDeckShareUrl(userHandle, deck.slug);
