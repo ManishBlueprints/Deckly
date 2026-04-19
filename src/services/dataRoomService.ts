@@ -53,12 +53,18 @@ export const dataRoomService = {
     });
   },
 
-  async getDataRoomById(id: string): Promise<DataRoom | null> {
+  async getDataRoomById(
+    id: string,
+    providedUserId?: string,
+  ): Promise<DataRoom | null> {
     return withRetry(async () => {
+      const userId = await getRequiredSessionUserId(providedUserId);
+
       const { data, error } = await supabase
         .from("data_rooms")
         .select("*")
         .eq("id", id)
+        .eq("user_id", userId)
         .single();
 
       if (error) {
@@ -130,7 +136,7 @@ export const dataRoomService = {
 
   // ── DOCUMENT MANAGEMENT ─────────────────────────────────
 
-  async getDocuments(roomId: string): Promise<DataRoomDocument[]> {
+  async getDocuments(roomId: string, options?: { signUrls?: boolean }): Promise<DataRoomDocument[]> {
     return withRetry(async () => {
       const { data, error } = await supabase
         .from("data_room_documents")
@@ -145,47 +151,49 @@ export const dataRoomService = {
         deck: d.deck || undefined,
       })) as DataRoomDocument[];
 
-      // Hydrate signed URLs for the owner
-      const allPaths: string[] = [];
-      documents.forEach(doc => {
-        if (!doc.deck) return;
-        const mainPath = extractStoragePath(doc.deck.file_url, "decks");
-        if (mainPath) allPaths.push(mainPath);
-        
-        const pages = Array.isArray(doc.deck.pages) ? doc.deck.pages : [];
-        pages.forEach(p => {
-          const pPath = extractStoragePath(p.image_url, "decks");
-          if (pPath) allPaths.push(pPath);
-        });
-      });
-
-      if (allPaths.length > 0) {
-        const { data: signedUrls, error: signError } = await supabase.storage
-          .from("decks")
-          .createSignedUrls(allPaths, 3600);
-        
-        if (signError) {
-          console.error("[dataRoomService] Failed to sign URLs for owner:", signError);
-        } else if (signedUrls) {
-          const urlMap = new Map(signedUrls.map(s => [s.path, s.signedUrl]));
+      // Hydrate signed URLs only when explicitly requested
+      if (options?.signUrls) {
+        const allPaths: string[] = [];
+        documents.forEach(doc => {
+          if (!doc.deck) return;
+          const mainPath = extractStoragePath(doc.deck.file_url, "decks");
+          if (mainPath) allPaths.push(mainPath);
           
-          documents.forEach(doc => {
-            if (!doc.deck) return;
-            const mainPath = extractStoragePath(doc.deck.file_url, "decks");
-            if (mainPath && urlMap.has(mainPath)) {
-              doc.deck.file_url = urlMap.get(mainPath)!;
-            }
-            
-            if (Array.isArray(doc.deck.pages)) {
-              doc.deck.pages = doc.deck.pages.map(p => {
-                const pPath = extractStoragePath(p.image_url, "decks");
-                if (pPath && urlMap.has(pPath)) {
-                  return { ...p, image_url: urlMap.get(pPath)! };
-                }
-                return p;
-              });
-            }
+          const pages = Array.isArray(doc.deck.pages) ? doc.deck.pages : [];
+          pages.forEach(p => {
+            const pPath = extractStoragePath(p.image_url, "decks");
+            if (pPath) allPaths.push(pPath);
           });
+        });
+
+        if (allPaths.length > 0) {
+          const { data: signedUrls, error: signError } = await supabase.storage
+            .from("decks")
+            .createSignedUrls(allPaths, 3600);
+          
+          if (signError) {
+            console.error("[dataRoomService] Failed to sign URLs for owner:", signError);
+          } else if (signedUrls) {
+            const urlMap = new Map(signedUrls.map(s => [s.path, s.signedUrl]));
+            
+            documents.forEach(doc => {
+              if (!doc.deck) return;
+              const mainPath = extractStoragePath(doc.deck.file_url, "decks");
+              if (mainPath && urlMap.has(mainPath)) {
+                doc.deck.file_url = urlMap.get(mainPath)!;
+              }
+              
+              if (Array.isArray(doc.deck.pages)) {
+                doc.deck.pages = doc.deck.pages.map(p => {
+                  const pPath = extractStoragePath(p.image_url, "decks");
+                  if (pPath && urlMap.has(pPath)) {
+                    return { ...p, image_url: urlMap.get(pPath)! };
+                  }
+                  return p;
+                });
+              }
+            });
+          }
         }
       }
 
@@ -274,7 +282,7 @@ export const dataRoomService = {
     perDeck: { deckId: string; title: string; visitors: number }[];
   }> {
     return withRetry(async () => {
-      const docs = await this.getDocuments(roomId);
+      const docs = await this.getDocuments(roomId, { signUrls: false });
       const deckIds = docs.map((d) => d.deck_id);
 
       if (deckIds.length === 0) {

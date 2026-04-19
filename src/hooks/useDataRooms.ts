@@ -74,7 +74,7 @@ export function useDataRoomsWithMeta() {
 export function useDataRoomDocuments(roomId: string) {
   return useQuery({
     queryKey: ["data-room-documents", roomId],
-    queryFn: () => dataRoomService.getDocuments(roomId),
+    queryFn: () => dataRoomService.getDocuments(roomId, { signUrls: true }),
     enabled: !!roomId,
     ...DATA_ROOM_QUERY_CONFIG,
   });
