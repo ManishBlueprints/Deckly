@@ -5,6 +5,7 @@ import { deckStorageService } from "./deckStorageService";
 import {
   getDeckSession,
   getRequiredDeckUserId,
+  extractStoragePath,
 } from "./deckService.shared";
 import {
   BrandingSettings,
@@ -43,7 +44,48 @@ const deckCrudService = {
       .single();
 
     if (error) throw error;
-    return data as Deck;
+    const deck = data as Deck;
+
+    // Because the decks bucket is PRIVATE, public URLs stored in the DB will 403.
+    // If the owner is viewing their own deck, getDeckById is called instead of getDeckPayload.
+    // We must use their authenticated session to hydrate the signed URLs via the Storage API.
+    const pathsToSign: string[] = [];
+    
+    const mainPath = extractStoragePath(deck.file_url, "decks");
+    if (mainPath) pathsToSign.push(mainPath);
+
+    const imagePaths = (deck.pages || [])
+      .map(p => extractStoragePath(p.image_url, "decks"))
+      .filter((p): p is string => !!p);
+    
+    pathsToSign.push(...imagePaths);
+
+    if (pathsToSign.length > 0) {
+      const { data: signedData, error: signError } = await supabase.storage
+        .from("decks")
+        .createSignedUrls(pathsToSign, 3600);
+      
+      if (!signError && signedData) {
+        const signedUrlMap = new Map<string, string>();
+        signedData.forEach(d => {
+          if (d.path && d.signedUrl) signedUrlMap.set(d.path, d.signedUrl);
+        });
+
+        if (mainPath && signedUrlMap.has(mainPath)) {
+          deck.file_url = signedUrlMap.get(mainPath)!;
+        }
+
+        if (deck.pages) {
+          deck.pages = deck.pages.map(page => {
+            const pPath = extractStoragePath(page.image_url, "decks");
+            const sUrl = pPath ? signedUrlMap.get(pPath) : null;
+            return sUrl ? { ...page, image_url: sUrl } : page;
+          });
+        }
+      }
+    }
+
+    return deck;
   },
 
   async uploadDeck(file: File, deckData: Partial<Deck>): Promise<Deck> {
@@ -243,15 +285,44 @@ const deckPublicService = {
 
     const payload = data as { file_url: string; storage_path?: string; pages: SlidePage[] };
 
-    // If the bucket is private and we have a storage path, fetch a short-lived signed URL.
-    // Errors are thrown so callers know signing failed rather than silently receiving a stale URL.
+    // If the bucket is private and we have a storage path, fetch short-lived signed URLs.
+    // This includes both the main document and any processed slide images.
     if (payload.storage_path) {
+      const imagePaths = (payload.pages || [])
+        .map((p) => extractStoragePath(p.image_url, "decks"))
+        .filter((path): path is string => !!path);
+
       const { data: fnData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
-        body: { slug, password: password ?? null, storage_path: payload.storage_path },
+        body: { 
+          slug, 
+          password: password ?? null, 
+          storage_path: payload.storage_path,
+          image_paths: imagePaths 
+        },
       });
+
       if (fnError) throw fnError;
+
       if (fnData?.signed_url) {
-        return { ...payload, signed_url: fnData.signed_url, expires_in: fnData.expires_in as number | undefined };
+        // Create a lookup map for faster, robust path-based URL replacement
+        const signedUrlMap = new Map<string, string>();
+        imagePaths.forEach((path, idx) => {
+          const signed = fnData.signed_pages?.[idx];
+          if (signed) signedUrlMap.set(path, signed);
+        });
+
+        const signedPages = (payload.pages || []).map((page) => {
+          const path = extractStoragePath(page.image_url, "decks");
+          const signedUrl = path ? signedUrlMap.get(path) : null;
+          return signedUrl ? { ...page, image_url: signedUrl } : page;
+        });
+
+        return { 
+          ...payload, 
+          signed_url: fnData.signed_url, 
+          expires_in: fnData.expires_in as number | undefined,
+          pages: signedPages
+        };
       }
     }
 

@@ -1643,3 +1643,8 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_total_system_users() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_deck_payload(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_deck_password(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_data_room_payload(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_data_room_password(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) TO anon, authenticated;

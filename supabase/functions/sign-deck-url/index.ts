@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { slug, password, storage_path } = await req.json();
+    const { slug, password, storage_path, image_paths = [] } = await req.json();
 
     if (!slug || !storage_path) {
       return new Response(
@@ -45,16 +45,40 @@ Deno.serve(async (req: Request) => {
       p_password: password ?? null,
     });
 
-    if (rpcError) {
+    if (rpcError || !rpcData) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Extract the canonical storage path returned by the RPC.
-    // The RPC is SECURITY DEFINER and is the authoritative source of the correct path.
-    const canonicalPath = (rpcData as { storage_path?: string } | null)?.storage_path;
+    interface DeckPayload {
+      storage_path?: string;
+      pages?: Array<{ image_url: string } | string>;
+    }
+    const payload = rpcData as DeckPayload;
+    const canonicalPath = payload.storage_path;
+    
+    // Create a set of valid storage paths for this deck based on the DB record.
+    // This includes the main PDF and all processed slide images.
+    const validPaths = new Set<string>();
+    if (canonicalPath) validPaths.add(canonicalPath);
+    
+    const pages = Array.isArray(payload.pages) ? payload.pages : [];
+    pages.forEach(page => {
+      // The DB stores image_url (the public URL). We need to extract the storage path
+      // to verify it. Since we don't have the extractStoragePath helper here, 
+      // we'll use a simple marker search.
+      const url = typeof page === 'string' ? page : page.image_url;
+      if (url && typeof url === 'string') {
+        const marker = "/storage/v1/object/public/decks/";
+        const idx = url.indexOf(marker);
+        if (idx !== -1) {
+          validPaths.add(url.substring(idx + marker.length));
+        }
+      }
+    });
+
     if (!canonicalPath) {
       return new Response(
         JSON.stringify({ error: "No storage path returned by RPC" }),
@@ -62,17 +86,18 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Reject if the caller-supplied path doesn't match the RPC-returned path.
-    // This prevents an IDOR where someone authenticates with slug A but requests
-    // a signed URL for a path belonging to a different deck.
-    if (storage_path !== canonicalPath) {
-      return new Response(
-        JSON.stringify({ error: "Forbidden: storage_path mismatch" }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
+    // Reject if any requested path (main or image) is not authorized for this deck.
+    const requestedPaths = [storage_path, ...image_paths];
+    for (const path of requestedPaths) {
+      if (!validPaths.has(path)) {
+         return new Response(
+          JSON.stringify({ error: `Forbidden: path mismatch for ${path}` }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    // Auth passed — use service_role to generate the signed URL.
+    // Auth passed — use service_role to generate signs for ALL requested paths.
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -80,21 +105,29 @@ Deno.serve(async (req: Request) => {
 
     const EXPIRES_IN_SECONDS = 3600; // 1 hour
 
-    const { data, error: signError } = await adminClient.storage
+    // Using plural createSignedUrls for better efficiency
+    const { data: signedData, error: signError } = await adminClient.storage
       .from("decks")
-      .createSignedUrl(canonicalPath, EXPIRES_IN_SECONDS);
+      .createSignedUrls(requestedPaths, EXPIRES_IN_SECONDS);
 
-    if (signError || !data?.signedUrl) {
-      console.error("Failed to create signed URL", signError);
+    if (signError || !signedData) {
+      console.error("Failed to create signed URLs", signError);
       return new Response(
-        JSON.stringify({ error: "Failed to generate signed URL" }),
+        JSON.stringify({ error: "Failed to generate signed URLs" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
+    // Map result: storage_path is always at index 0, images follow.
+    const signedMain = signedData.find(d => d.path === storage_path)?.signedUrl;
+    const signedImages = (image_paths as string[]).map((path: string) => {
+      return signedData.find(d => d.path === path)?.signedUrl || null;
+    });
+
     return new Response(
       JSON.stringify({
-        signed_url: data.signedUrl,
+        signed_url: signedMain,
+        signed_pages: signedImages,
         expires_in: EXPIRES_IN_SECONDS,
       }),
       {
