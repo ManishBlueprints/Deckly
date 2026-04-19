@@ -456,8 +456,11 @@ export const dataRoomService = {
     // Hydrate signed URLs for guests via the sign-deck-url Edge Function
     const allPaths: string[] = [];
     decks.forEach(deck => {
-      // Collect slide image paths. We don't batch fetch the main file URLs here
-      // since the viewer mostly needs the slides, but we could if needed.
+      // Collect main file path for signing
+      const filePath = extractStoragePath(deck.file_url, "decks");
+      if (filePath) allPaths.push(filePath);
+
+      // Collect slide image paths
       const pages = Array.isArray(deck.pages) ? deck.pages : [];
       pages.forEach(p => {
         const pPath = extractStoragePath(p.image_url, "decks");
@@ -486,6 +489,14 @@ export const dataRoomService = {
           });
 
           decks.forEach(deck => {
+            // Remap main file URL
+            const fPath = extractStoragePath(deck.file_url, "decks");
+            const signedFileUrl = fPath ? signedUrlMap.get(fPath) : null;
+            if (signedFileUrl) {
+              deck.file_url = signedFileUrl;
+            }
+
+            // Remap individual pages
             if (Array.isArray(deck.pages)) {
               deck.pages = deck.pages.map(p => {
                 const path = extractStoragePath(p.image_url, "decks");
