@@ -322,24 +322,26 @@ function DeckDetailPanel({
               Asset Intelligence
             </h2>
           </div>
-          <a
-            href={getDeckPreviewPath(deck.id)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <Button variant="ghost" size="sm" icon={ExternalLink}>
-              Preview
+          <div className="flex items-center space-x-2">
+            <a
+              href={getDeckPreviewPath(deck.id)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button variant="ghost" size="sm" icon={ExternalLink}>
+                Preview
+              </Button>
+            </a>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={deck.is_public ? EyeOff : Eye}
+              onClick={handleTogglePublicLink}
+              disabled={isUpdatingShareState}
+            >
+              {deck.is_public ? "Make Private" : "Enable Link"}
             </Button>
-          </a>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={deck.is_public ? EyeOff : Eye}
-            onClick={handleTogglePublicLink}
-            disabled={isUpdatingShareState}
-          >
-            {deck.is_public ? "Make Private" : "Enable Link"}
-          </Button>
+          </div>
         </header>
 
         <div className="p-8 space-y-14 pb-48 relative z-10 flex-grow">

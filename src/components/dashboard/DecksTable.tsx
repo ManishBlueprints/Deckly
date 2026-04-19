@@ -1,4 +1,5 @@
 import React from "react";
+import { toast } from "sonner";
 import { DashboardCard } from "../ui/DashboardCard";
 import {
   Table,
@@ -8,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import { BarChart3, Pencil, Trash2, FileText, Check } from "lucide-react";
+import { BarChart3, Pencil, Trash2, FileText, Check, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getDeckShareUrl, getDeckPreviewPath } from "../../utils/url";
 import { DeckWithAnalytics } from "../../types";
@@ -42,11 +43,13 @@ export function DecksTable({
   const [deleteTarget, setDeleteTarget] =
     React.useState<DeckWithAnalytics | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [publishingId, setPublishingId] = React.useState<string | null>(null);
   const [publishedIds, setPublishedIds] = React.useState<Set<string>>(
     new Set(),
   );
 
   const handleCopyLink = async (deck: DeckWithAnalytics) => {
+    setPublishingId(deck.id);
     try {
       const url = getDeckShareUrl(userHandle, deck.slug);
       await deckService.publishDeck(deck.id);
@@ -56,6 +59,13 @@ export function DecksTable({
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
       console.error("Failed to copy public link:", err);
+      toast.error(
+        err instanceof Error
+          ? `Failed to copy link: ${err.message}`
+          : "Failed to activate public link. Please try again."
+      );
+    } finally {
+      setPublishingId(null);
     }
   };
 
@@ -133,15 +143,19 @@ export function DecksTable({
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => void handleCopyLink(deck)}
+                  disabled={publishingId === deck.id}
                   className={cn(
                     "p-2.5 rounded-none transition-all border",
+                    publishingId === deck.id && "opacity-50 cursor-not-allowed",
                     copiedId === deck.id
                       ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
                       : "bg-green-500 border-green-500 text-slate-950 hover:bg-green-400 hover:border-green-400",
                   )}
                   title="Copy Link"
                 >
-                  {copiedId === deck.id ? (
+                  {publishingId === deck.id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : copiedId === deck.id ? (
                     <Check size={16} />
                   ) : (
                     <span className="text-xs px-1">Copy</span>
@@ -279,14 +293,20 @@ export function DecksTable({
                   <TableCell className="py-4 text-center">
                     <button
                       onClick={() => void handleCopyLink(deck)}
+                      disabled={publishingId === deck.id}
                       className={cn(
                         "text-xs px-4 py-2 rounded-none transition-all flex items-center gap-2 mx-auto border",
+                        publishingId === deck.id && "opacity-50 cursor-not-allowed",
                         copiedId === deck.id
                           ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
                           : "bg-green-500 border-green-500 text-slate-950 hover:bg-green-400 hover:border-green-400",
                       )}
                     >
-                      {copiedId === deck.id ? (
+                      {publishingId === deck.id ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" /> Publishing
+                        </>
+                      ) : copiedId === deck.id ? (
                         <>
                           <Check size={14} /> Copied
                         </>

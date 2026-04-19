@@ -30,29 +30,44 @@ function OwnerDataRoomPreview() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadRoom() {
-      if (!roomId) return;
+      if (!roomId) {
+        if (isMounted) setLoading(false);
+        return;
+      }
 
       try {
-        setLoading(true);
+        if (isMounted) {
+          setLoading(true);
+          setError(null);
+        }
         const roomData = await dataRoomService.getDataRoomById(roomId);
         if (!roomData) {
-          setError("Data room not found.");
+          if (isMounted) setError("Data room not found.");
           return;
         }
 
         const docs = await dataRoomService.getDocuments(roomId);
+        if (!isMounted) return;
+
         setRoom(roomData);
         setDocuments(docs);
         setSelectedDeck(docs[0]?.deck || null);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to load preview.");
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : "Failed to load preview.");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
 
     loadRoom();
+    return () => {
+      isMounted = false;
+    };
   }, [roomId]);
 
   return (
@@ -144,7 +159,7 @@ function OwnerDataRoomPreview() {
               <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
                 {documents.map((doc) => {
                   const deck = doc.deck;
-                  const isActive = selectedDeck?.id === deck?.id;
+                  const isActive = deck?.id !== undefined && selectedDeck?.id !== undefined && selectedDeck.id === deck.id;
 
                   return (
                     <button

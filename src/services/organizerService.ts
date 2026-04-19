@@ -12,20 +12,14 @@ interface FolderJoinResult {
   investor_library: { count: number }[];
 }
 
-interface DeckJoinResult {
+/** Narrow type for the investor_library select used in getSavedDecksOrganized.
+ *  The query does NOT select the `decks` column, so the full join type would be too wide. */
+interface InvestorLibraryEntry {
   id: string;
   deck_id: string;
   folder_id: string | null;
   created_at: string;
   last_viewed_at: string | null;
-  decks: {
-    title: string;
-    slug: string;
-    file_type: string;
-    status: string;
-    description: string | null;
-    user_id: string;
-  } | null;
   library_deck_tags: { library_tags: LibraryTag }[];
 }
 
@@ -579,7 +573,7 @@ export const organizerService = {
 
       if (error) throw error;
 
-      const deckIds = (data as unknown as DeckJoinResult[] || []).map((item) =>
+      const deckIds = ((data as unknown as InvestorLibraryEntry[]) || []).map((item) =>
         item.deck_id
       );
 
@@ -613,14 +607,15 @@ export const organizerService = {
         if (unresolvedDeckIds.length > 0) {
           const { data: publicDecks, error: publicDecksError } = await supabase
             .rpc("get_decks_public")
-            .select("id, title, slug, file_type, status, description, user_id, user_handle")
-            .in("id", unresolvedDeckIds);
+            .select("id, title, slug, file_type, status, description, user_id, user_handle");
 
           if (publicDecksError) throw publicDecksError;
 
-          ((Array.isArray(publicDecks) ? publicDecks : []) as SavedDeckMeta[]).forEach((deck: SavedDeckMeta) => {
+          ((Array.isArray(publicDecks) ? publicDecks : []) as SavedDeckMeta[])
+            .filter((deck: SavedDeckMeta) => unresolvedDeckIds.includes(deck.id))
+            .forEach((deck: SavedDeckMeta) => {
             deckMap.set(deck.id, deck as SavedDeckMeta);
-          });
+            });
         }
       }
 
@@ -640,7 +635,7 @@ export const organizerService = {
         }, {} as Record<string, string>);
       }
 
-      return (data as unknown as DeckJoinResult[] || []).map((item) => {
+      return ((data as unknown as InvestorLibraryEntry[]) || []).map((item) => {
         const deckData = deckMap.get(item.deck_id);
         const userHandle = deckData?.user_handle || "unknown";
 

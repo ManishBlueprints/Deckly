@@ -18,8 +18,18 @@ function resolveOrigin(): string {
   return process.env.BASE_URL || 'http://localhost:5173';
 }
 
+export const getDeckPath = (handle: string, slug: string): string => {
+  // Encode path segments to handle reserved characters
+  return `/${encodeURIComponent(handle)}/${encodeURIComponent(slug)}`;
+};
+
 export const getDeckShareUrl = (handle: string, slug: string): string => {
   return `${resolveOrigin()}${getDeckPath(handle, slug)}`;
+};
+
+export const getDataRoomPath = (handle: string, slug: string): string => {
+  // Encode handle and slug, preserve literal "/room/" segment
+  return `/${encodeURIComponent(handle)}/room/${encodeURIComponent(slug)}`;
 };
 
 export const getDataRoomShareUrl = (handle: string, slug: string): string => {
@@ -32,14 +42,4 @@ export const getDeckPreviewPath = (deckId: string): string => {
 
 export const getDataRoomPreviewPath = (roomId: string): string => {
   return `/preview/room/${encodeURIComponent(roomId)}`;
-};
-
-export const getDeckPath = (handle: string, slug: string): string => {
-  // Encode path segments to handle reserved characters
-  return `/${encodeURIComponent(handle)}/${encodeURIComponent(slug)}`;
-};
-
-export const getDataRoomPath = (handle: string, slug: string): string => {
-  // Encode handle and slug, preserve literal "/room/" segment
-  return `/${encodeURIComponent(handle)}/room/${encodeURIComponent(slug)}`;
 };

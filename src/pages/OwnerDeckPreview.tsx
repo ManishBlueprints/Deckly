@@ -14,21 +14,35 @@ function OwnerDeckPreview() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function loadDeck() {
-      if (!deckId) return;
+      if (!deckId) {
+        setDeck(null);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+
+      setError(null);
+      setDeck(null);
+      setLoading(true);
 
       try {
-        setLoading(true);
         const data = await deckService.getDeckById(deckId);
+        if (controller.signal.aborted) return;
         setDeck(data);
       } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (controller.signal.aborted) return;
         setError(err instanceof Error ? err.message : "Failed to load preview.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
     loadDeck();
+    return () => controller.abort();
   }, [deckId]);
 
   return (
@@ -92,23 +106,21 @@ function OwnerDeckPreview() {
             </div>
 
             <div className="flex-1 w-full relative min-h-0">
-              {deck.display_mode === "interactive" ||
-              (Array.isArray(deck.pages) && deck.pages.length > 0) ? (
-                deck.status === "PENDING" || deck.status === "CONVERTING" ? (
-                  <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-[#0d0d0d]">
-                    <div className="w-12 h-12 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin mb-6" />
-                    <h2 className="text-xl font-bold text-white mb-2">
-                      {deck.status === "CONVERTING" ? "Converting Content" : "Preparing Deck"}
-                    </h2>
-                    <p className="text-slate-400 text-sm max-w-sm">
-                      {deck.status === "CONVERTING"
-                        ? "The server is converting this document into an interactive experience."
-                        : "This deck is still being prepared for preview."}
-                    </p>
-                  </div>
-                ) : (
-                  <ImageDeckViewer deck={deck} isOwner />
-                )
+              {deck.status === "PENDING" || deck.status === "CONVERTING" ? (
+                <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-[#0d0d0d]">
+                  <div className="w-12 h-12 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin mb-6" />
+                  <h2 className="text-xl font-bold text-white mb-2">
+                    {deck.status === "CONVERTING" ? "Converting Content" : "Preparing Deck"}
+                  </h2>
+                  <p className="text-slate-400 text-sm max-w-sm">
+                    {deck.status === "CONVERTING"
+                      ? "The server is converting this document into an interactive experience."
+                      : "This deck is still being prepared for preview."}
+                  </p>
+                </div>
+              ) : deck.display_mode === "interactive" ||
+                (Array.isArray(deck.pages) && deck.pages.length > 0) ? (
+                <ImageDeckViewer deck={deck} isOwner />
               ) : (
                 <DeckViewer deck={deck} isOwner />
               )}

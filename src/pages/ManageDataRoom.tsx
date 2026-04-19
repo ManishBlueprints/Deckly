@@ -85,6 +85,7 @@ function ManageDataRoom() {
   const [expiryEnabled, setExpiryEnabled] = useState(false);
   const [expiryDate, setExpiryDate] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   // Documents
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
@@ -351,7 +352,7 @@ function ManageDataRoom() {
   // Copy link
   const handleCopyLink = async () => {
     if (!profile?.handle) {
-      alert("Please set a handle in your profile settings before sharing.");
+      toast.error("Please set a handle in your profile settings before sharing.");
       return;
     }
     if (!roomId || !isEditMode) {
@@ -359,6 +360,7 @@ function ManageDataRoom() {
       return;
     }
 
+    setPublishing(true);
     try {
       await dataRoomService.publishDataRoom(roomId);
       setIsPublic(true);
@@ -370,6 +372,8 @@ function ManageDataRoom() {
     } catch (err) {
       console.error("Failed to publish data room", err);
       toast.error("Failed to activate public link.");
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -532,7 +536,7 @@ function ManageDataRoom() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => void handleCopyLink()}
-                      disabled={isExpired}
+                      disabled={isExpired || publishing}
                       className="flex items-center justify-center w-11 h-11 bg-surface-container border border-white/10 rounded-md text-slate-400 hover:text-white transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group relative"
                       title={isExpired ? "Link Expired" : "Copy share link"}
                     >

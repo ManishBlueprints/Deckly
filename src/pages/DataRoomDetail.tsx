@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -130,6 +131,11 @@ function DataRoomDetail() {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to activate public link", err);
+      toast.error(
+        err instanceof Error
+          ? `Failed to copy link: ${err.message}`
+          : "Failed to activate public link. Please try again."
+      );
     } finally {
       setIsUpdatingShareState(false);
     }
@@ -144,6 +150,11 @@ function DataRoomDetail() {
       setRoom(updated);
     } catch (err) {
       console.error("Failed to disable public link", err);
+      toast.error(
+        err instanceof Error
+          ? `Failed to disable public link: ${err.message}`
+          : "Failed to disable public link. Please try again."
+      );
     } finally {
       setIsUpdatingShareState(false);
     }
@@ -283,7 +294,13 @@ function DataRoomDetail() {
               </button>
 
               <button
-                onClick={() => window.open(getDataRoomPreviewPath(room.id), "_blank", "noopener,noreferrer")}
+                onClick={() =>
+                  window.open(
+                    getDataRoomPreviewPath(room.id),
+                    "_blank",
+                    "noopener,noreferrer",
+                  )
+                }
                 className="p-2 bg-surface-low border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"
                 title="Open private preview"
               >
@@ -346,10 +363,14 @@ function DataRoomDetail() {
               <span className="text-[10px] font-medium">Access Link</span>
             </div>
             <p className="text-xs font-medium text-slate-300 truncate">
-              /{profile?.handle}/room/{room.slug}
+              {profile?.handle
+                ? `/${profile.handle}/room/${room.slug}`
+                : "Set handle in profile to share"}
             </p>
             <p className="text-[10px] text-slate-500 mt-1">
-              {room.is_public ? "Public link active" : "Private until you copy the link"}
+              {room.is_public
+                ? "Public link active"
+                : "Private until you copy the link"}
             </p>
           </div>
         </div>
@@ -521,7 +542,8 @@ function DataRoomDetail() {
             <AlertDialogTitle>Delete {room.name}?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this room? This action cannot be
-              undone and all visitors will be revoked access. Your original decks remain intact.
+              undone and all visitors will be revoked access. Your original
+              decks remain intact.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
