@@ -13,6 +13,8 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
+  ExternalLink,
+  EyeOff,
 } from "lucide-react";
 import { useCheckDataRoomSlug } from "../hooks/useSlugValidation";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -27,7 +29,7 @@ import { DataRoomCreateTour } from "../components/tours/DataRoomCreateTour";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
 import { useQueryClient } from "@tanstack/react-query";
-import { getDataRoomShareUrl } from "../utils/url";
+import { getDataRoomPreviewPath, getDataRoomShareUrl } from "../utils/url";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -82,6 +84,8 @@ function ManageDataRoom() {
   const [viewPassword, setViewPassword] = useState("");
   const [expiryEnabled, setExpiryEnabled] = useState(false);
   const [expiryDate, setExpiryDate] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   // Documents
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
@@ -119,6 +123,7 @@ function ManageDataRoom() {
         setViewPassword(room.view_password || "");
         setExpiryEnabled(!!room.expires_at);
         setExpiryDate(room.expires_at ? room.expires_at.split("T")[0] : "");
+        setIsPublic(!!room.is_public);
 
         const docs = await dataRoomService.getDocuments(roomId!);
         setDocuments(docs);
@@ -284,10 +289,12 @@ function ManageDataRoom() {
       };
 
       if (isEditMode) {
-        await dataRoomService.updateDataRoom(roomId!, roomPayload);
+        const updatedRoom = await dataRoomService.updateDataRoom(roomId!, roomPayload);
+        setIsPublic(!!updatedRoom.is_public);
       } else {
         // Atomic creation with all settings
         const room = await dataRoomService.createDataRoom(roomPayload);
+        setIsPublic(!!room.is_public);
 
         // Add documents after successful room initiation
         const deckIds = documents.map((d) => d.deck_id);
@@ -343,15 +350,44 @@ function ManageDataRoom() {
   };
 
   // Copy link
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (!profile?.handle) {
-      alert("Please set a handle in your profile settings before sharing.");
+      toast.error("Please set a handle in your profile settings before sharing.");
       return;
     }
-    const url = getDataRoomShareUrl(profile.handle, slug);
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (!roomId || !isEditMode) {
+      toast.error("Save this data room before sharing it.");
+      return;
+    }
+
+    setPublishing(true);
+    try {
+      await dataRoomService.publishDataRoom(roomId);
+      setIsPublic(true);
+      const url = getDataRoomShareUrl(profile.handle, slug);
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast.success("Public link activated and copied.");
+    } catch (err) {
+      console.error("Failed to publish data room", err);
+      toast.error("Failed to activate public link.");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const handleMakePrivate = async () => {
+    if (!roomId || !isEditMode) return;
+
+    try {
+      await dataRoomService.unpublishDataRoom(roomId);
+      setIsPublic(false);
+      toast.success("Public link disabled.");
+    } catch (err) {
+      console.error("Failed to disable data room link", err);
+      toast.error("Failed to disable public link.");
+    }
   };
 
   const shareUrl = profile?.handle
@@ -499,8 +535,8 @@ function ManageDataRoom() {
                 {slug && (
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={handleCopyLink}
-                      disabled={isExpired}
+                      onClick={() => void handleCopyLink()}
+                      disabled={isExpired || publishing}
                       className="flex items-center justify-center w-11 h-11 bg-surface-container border border-white/10 rounded-md text-slate-400 hover:text-white transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group relative"
                       title={isExpired ? "Link Expired" : "Copy share link"}
                     >
@@ -529,9 +565,32 @@ function ManageDataRoom() {
                         Reactivate Link
                       </button>
                     )}
+
+                    {isEditMode && roomId && (
+                      <button
+                        onClick={() => window.open(getDataRoomPreviewPath(roomId), "_blank", "noopener,noreferrer")}
+                        className="flex items-center justify-center w-11 h-11 bg-surface-container border border-white/10 rounded-md text-slate-400 hover:text-white transition-all shrink-0"
+                        title="Open private preview"
+                      >
+                        <ExternalLink size={16} />
+                      </button>
+                    )}
+
+                    {isEditMode && roomId && isPublic && (
+                      <button
+                        onClick={() => void handleMakePrivate()}
+                        className="flex items-center justify-center w-11 h-11 bg-red-500/10 border border-red-500/20 rounded-md text-red-400 hover:bg-red-500/20 transition-all shrink-0"
+                        title="Disable public link"
+                      >
+                        <EyeOff size={16} />
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
+              <p className="text-xs text-slate-500">
+                {isPublic ? "Public link active" : "Private until you copy the link"}
+              </p>
               <AnimatePresence>
                 {!isEditMode &&
                   slug.length > 2 &&

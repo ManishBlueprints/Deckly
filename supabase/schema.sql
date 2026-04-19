@@ -30,6 +30,8 @@ DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 CREATE POLICY "Users can view their own profile" ON public.profiles
     FOR SELECT USING ((select auth.uid()) = id);
 
+DROP POLICY IF EXISTS "Anyone can view basic profile info" ON public.profiles;
+
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile" ON public.profiles
     FOR UPDATE USING ((select auth.uid()) = id);
@@ -75,6 +77,7 @@ CREATE TABLE IF NOT EXISTS public.decks (
     display_order INTEGER DEFAULT 1,
     require_email BOOLEAN DEFAULT FALSE,
     require_password BOOLEAN DEFAULT FALSE,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
     view_password TEXT,
     unique_visitors INTEGER DEFAULT 0,
     expires_at TIMESTAMPTZ,
@@ -103,6 +106,7 @@ CREATE TABLE IF NOT EXISTS public.data_rooms (
     icon_url TEXT,
     require_email BOOLEAN DEFAULT FALSE,
     require_password BOOLEAN DEFAULT FALSE,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
     view_password TEXT,
     expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -132,6 +136,8 @@ DROP POLICY IF EXISTS "Users can manage their own data rooms" ON public.data_roo
 CREATE POLICY "Users can manage their own data rooms" ON public.data_rooms
     FOR ALL USING ((select auth.uid()) = user_id);
 
+DROP POLICY IF EXISTS "Anyone can view data rooms" ON public.data_rooms;
+
 -- POLICIES FOR DATA ROOM DOCUMENTS
 DROP POLICY IF EXISTS "Owners can manage data room documents" ON public.data_room_documents;
 CREATE POLICY "Owners can manage data room documents" ON public.data_room_documents
@@ -151,6 +157,10 @@ CREATE POLICY "Owners can manage data room documents" ON public.data_room_docume
             WHERE d.id = deck_id AND d.user_id = (select auth.uid())
         )
     );
+
+DROP POLICY IF EXISTS "Anyone can view data room document lists" ON public.data_room_documents;
+CREATE POLICY "Anyone can view data room document lists" ON public.data_room_documents
+    FOR SELECT USING (true);
 
 -- 5. ANALYTICS TABLES
 CREATE TABLE IF NOT EXISTS public.deck_page_views (
@@ -287,6 +297,8 @@ DROP POLICY IF EXISTS "Users can manage their own decks" ON public.decks;
 CREATE POLICY "Users can manage their own decks" ON public.decks
     FOR ALL USING ((select auth.uid()) = user_id);
 
+DROP POLICY IF EXISTS "Anyone can view published decks" ON public.decks;
+
 -- POLICIES FOR BRANDING
 -- Drop legacy prod policies
 DROP POLICY IF EXISTS "Allow public read access" ON public.branding;
@@ -406,6 +418,8 @@ USING (bucket_id = 'assets');
 -- MIGRATIONS (for multi-document support)
 ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS file_type TEXT DEFAULT 'pdf';
 ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS display_mode TEXT DEFAULT 'raw'; -- 'raw' or 'interactive'
+ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.data_rooms ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
 -- Drop view before altering column type
 DROP VIEW IF EXISTS public.decks_public CASCADE;
 ALTER TABLE public.decks ALTER COLUMN pages DROP DEFAULT;
@@ -424,43 +438,73 @@ DROP VIEW IF EXISTS public.profiles_public CASCADE;
 DROP VIEW IF EXISTS public.decks_public CASCADE;
 DROP VIEW IF EXISTS public.data_rooms_public CASCADE;
 
--- Minimal public profiles view: exposes only id and handle.
+-- Minimal public profiles function: exposes only id and handle.
 -- Runs with security definer semantics to safely bypass RLS on profiles without exposing sensitive columns.
-CREATE OR REPLACE VIEW public.profiles_public WITH (security_invoker = false) AS
+CREATE OR REPLACE FUNCTION public.get_profiles_public()
+RETURNS TABLE (id uuid, handle text) 
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 SELECT id, handle
 FROM public.profiles;
+$$;
 
--- Public view for decks (excludes sensitive view_password, file_url, and pages payload)
+-- Public function for decks (excludes sensitive view_password, file_url, and pages payload)
 -- Runs with security definer semantics to bypass the restricted RLS on decks.
-CREATE OR REPLACE VIEW public.decks_public WITH (security_invoker = false) AS
+CREATE OR REPLACE FUNCTION public.get_decks_public()
+RETURNS TABLE (
+    id uuid, user_id uuid, title text, slug text, description text, status text, 
+    file_size bigint, display_order integer, require_email boolean, require_password boolean, 
+    expires_at timestamptz, created_at timestamptz, updated_at timestamptz, 
+    file_type text, display_mode text, user_handle text
+)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 SELECT 
     d.id, d.user_id, d.title, d.slug, d.description, d.status, 
     d.file_size, d.display_order, d.require_email, d.require_password, d.expires_at, 
     d.created_at, d.updated_at, d.file_type, d.display_mode,
     p.handle as user_handle
 FROM public.decks d
-JOIN public.profiles_public p ON d.user_id = p.id;
+JOIN public.profiles p ON d.user_id = p.id
+WHERE d.is_public = TRUE
+  AND d.status <> 'DELETED'
+  AND (d.expires_at IS NULL OR d.expires_at > NOW());
+$$;
 
--- Public view for data rooms (excludes sensitive view_password and associated documents)
+-- Public function for data rooms (excludes sensitive view_password and associated documents)
 -- Runs with security definer semantics to bypass the restricted RLS on data_rooms.
-CREATE OR REPLACE VIEW public.data_rooms_public WITH (security_invoker = false) AS
+CREATE OR REPLACE FUNCTION public.get_data_rooms_public()
+RETURNS TABLE (
+    id uuid, user_id uuid, name text, slug text, description text, icon_url text, 
+    require_email boolean, require_password boolean, expires_at timestamptz, 
+    created_at timestamptz, updated_at timestamptz, user_handle text
+)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
 SELECT 
     dr.id, dr.user_id, dr.name, dr.slug, dr.description, dr.icon_url, dr.require_email, 
     dr.require_password, dr.expires_at, dr.created_at, dr.updated_at,
     p.handle as user_handle
 FROM public.data_rooms dr
-JOIN public.profiles_public p ON dr.user_id = p.id;
+JOIN public.profiles p ON dr.user_id = p.id
+WHERE dr.is_public = TRUE
+  AND (dr.expires_at IS NULL OR dr.expires_at > NOW());
+$$;
 
 -- Cleanup the old, insecure "viewable by everyone" policy if it exists.
 DROP POLICY IF EXISTS "Public profile fields are viewable by everyone" ON public.profiles;
 
--- Restore standard table-level SELECT so authenticated users can read all columns of their OWN profile 
--- (as permitted by the "Users can view their own profile" RLS policy above).
-GRANT SELECT ON public.profiles TO anon, authenticated;
+-- Public reads go through SECURITY DEFINER functions above.
+-- Raw table reads stay available to authenticated users and remain filtered by RLS.
+REVOKE SELECT ON public.profiles FROM anon;
+REVOKE SELECT ON public.decks FROM anon;
+REVOKE SELECT ON public.data_rooms FROM anon;
 
--- GRANT VIEW PERMISSIONS --
-GRANT SELECT ON public.decks_public TO anon, authenticated;
-GRANT SELECT ON public.data_rooms_public TO anon, authenticated;
+GRANT SELECT ON public.profiles TO authenticated;
+GRANT SELECT ON public.decks TO authenticated;
+GRANT SELECT ON public.data_rooms TO authenticated;
+
+-- GRANT VIEW / FUNCTION PERMISSIONS --
+GRANT EXECUTE ON FUNCTION public.get_profiles_public() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_decks_public() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_data_rooms_public() TO anon, authenticated;
 
 -- Direct INSERT into deck_page_views is blocked.
 -- All page view writes must go through record_deck_visit (SECURITY DEFINER)
@@ -687,10 +731,14 @@ BEGIN
     FROM public.decks 
     WHERE slug = p_slug 
       AND (expires_at IS NULL OR expires_at > NOW());
-    -- Enforce exact password check via RPC helper (shared error prevents slug enumeration)
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Unauthorized';
-    ELSIF v_deck.require_password AND NOT public.check_deck_password(p_slug, p_password) THEN
+    ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_deck.user_id
+          AND NOT v_deck.is_public THEN
+        RAISE EXCEPTION 'Unauthorized';
+    ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_deck.user_id
+          AND v_deck.require_password
+          AND NOT public.check_deck_password(p_slug, p_password) THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 
@@ -727,10 +775,14 @@ BEGIN
     FROM public.data_rooms 
     WHERE slug = p_slug 
       AND (expires_at IS NULL OR expires_at > NOW());
-    -- Shared error prevents slug enumeration
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Unauthorized';
-    ELSIF v_room.require_password AND NOT public.check_data_room_password(p_slug, p_password) THEN
+    ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_room.user_id
+          AND NOT v_room.is_public THEN
+        RAISE EXCEPTION 'Unauthorized';
+    ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_room.user_id
+          AND v_room.require_password
+          AND NOT public.check_data_room_password(p_slug, p_password) THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 
@@ -1643,3 +1695,8 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_total_system_users() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_deck_payload(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_deck_password(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_data_room_payload(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_data_room_password(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) TO anon, authenticated;

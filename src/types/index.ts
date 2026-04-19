@@ -29,6 +29,7 @@ export interface Deck {
   file_size?: number;
   require_email?: boolean;
   require_password?: boolean;
+  is_public?: boolean;
   view_password?: string;
   file_type?: string;
   display_mode?: "raw" | "interactive";
@@ -133,6 +134,7 @@ export interface DataRoom {
   icon_url?: string;
   require_email?: boolean;
   require_password?: boolean;
+  is_public?: boolean;
   view_password?: string;
   expires_at?: string | null;
   created_at: string;
