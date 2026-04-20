@@ -433,7 +433,7 @@ ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
     bucket_id = 'assets' AND
     (select auth.uid())::text = (string_to_array(name, '/'))[1] AND
-    (metadata->>'size')::bigint <= 5242880 -- Fixed 5MB for assets (logos/avatars)
+    COALESCE((metadata->>'size')::bigint, 0) <= 5242880 -- Fixed 5MB for assets (logos/avatars)
 );
 
 DROP POLICY IF EXISTS "Authenticated users can update their own asset files" ON storage.objects;
@@ -446,7 +446,7 @@ USING (
 WITH CHECK (
     bucket_id = 'assets' AND
     (select auth.uid())::text = (string_to_array(name, '/'))[1] AND
-    (metadata->>'size')::bigint <= 5242880
+    COALESCE((metadata->>'size')::bigint, 0) <= 5242880
 );
 
 DROP POLICY IF EXISTS "Authenticated users can delete their own asset files" ON storage.objects;
