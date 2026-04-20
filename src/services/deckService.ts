@@ -513,7 +513,7 @@ export const deckService = {
       },
     });
 
-    if (fnError || !signedData?.signed_pages) {
+    if (fnError || !Array.isArray(signedData?.signed_pages)) {
       console.error("Failed to sign owner thumbnails:", fnError);
       return {};
     }

@@ -25,8 +25,8 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!session) return false;
       // Profile still loading → suppress tours to prevent false starts
       if (profileLoading) return true;
-      // Profile fetch failed → allow tours (can't verify completion)
-      if (profileError) return false;
+      // Profile fetch failed → suppress tours (can't verify completion, avoid re-running)
+      if (profileError) return true;
       // Profile loaded but null → allow tours
       if (!profile) return false;
 
