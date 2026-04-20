@@ -68,7 +68,8 @@ npm run dev
    ```
 2. Set the required environment variables:
    - `VITE_SUPABASE_URL`: Your Supabase project URL (found in Project Settings > API).
-   - `VITE_SUPABASE_ANON_KEY`: Your Supabase anon/public key (found in Project Settings > API).
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`: Your Supabase publishable key (found in Project Settings > API).
+   - `PROJECT_SECRET_KEY`: (Server-side/Edge Functions) Your Supabase secret key.
    - `VITE_POSTHOG_KEY`: (Optional) Your PostHog project API key.
    - `VITE_POSTHOG_HOST`: (Optional) Your PostHog host (e.g., `https://app.posthog.com`).
 

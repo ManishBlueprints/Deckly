@@ -37,19 +37,19 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const supabasePublishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "";
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("Missing environment variables: SUPABASE_URL or SUPABASE_ANON_KEY");
+    if (!supabaseUrl || !supabasePublishableKey) {
+      console.error("Missing environment variables: SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY");
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Use the anon client to call get_deck_payload — this re-validates
+    // Use the publishable client to call get_deck_payload — this re-validates
     // the slug/password/expiry before we issue a signed URL.
-    const anonClient = createClient(supabaseUrl, supabaseAnonKey);
+    const anonClient = createClient(supabaseUrl, supabasePublishableKey);
 
     const validPaths = new Set<string>();
 
@@ -118,17 +118,17 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Auth passed — use service_role to generate signs for ALL requested paths.
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    if (!supabaseServiceKey) {
-      console.error("Missing SUPABASE_SERVICE_ROLE_KEY");
+    // Auth passed — use secret key to generate signs for ALL requested paths.
+    const supabaseSecretKey = Deno.env.get("PROJECT_SECRET_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    if (!supabaseSecretKey) {
+      console.error("Missing PROJECT_SECRET_KEY");
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const adminClient = createClient(supabaseUrl, supabaseSecretKey);
 
     const EXPIRES_IN_SECONDS = 3600; // 1 hour
 

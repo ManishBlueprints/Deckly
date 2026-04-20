@@ -117,7 +117,7 @@ For more details, see the full [LICENSE](./LICENSE) file.
 
    ```bash
    cp .env.example .env.local
-   # Fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+   # Fill in VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
    ```
 
 3. **Database Setup**:

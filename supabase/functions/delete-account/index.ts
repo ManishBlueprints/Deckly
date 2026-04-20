@@ -14,9 +14,9 @@ Deno.serve(async (req: Request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const supabaseSecretKey = Deno.env.get("PROJECT_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!supabaseUrl || !supabaseSecretKey) {
     return new Response(
       JSON.stringify({ error: "Missing server environment variables" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
   const accessToken = authHeader.replace("Bearer ", "").trim();
 
   // Create a USER-scoped client to verify the JWT
-  const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+  const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
   });
 
@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
   const userId = user.id;
 
   // Create admin client to perform privileged operations
-  const adminClient = createClient(supabaseUrl, serviceRoleKey);
+  const adminClient = createClient(supabaseUrl, supabaseSecretKey);
 
   try {
     // --- Step 1: Purge all storage objects owned by this user ---
