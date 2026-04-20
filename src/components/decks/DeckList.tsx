@@ -68,10 +68,40 @@ function DeckList({
   const [isResetting, setIsResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { profile, isPro } = useAuth();
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
+  const [signedBanner, setSignedBanner] = useState<string | null>(null);
 
   useEffect(() => {
     setBranding(initialBranding);
-  }, [initialBranding]);
+    
+    // Batch sign thumbnails and banner when decks or branding changes
+    const signAssets = async () => {
+       if (!decks || decks.length === 0) return;
+       
+       try {
+         // 1. Sign thumbnails
+         const urlMap = await deckService.signOwnerThumbnails();
+         setThumbnails(urlMap);
+
+         // 2. Sign banner if it's in the private desks bucket
+         if (initialBranding.banner_url && initialBranding.banner_url.includes("/storage/v1/object/public/decks/")) {
+            const bannerPath = initialBranding.banner_url.split("/storage/v1/object/public/decks/")[1];
+            if (bannerPath) {
+               const { data: fnData } = await supabase.functions.invoke("sign-deck-url", {
+                 body: { image_paths: [bannerPath] }
+               });
+               if (fnData?.signed_pages?.[0]?.signedUrl) {
+                  setSignedBanner(fnData.signed_pages[0].signedUrl);
+               }
+            }
+         }
+       } catch (err) {
+         console.warn("Failed to sign dashboard assets:", err);
+       }
+    };
+
+    signAssets();
+  }, [initialBranding, decks]);
 
   const handleLogout = async () => {
     try {
@@ -213,7 +243,7 @@ function DeckList({
       <header
         className="relative w-full h-[300px] flex items-center justify-center text-center border-b border-white/5"
         style={{
-          backgroundImage: `url(${branding.banner_url || defaultBanner})`,
+          backgroundImage: `url(${signedBanner || branding.banner_url || defaultBanner})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -524,30 +554,34 @@ function DeckList({
                         }
                       }
 
-                      // Extremely defensive resolution: handle string, handle object with multiple keys, handle fallback
-                      let imgSrc = "";
-                      if (!firstPage) {
-                        imgSrc = branding.banner_url || defaultBanner;
-                      } else if (typeof firstPage === "string") {
-                        imgSrc = firstPage;
-                      } else {
-                        imgSrc =
-                          (typeof firstPage === "object" && firstPage !== null
-                            ? (
-                                firstPage as {
-                                  image_url?: string;
-                                  url?: string;
-                                }
-                              ).image_url ||
-                              (
-                                firstPage as {
-                                  image_url?: string;
-                                  url?: string;
-                                }
-                              ).url
-                            : undefined) ||
-                          branding.banner_url ||
-                          defaultBanner;
+                      // Extremely defensive resolution: handle signed thumb, handle string, handle object with multiple keys, handle fallback
+                      let imgSrc = thumbnails[deck.id] || "";
+                      
+                      if (!imgSrc) {
+                        if (!firstPage) {
+                          imgSrc = signedBanner || branding.banner_url || defaultBanner;
+                        } else if (typeof firstPage === "string") {
+                          imgSrc = firstPage;
+                        } else {
+                          imgSrc =
+                            (typeof firstPage === "object" && firstPage !== null
+                              ? (
+                                  firstPage as {
+                                    image_url?: string;
+                                    url?: string;
+                                  }
+                                ).image_url ||
+                                (
+                                  firstPage as {
+                                    image_url?: string;
+                                    url?: string;
+                                  }
+                                ).url
+                              : undefined) ||
+                            signedBanner ||
+                            branding.banner_url ||
+                            defaultBanner;
+                        }
                       }
 
                       // One more safety check for placeholder

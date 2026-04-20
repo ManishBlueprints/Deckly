@@ -227,6 +227,32 @@ END $$;
 -- DATA ROOMS OPTIMIZATION
 -- Get all data rooms with doc counts and visitor counts in ONE call
 -- =============================================================================
+-- Batch sign thumbnails for the owner dashboard
+CREATE OR REPLACE FUNCTION public.get_owner_thumbnails()
+RETURNS TABLE (deck_id UUID, storage_path TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        d.id as deck_id,
+        CASE 
+          WHEN (d.pages->0->>'image_url') IS NOT NULL THEN
+            split_part(d.pages->0->>'image_url', '/storage/v1/object/public/decks/', 2)
+          WHEN (d.pages->0->>'url') IS NOT NULL THEN
+            split_part(d.pages->0->>'url', '/storage/v1/object/public/decks/', 2)
+          ELSE NULL
+        END as storage_path
+    FROM public.decks d
+    WHERE d.user_id = auth.uid()
+      AND d.status = 'PROCESSED';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_owner_thumbnails() TO authenticated;
+
 CREATE OR REPLACE FUNCTION get_batch_data_room_analytics(p_room_ids UUID[])
 RETURNS TABLE (
   room_id UUID,
@@ -354,8 +380,13 @@ ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
     bucket_id = 'decks' AND
     (select auth.uid())::text = (string_to_array(name, '/'))[1] AND
-    (metadata->>'size')::bigint <= (SELECT coalesce((public.get_current_user_tier_limit()).max_file_size_bytes, 10485760))
+    (
+        -- Robust size check: fall back to 10MB if metadata or tier lookup fails
+        COALESCE((metadata->>'size')::bigint, 0) <= 
+        COALESCE((SELECT max_file_size_bytes FROM public.get_current_user_tier_limit()), 10485760)
+    )
 );
+
 
 DROP POLICY IF EXISTS "Authenticated users can update their own deck files" ON storage.objects;
 CREATE POLICY "Authenticated users can update their own deck files"
@@ -367,8 +398,12 @@ USING (
 WITH CHECK (
     bucket_id = 'decks' AND
     (select auth.uid())::text = (string_to_array(name, '/'))[1] AND
-    (metadata->>'size')::bigint <= (SELECT coalesce((public.get_current_user_tier_limit()).max_file_size_bytes, 10485760))
+    (
+        COALESCE((metadata->>'size')::bigint, 0) <= 
+        COALESCE((SELECT max_file_size_bytes FROM public.get_current_user_tier_limit()), 10485760)
+    )
 );
+
 
 DROP POLICY IF EXISTS "Authenticated users can delete their own deck files" ON storage.objects;
 CREATE POLICY "Authenticated users can delete their own deck files"
@@ -454,17 +489,24 @@ ON CONFLICT (tier) DO UPDATE SET
   max_decks_per_room = EXCLUDED.max_decks_per_room;
 
 -- Helper to fetch current user's tier configuration efficiently
+-- Falls back to 'FREE' tier if user profile or tier is missing to prevent RLS crashes
 CREATE OR REPLACE FUNCTION public.get_current_user_tier_limit()
 RETURNS public.tier_limits
 LANGUAGE sql
 SECURITY DEFINER
 STABLE
+SET search_path = public, extensions
 AS $$
   SELECT tl.*
   FROM public.tier_limits tl
-  JOIN public.profiles p ON p.tier = tl.tier
-  WHERE p.id = (select auth.uid());
+  WHERE tl.tier = COALESCE(
+    (SELECT tier FROM public.profiles WHERE id = auth.uid()),
+    'FREE'
+  );
 $$;
+
+GRANT EXECUTE ON FUNCTION public.get_current_user_tier_limit() TO authenticated;
+
 
 -- MIGRATIONS (for multi-document support)
 ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS file_type TEXT DEFAULT 'pdf';
@@ -554,7 +596,8 @@ GRANT SELECT ON public.data_rooms TO authenticated;
 
 -- GRANT VIEW / FUNCTION PERMISSIONS --
 GRANT EXECUTE ON FUNCTION public.get_profiles_public() TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.get_decks_public() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_current_user_tier_limit() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_signup_count(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_data_rooms_public() TO anon, authenticated;
 
 -- Direct INSERT into deck_page_views is blocked.

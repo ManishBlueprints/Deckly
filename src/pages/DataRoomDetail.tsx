@@ -23,6 +23,7 @@ import { DataRoom, DataRoomDocument } from "../types";
 import { cn } from "@/lib/utils";
 import { dataRoomService } from "../services/dataRoomService";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
+import { deckService } from "../services/deckService";
 import { useAuth } from "../contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -60,6 +61,7 @@ function DataRoomDetail() {
 
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
+  const [signedThumbnails, setSignedThumbnails] = useState<Record<string, string>>({});
   const [analytics, setAnalytics] = useState<{
     totalVisitors: number;
     perDeck: { deckId: string; title: string; visitors: number }[];
@@ -94,6 +96,13 @@ function DataRoomDetail() {
       setRoom(roomData);
       setDocuments(docs);
       setAnalytics(analyticsData);
+
+      // Batch sign thumbnails for secure owner viewing
+      if (docs.length > 0) {
+        deckService.signOwnerThumbnails().then(setSignedThumbnails).catch(err => {
+          console.error("Failed to sign Data Room thumbnails", err);
+        });
+      }
 
       setSignalsLoading(true);
       getRoomVisitorSignals(roomId)
@@ -434,6 +443,7 @@ function DataRoomDetail() {
                   documents={documents}
                   onRemove={handleRemoveDocument}
                   onReorder={handleReorderDocuments}
+                  signedThumbnails={signedThumbnails}
                 />
               )}
             </div>

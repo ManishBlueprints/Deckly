@@ -29,13 +29,6 @@ Deno.serve(async (req: Request) => {
       ? rawImagePaths.filter((p): p is string => typeof p === "string")
       : [];
 
-    if ((!slug && !room_slug)) {
-      return new Response(
-        JSON.stringify({ error: "slug or room_slug is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabasePublishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "";
 
@@ -65,12 +58,29 @@ Deno.serve(async (req: Request) => {
         p_password: password ?? null,
       });
 
-      if (rpcError || !rpcData) {
-        return new Response(JSON.stringify({ error: "Unauthorized Data Room" }), { status: 403, headers: { "Content-Type": "application/json" } });
+      if (!rpcError && rpcData) {
+        const payloads = rpcData as DeckPayload[];
+        payloads.forEach(payload => {
+          if (payload.storage_path) validPaths.add(payload.storage_path);
+          (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
+            const url = typeof page === 'string' ? page : page.image_url;
+            if (url && typeof url === 'string') {
+              const marker = "/storage/v1/object/public/decks/";
+              const idx = url.indexOf(marker);
+              if (idx !== -1) validPaths.add(url.substring(idx + marker.length));
+            }
+          });
+        });
       }
+    } else if (slug) {
+      // Individual deck mode
+      const { data: rpcData, error: rpcError } = await anonClient.rpc("get_deck_payload", {
+        p_slug: slug,
+        p_password: password ?? null,
+      });
 
-      const payloads = rpcData as DeckPayload[];
-      payloads.forEach(payload => {
+      if (!rpcError && rpcData) {
+        const payload = rpcData as DeckPayload;
         if (payload.storage_path) validPaths.add(payload.storage_path);
         (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
           const url = typeof page === 'string' ? page : page.image_url;
@@ -80,45 +90,50 @@ Deno.serve(async (req: Request) => {
             if (idx !== -1) validPaths.add(url.substring(idx + marker.length));
           }
         });
-      });
-    } else {
-      // Individual deck mode
-      const { data: rpcData, error: rpcError } = await anonClient.rpc("get_deck_payload", {
-        p_slug: slug,
-        p_password: password ?? null,
-      });
-
-      if (rpcError || !rpcData) {
-        return new Response(JSON.stringify({ error: "Unauthorized Deck" }), { status: 403, headers: { "Content-Type": "application/json" } });
       }
-
-      const payload = rpcData as DeckPayload;
-      if (payload.storage_path) validPaths.add(payload.storage_path);
-      (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
-        const url = typeof page === 'string' ? page : page.image_url;
-        if (url && typeof url === 'string') {
-          const marker = "/storage/v1/object/public/decks/";
-          const idx = url.indexOf(marker);
-          if (idx !== -1) validPaths.add(url.substring(idx + marker.length));
-        }
-      });
     }
 
     // Reject if any requested path (main or image) is not authorized for this session.
+    // 2. OWNER MODE: If an auth token is provided, verify it.
+    // If verified, the owner can sign any path starting with their userId/ without further checks.
+    let ownerId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user }, error: userError } = await anonClient.auth.getUser(token);
+      if (!userError && user) {
+        ownerId = user.id;
+        console.log(`[Owner Mode] Verified user ${ownerId}`);
+      }
+    }
+
     const requestedPaths = [];
     if (storage_path) requestedPaths.push(storage_path);
     requestedPaths.push(...image_paths);
 
-    for (const path of requestedPaths) {
-      if (path && !validPaths.has(path)) {
+    // Reject if any requested path is not authorized through either mode
+    const finalRequestedPaths = requestedPaths.filter(path => {
+      if (!path) return false;
+      if (validPaths.has(path)) return true;
+      if (ownerId && path.startsWith(`${ownerId}/`)) return true;
+      return false;
+    });
+
+    if (finalRequestedPaths.length < requestedPaths.length) {
+       const missing = requestedPaths.find(p => p && !validPaths.has(p) && (!ownerId || !p.startsWith(`${ownerId}/`)));
+       if (missing) {
+         console.warn(`[Blocked] Path ${missing} not authorized for viewer (slug=${slug}) or owner (id=${ownerId})`);
          return new Response(
-          JSON.stringify({ error: `Forbidden: path mismatch for ${path}` }),
+          JSON.stringify({ error: `Forbidden: path mismatch for ${missing}` }),
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
-      }
+       }
     }
 
-    // Auth passed — use secret key to generate signs for ALL requested paths.
+    if (finalRequestedPaths.length === 0) {
+      return new Response(JSON.stringify({ error: "No valid paths to sign" }), { status: 400, headers: { "Content-Type": "application/json" } });
+    }
+
     const supabaseSecretKey = Deno.env.get("PROJECT_SECRET_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     if (!supabaseSecretKey) {
       console.error("Missing PROJECT_SECRET_KEY");
@@ -129,13 +144,12 @@ Deno.serve(async (req: Request) => {
     }
 
     const adminClient = createClient(supabaseUrl, supabaseSecretKey);
-
-    const EXPIRES_IN_SECONDS = 3600; // 1 hour
+    const EXPIRES_IN_SECONDS = 21600; // 6 hours
 
     // Using plural createSignedUrls for better efficiency
     const { data: signedData, error: signError } = await adminClient.storage
       .from("decks")
-      .createSignedUrls(requestedPaths, EXPIRES_IN_SECONDS);
+      .createSignedUrls(finalRequestedPaths, EXPIRES_IN_SECONDS);
 
     if (signError || !signedData) {
       console.error("Failed to create signed URLs", signError);
