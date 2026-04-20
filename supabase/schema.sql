@@ -1154,7 +1154,9 @@ BEGIN
     FROM public.data_room_documents
     WHERE data_room_id = NEW.data_room_id;
 
-    IF v_config IS NULL OR v_count >= v_config.max_decks_per_room THEN
+    IF v_config IS NULL THEN
+        RAISE EXCEPTION 'Unable to determine user tier limits for user %', auth.uid();
+    ELSIF v_count >= v_config.max_decks_per_room THEN
         RAISE EXCEPTION 'Data Room capacity reached (max % decks). Please remove an existing deck to add a new one.', COALESCE(v_config.max_decks_per_room, 50);
     END IF;
 

@@ -16,21 +16,23 @@ const TourContext = createContext<TourContextType | undefined>(undefined);
 export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { profile, session, refreshProfile } = useAuth();
+  const { profile, session, profileLoading, profileError, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
 
   const hasCompletedTour = useCallback(
     (tourId: keyof TutorialState) => {
       // No session → tours won't run anyway (no user to track)
       if (!session) return false;
-      // Profile loading → suppress tours to prevent false starts.
-      // Returning true means "assume complete until we know otherwise."
-      // On first login, profile loads quickly and tours appear correctly.
-      if (!profile) return true;
+      // Profile still loading → suppress tours to prevent false starts
+      if (profileLoading) return true;
+      // Profile fetch failed → allow tours (can't verify completion)
+      if (profileError) return false;
+      // Profile loaded but null → allow tours
+      if (!profile) return false;
 
       return !!profile.tutorial_state?.[tourId];
     },
-    [profile, session],
+    [profile, session, profileLoading, profileError],
   );
 
   const markTourComplete = useCallback(
