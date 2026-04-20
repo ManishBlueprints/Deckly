@@ -15,8 +15,9 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const supabaseSecretKey = Deno.env.get("PROJECT_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const supabasePublishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
-  if (!supabaseUrl || !supabaseSecretKey) {
+  if (!supabaseUrl || !supabaseSecretKey || !supabasePublishableKey) {
     return new Response(
       JSON.stringify({ error: "Missing server environment variables" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
@@ -34,7 +35,7 @@ Deno.serve(async (req: Request) => {
   const accessToken = authHeader.replace("Bearer ", "").trim();
 
   // Create a USER-scoped client to verify the JWT
-  const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+  const userClient = createClient(supabaseUrl, supabasePublishableKey, {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
   });
 
