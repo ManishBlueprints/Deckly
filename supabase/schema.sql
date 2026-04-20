@@ -1101,7 +1101,9 @@ DECLARE
 BEGIN
     -- 1. Fetch user config
     v_config := public.get_current_user_tier_limit();
-    IF v_config IS NULL THEN RETURN NEW; END IF; -- Should not happen for authenticated
+    IF v_config IS NULL THEN 
+        RAISE EXCEPTION 'Unable to determine user tier limits for user %', auth.uid(); 
+    END IF;
 
     -- 2. Check Daily Rate Limit (30/day regardless of tier)
     SELECT count(*)::INTEGER INTO v_daily_count
@@ -1152,8 +1154,8 @@ BEGIN
     FROM public.data_room_documents
     WHERE data_room_id = NEW.data_room_id;
 
-    IF v_config IS NOT NULL AND v_count >= v_config.max_decks_per_room THEN
-        RAISE EXCEPTION 'Data Room capacity reached (max % decks). Please remove an existing deck to add a new one.', v_config.max_decks_per_room;
+    IF v_config IS NULL OR v_count >= v_config.max_decks_per_room THEN
+        RAISE EXCEPTION 'Data Room capacity reached (max % decks). Please remove an existing deck to add a new one.', COALESCE(v_config.max_decks_per_room, 50);
     END IF;
 
     RETURN NEW;
@@ -1166,7 +1168,6 @@ CREATE TRIGGER tr_enforce_data_room_limit
     FOR EACH ROW EXECUTE FUNCTION public.enforce_data_room_capacity();
 
 -- GRANT PERMISSIONS
-GRANT EXECUTE ON FUNCTION public.get_total_system_users() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_deck_payload(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_deck_password(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_data_room_payload(TEXT, TEXT) TO anon, authenticated;

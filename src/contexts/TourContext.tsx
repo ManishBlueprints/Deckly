@@ -21,15 +21,12 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const hasCompletedTour = useCallback(
     (tourId: keyof TutorialState) => {
-      // If we don't have a session, return false to ensure tours are shown
-      // during app startup while user data is still being fetched.
-      // Note: This means guest users will also see tours.
-      if (!session) {
-        return false;
-      }
-      // If session exists but profile is missing, it's loading or being created,
-      // so we assume the tour is NOT yet complete.
-      if (!profile) return false;
+      // No session → tours won't run anyway (no user to track)
+      if (!session) return false;
+      // Profile loading → suppress tours to prevent false starts.
+      // Returning true means "assume complete until we know otherwise."
+      // On first login, profile loads quickly and tours appear correctly.
+      if (!profile) return true;
 
       return !!profile.tutorial_state?.[tourId];
     },
