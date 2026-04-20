@@ -116,11 +116,12 @@ function DataRoomDetail() {
     let mounted = true;
 
     loadAll().then(() => {
-      if (mounted) {
-        deckService.signOwnerThumbnails().then(setSignedThumbnails).catch(err => {
-          console.error("Failed to sign Data Room thumbnails", err);
-        });
-      }
+      if (!mounted) return;
+      deckService.signOwnerThumbnails().then((thumbs) => {
+        if (mounted) setSignedThumbnails(thumbs);
+      }).catch(err => {
+        if (mounted) console.error("Failed to sign Data Room thumbnails", err);
+      });
     });
 
     return () => {

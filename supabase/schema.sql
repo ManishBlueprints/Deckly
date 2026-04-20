@@ -594,28 +594,9 @@ GRANT SELECT ON public.profiles TO authenticated;
 GRANT SELECT ON public.decks TO authenticated;
 GRANT SELECT ON public.data_rooms TO authenticated;
 
--- Utility function for counting signups per IP
-CREATE OR REPLACE FUNCTION public.get_signup_count(p_ip TEXT)
-RETURNS INTEGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, extensions
-AS $$
-DECLARE
-    v_count INTEGER;
-BEGIN
-    SELECT count(*)::INTEGER INTO v_count
-    FROM public.signup_throttle
-    WHERE ip_address = p_ip AND created_at > NOW() - INTERVAL '1 hour';
-    
-    RETURN v_count;
-END;
-$$;
-
 -- GRANT VIEW / FUNCTION PERMISSIONS --
 GRANT EXECUTE ON FUNCTION public.get_profiles_public() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_current_user_tier_limit() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_signup_count(TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_data_rooms_public() TO anon, authenticated;
 
 -- Direct INSERT into deck_page_views is blocked.
