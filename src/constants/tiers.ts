@@ -8,6 +8,9 @@ export interface TierConfig {
   allowInteractive: boolean;
   allowOffice: boolean;
   maxDecks: number;
+  maxFileSizeMB: number;
+  maxDecksPerDay: number;
+  maxDecksPerRoom: number;
   aiSummariesPerDay: number;
   supportedFormats: string[];
   teamMembers: number;
@@ -23,6 +26,9 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     allowInteractive: false,
     allowOffice: false,
     maxDecks: 10,
+    maxFileSizeMB: 10,
+    maxDecksPerDay: 30,
+    maxDecksPerRoom: 50,
     aiSummariesPerDay: 0,
     supportedFormats: ["PDF"],
     teamMembers: 0,
@@ -36,6 +42,9 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     allowInteractive: true,
     allowOffice: true,
     maxDecks: 50,
+    maxFileSizeMB: 50,
+    maxDecksPerDay: 30,
+    maxDecksPerRoom: 50,
     aiSummariesPerDay: 10,
     supportedFormats: ["PDF", "XLSX", "DOCX", "PPT"],
     teamMembers: 0,
@@ -49,6 +58,9 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     allowInteractive: true,
     allowOffice: true,
     maxDecks: -1,
+    maxFileSizeMB: 100,
+    maxDecksPerDay: 30,
+    maxDecksPerRoom: 50,
     aiSummariesPerDay: -1,
     supportedFormats: ["PDF", "XLSX", "DOCX", "PPT"],
     teamMembers: 5,

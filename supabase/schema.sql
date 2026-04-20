@@ -353,7 +353,8 @@ CREATE POLICY "Authenticated users can upload to their own decks folder"
 ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
     bucket_id = 'decks' AND
-    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+    (select auth.uid())::text = (string_to_array(name, '/'))[1] AND
+    (metadata->>'size')::bigint <= (SELECT coalesce((public.get_current_user_tier_limit()).max_file_size_bytes, 10485760))
 );
 
 DROP POLICY IF EXISTS "Authenticated users can update their own deck files" ON storage.objects;
@@ -362,6 +363,11 @@ ON storage.objects FOR UPDATE TO authenticated
 USING (
     bucket_id = 'decks' AND
     (select auth.uid())::text = (string_to_array(name, '/'))[1]
+)
+WITH CHECK (
+    bucket_id = 'decks' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1] AND
+    (metadata->>'size')::bigint <= (SELECT coalesce((public.get_current_user_tier_limit()).max_file_size_bytes, 10485760))
 );
 
 DROP POLICY IF EXISTS "Authenticated users can delete their own deck files" ON storage.objects;
@@ -391,7 +397,8 @@ CREATE POLICY "Authenticated users can upload to their own assets folder"
 ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
     bucket_id = 'assets' AND
-    (select auth.uid())::text = (string_to_array(name, '/'))[1]
+    (select auth.uid())::text = (string_to_array(name, '/'))[1] AND
+    (metadata->>'size')::bigint <= 5242880 -- Fixed 5MB for assets (logos/avatars)
 );
 
 DROP POLICY IF EXISTS "Authenticated users can update their own asset files" ON storage.objects;
@@ -400,6 +407,11 @@ ON storage.objects FOR UPDATE TO authenticated
 USING (
     bucket_id = 'assets' AND
     (select auth.uid())::text = (string_to_array(name, '/'))[1]
+)
+WITH CHECK (
+    bucket_id = 'assets' AND
+    (select auth.uid())::text = (string_to_array(name, '/'))[1] AND
+    (metadata->>'size')::bigint <= 5242880
 );
 
 DROP POLICY IF EXISTS "Authenticated users can delete their own asset files" ON storage.objects;
@@ -414,6 +426,45 @@ DROP POLICY IF EXISTS "Anyone can read assets bucket" ON storage.objects;
 CREATE POLICY "Anyone can read assets bucket"
 ON storage.objects FOR SELECT TO anon, authenticated
 USING (bucket_id = 'assets');
+
+-- =============================================================================
+-- RESOURCE GATING & TIER ENFORCEMENT
+-- Each user tier has a strict file size limit enforced at the storage level.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.tier_limits (
+    tier TEXT PRIMARY KEY,
+    max_file_size_bytes BIGINT NOT NULL,
+    max_decks INTEGER NOT NULL,            -- Total library count (-1 for unlimited)
+    max_decks_per_day INTEGER NOT NULL,    -- Anti-spam rate limit
+    max_decks_per_room INTEGER NOT NULL,   -- Data room capacity
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Seed Tier Limits (Matching src/constants/tiers.ts)
+INSERT INTO public.tier_limits (tier, max_file_size_bytes, max_decks, max_decks_per_day, max_decks_per_room)
+VALUES 
+  ('FREE',     10485760,  10, 30, 50),   -- 10MB
+  ('PRO',      52428800,  50, 30, 50),   -- 50MB
+  ('PRO_PLUS', 104857600, -1, 30, 50)    -- 100MB
+ON CONFLICT (tier) DO UPDATE SET
+  max_file_size_bytes = EXCLUDED.max_file_size_bytes,
+  max_decks = EXCLUDED.max_decks,
+  max_decks_per_day = EXCLUDED.max_decks_per_day,
+  max_decks_per_room = EXCLUDED.max_decks_per_room;
+
+-- Helper to fetch current user's tier configuration efficiently
+CREATE OR REPLACE FUNCTION public.get_current_user_tier_limit()
+RETURNS public.tier_limits
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT tl.*
+  FROM public.tier_limits tl
+  JOIN public.profiles p ON p.tier = tl.tier
+  WHERE p.id = (select auth.uid());
+$$;
 
 -- MIGRATIONS (for multi-document support)
 ALTER TABLE public.decks ADD COLUMN IF NOT EXISTS file_type TEXT DEFAULT 'pdf';
@@ -982,6 +1033,144 @@ REVOKE EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT
 GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.count_unique_visitors(UUID) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_deck_locations(UUID) TO anon, authenticated;
+
+-- =============================================================================
+-- ADVANCED RATE LIMITING & CAPACITY ENFORCEMENT
+-- =============================================================================
+
+-- SIGNUP THROTTLING (Security Hook)
+CREATE TABLE IF NOT EXISTS public.signup_throttle (
+    ip_address TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_signup_throttle_ip ON public.signup_throttle(ip_address, created_at);
+
+-- Cleanup task for signup throttle (optional: runs via cron)
+CREATE OR REPLACE FUNCTION public.cleanup_signup_throttle()
+RETURNS VOID LANGUAGE sql AS $$
+  DELETE FROM public.signup_throttle WHERE created_at < NOW() - INTERVAL '24 hours';
+$$;
+
+-- AUTH HOOK: Signups strictly 3 per hour per IP
+CREATE OR REPLACE FUNCTION public.validate_signup_throttle()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_ip TEXT := current_setting('request.headers', true)::json->>'x-forwarded-for';
+    v_count INTEGER;
+BEGIN
+    -- Extract IP
+    IF v_ip IS NOT NULL AND trim(v_ip) != '' THEN
+        v_ip := trim(split_part(v_ip, ',', 1));
+    END IF;
+    IF v_ip IS NULL OR trim(v_ip) = '' THEN 
+        v_ip := COALESCE(inet_client_addr()::text, 'local'); 
+    END IF;
+
+    -- Count attempts in last hour
+    SELECT count(*)::INTEGER INTO v_count
+    FROM public.signup_throttle
+    WHERE ip_address = v_ip AND created_at > NOW() - INTERVAL '1 hour';
+
+    IF v_count >= 3 THEN
+        RAISE EXCEPTION 'Too many signup attempts from this IP. Please try again after 1 hour.';
+    END IF;
+
+    -- Log the attempt
+    INSERT INTO public.signup_throttle (ip_address) VALUES (v_ip);
+
+    -- Return success to Auth
+    RETURN jsonb_build_object('success', true);
+END;
+$$;
+
+-- DECK CREATION LIMIT: Combined Capacity + Time-based Rate Limit
+CREATE OR REPLACE FUNCTION public.enforce_deck_creation_limit()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_config public.tier_limits;
+    v_daily_count INTEGER;
+    v_total_count INTEGER;
+BEGIN
+    -- 1. Fetch user config
+    v_config := public.get_current_user_tier_limit();
+    IF v_config IS NULL THEN RETURN NEW; END IF; -- Should not happen for authenticated
+
+    -- 2. Check Daily Rate Limit (30/day regardless of tier)
+    SELECT count(*)::INTEGER INTO v_daily_count
+    FROM public.decks
+    WHERE user_id = auth.uid()
+      AND created_at > NOW() - INTERVAL '24 hours';
+
+    IF v_daily_count >= v_config.max_decks_per_day THEN
+        RAISE EXCEPTION 'Daily deck creation limit reached (%/day). Please try again tomorrow.', v_config.max_decks_per_day;
+    END IF;
+
+    -- 3. Check Total Library Capacity (e.g. 10 for FREE, 50 for PRO, -1 for PRO_PLUS)
+    IF v_config.max_decks <> -1 THEN
+        SELECT count(*)::INTEGER INTO v_total_count
+        FROM public.decks
+        WHERE user_id = auth.uid()
+          AND status <> 'DELETED';
+
+        IF v_total_count >= v_config.max_decks THEN
+            RAISE EXCEPTION 'Total library limit reached (% decks). Please delete an existing deck to upload more.', v_config.max_decks;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_enforce_deck_limit ON public.decks;
+CREATE TRIGGER tr_enforce_deck_limit
+    BEFORE INSERT ON public.decks
+    FOR EACH ROW EXECUTE FUNCTION public.enforce_deck_creation_limit();
+
+-- DATA ROOM CAPACITY: Dynamic check via tier_limits
+CREATE OR REPLACE FUNCTION public.enforce_data_room_capacity()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_config public.tier_limits;
+    v_count INTEGER;
+BEGIN
+    -- Support dynamic capacities per tier, though currently all set to 50
+    v_config := public.get_current_user_tier_limit();
+    
+    SELECT count(*)::INTEGER INTO v_count
+    FROM public.data_room_documents
+    WHERE data_room_id = NEW.data_room_id;
+
+    IF v_config IS NOT NULL AND v_count >= v_config.max_decks_per_room THEN
+        RAISE EXCEPTION 'Data Room capacity reached (max % decks). Please remove an existing deck to add a new one.', v_config.max_decks_per_room;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_enforce_data_room_limit ON public.data_room_documents;
+CREATE TRIGGER tr_enforce_data_room_limit
+    BEFORE INSERT ON public.data_room_documents
+    FOR EACH ROW EXECUTE FUNCTION public.enforce_data_room_capacity();
+
+-- GRANT PERMISSIONS
+GRANT EXECUTE ON FUNCTION public.get_total_system_users() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_deck_payload(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_deck_password(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_data_room_payload(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_data_room_password(TEXT, TEXT) TO anon, authenticated;
 
 -- 8. INVESTOR LIBRARY
 CREATE TABLE IF NOT EXISTS public.investor_library (
