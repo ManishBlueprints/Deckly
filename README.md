@@ -1,6 +1,6 @@
 # 🚀 Deckly | Easy Pitchdeck Workspace
 
-### A shared deck workspace for founders and investors (https://deckly-xi.vercel.app)
+### A shared deck workspace for founders and investors (https://deckly.space)
 
 **Deckly** is an open-source pitch deck workspace built for both founders and investors. Founders can share and update decks effortlessly, while investors get a clean system to manage, review, and remember what matters. Designed for speed, privacy, and simplicity.
 
