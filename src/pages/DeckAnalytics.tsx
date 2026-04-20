@@ -24,7 +24,7 @@ import { Button } from "../components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
 import { useDeck } from "../hooks/useDecks";
-import { DeckStats } from "../types";
+import { DeckPageStats } from "../types";
 import {
   useDeckStats,
   useDeckBookmarks,
@@ -52,7 +52,7 @@ interface CityStat {
   country: string;
 }
 
-interface DropOffStat extends DeckStats {
+interface DropOffStat extends DeckPageStats {
   dropOffCount: number;
   dropOffPercent: number;
 }
@@ -97,7 +97,8 @@ export default function DeckAnalytics() {
   // Derived Stats
 
   const totalSeconds = useMemo(
-    () => stats.reduce((acc: number, curr: DeckStats) => acc + curr.total_time_seconds, 0),
+    () =>
+      stats.reduce((acc: number, curr: DeckPageStats) => acc + curr.total_time_seconds, 0),
     [stats],
   );
   const avgTimePerView = useMemo(
@@ -107,20 +108,22 @@ export default function DeckAnalytics() {
   );
 
   const maxViews = useMemo(
-    () => Math.max(...stats.map((s: DeckStats) => s.total_views), 1),
+    () => Math.max(...stats.map((s: DeckPageStats) => s.total_views), 1),
     [stats],
   );
   const maxTime = useMemo(
     () =>
       Math.max(
-        ...stats.map((s: DeckStats) => s.total_time_seconds / (s.total_views || 1)),
+        ...stats.map(
+          (s: DeckPageStats) => s.total_time_seconds / (s.total_views || 1),
+        ),
         1,
       ),
     [stats],
   );
 
   const dropOffStats = useMemo(() => {
-    return stats.map((s: DeckStats, idx: number) => {
+    return stats.map((s: DeckPageStats, idx: number) => {
       const nextSlide = stats[idx + 1];
       const dropOffCount = nextSlide
         ? Math.max(0, s.total_views - nextSlide.total_views)
@@ -482,8 +485,8 @@ export default function DeckAnalytics() {
                       )}
 
                     <div className="space-y-4">
-                      {(activeTab === "DROPOFF" ? (dropOffStats as DropOffStat[]) : (stats as DeckStats[])).map(
-                        (s: DeckStats | DropOffStat) => {
+                      {(activeTab === "DROPOFF" ? (dropOffStats as DropOffStat[]) : (stats as DeckPageStats[])).map(
+                        (s: DeckPageStats | DropOffStat) => {
                           const avgTime =
                             s.total_views > 0
                               ? s.total_time_seconds / s.total_views

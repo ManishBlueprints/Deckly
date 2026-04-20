@@ -68,16 +68,57 @@ function DeckList({
   const [isResetting, setIsResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { profile, isPro } = useAuth();
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
+  const [signedBanner, setSignedBanner] = useState<string | null>(null);
 
   useEffect(() => {
     setBranding(initialBranding);
-  }, [initialBranding]);
+
+    // Batch sign thumbnails and banner when decks or branding changes
+    const signAssets = async () => {
+      if (!decks || decks.length === 0) return;
+
+      try {
+        // 1. Sign thumbnails
+        const urlMap = await deckService.signOwnerThumbnails();
+        setThumbnails(urlMap);
+
+        // 2. Sign banner if it's in the private decks bucket
+        if (
+          initialBranding.banner_url &&
+          initialBranding.banner_url.includes(
+            "/storage/v1/object/public/decks/",
+          )
+        ) {
+          const bannerPath = initialBranding.banner_url.split(
+            "/storage/v1/object/public/decks/",
+          )[1];
+          if (bannerPath) {
+            const { data: fnData } = await supabase.functions.invoke(
+              "sign-deck-url",
+              {
+                body: { image_paths: [bannerPath] },
+              },
+            );
+            if (fnData?.signed_pages?.[0]?.signedUrl) {
+              setSignedBanner(fnData.signed_pages[0].signedUrl);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to sign dashboard assets:", err);
+      }
+    };
+
+    signAssets();
+  }, [initialBranding, decks]);
 
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to log out.";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to log out.";
       console.error("Logout failed:", errorMessage);
       toast.error("Failed to log out. Please try again.");
     }
@@ -134,7 +175,8 @@ function DeckList({
 
     try {
       const lastDotIndex = file.name.lastIndexOf(".");
-      const fileExt = lastDotIndex !== -1 ? file.name.slice(lastDotIndex + 1) : "";
+      const fileExt =
+        lastDotIndex !== -1 ? file.name.slice(lastDotIndex + 1) : "";
       const fileName = `${userId}/branding/banner-${Date.now()}${fileExt ? `.${fileExt}` : ""}`;
 
       const { error: uploadError } = await supabase.storage
@@ -201,7 +243,10 @@ function DeckList({
       setCopiedId(deck.id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to copy link to clipboard.";
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to copy link to clipboard.";
       console.error("Failed to copy link:", errorMessage);
       toast.error("Failed to copy link. Please try again.");
     }
@@ -213,7 +258,7 @@ function DeckList({
       <header
         className="relative w-full h-[300px] flex items-center justify-center text-center border-b border-white/5"
         style={{
-          backgroundImage: `url(${branding.banner_url || defaultBanner})`,
+          backgroundImage: `url(${signedBanner || branding.banner_url || defaultBanner})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -488,7 +533,9 @@ function DeckList({
                   onClick={(e) => {
                     if (!profile?.handle) {
                       e.preventDefault();
-                      alert("Please set a handle in your profile to view decks.");
+                      alert(
+                        "Please set a handle in your profile to view decks.",
+                      );
                     }
                   }}
                   className="group relative flex flex-col bg-slate-900 border border-white/5 rounded-2xl overflow-hidden hover:border-deckly-primary/30 transition-all duration-300 shadow-xl hover:shadow-2xl"
@@ -524,30 +571,37 @@ function DeckList({
                         }
                       }
 
-                      // Extremely defensive resolution: handle string, handle object with multiple keys, handle fallback
-                      let imgSrc = "";
-                      if (!firstPage) {
-                        imgSrc = branding.banner_url || defaultBanner;
-                      } else if (typeof firstPage === "string") {
-                        imgSrc = firstPage;
-                      } else {
-                        imgSrc =
-                          (typeof firstPage === "object" && firstPage !== null
-                            ? (
-                                firstPage as {
-                                  image_url?: string;
-                                  url?: string;
-                                }
-                              ).image_url ||
-                              (
-                                firstPage as {
-                                  image_url?: string;
-                                  url?: string;
-                                }
-                              ).url
-                            : undefined) ||
-                          branding.banner_url ||
-                          defaultBanner;
+                      // Extremely defensive resolution: handle signed thumb, handle string, handle object with multiple keys, handle fallback
+                      let imgSrc = thumbnails[deck.id] || "";
+
+                      if (!imgSrc) {
+                        if (!firstPage) {
+                          imgSrc =
+                            signedBanner ||
+                            branding.banner_url ||
+                            defaultBanner;
+                        } else if (typeof firstPage === "string") {
+                          imgSrc = firstPage;
+                        } else {
+                          imgSrc =
+                            (typeof firstPage === "object" && firstPage !== null
+                              ? (
+                                  firstPage as {
+                                    image_url?: string;
+                                    url?: string;
+                                  }
+                                ).image_url ||
+                                (
+                                  firstPage as {
+                                    image_url?: string;
+                                    url?: string;
+                                  }
+                                ).url
+                              : undefined) ||
+                            signedBanner ||
+                            branding.banner_url ||
+                            defaultBanner;
+                        }
                       }
 
                       // One more safety check for placeholder
@@ -711,7 +765,8 @@ function DeckList({
           <AlertDialogHeader>
             <AlertDialogTitle>Reset Branding</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to reset your room name and banner to defaults? This action cannot be undone.
+              Are you sure you want to reset your room name and banner to
+              defaults? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

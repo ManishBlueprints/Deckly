@@ -1,7 +1,7 @@
 import posthog from "posthog-js";
 import { withRetry } from "../utils/resilience";
 import { supabase } from "./supabase";
-import { Deck, DeckStats } from "../types";
+import { Deck, DeckPageStats } from "../types";
 import { getTierConfig } from "../constants/tiers";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
@@ -129,7 +129,7 @@ export const analyticsService = {
     deckId: string,
     isPro: boolean = false,
     providedUserId?: string,
-  ): Promise<DeckStats[]> {
+  ): Promise<DeckPageStats[]> {
     let userId = providedUserId;
 
     if (!userId) {
@@ -156,7 +156,23 @@ export const analyticsService = {
         .order("page_number", { ascending: true });
 
       if (error) throw error;
-      return data as DeckStats[];
+      
+      // Aggregate by page_number to handle multiple contexts (Data Rooms vs Direct)
+      const aggregated = ((data as unknown as DeckPageStats[]) || []).reduce((acc: Record<number, DeckPageStats>, curr: DeckPageStats) => {
+        const page = curr.page_number;
+        if (!acc[page]) {
+          acc[page] = {
+            page_number: page,
+            total_views: 0,
+            total_time_seconds: 0
+          };
+        }
+        acc[page].total_views += (curr.total_views || 0);
+        acc[page].total_time_seconds += (curr.total_time_seconds || 0);
+        return acc;
+      }, {} as Record<number, DeckPageStats>);
+
+      return (Object.values(aggregated) as DeckPageStats[]).sort((a, b) => a.page_number - b.page_number);
     });
   },
 

@@ -16,24 +16,23 @@ const TourContext = createContext<TourContextType | undefined>(undefined);
 export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { profile, session, refreshProfile } = useAuth();
+  const { profile, session, profileLoading, profileError, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
 
   const hasCompletedTour = useCallback(
     (tourId: keyof TutorialState) => {
-      // If we don't have a session, return false to ensure tours are shown
-      // during app startup while user data is still being fetched.
-      // Note: This means guest users will also see tours.
-      if (!session) {
-        return false;
-      }
-      // If session exists but profile is missing, it's loading or being created,
-      // so we assume the tour is NOT yet complete.
+      // No session → tours won't run anyway (no user to track)
+      if (!session) return false;
+      // Profile still loading → suppress tours to prevent false starts
+      if (profileLoading) return true;
+      // Profile fetch failed → allow tours (can't verify completion)
+      if (profileError) return false;
+      // Profile loaded but null → allow tours
       if (!profile) return false;
 
       return !!profile.tutorial_state?.[tourId];
     },
-    [profile, session],
+    [profile, session, profileLoading, profileError],
   );
 
   const markTourComplete = useCallback(
