@@ -80,7 +80,13 @@ BEGIN
         v_ip := COALESCE(inet_client_addr()::text, 'local'); 
     END IF;
 
-    -- Count attempts in last hour
+    -- Serialize concurrent requests from the same IP using a transactional advisory lock.
+    -- hashtext() produces a 32-bit signed integer; both overloads of pg_advisory_xact_lock
+    -- accept that value. The lock is automatically released when this transaction ends,
+    -- making the COUNT + INSERT below effectively atomic per IP.
+    PERFORM pg_advisory_xact_lock(hashtext(v_ip));
+
+    -- Count attempts in last hour (safe to read now that we hold the per-IP lock)
     SELECT count(*)::INTEGER INTO v_count
     FROM public.signup_throttle
     WHERE ip_address = v_ip AND created_at > NOW() - INTERVAL '1 hour';

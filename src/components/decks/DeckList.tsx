@@ -76,34 +76,48 @@ function DeckList({
 
     // Batch sign thumbnails and banner when decks or branding changes
     const signAssets = async () => {
-      if (!decks || decks.length === 0) return;
+      const isEmpty = !decks || decks.length === 0;
 
       try {
-        // 1. Sign thumbnails
-        const urlMap = await deckService.signOwnerThumbnails();
-        setThumbnails(urlMap);
+        // 1. Sign thumbnails — clear state when deck list is empty
+        if (isEmpty) {
+          setThumbnails({});
+        } else {
+          const urlMap = await deckService.signOwnerThumbnails();
+          setThumbnails(urlMap);
+        }
 
-        // 2. Sign banner if it's in the private decks bucket
-        if (
-          initialBranding.banner_url &&
-          initialBranding.banner_url.includes(
-            "/storage/v1/object/public/decks/",
-          )
-        ) {
-          const bannerPath = initialBranding.banner_url.split(
-            "/storage/v1/object/public/decks/",
-          )[1];
-          if (bannerPath) {
-            const { data: fnData } = await supabase.functions.invoke(
-              "sign-deck-url",
-              {
-                body: { image_paths: [bannerPath] },
-              },
-            );
-            if (fnData?.signed_pages?.[0]?.signedUrl) {
-              setSignedBanner(fnData.signed_pages[0].signedUrl);
-            }
+        // 2. Sign banner if it's in the private decks bucket.
+        //    Run this regardless of whether decks is empty — the banner
+        //    belongs to the owner's branding and should always be resolved.
+        //    Handle all supported storage URL variants: /public/, /sign/, /authenticated/
+        const bannerMatch = initialBranding.banner_url?.match(
+          /\/storage\/v1\/object\/(?:public|sign|authenticated)\/decks\/(.+)/,
+        );
+        if (bannerMatch) {
+          const bannerPath = bannerMatch[1];
+          // Pass the current session token so the Edge Function can exercise
+          // owner-mode auth and sign private-bucket paths.
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          const { data: fnData } = await supabase.functions.invoke(
+            "sign-deck-url",
+            {
+              body: { image_paths: [bannerPath] },
+              headers: session?.access_token
+                ? { Authorization: `Bearer ${session.access_token}` }
+                : undefined,
+            },
+          );
+          if (fnData?.signed_pages?.[0]?.signedUrl) {
+            setSignedBanner(fnData.signed_pages[0].signedUrl);
+          } else {
+            setSignedBanner(null);
           }
+        } else {
+          // No private banner — clear any stale signed value
+          setSignedBanner(null);
         }
       } catch (err) {
         console.warn("Failed to sign dashboard assets:", err);
@@ -112,6 +126,7 @@ function DeckList({
 
     signAssets();
   }, [initialBranding, decks]);
+
 
   const handleLogout = async () => {
     try {

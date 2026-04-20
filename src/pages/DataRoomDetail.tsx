@@ -113,21 +113,24 @@ function DataRoomDetail() {
   }, [roomId, navigate]);
 
   useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  // Re-sign thumbnails whenever documents change
+  useEffect(() => {
+    if (documents.length === 0) return;
     let mounted = true;
 
-    loadAll().then(() => {
-      if (!mounted) return;
-      deckService.signOwnerThumbnails().then((thumbs) => {
-        if (mounted) setSignedThumbnails(thumbs);
-      }).catch(err => {
-        if (mounted) console.error("Failed to sign Data Room thumbnails", err);
-      });
+    deckService.signOwnerThumbnails().then((thumbs) => {
+      if (mounted) setSignedThumbnails(thumbs);
+    }).catch((err) => {
+      if (mounted) console.error("Failed to sign Data Room thumbnails", err);
     });
 
     return () => {
       mounted = false;
     };
-  }, [loadAll]);
+  }, [documents]);
 
   /* ── actions ── */
   const handleCopyLink = async () => {

@@ -81,9 +81,9 @@ Deno.serve(async (req: Request) => {
           (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
             const url = typeof page === 'string' ? page : page.image_url;
             if (url && typeof url === 'string') {
-              const marker = "/storage/v1/object/public/decks/";
-              const idx = url.indexOf(marker);
-              if (idx !== -1) validPaths.add(url.substring(idx + marker.length));
+              // Match all supported storage URL variants: /public/, /sign/, /authenticated/
+              const match = url.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/decks\/(.+)/);
+              if (match) validPaths.add(match[1]);
             }
           });
         });
@@ -117,9 +117,9 @@ Deno.serve(async (req: Request) => {
         (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
           const url = typeof page === 'string' ? page : page.image_url;
           if (url && typeof url === 'string') {
-            const marker = "/storage/v1/object/public/decks/";
-            const idx = url.indexOf(marker);
-            if (idx !== -1) validPaths.add(url.substring(idx + marker.length));
+            // Match all supported storage URL variants: /public/, /sign/, /authenticated/
+            const match = url.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/decks\/(.+)/);
+            if (match) validPaths.add(match[1]);
           }
         });
       }
@@ -135,7 +135,7 @@ Deno.serve(async (req: Request) => {
       const { data: { user }, error: userError } = await anonClient.auth.getUser(token);
       if (!userError && user) {
         ownerId = user.id;
-        console.log(`[Owner Mode] Verified user ${ownerId}`);
+        console.log("[sign-deck-url] Owner verified.");
       }
     }
 
@@ -155,9 +155,9 @@ Deno.serve(async (req: Request) => {
     if (finalRequestedPaths.length < requestedPaths.length) {
        const missing = requestedPaths.find(p => (p === "" || !validPaths.has(p)) && (!ownerId || p === "" || !p.startsWith(`${ownerId}/`)));
        if (missing) {
-         console.warn(`[Blocked] Path "${missing}" not authorized for viewer (slug=${slug}) or owner (id=${ownerId})`);
+         console.warn("[sign-deck-url] Blocked path access attempt: unauthorized path requested.");
          return new Response(
-          JSON.stringify({ error: `Forbidden: path mismatch for ${missing || "(empty string)"}` }),
+          JSON.stringify({ error: `Forbidden: path not authorized` }),
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
        }
