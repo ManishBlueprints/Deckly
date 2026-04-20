@@ -356,6 +356,58 @@ CREATE POLICY "Owners can manage their own stats" ON public.deck_stats
     ));
 
 -- =============================================================================
+-- RESOURCE GATING & TIER ENFORCEMENT
+-- Each user tier has a strict file size limit enforced at the storage level.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public.tier_limits (
+    tier TEXT PRIMARY KEY,
+    max_file_size_bytes BIGINT NOT NULL,
+    max_decks INTEGER NOT NULL,            -- Total library count (-1 for unlimited)
+    max_decks_per_day INTEGER NOT NULL,    -- Anti-spam rate limit
+    max_decks_per_room INTEGER NOT NULL,   -- Data room capacity
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Seed Tier Limits (Matching src/constants/tiers.ts)
+INSERT INTO public.tier_limits (tier, max_file_size_bytes, max_decks, max_decks_per_day, max_decks_per_room)
+VALUES 
+  ('FREE',     10485760,  10, 30, 50),   -- 10MB
+  ('PRO',      52428800,  50, 30, 50),   -- 50MB
+  ('PRO_PLUS', 104857600, -1, 30, 50)    -- 100MB
+ON CONFLICT (tier) DO UPDATE SET
+  max_file_size_bytes = EXCLUDED.max_file_size_bytes,
+  max_decks = EXCLUDED.max_decks,
+  max_decks_per_day = EXCLUDED.max_decks_per_day,
+  max_decks_per_room = EXCLUDED.max_decks_per_room;
+
+ALTER TABLE public.tier_limits ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view tier limits" ON public.tier_limits;
+CREATE POLICY "Anyone can view tier limits" ON public.tier_limits
+FOR SELECT TO anon, authenticated USING (true);
+
+-- Helper to fetch current user's tier configuration efficiently
+-- Falls back to 'FREE' tier if user profile or tier is missing to prevent RLS crashes
+CREATE OR REPLACE FUNCTION public.get_current_user_tier_limit()
+RETURNS public.tier_limits
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public, extensions
+AS $$
+  SELECT tl.*
+  FROM public.tier_limits tl
+  WHERE tl.tier = COALESCE(
+    (SELECT tier FROM public.profiles WHERE id = auth.uid()),
+    'FREE'
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_current_user_tier_limit() TO authenticated;
+
+
+-- =============================================================================
 -- STORAGE BUCKETS & POLICIES
 -- Buckets are created idempotently. Policies are dropped and recreated each run.
 -- =============================================================================
@@ -461,51 +513,6 @@ DROP POLICY IF EXISTS "Anyone can read assets bucket" ON storage.objects;
 CREATE POLICY "Anyone can read assets bucket"
 ON storage.objects FOR SELECT TO anon, authenticated
 USING (bucket_id = 'assets');
-
--- =============================================================================
--- RESOURCE GATING & TIER ENFORCEMENT
--- Each user tier has a strict file size limit enforced at the storage level.
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS public.tier_limits (
-    tier TEXT PRIMARY KEY,
-    max_file_size_bytes BIGINT NOT NULL,
-    max_decks INTEGER NOT NULL,            -- Total library count (-1 for unlimited)
-    max_decks_per_day INTEGER NOT NULL,    -- Anti-spam rate limit
-    max_decks_per_room INTEGER NOT NULL,   -- Data room capacity
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Seed Tier Limits (Matching src/constants/tiers.ts)
-INSERT INTO public.tier_limits (tier, max_file_size_bytes, max_decks, max_decks_per_day, max_decks_per_room)
-VALUES 
-  ('FREE',     10485760,  10, 30, 50),   -- 10MB
-  ('PRO',      52428800,  50, 30, 50),   -- 50MB
-  ('PRO_PLUS', 104857600, -1, 30, 50)    -- 100MB
-ON CONFLICT (tier) DO UPDATE SET
-  max_file_size_bytes = EXCLUDED.max_file_size_bytes,
-  max_decks = EXCLUDED.max_decks,
-  max_decks_per_day = EXCLUDED.max_decks_per_day,
-  max_decks_per_room = EXCLUDED.max_decks_per_room;
-
--- Helper to fetch current user's tier configuration efficiently
--- Falls back to 'FREE' tier if user profile or tier is missing to prevent RLS crashes
-CREATE OR REPLACE FUNCTION public.get_current_user_tier_limit()
-RETURNS public.tier_limits
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-SET search_path = public, extensions
-AS $$
-  SELECT tl.*
-  FROM public.tier_limits tl
-  WHERE tl.tier = COALESCE(
-    (SELECT tier FROM public.profiles WHERE id = auth.uid()),
-    'FREE'
-  );
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_current_user_tier_limit() TO authenticated;
 
 
 -- MIGRATIONS (for multi-document support)
@@ -1086,6 +1093,9 @@ CREATE TABLE IF NOT EXISTS public.signup_throttle (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_signup_throttle_ip ON public.signup_throttle(ip_address, created_at);
+
+ALTER TABLE public.signup_throttle ENABLE ROW LEVEL SECURITY;
+-- No policies added: signup_throttle is strictly internal and accessed via security definer functions.
 
 -- Cleanup task for signup throttle (optional: runs via cron)
 CREATE OR REPLACE FUNCTION public.cleanup_signup_throttle()
