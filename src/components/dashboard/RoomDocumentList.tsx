@@ -13,12 +13,14 @@ interface RoomDocumentListProps {
   documents: DataRoomDocument[];
   onRemove: (deckId: string) => void;
   onReorder: (orderedDeckIds: string[]) => void;
+  signedThumbnails?: Record<string, string>;
 }
 
 export function RoomDocumentList({
   documents,
   onRemove,
   onReorder,
+  signedThumbnails = {},
 }: RoomDocumentListProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -66,6 +68,7 @@ export function RoomDocumentList({
           const deck = doc.deck;
           const isDragging = dragIndex === index;
           const isDragOver = dragOverIndex === index;
+          const signedUrl = signedThumbnails[doc.deck_id];
 
           return (
             <div
@@ -95,9 +98,9 @@ export function RoomDocumentList({
 
               {/* Thumbnail */}
               <div className="w-12 h-10 rounded-md bg-background border border-white/10 overflow-hidden shrink-0 group-hover:border-deckly-primary/30 transition-all">
-                {deck?.pages?.[0]?.image_url ? (
+                {signedUrl || deck?.pages?.[0]?.image_url ? (
                   <img
-                    src={deck.pages[0].image_url}
+                    src={signedUrl || deck?.pages?.[0]?.image_url}
                     alt=""
                     className="w-full h-full object-cover transition-all duration-500"
                   />

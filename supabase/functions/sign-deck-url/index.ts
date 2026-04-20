@@ -29,27 +29,20 @@ Deno.serve(async (req: Request) => {
       ? rawImagePaths.filter((p): p is string => typeof p === "string")
       : [];
 
-    if ((!slug && !room_slug)) {
-      return new Response(
-        JSON.stringify({ error: "slug or room_slug is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const supabasePublishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "";
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("Missing environment variables: SUPABASE_URL or SUPABASE_ANON_KEY");
+    if (!supabaseUrl || !supabasePublishableKey) {
+      console.error("Missing environment variables: SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY");
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Use the anon client to call get_deck_payload — this re-validates
+    // Use the publishable client to call get_deck_payload — this re-validates
     // the slug/password/expiry before we issue a signed URL.
-    const anonClient = createClient(supabaseUrl, supabaseAnonKey);
+    const anonClient = createClient(supabaseUrl, supabasePublishableKey);
 
     const validPaths = new Set<string>();
 
@@ -65,77 +58,131 @@ Deno.serve(async (req: Request) => {
         p_password: password ?? null,
       });
 
-      if (rpcError || !rpcData) {
-        return new Response(JSON.stringify({ error: "Unauthorized Data Room" }), { status: 403, headers: { "Content-Type": "application/json" } });
+      if (rpcError) {
+        console.error("[sign-deck-url] get_data_room_payload RPC failed:", {
+          message: rpcError.message,
+          hint: rpcError.hint,
+          details: rpcError.details,
+          code: rpcError.code
+        });
+        return new Response(
+          JSON.stringify({ 
+            error: "Unauthorized Data Room",
+            message: rpcError.message 
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
       }
 
-      const payloads = rpcData as DeckPayload[];
-      payloads.forEach(payload => {
-        if (payload.storage_path) validPaths.add(payload.storage_path);
-        (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
-          const url = typeof page === 'string' ? page : page.image_url;
-          if (url && typeof url === 'string') {
-            const marker = "/storage/v1/object/public/decks/";
-            const idx = url.indexOf(marker);
-            if (idx !== -1) validPaths.add(url.substring(idx + marker.length));
-          }
+      if (rpcData) {
+        const payloads = rpcData as DeckPayload[];
+        payloads.forEach(payload => {
+          if (payload.storage_path) validPaths.add(payload.storage_path);
+          (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
+            const url = typeof page === 'string' ? page : page.image_url;
+            if (url && typeof url === 'string') {
+              // Match all supported storage URL variants: /public/, /sign/, /authenticated/
+              const match = url.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/decks\/(.+)/);
+              if (match) validPaths.add(match[1]);
+            }
+          });
         });
-      });
-    } else {
+      }
+    } else if (slug) {
       // Individual deck mode
       const { data: rpcData, error: rpcError } = await anonClient.rpc("get_deck_payload", {
         p_slug: slug,
         p_password: password ?? null,
       });
 
-      if (rpcError || !rpcData) {
-        return new Response(JSON.stringify({ error: "Unauthorized Deck" }), { status: 403, headers: { "Content-Type": "application/json" } });
+      if (rpcError) {
+        console.error("[sign-deck-url] get_deck_payload RPC failed:", {
+          message: rpcError.message,
+          hint: rpcError.hint,
+          details: rpcError.details,
+          code: rpcError.code
+        });
+        return new Response(
+          JSON.stringify({ 
+            error: "Unauthorized Deck",
+            message: rpcError.message 
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
       }
 
-      const payload = rpcData as DeckPayload;
-      if (payload.storage_path) validPaths.add(payload.storage_path);
-      (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
-        const url = typeof page === 'string' ? page : page.image_url;
-        if (url && typeof url === 'string') {
-          const marker = "/storage/v1/object/public/decks/";
-          const idx = url.indexOf(marker);
-          if (idx !== -1) validPaths.add(url.substring(idx + marker.length));
-        }
-      });
+      if (rpcData) {
+        const payload = rpcData as DeckPayload;
+        if (payload.storage_path) validPaths.add(payload.storage_path);
+        (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
+          const url = typeof page === 'string' ? page : page.image_url;
+          if (url && typeof url === 'string') {
+            // Match all supported storage URL variants: /public/, /sign/, /authenticated/
+            const match = url.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/decks\/(.+)/);
+            if (match) validPaths.add(match[1]);
+          }
+        });
+      }
     }
 
     // Reject if any requested path (main or image) is not authorized for this session.
+    // 2. OWNER MODE: If an auth token is provided, verify it.
+    // If verified, the owner can sign any path starting with their userId/ without further checks.
+    let ownerId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user }, error: userError } = await anonClient.auth.getUser(token);
+      if (!userError && user) {
+        ownerId = user.id;
+        console.log("[sign-deck-url] Owner verified.");
+      }
+    }
+
     const requestedPaths = [];
     if (storage_path) requestedPaths.push(storage_path);
     requestedPaths.push(...image_paths);
 
-    for (const path of requestedPaths) {
-      if (path && !validPaths.has(path)) {
+    // Reject if any requested path is not authorized through either mode
+    // Empty strings are treated as invalid and will trigger 403.
+    const finalRequestedPaths = requestedPaths.filter(path => {
+      if (path === "") return false;
+      if (validPaths.has(path)) return true;
+      if (ownerId && path.startsWith(`${ownerId}/`)) return true;
+      return false;
+    });
+
+    if (finalRequestedPaths.length < requestedPaths.length) {
+       const missing = requestedPaths.find(p => (p === "" || !validPaths.has(p)) && (!ownerId || p === "" || !p.startsWith(`${ownerId}/`)));
+       if (missing) {
+         console.warn("[sign-deck-url] Blocked path access attempt: unauthorized path requested.");
          return new Response(
-          JSON.stringify({ error: `Forbidden: path mismatch for ${path}` }),
+          JSON.stringify({ error: `Forbidden: path not authorized` }),
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
-      }
+       }
     }
 
-    // Auth passed — use service_role to generate signs for ALL requested paths.
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    if (!supabaseServiceKey) {
-      console.error("Missing SUPABASE_SERVICE_ROLE_KEY");
+    if (finalRequestedPaths.length === 0) {
+      return new Response(JSON.stringify({ error: "No valid paths to sign" }), { status: 400, headers: { "Content-Type": "application/json" } });
+    }
+
+    const supabaseSecretKey = Deno.env.get("PROJECT_SECRET_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    if (!supabaseSecretKey) {
+      console.error("Missing PROJECT_SECRET_KEY");
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    const EXPIRES_IN_SECONDS = 3600; // 1 hour
+    const adminClient = createClient(supabaseUrl, supabaseSecretKey);
+    const EXPIRES_IN_SECONDS = 21600; // 6 hours
 
     // Using plural createSignedUrls for better efficiency
     const { data: signedData, error: signError } = await adminClient.storage
       .from("decks")
-      .createSignedUrls(requestedPaths, EXPIRES_IN_SECONDS);
+      .createSignedUrls(finalRequestedPaths, EXPIRES_IN_SECONDS);
 
     if (signError || !signedData) {
       console.error("Failed to create signed URLs", signError);

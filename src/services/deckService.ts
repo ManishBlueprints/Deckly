@@ -477,6 +477,67 @@ export const deckService = {
   isDeckSaved: deckLibraryService.isDeckSaved,
   getSavedDecks: deckLibraryService.getSavedDecks as () => Promise<SavedDeck[]>,
   updateLibraryLastViewed: deckLibraryService.updateLibraryLastViewed,
+
+  /**
+   * Batch signs the first page (thumbnail) for all decks owned by the caller.
+   * Used by the dashboard to show private images securely.
+   */
+  async signOwnerThumbnails(): Promise<Record<string, string>> {
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_owner_thumbnails");
+    
+    if (rpcError) {
+      console.error("RPC Error fetching owner thumbnails:", rpcError);
+      return {};
+    }
+
+    // Validate RPC response structure
+    if (!Array.isArray(rpcData)) {
+      if (rpcData) console.warn("Unexpected RPC response format for thumbnails:", rpcData);
+      return {};
+    }
+
+    const validPaths = rpcData.filter(p => 
+      p && 
+      typeof p.deck_id === "string" && 
+      typeof p.storage_path === "string" &&
+      p.storage_path.trim() !== ""
+    ) as { deck_id: string; storage_path: string }[];
+
+    if (validPaths.length === 0) return {};
+
+    const storagePaths = validPaths.map(p => p.storage_path);
+
+    const { data: signedData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
+      body: { 
+        image_paths: storagePaths 
+      },
+    });
+
+    if (fnError || !Array.isArray(signedData?.signed_pages)) {
+      console.error("Failed to sign owner thumbnails:", fnError);
+      return {};
+    }
+
+    const urlMap: Record<string, string> = {};
+    const signedPages = signedData.signed_pages as { path: string; signedUrl: string | null }[];
+    
+    // Optimization: Use a Map for O(1) lookups instead of nested find (O(n^2))
+    const signedMap = new Map<string, string>();
+    signedPages.forEach(p => {
+      if (p.path && p.signedUrl) {
+        signedMap.set(p.path, p.signedUrl);
+      }
+    });
+    
+    validPaths.forEach(item => {
+      const signedUrl = signedMap.get(item.storage_path);
+      if (signedUrl) {
+        urlMap[item.deck_id] = signedUrl;
+      }
+    });
+
+    return urlMap;
+  },
 };
 
 export { deckBrandingService, deckLibraryService, deckStorageService };
