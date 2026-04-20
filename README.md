@@ -1,6 +1,6 @@
 # 🚀 Deckly | Easy Pitchdeck Workspace
 
-### A shared deck workspace for founders and investors (https://deckly-xi.vercel.app)
+### A shared deck workspace for founders and investors (https://deckly.space)
 
 **Deckly** is an open-source pitch deck workspace built for both founders and investors. Founders can share and update decks effortlessly, while investors get a clean system to manage, review, and remember what matters. Designed for speed, privacy, and simplicity.
 
@@ -100,8 +100,9 @@ For more details, see the full [LICENSE](./LICENSE) file.
 
 ### Prerequisites
 
-- **Node.js**: v20+ (required for the latest build pipeline)
-- **Supabase**: A project with `decks` storage bucket and `schema.sql` applied.
+- **Node.js**: v20+
+- **Docker**: Required for local Supabase development environment.
+- **Supabase CLI**: (Optional) Use `npx supabase` or install globally.
 
 ### Setup
 
@@ -117,11 +118,18 @@ For more details, see the full [LICENSE](./LICENSE) file.
 
    ```bash
    cp .env.example .env.local
-   # Fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+   # The default local Supabase values are:
+   # VITE_SUPABASE_URL=http://127.0.0.1:54321
+   # VITE_SUPABASE_PUBLISHABLE_KEY=your_random_key
    ```
 
-3. **Database Setup**:
-   Copy the contents of `supabase/schema.sql` and run it in your Supabase SQL Editor.
+3. **Database Setup (Local)**:
+
+   ```bash
+   npx supabase start
+   ```
+
+   This spins up the local infrastructure and applies the hardened initial schema automatically.
 
 ### Launch
 

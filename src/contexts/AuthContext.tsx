@@ -20,6 +20,8 @@ interface AuthContextType {
   signOutAllDevices: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   initializationError: string | null;
+  profileLoading: boolean;
+  profileError: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const loadingRef = React.useRef(true);
 
   // TanStack Queries
-  const { data: profile } = useProfile(session?.user?.id);
+  const { data: profile, isLoading: profileLoading, isError: profileError } = useProfile(session?.user?.id);
   const { data: branding } = useBranding(session?.user?.id);
 
   // Sync ref with state
@@ -169,6 +171,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         signOutAllDevices,
         deleteAccount,
         initializationError,
+        profileLoading,
+        profileError,
       }}
     >
       {children}

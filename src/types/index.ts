@@ -99,7 +99,7 @@ export interface BrandingSettings {
   updated_at?: string | null;
 }
 
-export interface DeckStats {
+export interface DeckPageStats {
   page_number: number;
   total_views: number;
   total_time_seconds: number;
