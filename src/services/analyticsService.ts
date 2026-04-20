@@ -156,7 +156,23 @@ export const analyticsService = {
         .order("page_number", { ascending: true });
 
       if (error) throw error;
-      return data as DeckStats[];
+      
+      // Aggregate by page_number to handle multiple contexts (Data Rooms vs Direct)
+      const aggregated = (data || []).reduce((acc: Record<number, DeckStats>, curr: DeckStats) => {
+        const page = curr.page_number;
+        if (!acc[page]) {
+          acc[page] = {
+            page_number: page,
+            total_views: 0,
+            total_time_seconds: 0
+          };
+        }
+        acc[page].total_views += (curr.total_views || 0);
+        acc[page].total_time_seconds += (curr.total_time_seconds || 0);
+        return acc;
+      }, {} as Record<number, DeckStats>);
+
+      return (Object.values(aggregated) as DeckStats[]).sort((a, b) => a.page_number - b.page_number);
     });
   },
 
