@@ -240,9 +240,9 @@ BEGIN
         d.id as deck_id,
         CASE 
           WHEN (d.pages->0->>'image_url') IS NOT NULL THEN
-            split_part(d.pages->0->>'image_url', '/storage/v1/object/public/decks/', 2)
+            regexp_replace(d.pages->0->>'image_url', '^.*/storage/v1/object/(public|sign|authenticated)/decks/', '')
           WHEN (d.pages->0->>'url') IS NOT NULL THEN
-            split_part(d.pages->0->>'url', '/storage/v1/object/public/decks/', 2)
+            regexp_replace(d.pages->0->>'url', '^.*/storage/v1/object/(public|sign|authenticated)/decks/', '')
           ELSE NULL
         END as storage_path
     FROM public.decks d
@@ -593,6 +593,24 @@ REVOKE SELECT ON public.data_rooms FROM anon;
 GRANT SELECT ON public.profiles TO authenticated;
 GRANT SELECT ON public.decks TO authenticated;
 GRANT SELECT ON public.data_rooms TO authenticated;
+
+-- Utility function for counting signups per IP
+CREATE OR REPLACE FUNCTION public.get_signup_count(p_ip TEXT)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_count INTEGER;
+BEGIN
+    SELECT count(*)::INTEGER INTO v_count
+    FROM public.signup_throttle
+    WHERE ip_address = p_ip AND created_at > NOW() - INTERVAL '1 hour';
+    
+    RETURN v_count;
+END;
+$$;
 
 -- GRANT VIEW / FUNCTION PERMISSIONS --
 GRANT EXECUTE ON FUNCTION public.get_profiles_public() TO anon, authenticated;
@@ -1199,7 +1217,7 @@ BEGIN
 
     IF v_config IS NULL THEN
         RAISE EXCEPTION 'Unable to determine user tier limits for user %', auth.uid();
-    ELSIF v_count >= v_config.max_decks_per_room THEN
+    ELSIF v_count >= COALESCE(v_config.max_decks_per_room, 50) THEN
         RAISE EXCEPTION 'Data Room capacity reached (max % decks). Please remove an existing deck to add a new one.', COALESCE(v_config.max_decks_per_room, 50);
     END IF;
 

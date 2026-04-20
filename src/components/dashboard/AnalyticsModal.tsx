@@ -12,7 +12,7 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import { analyticsService } from "../../services/analyticsService";
-import { Deck, DeckStats } from "../../types";
+import { Deck, DeckPageStats } from "../../types";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../contexts/AuthContext";
 import { getTierConfig } from "../../constants/tiers";
@@ -28,7 +28,7 @@ interface AnalyticsModalProps {
 function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
   const { session, isPro } = useAuth();
   const userId = session?.user?.id;
-  const [stats, setStats] = useState<DeckStats[]>([]);
+  const [stats, setStats] = useState<DeckPageStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<"timeout" | "failed" | null>(null);
   const [activeTab, setActiveTab] = useState<"views" | "time" | "retention">(
@@ -302,7 +302,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                       )}
 
                     {(activeTab === "retention" ? dropOffStats : stats).map(
-                      (s: DeckStats & { dropOffPercent?: number }) => {
+                      (s: DeckPageStats & { dropOffPercent?: number }) => {
                         const avgTime =
                           s.total_views > 0
                             ? s.total_time_seconds / s.total_views

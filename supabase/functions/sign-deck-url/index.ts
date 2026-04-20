@@ -58,7 +58,23 @@ Deno.serve(async (req: Request) => {
         p_password: password ?? null,
       });
 
-      if (!rpcError && rpcData) {
+      if (rpcError) {
+        console.error("[sign-deck-url] get_data_room_payload RPC failed:", {
+          message: rpcError.message,
+          hint: rpcError.hint,
+          details: rpcError.details,
+          code: rpcError.code
+        });
+        return new Response(
+          JSON.stringify({ 
+            error: "Unauthorized Data Room",
+            message: rpcError.message 
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      if (rpcData) {
         const payloads = rpcData as DeckPayload[];
         payloads.forEach(payload => {
           if (payload.storage_path) validPaths.add(payload.storage_path);
@@ -79,7 +95,23 @@ Deno.serve(async (req: Request) => {
         p_password: password ?? null,
       });
 
-      if (!rpcError && rpcData) {
+      if (rpcError) {
+        console.error("[sign-deck-url] get_deck_payload RPC failed:", {
+          message: rpcError.message,
+          hint: rpcError.hint,
+          details: rpcError.details,
+          code: rpcError.code
+        });
+        return new Response(
+          JSON.stringify({ 
+            error: "Unauthorized Deck",
+            message: rpcError.message 
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      if (rpcData) {
         const payload = rpcData as DeckPayload;
         if (payload.storage_path) validPaths.add(payload.storage_path);
         (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
@@ -112,19 +144,20 @@ Deno.serve(async (req: Request) => {
     requestedPaths.push(...image_paths);
 
     // Reject if any requested path is not authorized through either mode
+    // Empty strings are treated as invalid and will trigger 403.
     const finalRequestedPaths = requestedPaths.filter(path => {
-      if (!path) return false;
+      if (path === "") return false;
       if (validPaths.has(path)) return true;
       if (ownerId && path.startsWith(`${ownerId}/`)) return true;
       return false;
     });
 
     if (finalRequestedPaths.length < requestedPaths.length) {
-       const missing = requestedPaths.find(p => p && !validPaths.has(p) && (!ownerId || !p.startsWith(`${ownerId}/`)));
+       const missing = requestedPaths.find(p => (p === "" || !validPaths.has(p)) && (!ownerId || p === "" || !p.startsWith(`${ownerId}/`)));
        if (missing) {
-         console.warn(`[Blocked] Path ${missing} not authorized for viewer (slug=${slug}) or owner (id=${ownerId})`);
+         console.warn(`[Blocked] Path "${missing}" not authorized for viewer (slug=${slug}) or owner (id=${ownerId})`);
          return new Response(
-          JSON.stringify({ error: `Forbidden: path mismatch for ${missing}` }),
+          JSON.stringify({ error: `Forbidden: path mismatch for ${missing || "(empty string)"}` }),
           { status: 403, headers: { "Content-Type": "application/json" } }
         );
        }

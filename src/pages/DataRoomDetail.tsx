@@ -97,13 +97,6 @@ function DataRoomDetail() {
       setDocuments(docs);
       setAnalytics(analyticsData);
 
-      // Batch sign thumbnails for secure owner viewing
-      if (docs.length > 0) {
-        deckService.signOwnerThumbnails().then(setSignedThumbnails).catch(err => {
-          console.error("Failed to sign Data Room thumbnails", err);
-        });
-      }
-
       setSignalsLoading(true);
       getRoomVisitorSignals(roomId)
         .then(setRoomSignals)
@@ -120,7 +113,19 @@ function DataRoomDetail() {
   }, [roomId, navigate]);
 
   useEffect(() => {
-    loadAll();
+    let mounted = true;
+
+    loadAll().then(() => {
+      if (mounted) {
+        deckService.signOwnerThumbnails().then(setSignedThumbnails).catch(err => {
+          console.error("Failed to sign Data Room thumbnails", err);
+        });
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
   }, [loadAll]);
 
   /* ── actions ── */

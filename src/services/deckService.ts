@@ -483,19 +483,33 @@ export const deckService = {
    * Used by the dashboard to show private images securely.
    */
   async signOwnerThumbnails(): Promise<Record<string, string>> {
-    const { data: paths, error: rpcError } = await supabase.rpc("get_owner_thumbnails");
-    if (rpcError || !paths || paths.length === 0) return {};
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_owner_thumbnails");
+    
+    if (rpcError) {
+      console.error("RPC Error fetching owner thumbnails:", rpcError);
+      return {};
+    }
 
-    const storagePaths = (paths as { deck_id: string; storage_path: string }[])
-      .map(p => p.storage_path)
-      .filter(Boolean);
+    // Validate RPC response structure
+    if (!Array.isArray(rpcData)) {
+      if (rpcData) console.warn("Unexpected RPC response format for thumbnails:", rpcData);
+      return {};
+    }
 
-    if (storagePaths.length === 0) return {};
+    const validPaths = rpcData.filter(p => 
+      p && 
+      typeof p.deck_id === "string" && 
+      typeof p.storage_path === "string" &&
+      p.storage_path.trim() !== ""
+    ) as { deck_id: string; storage_path: string }[];
+
+    if (validPaths.length === 0) return {};
+
+    const storagePaths = validPaths.map(p => p.storage_path);
 
     const { data: signedData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
       body: { 
         image_paths: storagePaths 
-        // Note: ownerId is extracted from JWT server-side in the edge function
       },
     });
 
@@ -507,10 +521,18 @@ export const deckService = {
     const urlMap: Record<string, string> = {};
     const signedPages = signedData.signed_pages as { path: string; signedUrl: string | null }[];
     
-    (paths as { deck_id: string; storage_path: string }[]).forEach(item => {
-      const signed = signedPages.find(p => p.path === item.storage_path);
-      if (signed?.signedUrl) {
-        urlMap[item.deck_id] = signed.signedUrl;
+    // Optimization: Use a Map for O(1) lookups instead of nested find (O(n^2))
+    const signedMap = new Map<string, string>();
+    signedPages.forEach(p => {
+      if (p.path && p.signedUrl) {
+        signedMap.set(p.path, p.signedUrl);
+      }
+    });
+    
+    validPaths.forEach(item => {
+      const signedUrl = signedMap.get(item.storage_path);
+      if (signedUrl) {
+        urlMap[item.deck_id] = signedUrl;
       }
     });
 
