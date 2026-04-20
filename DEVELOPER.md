@@ -1,6 +1,6 @@
 # Developer Documentation - Deckly
 
-Deckly is a React 19 + Supabase workspace for founders and investors. This guide is the lightweight repo-level developer overview. For the fuller internal docs set, use the files under `docs/`.
+Deckly is a React 19 + Supabase workspace for founders and investors. This guide is the lightweight repo-level developer overview.
 
 ## Tech stack
 
@@ -42,17 +42,6 @@ src/
 └── utils/
 ```
 
-## Important refactors already landed
-
-- `ManageDeck` is no longer a single workflow-heavy page. The upload/edit flow is split across:
-  - `src/pages/ManageDeck.tsx`
-  - `src/hooks/useManageDeckWorkflow.ts`
-  - `src/components/dashboard/manage-deck/ManageDeckSections.tsx`
-- Shared PDF processing now lives in `src/workflows/deckProcessing.ts`
-- `deckService` was split internally into focused modules while preserving the public `deckService.*` API
-- Auth/session resolution is being standardized through `src/services/authSession.ts`
-- The Vitest pipeline is healthy again and `npm test` is trustworthy
-
 ## Local development
 
 ```bash
@@ -60,7 +49,39 @@ npm install
 npm run dev
 ```
 
-### Environment setup
+### Supabase Development
+
+Deckly uses the **Supabase CLI** for a robust, version-controlled database workflow. This ensures consistency between local development and production.
+
+#### Local Infrastructure
+
+To start the local database, auth, and storage services:
+
+```bash
+npx supabase start
+```
+
+This automatically applies all migrations in `supabase/migrations/` and prepares the local environment.
+
+#### Schema Changes
+
+> [!IMPORTANT]
+> **NEVER** edit the database schema directly in the Supabase Dashboard SQL Editor for features intended for the repository.
+> Always use the CLI to maintain a consistent history for all contributors.
+
+1. **Create a new migration**: `npx supabase migration new your_feature_name`
+2. **Apply to local DB**: The CLI will automatically detect the new file or you can run `npx supabase db reset` to re-sync.
+3. **Verify locally**: Ensure your changes work with the app before pushing.
+
+#### Database Branching & Deployment
+
+For production updates, we use:
+
+```bash
+npx supabase db push
+```
+
+This pushes your locally verified migrations to the linked production project.
 
 1. Copy `.env.example` to `.env.local` (or `.env`):
    ```bash
