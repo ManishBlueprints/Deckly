@@ -70,12 +70,6 @@ interface WorkflowStep {
   desc: string;
 }
 
-interface ValueFeature {
-  icon: string;
-  title: string;
-  desc: string;
-}
-
 const positioningFeatures: Feature[] = [
   {
     icon: "link",
@@ -112,7 +106,7 @@ const workflowSteps: WorkflowStep[] = [
   },
 ];
 
-const valueFeatures: ValueFeature[] = [
+const valueFeatures: Feature[] = [
   {
     icon: "sell",
     title: "Stop guessing investor interest",
@@ -871,18 +865,266 @@ export default function Landing() {
   );
 }
 
-// Child component for managed scroll depth animations
+// --- Sub-components for UI Elements ---
+
+const CornerBrackets = ({
+  className = "",
+  corners = ["tl", "tr", "bl", "br"],
+}: {
+  className?: string;
+  corners?: ("tl" | "tr" | "bl" | "br")[];
+}) => (
+  <>
+    {corners.includes("tl") && (
+      <div
+        className={`absolute top-0 left-0 w-4 h-4 border-t border-l border-white/20 transition-colors duration-500 ${className}`}
+      />
+    )}
+    {corners.includes("tr") && (
+      <div
+        className={`absolute top-0 right-0 w-4 h-4 border-t border-r border-white/20 transition-colors duration-500 ${className}`}
+      />
+    )}
+    {corners.includes("bl") && (
+      <div
+        className={`absolute bottom-0 left-0 w-4 h-4 border-b border-l border-white/20 transition-colors duration-500 ${className}`}
+      />
+    )}
+    {corners.includes("br") && (
+      <div
+        className={`absolute bottom-0 right-0 w-4 h-4 border-b border-r border-white/20 transition-colors duration-500 ${className}`}
+      />
+    )}
+  </>
+);
+
+// --- Capability Visuals (Bento Grid) ---
+
+const EngagementVisual = () => (
+  <div className="absolute inset-x-0 bottom-4 flex items-center justify-center opacity-20 group-hover:opacity-40 transition-all duration-1000 scale-100 translate-y-4">
+    <div className="w-full h-full p-8 flex flex-col justify-end">
+      <div className="absolute inset-0 p-8">
+        <div className="w-full h-full border-l border-b border-white/10 flex flex-col justify-between">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="w-full border-t border-white/5 h-0" />
+          ))}
+        </div>
+      </div>
+
+      <div className="relative flex-1 mt-12 flex items-end gap-3 h-48">
+        {[60, 45, 90, 75, 40, 65, 85, 55, 70].map((h, i) => (
+          <div key={i} className="flex-1 flex flex-col justify-end h-full">
+            <motion.div
+              initial={{ height: 0 }}
+              whileInView={{ height: `${h}%` }}
+              transition={{ duration: 1, delay: i * 0.05 + 0.5 }}
+              className="w-full bg-gradient-to-t from-primary/40 to-primary border-t border-x border-white/10 relative group/bar"
+            >
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary opacity-0 group-hover/bar:opacity-100 transition-opacity">
+                {h}%
+              </div>
+            </motion.div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 flex flex-col gap-2">
+        {[
+          { name: "Investor X", time: "just now", status: "viewed slide 4" },
+          { name: "Fund Sequoia", time: "2m ago", status: "revisited" },
+        ].map((item, i) => (
+          <motion.div
+            key={i}
+            initial={{ x: 20, opacity: 0 }}
+            whileInView={{ x: 0, opacity: 1 }}
+            transition={{ delay: i * 0.2 + 1 }}
+            className="flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-2 rounded-full w-fit"
+          >
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-[10px] text-white/60 font-bold uppercase tracking-wider">
+              {item.name} {item.status}
+            </span>
+            <span className="text-[9px] text-primary/40">{item.time}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="absolute -bottom-2 right-12 flex items-end gap-3 h-32 opacity-0 group-hover:opacity-100 transition-all duration-700 pointer-events-none">
+        {[40, 70, 50, 90, 60].map((h, i) => (
+          <motion.div
+            key={i}
+            initial={{ height: 0 }}
+            whileHover={{ height: `${h}%` }}
+            animate={
+              i % 2 === 0
+                ? { height: [`${h - 10}%`, `${h + 10}%`, `${h - 10}%`] }
+                : { height: [`${h + 10}%`, `${h - 10}%`, `${h + 10}%`] }
+            }
+            transition={{
+              height: { repeat: Infinity, duration: 2, ease: "easeInOut" },
+              default: { delay: i * 0.1 },
+            }}
+            style={{ height: `${h}%` }}
+            className="w-4 bg-primary/30 rounded-t-sm shadow-[0_-5px_20px_rgba(84,233,138,0.2)]"
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const LiveSyncVisual = () => (
+  <div className="absolute inset-x-0 bottom-4 flex items-end justify-center p-8">
+    <div className="relative w-full h-24 flex items-center justify-center translate-y-4">
+      <div className="absolute top-0 flex gap-8 items-center opacity-20 group-hover:opacity-100 transition-all duration-700">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-16 border border-white/20 bg-white/5 relative overflow-hidden">
+            <div className="absolute inset-0 bg-red-500/10 group-hover:bg-transparent transition-colors" />
+          </div>
+          <span className="text-[8px] mt-2 text-white/40">V1.0</span>
+        </div>
+        <motion.div
+          animate={{ x: [0, 5, 0] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="material-symbols-outlined text-primary text-sm"
+        >
+          trending_flat
+        </motion.div>
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-16 border border-primary/20 bg-primary/5 relative overflow-hidden">
+            <div className="absolute inset-0 bg-primary/20 scale-y-0 group-hover:scale-y-100 transition-transform origin-bottom duration-700" />
+          </div>
+          <span className="text-[8px] mt-2 text-primary font-bold">V2.0</span>
+        </div>
+      </div>
+
+      <div className="absolute -bottom-4 w-32 h-32 flex items-center justify-center opacity-10 group-hover:opacity-30 group-hover:scale-125 transition-all duration-1000">
+        <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow" />
+        <span className="material-symbols-outlined text-[3rem] text-white">
+          sync
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
+const DataRoomVisual = () => (
+  <div className="absolute bottom-4 inset-x-0 p-8 flex flex-col items-end gap-4 overflow-hidden">
+    <div className="flex flex-wrap gap-2 justify-end w-40 opacity-10 group-hover:opacity-40 transition-opacity translate-y-6">
+      {[...Array(9)].map((_, i) => (
+        <motion.div
+          key={i}
+          whileHover={{ y: -5, borderColor: "rgba(84, 233, 138, 0.4)" }}
+          className="w-8 h-10 border border-white/20 bg-white/5 flex items-center justify-center transition-all duration-300"
+        >
+          <span className="material-symbols-outlined text-[8px]">
+            description
+          </span>
+        </motion.div>
+      ))}
+    </div>
+  </div>
+);
+
+const AISummaryVisual = () => (
+  <div className="absolute bottom-6 inset-x-0 p-8 flex items-center justify-center opacity-[0.1] group-hover:opacity-40 transition-all duration-700 translate-y-4">
+    <div className="w-full max-w-[240px] flex items-center gap-4">
+      <div className="flex-1 flex flex-col gap-1.5 opacity-40 group-hover:opacity-20 transition-opacity">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="w-full h-1 bg-white rounded-full" />
+        ))}
+      </div>
+
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex gap-1">
+          {[...Array(3)].map((_, i) => (
+            <motion.div
+              key={i}
+              animate={{ opacity: [0, 1, 0] }}
+              transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
+              className="w-1 h-1 rounded-full bg-primary"
+            />
+          ))}
+        </div>
+        <span className="material-symbols-outlined text-primary text-xl">
+          auto_awesome
+        </span>
+      </div>
+
+      <div className="flex-1 flex flex-col gap-1.5">
+        <motion.div
+          initial={{ width: 0 }}
+          whileInView={{ width: "100%" }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+          className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]"
+        />
+        <motion.div
+          initial={{ width: 0 }}
+          whileInView={{ width: "70%" }}
+          transition={{ duration: 0.8, delay: 0.7 }}
+          className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]"
+        />
+      </div>
+    </div>
+  </div>
+);
+
+const OrganizationVisual = () => (
+  <div className="absolute bottom-4 right-0 p-6 flex flex-col items-end gap-3 opacity-10 group-hover:opacity-40 transition-all duration-500 translate-y-4">
+    <div className="flex gap-2">
+      {["SaaS", "Fintech", "Health"].map((tag, i) => (
+        <motion.div
+          key={i}
+          whileHover={{ scale: 1.1, backgroundColor: "rgba(84, 233, 138, 0.2)" }}
+          className="px-3 py-1 border border-white/40 text-[10px] font-bold text-white uppercase transition-colors"
+        >
+          {tag}
+        </motion.div>
+      ))}
+    </div>
+    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {[...Array(3)].map((_, i) => (
+        <div
+          key={i}
+          className="w-8 h-6 border-t-2 border-x border-white/20 bg-white/5"
+        />
+      ))}
+    </div>
+  </div>
+);
+
+const ControlVisual = () => (
+  <div className="absolute inset-x-0 bottom-4 flex flex-col items-center justify-center p-8 opacity-5 group-hover:opacity-50 transition-opacity duration-500">
+    <div className="flex items-center gap-2 mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700 translate-y-4 group-hover:translate-y-0">
+      <span className="material-symbols-outlined text-primary text-xs">
+        verified_user
+      </span>
+      <span className="text-[10px] text-primary font-bold uppercase tracking-widest">
+        Access Protected
+      </span>
+    </div>
+    <div className="w-16 h-7 border border-white/20 rounded-full flex items-center px-1 scale-125 relative">
+      <motion.div
+        variants={{
+          initial: { x: 0, backgroundColor: "#fff" },
+          hover: { x: 36, backgroundColor: "#54e98a" },
+        }}
+        initial="initial"
+        whileHover="hover"
+        className="w-4 h-4 rounded-full transition-colors duration-500"
+      />
+    </div>
+  </div>
+);
+
 // Child component for Bento Grid Features
 function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
   return (
     <div
       className={`p-6 md:p-10 bg-surface-container border border-white/10 rounded-none shadow-[0_10px_30px_rgba(0,0,0,0.4)] group relative overflow-hidden flex flex-col transition-all duration-500 hover:border-primary/40 ${className} ${index === 0 ? "min-h-[450px]" : "min-h-[300px]"}`}
     >
-      {/* Decorative Corner Outlines */}
-      <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
-      <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
-      <div className="absolute bottom-0 left-0 w-4 h-4 border-b border-l border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
-      <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+      <CornerBrackets className="group-hover:border-primary/60" />
+      
       {/* Visual Decoration Wrapper */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.4] group-hover:opacity-[0.7] transition-opacity duration-700 overflow-hidden">
         <VisualDecoration index={index} />
@@ -917,268 +1159,12 @@ function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
 
 function VisualDecoration({ index }: { index: number }) {
   switch (index) {
-    case 0: // Engagement (Large)
-      return (
-        <div className="absolute inset-x-0 bottom-4 flex items-center justify-center opacity-20 group-hover:opacity-40 transition-all duration-1000 scale-100 translate-y-4">
-          <div className="w-full h-full p-8 flex flex-col justify-end">
-            {/* Coordinate System Grid */}
-            <div className="absolute inset-0 p-8">
-              <div className="w-full h-full border-l border-b border-white/10 flex flex-col justify-between">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="w-full border-t border-white/5 h-0" />
-                ))}
-              </div>
-            </div>
-
-            {/* Bar Chart */}
-            <div className="relative flex-1 mt-12 flex items-end gap-3 h-48">
-              {[60, 45, 90, 75, 40, 65, 85, 55, 70].map((h, i) => (
-                <div
-                  key={i}
-                  className="flex-1 flex flex-col justify-end h-full"
-                >
-                  <motion.div
-                    initial={{ height: 0 }}
-                    whileInView={{ height: `${h}%` }}
-                    transition={{ duration: 1, delay: i * 0.05 + 0.5 }}
-                    className="w-full bg-gradient-to-t from-primary/40 to-primary border-t border-x border-white/10 relative group/bar"
-                  >
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary opacity-0 group-hover/bar:opacity-100 transition-opacity">
-                      {h}%
-                    </div>
-                  </motion.div>
-                </div>
-              ))}
-            </div>
-
-            {/* Live Activity Pills */}
-            <div className="mt-8 flex flex-col gap-2">
-              {[
-                {
-                  name: "Investor X",
-                  time: "just now",
-                  status: "viewed slide 4",
-                },
-                { name: "Fund Sequoia", time: "2m ago", status: "revisited" },
-              ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ x: 20, opacity: 0 }}
-                  whileInView={{ x: 0, opacity: 1 }}
-                  transition={{ delay: i * 0.2 + 1 }}
-                  className="flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-2 rounded-full w-fit"
-                >
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  <span className="text-[10px] text-white/60 font-bold uppercase tracking-wider">
-                    {item.name} {item.status}
-                  </span>
-                  <span className="text-[9px] text-primary/40">
-                    {item.time}
-                  </span>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Sparkline Overlay on Hover */}
-            <div className="absolute -bottom-2 right-12 flex items-end gap-3 h-32 opacity-0 group-hover:opacity-100 transition-all duration-700 pointer-events-none">
-              {[40, 70, 50, 90, 60].map((h, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ height: 0 }}
-                  whileHover={{ height: `${h}%` }}
-                  animate={
-                    i % 2 === 0
-                      ? { height: [`${h - 10}%`, `${h + 10}%`, `${h - 10}%`] }
-                      : { height: [`${h + 10}%`, `${h - 10}%`, `${h + 10}%`] }
-                  }
-                  transition={{
-                    height: {
-                      repeat: Infinity,
-                      duration: 2,
-                      ease: "easeInOut",
-                    },
-                    default: { delay: i * 0.1 },
-                  }}
-                  style={{ height: `${h}%` }}
-                  className="w-4 bg-primary/30 rounded-t-sm shadow-[0_-5px_20px_rgba(84,233,138,0.2)]"
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    case 1: // Update / Live Sync
-      return (
-        <div className="absolute inset-x-0 bottom-4 flex items-end justify-center p-8">
-          <div className="relative w-full h-24 flex items-center justify-center translate-y-4">
-            {/* Version Transition Visual */}
-            <div className="absolute top-0 flex gap-8 items-center opacity-20 group-hover:opacity-100 transition-all duration-700">
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-16 border border-white/20 bg-white/5 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-red-500/10 group-hover:bg-transparent transition-colors" />
-                </div>
-                <span className="text-[8px] mt-2 text-white/40">V1.0</span>
-              </div>
-              <motion.div
-                animate={{ x: [0, 5, 0] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-                className="material-symbols-outlined text-primary text-sm"
-              >
-                trending_flat
-              </motion.div>
-              <div className="flex flex-col items-center">
-                <div className="w-12 h-16 border border-primary/20 bg-primary/5 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-primary/20 scale-y-0 group-hover:scale-y-100 transition-transform origin-bottom duration-700" />
-                </div>
-                <span className="text-[8px] mt-2 text-primary font-bold">
-                  V2.0
-                </span>
-              </div>
-            </div>
-
-            <div className="absolute -bottom-4 w-32 h-32 flex items-center justify-center opacity-10 group-hover:opacity-30 group-hover:scale-125 transition-all duration-1000">
-              <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow" />
-              <span className="material-symbols-outlined text-[3rem] text-white">
-                sync
-              </span>
-            </div>
-          </div>
-        </div>
-      );
-    case 2: // Data Rooms
-      return (
-        <div className="absolute bottom-4 inset-x-0 p-8 flex flex-col items-end gap-4 overflow-hidden">
-          <div className="flex flex-wrap gap-2 justify-end w-40 opacity-10 group-hover:opacity-40 transition-opacity translate-y-6">
-            {[...Array(9)].map((_, i) => (
-              <motion.div
-                key={i}
-                whileHover={{ y: -5, borderColor: "rgba(84, 233, 138, 0.4)" }}
-                className="w-8 h-10 border border-white/20 bg-white/5 flex items-center justify-center transition-all duration-300"
-              >
-                <span className="material-symbols-outlined text-[8px]">
-                  description
-                </span>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      );
-    case 3: // AI Summary
-      return (
-        <div className="absolute bottom-6 inset-x-0 p-8 flex items-center justify-center opacity-[0.1] group-hover:opacity-40 transition-all duration-700 translate-y-4">
-          <div className="w-full max-w-[240px] flex items-center gap-4">
-            {/* Source (Long Text) */}
-            <div className="flex-1 flex flex-col gap-1.5 opacity-40 group-hover:opacity-20 transition-opacity">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="w-full h-1 bg-white rounded-full" />
-              ))}
-            </div>
-
-            {/* Distillation Arrow */}
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex gap-1">
-                {[...Array(3)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    animate={{ opacity: [0, 1, 0] }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 1,
-                      delay: i * 0.2,
-                    }}
-                    className="w-1 h-1 rounded-full bg-primary"
-                  />
-                ))}
-              </div>
-              <span className="material-symbols-outlined text-primary text-xl">
-                auto_awesome
-              </span>
-            </div>
-
-            {/* Summary (Clean Text) */}
-            <div className="flex-1 flex flex-col gap-1.5">
-              <motion.div
-                initial={{ width: 0 }}
-                whileInView={{ width: "100%" }}
-                transition={{ duration: 0.8, delay: 0.5 }}
-                className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]"
-              />
-              <motion.div
-                initial={{ width: 0 }}
-                whileInView={{ width: "70%" }}
-                transition={{ duration: 0.8, delay: 0.7 }}
-                className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]"
-              />
-            </div>
-          </div>
-        </div>
-      );
-    case 4: // Organization
-      return (
-        <div className="absolute bottom-4 right-0 p-6 flex flex-col items-end gap-3 opacity-10 group-hover:opacity-40 transition-all duration-500 translate-y-4">
-          <div className="flex gap-2">
-            {["SaaS", "Fintech", "Health"].map((tag, i) => (
-              <motion.div
-                key={i}
-                whileHover={{
-                  scale: 1.1,
-                  backgroundColor: "rgba(84, 233, 138, 0.2)",
-                }}
-                className="px-3 py-1 border border-white/40 text-[10px] font-bold text-white uppercase transition-colors"
-              >
-                {tag}
-              </motion.div>
-            ))}
-          </div>
-          {/* Folders visual */}
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="w-8 h-6 border-t-2 border-x border-white/20 bg-white/5"
-              />
-            ))}
-          </div>
-        </div>
-      );
-    case 5: // Control
-      return (
-        <div className="absolute inset-x-0 bottom-4 flex flex-col items-center justify-center p-8 opacity-5 group-hover:opacity-50 transition-opacity duration-500">
-          {/* Protected Status */}
-          <div className="flex items-center gap-2 mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700 translate-y-4 group-hover:translate-y-0">
-            <span className="material-symbols-outlined text-primary text-xs">
-              verified_user
-            </span>
-            <span className="text-[10px] text-primary font-bold uppercase tracking-widest">
-              Access Protected
-            </span>
-          </div>
-          <div className="w-16 h-7 border border-white/20 rounded-full flex items-center px-1 scale-125 relative">
-            <motion.div
-              animate={{ x: 0 }}
-              variants={{
-                hover: { x: 36 },
-              }}
-              className="w-4 h-4 bg-white group-hover:bg-primary rounded-full transition-colors duration-500"
-              style={{
-                transform: "translateX(var(--toggle-x, 0))",
-              }}
-            />
-            {/* Simple CSS-based move for reliability */}
-            <style>{`
-              .group:hover [data-toggle-pill] {
-                transform: translateX(34px);
-                background-color: #54e98a;
-              }
-            `}</style>
-            <div
-              data-toggle-pill
-              className="absolute left-1 w-4 h-4 bg-white rounded-full transition-all duration-500 ease-in-out"
-            />
-          </div>
-        </div>
-      );
-    default:
-      return null;
+    case 0: return <EngagementVisual />;
+    case 1: return <LiveSyncVisual />;
+    case 2: return <DataRoomVisual />;
+    case 3: return <AISummaryVisual />;
+    case 4: return <OrganizationVisual />;
+    case 5: return <ControlVisual />;
+    default: return null;
   }
 }
