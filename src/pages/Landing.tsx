@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { useRef, useState } from "react";
-import { motion, useScroll, useTransform, Variants } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import screen from "../assets/screen.png";
 import decklyLogo from "../assets/Deckly.png";
 
@@ -282,16 +282,16 @@ export default function Landing() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1, delay: 0.2 }}
             >
-              <div className="relative border border-white/10 p-4 bg-[#0e0e0e]">
+              <div className="relative border border-white/10 overflow-hidden">
                 {/* Frame Labels */}
-                <div className="absolute -top-3 left-6 px-2 bg-[#0e0e0e] text-[8px] font-black text-primary/60 uppercase tracking-widest z-20">
+                <div className="absolute top-3 left-6 px-2 text-[8px] font-black text-primary/60 uppercase tracking-widest z-20">
                   [ SYSTEM // ACTIVE ]
                 </div>
-                <div className="absolute -bottom-3 right-6 px-2 bg-[#0e0e0e] text-[8px] font-black text-white/30 uppercase tracking-widest z-20">
+                <div className="absolute bottom-3 right-6 px-2 text-[8px] font-black text-white/30 uppercase tracking-widest z-20">
                   VIEW // PITCH_DECK_V1.2
                 </div>
 
-                <div className="relative overflow-hidden border border-white/5">
+                <div className="relative overflow-hidden">
                   <img
                     alt="Dashboard Preview"
                     className="w-full h-auto opacity-90 group-hover:opacity-100 transition-opacity duration-700"
@@ -907,7 +907,7 @@ function VisualDecoration({ index }: { index: number }) {
   switch (index) {
     case 0: // Engagement (Large)
       return (
-        <div className="absolute inset-0 flex items-center justify-center translate-y-40 translate-x-8 opacity-20 group-hover:opacity-40 transition-all duration-1000 scale-110">
+        <div className="absolute inset-x-0 bottom-4 flex items-center justify-center opacity-20 group-hover:opacity-40 transition-all duration-1000 scale-100 translate-y-4">
           <div className="w-full h-full p-8 flex flex-col justify-end">
             {/* Coordinate System Grid */}
             <div className="absolute inset-0 p-8">
@@ -966,13 +966,31 @@ function VisualDecoration({ index }: { index: number }) {
                 </motion.div>
               ))}
             </div>
+
+            {/* Sparkline Overlay on Hover */}
+            <div className="absolute -bottom-2 right-12 flex items-end gap-3 h-32 opacity-0 group-hover:opacity-100 transition-all duration-700 pointer-events-none">
+              {[40, 70, 50, 90, 60].map((h, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ height: 0 }}
+                  whileHover={{ height: `${h}%` }}
+                  animate={i % 2 === 0 ? { height: [`${h-10}%`, `${h+10}%`, `${h-10}%`] } : { height: [`${h+10}%`, `${h-10}%`, `${h+10}%`] }}
+                  transition={{ 
+                    height: { repeat: Infinity, duration: 2, ease: "easeInOut" },
+                    default: { delay: i * 0.1 }
+                  }}
+                  style={{ height: `${h}%` }}
+                  className="w-4 bg-primary/30 rounded-t-sm shadow-[0_-5px_20px_rgba(84,233,138,0.2)]"
+                />
+              ))}
+            </div>
           </div>
         </div>
       );
     case 1: // Update / Live Sync
       return (
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-center p-8">
-          <div className="relative w-full h-32 flex items-center justify-center translate-y-16 scale-110">
+        <div className="absolute inset-x-0 bottom-4 flex items-end justify-center p-8">
+          <div className="relative w-full h-24 flex items-center justify-center translate-y-4">
              {/* Version Transition Visual */}
              <div className="absolute top-0 flex gap-8 items-center opacity-20 group-hover:opacity-100 transition-all duration-700">
                 <div className="flex flex-col items-center">
@@ -1005,8 +1023,8 @@ function VisualDecoration({ index }: { index: number }) {
       );
     case 2: // Data Rooms
       return (
-        <div className="absolute bottom-0 inset-x-0 p-8 flex flex-col items-end gap-4 translate-y-12">
-          <div className="flex flex-wrap gap-2 justify-end w-40 opacity-10 group-hover:opacity-40 transition-opacity">
+        <div className="absolute bottom-4 inset-x-0 p-8 flex flex-col items-end gap-4 overflow-hidden">
+          <div className="flex flex-wrap gap-2 justify-end w-40 opacity-10 group-hover:opacity-40 transition-opacity translate-y-6">
             {[...Array(9)].map((_, i) => (
               <motion.div 
                 key={i} 
@@ -1021,30 +1039,100 @@ function VisualDecoration({ index }: { index: number }) {
       );
     case 3: // AI Summary
       return (
-        <div className="absolute bottom-0 inset-x-0 p-8 flex flex-col gap-2 opacity-[0.05] translate-y-20 scale-125">
-          <div className="w-full h-2 bg-white rounded-full" />
-          <div className="w-full h-3 bg-white rounded-full" />
-          <div className="w-3/4 h-2 bg-white rounded-full" />
+        <div className="absolute bottom-6 inset-x-0 p-8 flex items-center justify-center opacity-[0.1] group-hover:opacity-40 transition-all duration-700 translate-y-4">
+           <div className="w-full max-w-[240px] flex items-center gap-4">
+              {/* Source (Long Text) */}
+              <div className="flex-1 flex flex-col gap-1.5 opacity-40 group-hover:opacity-20 transition-opacity">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="w-full h-1 bg-white rounded-full" />
+                ))}
+              </div>
+
+              {/* Distillation Arrow */}
+              <div className="flex flex-col items-center gap-2">
+                 <div className="flex gap-1">
+                    {[...Array(3)].map((_, i) => (
+                      <motion.div 
+                        key={i}
+                        animate={{ opacity: [0, 1, 0] }}
+                        transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
+                        className="w-1 h-1 rounded-full bg-primary" 
+                      />
+                    ))}
+                 </div>
+                 <span className="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+              </div>
+
+              {/* Summary (Clean Text) */}
+              <div className="flex-1 flex flex-col gap-1.5">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  whileInView={{ width: "100%" }}
+                  transition={{ duration: 0.8, delay: 0.5 }}
+                  className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]" 
+                />
+                <motion.div 
+                  initial={{ width: 0 }}
+                  whileInView={{ width: "70%" }}
+                  transition={{ duration: 0.8, delay: 0.7 }}
+                  className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]" 
+                />
+              </div>
+           </div>
         </div>
       );
     case 4: // Organization
       return (
-        <div className="absolute bottom-0 right-0 p-6 flex gap-2 opacity-10 -rotate-12 translate-x-4 translate-y-12 scale-125">
-          {["SaaS", "Fintech", "Health"].map((tag, i) => (
-            <div
-              key={i}
-              className="px-3 py-1 border border-white/40 text-[10px] font-bold text-white uppercase"
-            >
-              {tag}
-            </div>
-          ))}
+        <div className="absolute bottom-4 right-0 p-6 flex flex-col items-end gap-3 opacity-10 group-hover:opacity-40 transition-all duration-500 translate-y-4">
+          <div className="flex gap-2">
+            {["SaaS", "Fintech", "Health"].map((tag, i) => (
+              <motion.div
+                key={i}
+                whileHover={{ scale: 1.1, backgroundColor: "rgba(84, 233, 138, 0.2)" }}
+                className="px-3 py-1 border border-white/40 text-[10px] font-bold text-white uppercase transition-colors"
+              >
+                {tag}
+              </motion.div>
+            ))}
+          </div>
+          {/* Folders visual */}
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+             {[...Array(3)].map((_, i) => (
+                <div key={i} className="w-8 h-6 border-t-2 border-x border-white/20 bg-white/5" />
+             ))}
+          </div>
         </div>
       );
     case 5: // Control
       return (
-        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center p-8 opacity-10">
-          <div className="w-20 h-8 border border-white/20 rounded-full flex items-center px-1 translate-y-20 scale-125">
-            <div className="w-5 h-5 bg-primary rounded-full translate-x-12" />
+        <div className="absolute inset-x-0 bottom-4 flex flex-col items-center justify-center p-8 opacity-5 group-hover:opacity-50 transition-opacity duration-500">
+           {/* Protected Status */}
+           <div className="flex items-center gap-2 mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700 translate-y-4 group-hover:translate-y-0">
+              <span className="material-symbols-outlined text-primary text-xs">verified_user</span>
+              <span className="text-[10px] text-primary font-bold uppercase tracking-widest">Access Protected</span>
+           </div>
+          <div className="w-16 h-7 border border-white/20 rounded-full flex items-center px-1 scale-125 relative">
+            <motion.div 
+               animate={{ x: 0 }}
+               variants={{
+                 hover: { x: 36 }
+               }}
+               className="w-4 h-4 bg-white group-hover:bg-primary rounded-full transition-colors duration-500" 
+               style={{ 
+                 transform: 'translateX(var(--toggle-x, 0))' 
+               }}
+            />
+            {/* Simple CSS-based move for reliability */}
+            <style>{`
+              .group:hover [data-toggle-pill] {
+                transform: translateX(34px);
+                background-color: #54e98a;
+              }
+            `}</style>
+            <div 
+              data-toggle-pill
+              className="absolute left-1 w-4 h-4 bg-white rounded-full transition-all duration-500 ease-in-out"
+            />
           </div>
         </div>
       );
