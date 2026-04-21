@@ -31,7 +31,7 @@ const features = [
   },
   {
     icon: "folder_shared",
-    title: "Simple data rooms",
+    title: "Advance data rooms",
     desc: "Share multiple decks and documents in one place. Keep everything organized without messy folders or emails.",
   },
   {
@@ -120,7 +120,7 @@ const valueFeatures: ValueFeature[] = [
   },
   {
     icon: "bolt",
-    title: "Open-source Core",
+    title: "Open-source Core (Coming Soon)",
     desc: "Transparent code for ultimate trust and data privacy.",
   },
   {
@@ -538,13 +538,16 @@ export default function Landing() {
             {/* Grid Cards Below */}
             <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative h-fit">
               {features.map((feature, i) => (
-                <FeatureCard 
-                  key={i} 
-                  feature={feature} 
-                  index={i} 
+                <FeatureCard
+                  key={i}
+                  feature={feature}
+                  index={i}
                   className={
-                    i === 0 ? "lg:col-span-2 lg:row-span-2 h-full" : 
-                    i === 5 ? "md:col-span-2 lg:col-span-1" : ""
+                    i === 0
+                      ? "lg:col-span-2 lg:row-span-2 h-full"
+                      : i === 5
+                        ? "md:col-span-2 lg:col-span-1"
+                        : ""
                   }
                 />
               ))}
@@ -860,7 +863,7 @@ export default function Landing() {
 // Child component for Bento Grid Features
 function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
   return (
-    <div 
+    <div
       className={`p-6 md:p-8 bg-surface-container border border-white/10 rounded-none shadow-[0_10px_30px_rgba(0,0,0,0.4)] group relative overflow-hidden flex flex-col transition-all duration-500 hover:border-primary/40 ${className} ${index === 0 ? "min-h-[400px]" : "min-h-[250px]"}`}
     >
       {/* Decorative Corner Outlines */}
@@ -870,28 +873,30 @@ function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
       <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
       {/* Visual Decoration Wrapper */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.4] group-hover:opacity-[0.7] transition-opacity duration-700 overflow-hidden">
-         <VisualDecoration index={index} />
+        <VisualDecoration index={index} />
       </div>
 
       <div className="relative z-10 flex flex-col h-full">
-        <div className="flex items-start justify-between mb-auto">
-          <div className="w-12 h-12 rounded-none bg-background border border-white/5 flex items-center justify-center mb-6 shadow-inner group-hover:border-primary/30 transition-all duration-500">
-            <span
-              className="material-symbols-outlined text-primary text-2xl"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              {feature.icon}
-            </span>
-          </div>
+        <div className="flex justify-end mb-4">
           <div className="text-[10px] font-black text-white/10 uppercase tracking-[0.2em]">
             Deckly // 0{index + 1}
           </div>
         </div>
 
-        <div>
-          <h3 className="text-xl font-bold mb-3 text-white tracking-tighter leading-tight transition-colors group-hover:text-primary">
-            {feature.title}
-          </h3>
+        <div className="mt-auto">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-10 h-10 shrink-0 rounded-none bg-background border border-white/5 flex items-center justify-center shadow-inner group-hover:border-primary/30 transition-all duration-500">
+              <span
+                className="material-symbols-outlined text-primary text-xl"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                {feature.icon}
+              </span>
+            </div>
+            <h3 className="text-xl font-bold text-white tracking-tighter leading-tight transition-colors group-hover:text-primary">
+              {feature.title}
+            </h3>
+          </div>
           <p className="text-sm text-on-surface-variant leading-relaxed max-w-xl font-medium">
             {feature.desc}
           </p>
@@ -908,81 +913,123 @@ function VisualDecoration({ index }: { index: number }) {
   switch (index) {
     case 0: // Engagement (Large)
       return (
-        <div className="absolute inset-0 flex items-center justify-center -rotate-6 scale-110 opacity-20 group-hover:opacity-40 transition-all duration-1000">
-          <div className="w-full h-full p-12 flex flex-col gap-4">
-             <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: "30%" }}
-                  whileInView={{ width: "80%" }}
-                  transition={{ duration: 1.5, delay: 0.5 }}
-                  className="h-full bg-primary" 
-                />
-             </div>
-             <div className="w-2/3 h-2 bg-white/10 rounded-full overflow-hidden">
-                <motion.div 
-                   initial={{ width: "10%" }}
-                   whileInView={{ width: "40%" }}
-                   transition={{ duration: 1.5, delay: 0.7 }}
-                   className="h-full bg-primary/60" 
-                />
-             </div>
-             <div className="flex gap-2 items-end h-32 mt-4">
-               {[40, 70, 45, 90, 65, 80, 50].map((h, i) => (
-                  <motion.div 
-                    key={i}
+        <div className="absolute inset-0 flex items-center justify-center translate-y-12 translate-x-8 opacity-20 group-hover:opacity-40 transition-all duration-1000">
+          <div className="w-full h-full p-8 flex flex-col">
+            {/* Coordinate System Grid */}
+            <div className="absolute inset-0 p-8">
+              <div className="w-full h-full border-l border-b border-white/10 flex flex-col justify-between">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="w-full border-t border-white/5 h-0" />
+                ))}
+              </div>
+            </div>
+
+            {/* Bar Chart */}
+            <div className="relative flex-1 mt-12 flex items-end gap-3 h-48">
+              {[60, 45, 90, 75, 40, 65, 85, 55, 70].map((h, i) => (
+                <div
+                  key={i}
+                  className="flex-1 flex flex-col justify-end h-full"
+                >
+                  <motion.div
                     initial={{ height: 0 }}
                     whileInView={{ height: `${h}%` }}
-                    transition={{ duration: 1, delay: 0.1 * i }}
-                    className="flex-1 bg-white/5 border-t border-white/10 group-hover:bg-primary/10 transition-colors"
-                  />
-               ))}
-             </div>
+                    transition={{ duration: 1, delay: i * 0.05 + 0.5 }}
+                    className="w-full bg-gradient-to-t from-primary/40 to-primary border-t border-x border-white/10 relative group/bar"
+                  >
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary opacity-0 group-hover/bar:opacity-100 transition-opacity">
+                      {h}%
+                    </div>
+                  </motion.div>
+                </div>
+              ))}
+            </div>
+
+            {/* Live Activity Pills */}
+            <div className="mt-8 flex flex-col gap-2">
+              {[
+                {
+                  name: "Investor X",
+                  time: "just now",
+                  status: "viewed slide 4",
+                },
+                { name: "Fund Sequoia", time: "2m ago", status: "revisited" },
+              ].map((item, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ x: 20, opacity: 0 }}
+                  whileInView={{ x: 0, opacity: 1 }}
+                  transition={{ delay: i * 0.2 + 1 }}
+                  className="flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-2 rounded-full w-fit"
+                >
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  <span className="text-[10px] text-white/60 font-bold uppercase tracking-wider">
+                    {item.name} {item.status}
+                  </span>
+                  <span className="text-[9px] text-primary/40">
+                    {item.time}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
       );
     case 1: // Update / Live Sync
       return (
         <div className="absolute inset-0 flex items-center justify-center opacity-10 group-hover:scale-110 transition-transform duration-1000">
-           <div className="relative w-32 h-32 flex items-center justify-center">
-              <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow" />
-              <span className="material-symbols-outlined text-[4rem] text-white">sync</span>
-           </div>
+          <div className="relative w-32 h-32 flex items-center justify-center">
+            <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow" />
+            <span className="material-symbols-outlined text-[4rem] text-white">
+              sync
+            </span>
+          </div>
         </div>
       );
     case 2: // Data Rooms
       return (
         <div className="absolute bottom-0 right-0 p-4 opacity-10 flex flex-wrap gap-2 justify-end w-40">
-           {[...Array(6)].map((_, i) => (
-              <div key={i} className="w-12 h-16 border border-white/20 bg-white/5 flex items-center justify-center">
-                 <span className="material-symbols-outlined text-xs">description</span>
-              </div>
-           ))}
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="w-12 h-16 border border-white/20 bg-white/5 flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-xs">
+                description
+              </span>
+            </div>
+          ))}
         </div>
       );
     case 3: // AI Summary
       return (
         <div className="absolute inset-0 p-8 flex flex-col gap-2 opacity-[0.05]">
-           <div className="w-full h-2 bg-white rounded-full" />
-           <div className="w-full h-2 bg-white rounded-full" />
-           <div className="w-3/4 h-2 bg-white rounded-full" />
-           <div className="w-full h-2 bg-primary rounded-full mt-4" />
-           <div className="w-1/2 h-2 bg-primary rounded-full" />
+          <div className="w-full h-2 bg-white rounded-full" />
+          <div className="w-full h-2 bg-white rounded-full" />
+          <div className="w-3/4 h-2 bg-white rounded-full" />
+          <div className="w-full h-2 bg-primary rounded-full mt-4" />
+          <div className="w-1/2 h-2 bg-primary rounded-full" />
         </div>
       );
     case 4: // Organization
       return (
         <div className="absolute top-0 right-0 p-4 flex gap-2 opacity-10 -rotate-12 translate-x-4">
-           {["SaaS", "Fintech", "Series A"].map((tag, i) => (
-              <div key={i} className="px-3 py-1 border border-white/40 text-[10px] font-bold text-white uppercase">{tag}</div>
-           ))}
+          {["SaaS", "Fintech", "Series A"].map((tag, i) => (
+            <div
+              key={i}
+              className="px-3 py-1 border border-white/40 text-[10px] font-bold text-white uppercase"
+            >
+              {tag}
+            </div>
+          ))}
         </div>
       );
     case 5: // Control
       return (
         <div className="absolute inset-0 flex items-center justify-center opacity-10">
-           <div className="w-24 h-10 border border-white/20 rounded-full flex items-center px-2">
-              <div className="w-6 h-6 bg-primary rounded-full translate-x-14" />
-           </div>
+          <div className="w-24 h-10 border border-white/20 rounded-full flex items-center px-2">
+            <div className="w-6 h-6 bg-primary rounded-full translate-x-14" />
+          </div>
         </div>
       );
     default:
