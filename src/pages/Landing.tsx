@@ -1,9 +1,11 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { motion, Variants } from "framer-motion";
 import screen from "../assets/screen.png";
 import decklyLogo from "../assets/Deckly.png";
+
+const FILL_ICON = { fontVariationSettings: "'FILL' 1" } as const;
 
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 40 },
@@ -55,7 +57,6 @@ interface Feature {
   icon: string;
   title: string;
   desc: string;
-  glow?: string;
 }
 
 interface FeatureCardProps {
@@ -106,6 +107,23 @@ const workflowSteps: WorkflowStep[] = [
   },
 ];
 
+const founderItems = [
+  { title: "Share with a single link", desc: "Eliminate heavy PDF attachments that get blocked by filters." },
+  { title: "Track engagement real-time", desc: "Know exactly when an Associate or GP opens your deck." },
+  { title: "Seamless version control", desc: "Update slides without breaking links already in investor hands." },
+];
+
+const investorItems = [
+  { title: "Save and organize decks", desc: "A unified library for all incoming deal flow." },
+  { title: "AI-Powered Summaries", desc: "Instant synthesis of deck highlights and metrics." },
+  { title: "Smart Tagging", desc: "Never lose context on a startup with custom venture-focused tags." },
+];
+
+const PLACEHOLDER_5 = [...Array(5)];
+const PLACEHOLDER_6 = [...Array(6)];
+const PLACEHOLDER_3 = [...Array(3)];
+const PLACEHOLDER_9 = [...Array(9)];
+
 const valueFeatures: Feature[] = [
   {
     icon: "sell",
@@ -124,90 +142,95 @@ const valueFeatures: Feature[] = [
   },
 ];
 
-export default function Landing() {
-  const navigate = useNavigate();
-  const containerRef = useRef<HTMLDivElement>(null);
+function LandingNav() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  useEffect(() => {
+    document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileMenuOpen]);
+
+  return (
+    <nav className="fixed top-0 left-0 w-full z-50 pointer-events-none">
+      <div className="pointer-events-auto border border-white/10 mx-4 md:mx-8 mt-4 md:mt-6 max-w-[1440px] lg:mx-auto bg-background/50 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+        <div className="flex justify-between items-center px-5 md:px-12 py-4 md:py-5">
+          <div className="flex items-center gap-2 md:gap-3">
+            <img
+              src={decklyLogo}
+              alt="Deckly Logo"
+              className="h-8 md:h-9 w-auto"
+              decoding="async"
+            />
+            <span className="text-lg md:text-xl font-bold tracking-tighter text-white">
+              deckly
+            </span>
+          </div>
+
+          {/* Desktop buttons */}
+          <div className="hidden md:flex items-center gap-4">
+            <Link
+              to="/login"
+              className="px-6 py-2 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              to="/signup"
+              className="bg-primary text-on-primary px-8 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all"
+            >
+              Get Started
+            </Link>
+          </div>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5"
+            aria-label="Toggle menu"
+          >
+            <span
+              className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "rotate-45 translate-y-[4px]" : ""}`}
+            />
+            <span
+              className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "opacity-0" : ""}`}
+            />
+            <span
+              className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "-rotate-45 -translate-y-[4px]" : ""}`}
+            />
+          </button>
+        </div>
+
+        {/* Mobile dropdown menu */}
+        <div
+          className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${mobileMenuOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"}`}
+        >
+          <div className="flex flex-col gap-2 px-5 pb-5 border-t border-white/10 pt-4">
+            <Link
+              to="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full text-left px-4 py-3 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary hover:bg-white/[0.02] transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              to="/signup"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full bg-primary text-on-primary px-4 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all text-center"
+            >
+              Get Started
+            </Link>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+export default function Landing() {
   return (
     <div className="bg-background text-on-surface selection:bg-primary selection:text-on-primary min-h-screen font-['Manrope'] overflow-hidden">
       {/* TopNavBar -> Floating Glassmorphic Header */}
-      <nav className="fixed top-0 left-0 w-full z-50 pointer-events-none">
-        <div className="pointer-events-auto border border-white/10 mx-4 md:mx-8 mt-4 md:mt-6 max-w-[1440px] lg:mx-auto bg-background/50 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
-          <div className="flex justify-between items-center px-5 md:px-12 py-4 md:py-5">
-            <div className="flex items-center gap-2 md:gap-3">
-              <img
-                src={decklyLogo}
-                alt="Deckly Logo"
-                className="h-8 md:h-9 w-auto"
-                decoding="async"
-              />
-              <span className="text-lg md:text-xl font-bold tracking-tighter text-white ">
-                deckly
-              </span>
-            </div>
-
-            {/* Desktop buttons */}
-            <div className="hidden md:flex items-center gap-4">
-              <button
-                onClick={() => navigate("/login")}
-                className="px-6 py-2 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => navigate("/signup")}
-                className="bg-primary text-on-primary px-8 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all"
-              >
-                Get Started
-              </button>
-            </div>
-
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5"
-              aria-label="Toggle menu"
-            >
-              <span
-                className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "rotate-45 translate-y-[4px]" : ""}`}
-              />
-              <span
-                className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "opacity-0" : ""}`}
-              />
-              <span
-                className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "-rotate-45 -translate-y-[4px]" : ""}`}
-              />
-            </button>
-          </div>
-
-          {/* Mobile dropdown menu */}
-          <div
-            className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${mobileMenuOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"}`}
-          >
-            <div className="flex flex-col gap-2 px-5 pb-5 border-t border-white/10 pt-4">
-              <button
-                onClick={() => {
-                  navigate("/login");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full text-left px-4 py-3 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary hover:bg-white/[0.02] transition-colors"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => {
-                  navigate("/signup");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full bg-primary text-on-primary px-4 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all text-center"
-              >
-                Get Started
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <LandingNav />
 
       <main className="relative pt-28 sm:pt-40 lg:pt-48 pb-20 md:pb-32">
         {/* Subtle Background Grid */}
@@ -253,19 +276,19 @@ export default function Landing() {
                 variants={fadeInUp}
                 className="flex flex-col sm:flex-row gap-3 md:gap-4"
               >
-                <button
-                  onClick={() => navigate("/signup")}
+                <Link
+                  to="/signup"
                   className="bg-primary text-on-primary px-6 md:px-8 py-3.5 md:py-4 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   Get Started Free
                   <ArrowUpRight size={16} />
-                </button>
-                <button
-                  onClick={() => navigate("/login")}
+                </Link>
+                <Link
+                  to="/login"
                   className="border border-white/10 text-white px-6 md:px-8 py-3.5 md:py-4 font-black text-xs uppercase tracking-widest hover:bg-white/[0.02] transition-all w-full sm:w-auto text-center"
                 >
                   See How It Works
-                </button>
+                </Link>
               </motion.div>
             </motion.div>
 
@@ -388,14 +411,13 @@ export default function Landing() {
                 className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.02] transition-all duration-500 relative group overflow-hidden hover:border-primary/40"
               >
                 {/* Decorative Corner Outlines */}
-                <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
-                <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+                <CornerBrackets corners={["tl", "br"]} className="group-hover:border-primary/60" />
 
                 <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6 relative z-10">
                   <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)] group-hover:scale-110 group-hover:border-primary/50 transition-all duration-500">
                     <span
                       className="material-symbols-outlined text-2xl md:text-3xl"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
+                      style={FILL_ICON}
                     >
                       rocket_launch
                     </span>
@@ -405,27 +427,14 @@ export default function Landing() {
                   </h3>
                 </div>
                 <ul className="space-y-6 md:space-y-10 relative z-10">
-                  {[
-                    {
-                      title: "Share with a single link",
-                      desc: "Eliminate heavy PDF attachments that get blocked by filters.",
-                    },
-                    {
-                      title: "Track engagement real-time",
-                      desc: "Know exactly when an Associate or GP opens your deck.",
-                    },
-                    {
-                      title: "Seamless version control",
-                      desc: "Update slides without breaking links already in investor hands.",
-                    },
-                  ].map((item, i) => (
+                  {founderItems.map((item, i) => (
                     <li
                       key={i}
                       className="flex items-start gap-4 md:gap-6 group/item"
                     >
                       <span
                         className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold group-hover/item:scale-125 transition-transform duration-300"
-                        style={{ fontVariationSettings: "'FILL' 1" }}
+                        style={FILL_ICON}
                       >
                         check_circle
                       </span>
@@ -448,14 +457,13 @@ export default function Landing() {
                 className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.02] transition-all duration-500 relative group overflow-hidden hover:border-primary/40"
               >
                 {/* Decorative Corner Outlines */}
-                <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
-                <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+                <CornerBrackets corners={["tl", "br"]} className="group-hover:border-primary/60" />
 
                 <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6 relative z-10">
                   <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)] group-hover:scale-110 group-hover:border-primary/50 transition-all duration-500">
                     <span
                       className="material-symbols-outlined text-2xl md:text-3xl"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
+                      style={FILL_ICON}
                     >
                       account_balance
                     </span>
@@ -465,27 +473,14 @@ export default function Landing() {
                   </h3>
                 </div>
                 <ul className="space-y-6 md:space-y-10 relative z-10">
-                  {[
-                    {
-                      title: "Save and organize decks",
-                      desc: "A unified library for all incoming deal flow.",
-                    },
-                    {
-                      title: "AI-Powered Summaries",
-                      desc: "Instant synthesis of deck highlights and metrics.",
-                    },
-                    {
-                      title: "Smart Tagging",
-                      desc: "Never lose context on a startup with custom venture-focused tags.",
-                    },
-                  ].map((item, i) => (
+                  {investorItems.map((item, i) => (
                     <li
                       key={i}
                       className="flex items-start gap-4 md:gap-6 group/item"
                     >
                       <span
                         className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold group-hover/item:scale-125 transition-transform duration-300"
-                        style={{ fontVariationSettings: "'FILL' 1" }}
+                        style={FILL_ICON}
                       >
                         check_circle
                       </span>
@@ -507,7 +502,6 @@ export default function Landing() {
 
         {/* Features Section -> Dynamic Depth Transition Stack */}
         <section
-          ref={containerRef}
           className="relative py-16 md:py-24 px-5 md:px-10 max-w-[1440px] mx-auto"
         >
           <div className="flex flex-col gap-16 md:gap-24">
@@ -641,7 +635,7 @@ export default function Landing() {
               <div className="flex items-center gap-4 text-xs font-black text-primary bg-primary/5 w-fit px-8 py-4 border border-primary/20 uppercase tracking-[0.2em]">
                 <span
                   className="material-symbols-outlined text-base"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
+                  style={FILL_ICON}
                 >
                   check_circle
                 </span>
@@ -665,7 +659,7 @@ export default function Landing() {
                   <div className="w-12 h-12 md:w-16 md:h-16 bg-background border border-white/10 flex items-center justify-center shrink-0 group-hover:border-primary/50 transition-colors duration-300 relative z-10">
                     <span
                       className="material-symbols-outlined text-primary text-xl md:text-2xl group-hover:scale-110 transition-transform duration-300"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
+                      style={FILL_ICON}
                     >
                       {item.icon}
                     </span>
@@ -688,7 +682,7 @@ export default function Landing() {
         {/* Final CTA -> Technical Blueprint Node */}
         <section className="py-16 md:py-24 px-5 md:px-10 max-w-[1440px] mx-auto relative">
           <motion.div
-            className="relative w-full border border-white/10 p-8 md:p-12 lg:p-24 text-center bg-[#0e0e0e] group overflow-hidden"
+            className="relative w-full border border-white/10 p-8 md:p-12 lg:p-24 text-center bg-background group overflow-hidden"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
@@ -724,6 +718,7 @@ export default function Landing() {
                 src={decklyLogo}
                 alt=""
                 className="w-96 h-96 object-contain"
+                loading="lazy"
               />
             </div>
 
@@ -747,8 +742,8 @@ export default function Landing() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full max-w-md mx-auto">
-                <button
-                  onClick={() => navigate("/signup")}
+                <Link
+                  to="/signup"
                   className="group relative w-full sm:w-auto bg-primary text-on-primary px-10 py-5 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all flex items-center justify-center gap-4 overflow-hidden"
                 >
                   {/* Button Inner Detail */}
@@ -757,7 +752,7 @@ export default function Landing() {
                     Start Free
                     <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </span>
-                </button>
+                </Link>
               </div>
               <p className="mt-10 text-[8px] md:text-[10px] text-on-surface-variant/60 font-black uppercase tracking-[0.4em]">
                 No credit card required. Always free for investors.
@@ -768,20 +763,20 @@ export default function Landing() {
       </main>
 
       {/* Footer -> Synced with Terms Style */}
-      <footer className="border-t border-white/5 mt-10 relative overflow-hidden pt-12 md:pt-24 pb-8 bg-gradient-to-b from-[#0e0e0e] via-[#0e0e0e] to-[#54e98a]/10">
+      <footer className="border-t border-white/5 mt-10 relative overflow-hidden pt-12 md:pt-24 pb-8 bg-gradient-to-b from-background via-background to-primary/10">
         {/* Subtle Background Pattern & Glow */}
-        <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_center,_#54e98a_1px,_transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#54e98a]/[0.08] blur-[120px] pointer-events-none rounded-t-[100%]" />
+        <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_center,_hsl(var(--primary))_1px,_transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/[0.08] blur-[120px] pointer-events-none rounded-t-[100%]" />
 
         <div className="max-w-6xl mx-auto px-6 relative z-10">
           {/* Top CTA Section */}
           <div className="max-w-2xl mb-12 md:mb-24">
-            <div className="text-[#54e98a] text-[10px] uppercase font-bold tracking-widest mb-4 flex items-center gap-2">
+            <div className="text-primary text-[10px] uppercase font-bold tracking-widest mb-4 flex items-center gap-2">
               <span className="text-xl leading-none -mt-1">+</span> Contact Us
             </div>
             <h2 className="text-2xl md:text-3xl lg:text-5xl font-bold tracking-tighter text-white leading-tight">
               A securing workspace for,{" "}
-              <span className="text-slate-500">
+              <span className="text-on-surface-variant/40">
                 founders and investors workflows.
               </span>
             </h2>
@@ -791,17 +786,17 @@ export default function Landing() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-12 mb-16">
             {/* Contact Info */}
             <div className="space-y-2">
-              <p className="text-slate-500 text-xs font-medium">
+              <p className="text-on-surface-variant text-xs font-medium">
                 Contact Team at:
               </p>
               <a
                 href="mailto:contact@deckly.space"
-                className="group inline-flex items-center gap-2 text-white hover:text-[#54e98a] text-lg md:text-xl font-bold transition-all"
+                className="group inline-flex items-center gap-2 text-white hover:text-primary text-lg md:text-xl font-bold transition-all"
               >
                 contact@deckly.space
                 <ArrowUpRight
                   size={20}
-                  className="text-slate-400 group-hover:text-[#54e98a] transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"
+                  className="text-on-surface-variant group-hover:text-primary transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"
                 />
               </a>
             </div>
@@ -811,7 +806,7 @@ export default function Landing() {
               <li>
                 <Link
                   to="/privacy"
-                  className="text-white hover:text-[#54e98a] text-sm md:text-base font-bold transition-colors"
+                  className="text-white hover:text-primary text-sm md:text-base font-bold transition-colors"
                 >
                   Privacy Policy
                 </Link>
@@ -819,7 +814,7 @@ export default function Landing() {
               <li>
                 <Link
                   to="/terms"
-                  className="text-white hover:text-[#54e98a] text-sm md:text-base font-bold transition-colors"
+                  className="text-white hover:text-primary text-sm md:text-base font-bold transition-colors"
                 >
                   Terms of Service
                 </Link>
@@ -848,13 +843,13 @@ export default function Landing() {
               © 2026 Deckly. All rights reserved.
             </p>
             <div className="flex gap-6 text-[10px] text-white font-medium tracking-wide">
-              <a href="#" className="hover:text-[#54e98a] transition-colors">
+              <a href="#" className="hover:text-primary transition-colors">
                 LinkedIn
               </a>
-              <a href="#" className="hover:text-[#54e98a] transition-colors">
+              <a href="#" className="hover:text-primary transition-colors">
                 Twitter
               </a>
-              <a href="#" className="hover:text-[#54e98a] transition-colors">
+              <a href="#" className="hover:text-primary transition-colors">
                 GitHub
               </a>
             </div>
@@ -867,7 +862,7 @@ export default function Landing() {
 
 // --- Sub-components for UI Elements ---
 
-const CornerBrackets = ({
+const CornerBrackets = memo(({
   className = "",
   corners = ["tl", "tr", "bl", "br"],
 }: {
@@ -896,16 +891,16 @@ const CornerBrackets = ({
       />
     )}
   </>
-);
+));
 
 // --- Capability Visuals (Bento Grid) ---
 
-const EngagementVisual = () => (
+const EngagementVisual = memo(() => (
   <div className="absolute inset-x-0 bottom-4 flex items-center justify-center opacity-20 group-hover:opacity-40 transition-all duration-1000 scale-100 translate-y-4">
     <div className="w-full h-full p-8 flex flex-col justify-end">
       <div className="absolute inset-0 p-8">
         <div className="w-full h-full border-l border-b border-white/10 flex flex-col justify-between">
-          {[...Array(5)].map((_, i) => (
+          {PLACEHOLDER_5.map((_, i) => (
             <div key={i} className="w-full border-t border-white/5 h-0" />
           ))}
         </div>
@@ -971,9 +966,9 @@ const EngagementVisual = () => (
       </div>
     </div>
   </div>
-);
+));
 
-const LiveSyncVisual = () => (
+const LiveSyncVisual = memo(() => (
   <div className="absolute inset-x-0 bottom-4 flex items-end justify-center p-8">
     <div className="relative w-full h-24 flex items-center justify-center translate-y-4">
       <div className="absolute top-0 flex gap-8 items-center opacity-20 group-hover:opacity-100 transition-all duration-700">
@@ -1006,12 +1001,12 @@ const LiveSyncVisual = () => (
       </div>
     </div>
   </div>
-);
+));
 
-const DataRoomVisual = () => (
+const DataRoomVisual = memo(() => (
   <div className="absolute bottom-4 inset-x-0 p-8 flex flex-col items-end gap-4 overflow-hidden">
     <div className="flex flex-wrap gap-2 justify-end w-40 opacity-10 group-hover:opacity-40 transition-opacity translate-y-6">
-      {[...Array(9)].map((_, i) => (
+      {PLACEHOLDER_9.map((_, i) => (
         <motion.div
           key={i}
           whileHover={{ y: -5, borderColor: "rgba(84, 233, 138, 0.4)" }}
@@ -1024,20 +1019,20 @@ const DataRoomVisual = () => (
       ))}
     </div>
   </div>
-);
+));
 
-const AISummaryVisual = () => (
+const AISummaryVisual = memo(() => (
   <div className="absolute bottom-6 inset-x-0 p-8 flex items-center justify-center opacity-[0.1] group-hover:opacity-40 transition-all duration-700 translate-y-4">
     <div className="w-full max-w-[240px] flex items-center gap-4">
       <div className="flex-1 flex flex-col gap-1.5 opacity-40 group-hover:opacity-20 transition-opacity">
-        {[...Array(6)].map((_, i) => (
+        {PLACEHOLDER_6.map((_, i) => (
           <div key={i} className="w-full h-1 bg-white rounded-full" />
         ))}
       </div>
 
       <div className="flex flex-col items-center gap-2">
         <div className="flex gap-1">
-          {[...Array(3)].map((_, i) => (
+          {PLACEHOLDER_3.map((_, i) => (
             <motion.div
               key={i}
               animate={{ opacity: [0, 1, 0] }}
@@ -1067,9 +1062,9 @@ const AISummaryVisual = () => (
       </div>
     </div>
   </div>
-);
+));
 
-const OrganizationVisual = () => (
+const OrganizationVisual = memo(() => (
   <div className="absolute bottom-4 right-0 p-6 flex flex-col items-end gap-3 opacity-10 group-hover:opacity-40 transition-all duration-500 translate-y-4">
     <div className="flex gap-2">
       {["SaaS", "Fintech", "Health"].map((tag, i) => (
@@ -1083,7 +1078,7 @@ const OrganizationVisual = () => (
       ))}
     </div>
     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-      {[...Array(3)].map((_, i) => (
+      {PLACEHOLDER_3.map((_, i) => (
         <div
           key={i}
           className="w-8 h-6 border-t-2 border-x border-white/20 bg-white/5"
@@ -1091,9 +1086,9 @@ const OrganizationVisual = () => (
       ))}
     </div>
   </div>
-);
+));
 
-const ControlVisual = () => (
+const ControlVisual = memo(() => (
   <div className="absolute inset-x-0 bottom-4 flex flex-col items-center justify-center p-8 opacity-5 group-hover:opacity-50 transition-opacity duration-500">
     <div className="flex items-center gap-2 mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700 translate-y-4 group-hover:translate-y-0">
       <span className="material-symbols-outlined text-primary text-xs">
@@ -1115,10 +1110,10 @@ const ControlVisual = () => (
       />
     </div>
   </div>
-);
+));
 
 // Child component for Bento Grid Features
-function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
+const FeatureCard = memo(function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
   return (
     <div
       className={`p-6 md:p-10 bg-surface-container border border-white/10 rounded-none shadow-[0_10px_30px_rgba(0,0,0,0.4)] group relative overflow-hidden flex flex-col transition-all duration-500 hover:border-primary/40 ${className} ${index === 0 ? "min-h-[450px]" : "min-h-[300px]"}`}
@@ -1136,7 +1131,7 @@ function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
             <div className="w-8 h-8 shrink-0 rounded-none bg-background border border-white/5 flex items-center justify-center shadow-inner group-hover:border-primary/30 transition-all duration-500">
               <span
                 className="material-symbols-outlined text-primary text-base"
-                style={{ fontVariationSettings: "'FILL' 1" }}
+                style={FILL_ICON}
               >
                 {feature.icon}
               </span>
@@ -1155,9 +1150,9 @@ function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
       <div className="absolute -inset-4 bg-primary/2 blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
     </div>
   );
-}
+});
 
-function VisualDecoration({ index }: { index: number }) {
+const VisualDecoration = memo(function VisualDecoration({ index }: { index: number }) {
   switch (index) {
     case 0: return <EngagementVisual />;
     case 1: return <LiveSyncVisual />;
@@ -1167,4 +1162,4 @@ function VisualDecoration({ index }: { index: number }) {
     case 5: return <ControlVisual />;
     default: return null;
   }
-}
+});
