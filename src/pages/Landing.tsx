@@ -863,8 +863,8 @@ export default function Landing() {
 // Child component for Bento Grid Features
 function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
   return (
-    <div
-      className={`p-6 md:p-8 bg-surface-container border border-white/10 rounded-none shadow-[0_10px_30px_rgba(0,0,0,0.4)] group relative overflow-hidden flex flex-col transition-all duration-500 hover:border-primary/40 ${className} ${index === 0 ? "min-h-[400px]" : "min-h-[250px]"}`}
+    <div 
+      className={`p-6 md:p-10 bg-surface-container border border-white/10 rounded-none shadow-[0_10px_30px_rgba(0,0,0,0.4)] group relative overflow-hidden flex flex-col transition-all duration-500 hover:border-primary/40 ${className} ${index === 0 ? "min-h-[450px]" : "min-h-[300px]"}`}
     >
       {/* Decorative Corner Outlines */}
       <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
@@ -877,27 +877,21 @@ function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
       </div>
 
       <div className="relative z-10 flex flex-col h-full">
-        <div className="flex justify-end mb-4">
-          <div className="text-[10px] font-black text-white/10 uppercase tracking-[0.2em]">
-            Deckly // 0{index + 1}
-          </div>
-        </div>
-
-        <div className="mt-auto">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-10 h-10 shrink-0 rounded-none bg-background border border-white/5 flex items-center justify-center shadow-inner group-hover:border-primary/30 transition-all duration-500">
+        <div className="mt-0">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 shrink-0 rounded-none bg-background border border-white/5 flex items-center justify-center shadow-inner group-hover:border-primary/30 transition-all duration-500">
               <span
-                className="material-symbols-outlined text-primary text-xl"
+                className="material-symbols-outlined text-primary text-base"
                 style={{ fontVariationSettings: "'FILL' 1" }}
               >
                 {feature.icon}
               </span>
             </div>
-            <h3 className="text-xl font-bold text-white tracking-tighter leading-tight transition-colors group-hover:text-primary">
+            <h3 className="text-lg font-bold text-white tracking-tighter leading-tight transition-colors group-hover:text-primary">
               {feature.title}
             </h3>
           </div>
-          <p className="text-sm text-on-surface-variant leading-relaxed max-w-xl font-medium">
+          <p className="text-sm text-on-surface-variant leading-relaxed max-w-[280px] font-medium opacity-80">
             {feature.desc}
           </p>
         </div>
@@ -913,8 +907,8 @@ function VisualDecoration({ index }: { index: number }) {
   switch (index) {
     case 0: // Engagement (Large)
       return (
-        <div className="absolute inset-0 flex items-center justify-center translate-y-12 translate-x-8 opacity-20 group-hover:opacity-40 transition-all duration-1000">
-          <div className="w-full h-full p-8 flex flex-col">
+        <div className="absolute inset-0 flex items-center justify-center translate-y-40 translate-x-8 opacity-20 group-hover:opacity-40 transition-all duration-1000 scale-110">
+          <div className="w-full h-full p-8 flex flex-col justify-end">
             {/* Coordinate System Grid */}
             <div className="absolute inset-0 p-8">
               <div className="w-full h-full border-l border-b border-white/10 flex flex-col justify-between">
@@ -977,44 +971,66 @@ function VisualDecoration({ index }: { index: number }) {
       );
     case 1: // Update / Live Sync
       return (
-        <div className="absolute inset-0 flex items-center justify-center opacity-10 group-hover:scale-110 transition-transform duration-1000">
-          <div className="relative w-32 h-32 flex items-center justify-center">
-            <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow" />
-            <span className="material-symbols-outlined text-[4rem] text-white">
-              sync
-            </span>
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-center p-8">
+          <div className="relative w-full h-32 flex items-center justify-center translate-y-16 scale-110">
+             {/* Version Transition Visual */}
+             <div className="absolute top-0 flex gap-8 items-center opacity-20 group-hover:opacity-100 transition-all duration-700">
+                <div className="flex flex-col items-center">
+                   <div className="w-12 h-16 border border-white/20 bg-white/5 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-red-500/10 group-hover:bg-transparent transition-colors" />
+                   </div>
+                   <span className="text-[8px] mt-2 text-white/40">V1.0</span>
+                </div>
+                <motion.div 
+                  animate={{ x: [0, 5, 0] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  className="material-symbols-outlined text-primary text-sm"
+                >
+                  trending_flat
+                </motion.div>
+                <div className="flex flex-col items-center">
+                   <div className="w-12 h-16 border border-primary/20 bg-primary/5 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-primary/20 scale-y-0 group-hover:scale-y-100 transition-transform origin-bottom duration-700" />
+                   </div>
+                   <span className="text-[8px] mt-2 text-primary font-bold">V2.0</span>
+                </div>
+             </div>
+
+             <div className="absolute -bottom-4 w-32 h-32 flex items-center justify-center opacity-10 group-hover:opacity-30 group-hover:scale-125 transition-all duration-1000">
+                <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow" />
+                <span className="material-symbols-outlined text-[3rem] text-white">sync</span>
+             </div>
           </div>
         </div>
       );
     case 2: // Data Rooms
       return (
-        <div className="absolute bottom-0 right-0 p-4 opacity-10 flex flex-wrap gap-2 justify-end w-40">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="w-12 h-16 border border-white/20 bg-white/5 flex items-center justify-center"
-            >
-              <span className="material-symbols-outlined text-xs">
-                description
-              </span>
-            </div>
-          ))}
+        <div className="absolute bottom-0 inset-x-0 p-8 flex flex-col items-end gap-4 translate-y-12">
+          <div className="flex flex-wrap gap-2 justify-end w-40 opacity-10 group-hover:opacity-40 transition-opacity">
+            {[...Array(9)].map((_, i) => (
+              <motion.div 
+                key={i} 
+                whileHover={{ y: -5, borderColor: "rgba(84, 233, 138, 0.4)" }}
+                className="w-8 h-10 border border-white/20 bg-white/5 flex items-center justify-center transition-all duration-300"
+              >
+                <span className="material-symbols-outlined text-[8px]">description</span>
+              </motion.div>
+            ))}
+          </div>
         </div>
       );
     case 3: // AI Summary
       return (
-        <div className="absolute inset-0 p-8 flex flex-col gap-2 opacity-[0.05]">
+        <div className="absolute bottom-0 inset-x-0 p-8 flex flex-col gap-2 opacity-[0.05] translate-y-20 scale-125">
           <div className="w-full h-2 bg-white rounded-full" />
-          <div className="w-full h-2 bg-white rounded-full" />
+          <div className="w-full h-3 bg-white rounded-full" />
           <div className="w-3/4 h-2 bg-white rounded-full" />
-          <div className="w-full h-2 bg-primary rounded-full mt-4" />
-          <div className="w-1/2 h-2 bg-primary rounded-full" />
         </div>
       );
     case 4: // Organization
       return (
-        <div className="absolute top-0 right-0 p-4 flex gap-2 opacity-10 -rotate-12 translate-x-4">
-          {["SaaS", "Fintech", "Series A"].map((tag, i) => (
+        <div className="absolute bottom-0 right-0 p-6 flex gap-2 opacity-10 -rotate-12 translate-x-4 translate-y-12 scale-125">
+          {["SaaS", "Fintech", "Health"].map((tag, i) => (
             <div
               key={i}
               className="px-3 py-1 border border-white/40 text-[10px] font-bold text-white uppercase"
@@ -1026,9 +1042,9 @@ function VisualDecoration({ index }: { index: number }) {
       );
     case 5: // Control
       return (
-        <div className="absolute inset-0 flex items-center justify-center opacity-10">
-          <div className="w-24 h-10 border border-white/20 rounded-full flex items-center px-2">
-            <div className="w-6 h-6 bg-primary rounded-full translate-x-14" />
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center p-8 opacity-10">
+          <div className="w-20 h-8 border border-white/20 rounded-full flex items-center px-1 translate-y-20 scale-125">
+            <div className="w-5 h-5 bg-primary rounded-full translate-x-12" />
           </div>
         </div>
       );
