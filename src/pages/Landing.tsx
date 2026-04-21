@@ -61,6 +61,7 @@ interface Feature {
 interface FeatureCardProps {
   feature: Feature;
   index: number;
+  className?: string;
 }
 
 interface WorkflowStep {
@@ -502,11 +503,11 @@ export default function Landing() {
         {/* Features Section -> Dynamic Depth Transition Stack */}
         <section
           ref={containerRef}
-          className="relative py-16 md:py-24 px-5 md:px-10 max-w-[1440px] mx-auto min-h-[150vh] md:min-h-[250vh]"
+          className="relative py-16 md:py-24 px-5 md:px-10 max-w-[1440px] mx-auto"
         >
-          <div className="flex flex-col lg:flex-row gap-10 md:gap-20 items-start">
-            {/* Left Content: Sticky Title & Progress */}
-            <div className="lg:w-[40%] lg:sticky lg:top-28 md:lg:top-40 h-fit mb-16 lg:mb-0">
+          <div className="flex flex-col gap-16 md:gap-24">
+            {/* Top Content: Title & Description */}
+            <div className="w-full max-w-4xl">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -534,10 +535,18 @@ export default function Landing() {
               </motion.div>
             </div>
 
-            {/* Right Side: Animated Card Stack */}
-            <div className="lg:w-[60%] w-full flex flex-col gap-20 relative">
+            {/* Grid Cards Below */}
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative h-fit">
               {features.map((feature, i) => (
-                <FeatureCard key={i} feature={feature} index={i} />
+                <FeatureCard 
+                  key={i} 
+                  feature={feature} 
+                  index={i} 
+                  className={
+                    i === 0 ? "lg:col-span-2 lg:row-span-2 h-full" : 
+                    i === 5 ? "md:col-span-2 lg:col-span-1" : ""
+                  }
+                />
               ))}
             </div>
           </div>
@@ -848,74 +857,135 @@ export default function Landing() {
 }
 
 // Child component for managed scroll depth animations
-function FeatureCard({ feature, index }: FeatureCardProps) {
-  const ref = useRef(null);
-
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-
-  const opacity = useTransform(
-    scrollYProgress,
-    [0, 0.4, 0.6, 1],
-    [0, 1, 1, 0.4],
-  );
-  const scale = useTransform(
-    scrollYProgress,
-    [0, 0.4, 0.6, 1],
-    [0.9, 1.05, 1, 0.92],
-  );
-  const filter = useTransform(
-    scrollYProgress,
-    [0.6, 1],
-    ["blur(0px)", "blur(2px)"],
-  );
-
+// Child component for Bento Grid Features
+function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
   return (
-    <motion.div
-      ref={ref}
-      style={{
-        opacity,
-        scale,
-        filter,
-        top: `${160 + index * 20}px`,
-        zIndex: index,
-      }}
-      className="sticky w-full mb-24 last:mb-0"
+    <div 
+      className={`p-6 md:p-8 bg-surface-container border border-white/10 rounded-none shadow-[0_10px_30px_rgba(0,0,0,0.4)] group relative overflow-hidden flex flex-col transition-all duration-500 hover:border-primary/40 ${className} ${index === 0 ? "min-h-[400px]" : "min-h-[250px]"}`}
     >
-      <div className="p-5 md:p-6 lg:p-8 bg-surface-container border border-white/5 rounded-none shadow-[0_50px_100px_rgba(0,0,0,0.8)] group relative overflow-hidden flex flex-col min-h-[280px] md:min-h-[420px] justify-center transition-all duration-500 hover:border-primary/20">
-        {/* Floating Number Accent */}
-        <div className="absolute top-6 right-6 text-[8rem] font-black text-white/[0.02] pointer-events-none select-none group-hover:text-primary/[0.03] transition-colors duration-700">
-          0{index + 1}
-        </div>
+      {/* Decorative Corner Outlines */}
+      <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+      <div className="absolute top-0 right-0 w-4 h-4 border-t border-r border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+      <div className="absolute bottom-0 left-0 w-4 h-4 border-b border-l border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+      <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+      {/* Visual Decoration Wrapper */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.4] group-hover:opacity-[0.7] transition-opacity duration-700 overflow-hidden">
+         <VisualDecoration index={index} />
+      </div>
 
-        <div className="relative z-10">
-          <div className="w-16 h-16 rounded-none bg-background border border-white/5 flex items-center justify-center mb-8 shadow-inner group-hover:border-primary/30 transition-all duration-500">
+      <div className="relative z-10 flex flex-col h-full">
+        <div className="flex items-start justify-between mb-auto">
+          <div className="w-12 h-12 rounded-none bg-background border border-white/5 flex items-center justify-center mb-6 shadow-inner group-hover:border-primary/30 transition-all duration-500">
             <span
-              className="material-symbols-outlined text-primary text-3xl"
+              className="material-symbols-outlined text-primary text-2xl"
               style={{ fontVariationSettings: "'FILL' 1" }}
             >
               {feature.icon}
             </span>
           </div>
-
-          <h3 className="text-2xl font-bold mb-4 text-white tracking-tight leading-tight transition-colors group-hover:text-primary">
-            {feature.title}
-          </h3>
-          <p className="text-base text-on-surface-variant leading-relaxed max-w-xl font-medium">
-            {feature.desc}
-          </p>
-
-          <div className="mt-8 flex items-center gap-4 text-primary font-black text-[10px] transition-all uppercase tracking-widest">
-            Read documentation{" "}
-            <ArrowUpRight size={14} className="transition-all" />
+          <div className="text-[10px] font-black text-white/10 uppercase tracking-[0.2em]">
+            Deckly // 0{index + 1}
           </div>
         </div>
 
-        {/* Subtle Bottom Accent */}
-        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary/40 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700" />
+        <div>
+          <h3 className="text-xl font-bold mb-3 text-white tracking-tighter leading-tight transition-colors group-hover:text-primary">
+            {feature.title}
+          </h3>
+          <p className="text-sm text-on-surface-variant leading-relaxed max-w-xl font-medium">
+            {feature.desc}
+          </p>
+        </div>
       </div>
-    </motion.div>
+
+      {/* Subtle Hover Glow */}
+      <div className="absolute -inset-4 bg-primary/2 blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
+    </div>
   );
+}
+
+function VisualDecoration({ index }: { index: number }) {
+  switch (index) {
+    case 0: // Engagement (Large)
+      return (
+        <div className="absolute inset-0 flex items-center justify-center -rotate-6 scale-110 opacity-20 group-hover:opacity-40 transition-all duration-1000">
+          <div className="w-full h-full p-12 flex flex-col gap-4">
+             <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: "30%" }}
+                  whileInView={{ width: "80%" }}
+                  transition={{ duration: 1.5, delay: 0.5 }}
+                  className="h-full bg-primary" 
+                />
+             </div>
+             <div className="w-2/3 h-2 bg-white/10 rounded-full overflow-hidden">
+                <motion.div 
+                   initial={{ width: "10%" }}
+                   whileInView={{ width: "40%" }}
+                   transition={{ duration: 1.5, delay: 0.7 }}
+                   className="h-full bg-primary/60" 
+                />
+             </div>
+             <div className="flex gap-2 items-end h-32 mt-4">
+               {[40, 70, 45, 90, 65, 80, 50].map((h, i) => (
+                  <motion.div 
+                    key={i}
+                    initial={{ height: 0 }}
+                    whileInView={{ height: `${h}%` }}
+                    transition={{ duration: 1, delay: 0.1 * i }}
+                    className="flex-1 bg-white/5 border-t border-white/10 group-hover:bg-primary/10 transition-colors"
+                  />
+               ))}
+             </div>
+          </div>
+        </div>
+      );
+    case 1: // Update / Live Sync
+      return (
+        <div className="absolute inset-0 flex items-center justify-center opacity-10 group-hover:scale-110 transition-transform duration-1000">
+           <div className="relative w-32 h-32 flex items-center justify-center">
+              <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow" />
+              <span className="material-symbols-outlined text-[4rem] text-white">sync</span>
+           </div>
+        </div>
+      );
+    case 2: // Data Rooms
+      return (
+        <div className="absolute bottom-0 right-0 p-4 opacity-10 flex flex-wrap gap-2 justify-end w-40">
+           {[...Array(6)].map((_, i) => (
+              <div key={i} className="w-12 h-16 border border-white/20 bg-white/5 flex items-center justify-center">
+                 <span className="material-symbols-outlined text-xs">description</span>
+              </div>
+           ))}
+        </div>
+      );
+    case 3: // AI Summary
+      return (
+        <div className="absolute inset-0 p-8 flex flex-col gap-2 opacity-[0.05]">
+           <div className="w-full h-2 bg-white rounded-full" />
+           <div className="w-full h-2 bg-white rounded-full" />
+           <div className="w-3/4 h-2 bg-white rounded-full" />
+           <div className="w-full h-2 bg-primary rounded-full mt-4" />
+           <div className="w-1/2 h-2 bg-primary rounded-full" />
+        </div>
+      );
+    case 4: // Organization
+      return (
+        <div className="absolute top-0 right-0 p-4 flex gap-2 opacity-10 -rotate-12 translate-x-4">
+           {["SaaS", "Fintech", "Series A"].map((tag, i) => (
+              <div key={i} className="px-3 py-1 border border-white/40 text-[10px] font-bold text-white uppercase">{tag}</div>
+           ))}
+        </div>
+      );
+    case 5: // Control
+      return (
+        <div className="absolute inset-0 flex items-center justify-center opacity-10">
+           <div className="w-24 h-10 border border-white/20 rounded-full flex items-center px-2">
+              <div className="w-6 h-6 bg-primary rounded-full translate-x-14" />
+           </div>
+        </div>
+      );
+    default:
+      return null;
+  }
 }
