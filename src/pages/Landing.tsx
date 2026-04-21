@@ -1,9 +1,11 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
-import { useRef, useState } from "react";
-import { motion, useScroll, useTransform, Variants } from "framer-motion";
+import { useEffect, useState, memo } from "react";
+import { motion, Variants } from "framer-motion";
 import screen from "../assets/screen.png";
 import decklyLogo from "../assets/Deckly.png";
+
+const FILL_ICON = { fontVariationSettings: "'FILL' 1" } as const;
 
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 40 },
@@ -31,13 +33,13 @@ const features = [
   },
   {
     icon: "folder_shared",
-    title: "Simple data rooms",
+    title: "Advance data rooms",
     desc: "Share multiple decks and documents in one place. Keep everything organized without messy folders or emails.",
   },
   {
     icon: "psychology",
     title: "Understand decks instantly",
-    desc: "Get quick AI summaries to grasp any pitch in seconds — perfect for fast decisions and busy investors.",
+    desc: "Chat with your documents and get quick AI summaries to grasp any pitch in seconds.",
   },
   {
     icon: "architecture",
@@ -55,22 +57,16 @@ interface Feature {
   icon: string;
   title: string;
   desc: string;
-  glow?: string;
 }
 
 interface FeatureCardProps {
   feature: Feature;
   index: number;
+  className?: string;
 }
 
 interface WorkflowStep {
   step: string;
-  title: string;
-  desc: string;
-}
-
-interface ValueFeature {
-  icon: string;
   title: string;
   desc: string;
 }
@@ -88,7 +84,7 @@ const positioningFeatures: Feature[] = [
   },
   {
     icon: "inventory_2",
-    title: "Stay organized without spreadsheets",
+    title: "Stop tracking investors in spreadsheets",
     desc: "Automatic tracking of every interaction. No more manual data entry into your CRM while you're pitching.",
   },
 ];
@@ -106,113 +102,135 @@ const workflowSteps: WorkflowStep[] = [
   },
   {
     step: "03",
-    title: "Follow up with confidence",
+    title: "Follow up at the right time",
     desc: "Reach out to the investors who showed high intent. Know exactly where they stopped reading and address it head-on.",
   },
 ];
 
-const valueFeatures: ValueFeature[] = [
+const founderItems = [
+  { title: "Share with a single link", desc: "Eliminate heavy PDF attachments that get blocked by filters." },
+  { title: "Track engagement real-time", desc: "Know exactly when an Associate or GP opens your deck." },
+  { title: "Seamless version control", desc: "Update slides without breaking links already in investor hands." },
+];
+
+const investorItems = [
+  { title: "Save and organize decks", desc: "A unified library for all incoming deal flow." },
+  { title: "AI-Powered Summaries", desc: "Instant synthesis of deck highlights and metrics." },
+  { title: "Smart Tagging", desc: "Never lose context on a startup with custom venture-focused tags." },
+];
+
+const PLACEHOLDER_5 = [...Array(5)];
+const PLACEHOLDER_6 = [...Array(6)];
+const PLACEHOLDER_3 = [...Array(3)];
+const PLACEHOLDER_9 = [...Array(9)];
+
+const valueFeatures: Feature[] = [
   {
     icon: "sell",
-    title: "No hidden pricing",
-    desc: "One clear plan for founders. Always free for investors to view.",
+    title: "Stop guessing investor interest",
+    desc: "Know exactly who's reading, what they care about, and when to follow up.",
   },
   {
     icon: "bolt",
-    title: "Open-source Core",
-    desc: "Transparent code for ultimate trust and data privacy.",
+    title: "Stop losing track of conversations",
+    desc: "Never forget who you spoke to, what they said, or which version they saw.",
   },
   {
     icon: "groups",
-    title: "Dual-Focus Design",
-    desc: "Optimized workflows for both sides of the table.",
+    title: "Stop overpaying for datarooms",
+    desc: "Get unlimited data rooms and sharing without expensive tools.",
   },
 ];
 
-export default function Landing() {
-  const navigate = useNavigate();
-  const containerRef = useRef<HTMLDivElement>(null);
+function LandingNav() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  useEffect(() => {
+    document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileMenuOpen]);
+
+  return (
+    <nav className="fixed top-0 left-0 w-full z-50 pointer-events-none">
+      <div className="pointer-events-auto border border-white/10 mx-4 md:mx-8 mt-4 md:mt-6 max-w-[1440px] lg:mx-auto bg-background/50 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+        <div className="flex justify-between items-center px-5 md:px-12 py-4 md:py-5">
+          <div className="flex items-center gap-2 md:gap-3">
+            <img
+              src={decklyLogo}
+              alt="Deckly Logo"
+              className="h-8 md:h-9 w-auto"
+              decoding="async"
+            />
+            <span className="text-lg md:text-xl font-bold tracking-tighter text-white">
+              deckly
+            </span>
+          </div>
+
+          {/* Desktop buttons */}
+          <div className="hidden md:flex items-center gap-4">
+            <Link
+              to="/login"
+              className="px-6 py-2 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              to="/signup"
+              className="bg-primary text-on-primary px-8 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all"
+            >
+              Get Started
+            </Link>
+          </div>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5"
+            aria-label="Toggle menu"
+          >
+            <span
+              className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "rotate-45 translate-y-[4px]" : ""}`}
+            />
+            <span
+              className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "opacity-0" : ""}`}
+            />
+            <span
+              className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "-rotate-45 -translate-y-[4px]" : ""}`}
+            />
+          </button>
+        </div>
+
+        {/* Mobile dropdown menu */}
+        <div
+          className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${mobileMenuOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"}`}
+        >
+          <div className="flex flex-col gap-2 px-5 pb-5 border-t border-white/10 pt-4">
+            <Link
+              to="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full text-left px-4 py-3 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary hover:bg-white/[0.02] transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              to="/signup"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full bg-primary text-on-primary px-4 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all text-center"
+            >
+              Get Started
+            </Link>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+export default function Landing() {
   return (
     <div className="bg-background text-on-surface selection:bg-primary selection:text-on-primary min-h-screen font-['Manrope'] overflow-hidden">
       {/* TopNavBar -> Floating Glassmorphic Header */}
-      <nav className="fixed top-0 left-0 w-full z-50 pointer-events-none">
-        <div className="pointer-events-auto border border-white/10 mx-4 md:mx-8 mt-4 md:mt-6 max-w-[1440px] lg:mx-auto bg-background/50 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
-          <div className="flex justify-between items-center px-5 md:px-12 py-4 md:py-5">
-            <div className="flex items-center gap-2 md:gap-3">
-              <img
-                src={decklyLogo}
-                alt="Deckly Logo"
-                className="h-8 md:h-9 w-auto"
-                decoding="async"
-              />
-              <span className="text-lg md:text-xl font-bold tracking-tighter text-white ">
-                deckly
-              </span>
-            </div>
-
-            {/* Desktop buttons */}
-            <div className="hidden md:flex items-center gap-4">
-              <button
-                onClick={() => navigate("/login")}
-                className="px-6 py-2 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => navigate("/signup")}
-                className="bg-primary text-on-primary px-8 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all"
-              >
-                Get Started
-              </button>
-            </div>
-
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5"
-              aria-label="Toggle menu"
-            >
-              <span
-                className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "rotate-45 translate-y-[4px]" : ""}`}
-              />
-              <span
-                className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "opacity-0" : ""}`}
-              />
-              <span
-                className={`block w-5 h-[2px] bg-white transition-all duration-300 ${mobileMenuOpen ? "-rotate-45 -translate-y-[4px]" : ""}`}
-              />
-            </button>
-          </div>
-
-          {/* Mobile dropdown menu */}
-          <div
-            className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${mobileMenuOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"}`}
-          >
-            <div className="flex flex-col gap-2 px-5 pb-5 border-t border-white/10 pt-4">
-              <button
-                onClick={() => {
-                  navigate("/login");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full text-left px-4 py-3 font-bold text-xs uppercase tracking-widest text-on-surface-variant hover:text-primary hover:bg-white/[0.02] transition-colors"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => {
-                  navigate("/signup");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full bg-primary text-on-primary px-4 py-3 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all text-center"
-              >
-                Get Started
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <LandingNav />
 
       <main className="relative pt-28 sm:pt-40 lg:pt-48 pb-20 md:pb-32">
         {/* Subtle Background Grid */}
@@ -258,19 +276,19 @@ export default function Landing() {
                 variants={fadeInUp}
                 className="flex flex-col sm:flex-row gap-3 md:gap-4"
               >
-                <button
-                  onClick={() => navigate("/signup")}
+                <Link
+                  to="/signup"
                   className="bg-primary text-on-primary px-6 md:px-8 py-3.5 md:py-4 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   Get Started Free
                   <ArrowUpRight size={16} />
-                </button>
-                <button
-                  onClick={() => navigate("/login")}
+                </Link>
+                <Link
+                  to="/login"
                   className="border border-white/10 text-white px-6 md:px-8 py-3.5 md:py-4 font-black text-xs uppercase tracking-widest hover:bg-white/[0.02] transition-all w-full sm:w-auto text-center"
                 >
                   See How It Works
-                </button>
+                </Link>
               </motion.div>
             </motion.div>
 
@@ -281,16 +299,16 @@ export default function Landing() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1, delay: 0.2 }}
             >
-              <div className="relative border border-white/10 p-4 bg-[#0e0e0e]">
+              <div className="relative border border-white/10 overflow-hidden">
                 {/* Frame Labels */}
-                <div className="absolute -top-3 left-6 px-2 bg-[#0e0e0e] text-[8px] font-black text-primary/60 uppercase tracking-widest z-20">
+                <div className="absolute top-3 left-6 px-2 text-[8px] font-black text-primary/60 uppercase tracking-widest z-20">
                   [ SYSTEM // ACTIVE ]
                 </div>
-                <div className="absolute -bottom-3 right-6 px-2 bg-[#0e0e0e] text-[8px] font-black text-white/30 uppercase tracking-widest z-20">
+                <div className="absolute bottom-3 right-6 px-2 text-[8px] font-black text-white/30 uppercase tracking-widest z-20">
                   VIEW // PITCH_DECK_V1.2
                 </div>
 
-                <div className="relative overflow-hidden border border-white/5">
+                <div className="relative overflow-hidden">
                   <img
                     alt="Dashboard Preview"
                     className="w-full h-auto opacity-90 group-hover:opacity-100 transition-opacity duration-700"
@@ -322,9 +340,12 @@ export default function Landing() {
             viewport={{ once: true, amount: 0.2 }}
             variants={fadeInUp}
           >
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-white max-w-2xl uppercase">
-              Built for how fundraising <br />
-              <span className="text-primary">actually works.</span>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white max-w-2xl uppercase">
+              Fundraising
+              <br />
+              <span className="text-primary">
+                shouldn’t feel like guessing.
+              </span>
             </h2>
           </motion.div>
 
@@ -387,51 +408,41 @@ export default function Landing() {
               {/* For Founders */}
               <motion.div
                 variants={fadeInUp}
-                className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.01] transition-colors duration-500"
+                className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.02] transition-all duration-500 relative group overflow-hidden hover:border-primary/40"
               >
-                <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)]">
+                {/* Decorative Corner Outlines */}
+                <CornerBrackets corners={["tl", "br"]} className="group-hover:border-primary/60" />
+
+                <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6 relative z-10">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)] group-hover:scale-110 group-hover:border-primary/50 transition-all duration-500">
                     <span
                       className="material-symbols-outlined text-2xl md:text-3xl"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
+                      style={FILL_ICON}
                     >
                       rocket_launch
                     </span>
                   </div>
-                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase">
+                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase group-hover:text-primary transition-colors duration-500">
                     For Founders
                   </h3>
                 </div>
-                <ul className="space-y-6 md:space-y-10">
-                  {[
-                    {
-                      title: "Share with a single link",
-                      desc: "Eliminate heavy PDF attachments that get blocked by filters.",
-                    },
-                    {
-                      title: "Track engagement real-time",
-                      desc: "Know exactly when an Associate or GP opens your deck.",
-                    },
-                    {
-                      title: "Seamless version control",
-                      desc: "Update slides without breaking links already in investor hands.",
-                    },
-                  ].map((item, i) => (
+                <ul className="space-y-6 md:space-y-10 relative z-10">
+                  {founderItems.map((item, i) => (
                     <li
                       key={i}
-                      className="flex items-start gap-4 md:gap-6 group"
+                      className="flex items-start gap-4 md:gap-6 group/item"
                     >
                       <span
-                        className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold"
-                        style={{ fontVariationSettings: "'FILL' 1" }}
+                        className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold group-hover/item:scale-125 transition-transform duration-300"
+                        style={FILL_ICON}
                       >
                         check_circle
                       </span>
                       <div>
-                        <p className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 leading-none uppercase tracking-tight">
+                        <p className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 leading-none uppercase tracking-tight group-hover/item:text-primary transition-colors">
                           {item.title}
                         </p>
-                        <p className="text-on-surface-variant text-base font-medium opacity-80">
+                        <p className="text-on-surface-variant text-base font-medium opacity-60 group-hover/item:opacity-100 transition-opacity">
                           {item.desc}
                         </p>
                       </div>
@@ -443,51 +454,41 @@ export default function Landing() {
               {/* For Investors */}
               <motion.div
                 variants={fadeInUp}
-                className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.01] transition-colors duration-500"
+                className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.02] transition-all duration-500 relative group overflow-hidden hover:border-primary/40"
               >
-                <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)]">
+                {/* Decorative Corner Outlines */}
+                <CornerBrackets corners={["tl", "br"]} className="group-hover:border-primary/60" />
+
+                <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6 relative z-10">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)] group-hover:scale-110 group-hover:border-primary/50 transition-all duration-500">
                     <span
                       className="material-symbols-outlined text-2xl md:text-3xl"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
+                      style={FILL_ICON}
                     >
                       account_balance
                     </span>
                   </div>
-                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase">
+                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase group-hover:text-primary transition-colors duration-500">
                     For Investors
                   </h3>
                 </div>
-                <ul className="space-y-6 md:space-y-10">
-                  {[
-                    {
-                      title: "Save and organize decks",
-                      desc: "A unified library for all incoming deal flow.",
-                    },
-                    {
-                      title: "AI-Powered Summaries",
-                      desc: "Instant synthesis of deck highlights and metrics.",
-                    },
-                    {
-                      title: "Smart Tagging",
-                      desc: "Never lose context on a startup with custom venture-focused tags.",
-                    },
-                  ].map((item, i) => (
+                <ul className="space-y-6 md:space-y-10 relative z-10">
+                  {investorItems.map((item, i) => (
                     <li
                       key={i}
-                      className="flex items-start gap-4 md:gap-6 group"
+                      className="flex items-start gap-4 md:gap-6 group/item"
                     >
                       <span
-                        className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold"
-                        style={{ fontVariationSettings: "'FILL' 1" }}
+                        className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold group-hover/item:scale-125 transition-transform duration-300"
+                        style={FILL_ICON}
                       >
                         check_circle
                       </span>
                       <div>
-                        <p className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 leading-none uppercase tracking-tight">
+                        <p className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 leading-none uppercase tracking-tight group-hover/item:text-primary transition-colors">
                           {item.title}
                         </p>
-                        <p className="text-on-surface-variant text-base font-medium opacity-80">
+                        <p className="text-on-surface-variant text-base font-medium opacity-60 group-hover/item:opacity-100 transition-opacity">
                           {item.desc}
                         </p>
                       </div>
@@ -501,12 +502,11 @@ export default function Landing() {
 
         {/* Features Section -> Dynamic Depth Transition Stack */}
         <section
-          ref={containerRef}
-          className="relative py-16 md:py-24 px-5 md:px-10 max-w-[1440px] mx-auto min-h-[150vh] md:min-h-[250vh]"
+          className="relative py-16 md:py-24 px-5 md:px-10 max-w-[1440px] mx-auto"
         >
-          <div className="flex flex-col lg:flex-row gap-10 md:gap-20 items-start">
-            {/* Left Content: Sticky Title & Progress */}
-            <div className="lg:w-[40%] lg:sticky lg:top-28 md:lg:top-40 h-fit mb-16 lg:mb-0">
+          <div className="flex flex-col gap-16 md:gap-24">
+            {/* Top Content: Title & Description */}
+            <div className="w-full max-w-4xl">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -534,10 +534,21 @@ export default function Landing() {
               </motion.div>
             </div>
 
-            {/* Right Side: Animated Card Stack */}
-            <div className="lg:w-[60%] w-full flex flex-col gap-20 relative">
+            {/* Grid Cards Below */}
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative h-fit">
               {features.map((feature, i) => (
-                <FeatureCard key={i} feature={feature} index={i} />
+                <FeatureCard
+                  key={i}
+                  feature={feature}
+                  index={i}
+                  className={
+                    i === 0
+                      ? "lg:col-span-2 lg:row-span-2 h-full"
+                      : i === 5
+                        ? "md:col-span-2 lg:col-span-1"
+                        : ""
+                  }
+                />
               ))}
             </div>
           </div>
@@ -610,24 +621,25 @@ export default function Landing() {
               className="max-w-xl"
             >
               <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-6 md:mb-8 leading-[1.1] text-white">
-                Simple, transparent, <br />
+                Why founders
+                <br />
                 <span className="text-on-surface-variant/40">
-                  and built to scale.
+                  switch to Deckly.
                 </span>
               </h2>
               <p className="text-on-surface-variant text-base md:text-xl leading-relaxed mb-8 md:mb-12 font-medium">
-                Fundraising is hard enough. Your tools should be the easiest
-                part of your day. We built Deckly to be invisible, fast, and
-                remarkably powerful.
+                Fundraising today is messy. You don’t know who’s actually
+                interested. You don’t know when to follow up. And you keep
+                resending decks over and over. Deckly fixes that.
               </p>
               <div className="flex items-center gap-4 text-xs font-black text-primary bg-primary/5 w-fit px-8 py-4 border border-primary/20 uppercase tracking-[0.2em]">
                 <span
                   className="material-symbols-outlined text-base"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
+                  style={FILL_ICON}
                 >
                   check_circle
                 </span>
-                Trusted by top founders globally
+                Built for founders actively fundraising
               </div>
             </motion.div>
 
@@ -647,7 +659,7 @@ export default function Landing() {
                   <div className="w-12 h-12 md:w-16 md:h-16 bg-background border border-white/10 flex items-center justify-center shrink-0 group-hover:border-primary/50 transition-colors duration-300 relative z-10">
                     <span
                       className="material-symbols-outlined text-primary text-xl md:text-2xl group-hover:scale-110 transition-transform duration-300"
-                      style={{ fontVariationSettings: "'FILL' 1" }}
+                      style={FILL_ICON}
                     >
                       {item.icon}
                     </span>
@@ -670,7 +682,7 @@ export default function Landing() {
         {/* Final CTA -> Technical Blueprint Node */}
         <section className="py-16 md:py-24 px-5 md:px-10 max-w-[1440px] mx-auto relative">
           <motion.div
-            className="relative w-full border border-white/10 p-8 md:p-12 lg:p-24 text-center bg-[#0e0e0e] group overflow-hidden"
+            className="relative w-full border border-white/10 p-8 md:p-12 lg:p-24 text-center bg-background group overflow-hidden"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
@@ -706,6 +718,7 @@ export default function Landing() {
                 src={decklyLogo}
                 alt=""
                 className="w-96 h-96 object-contain"
+                loading="lazy"
               />
             </div>
 
@@ -729,8 +742,8 @@ export default function Landing() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full max-w-md mx-auto">
-                <button
-                  onClick={() => navigate("/signup")}
+                <Link
+                  to="/signup"
                   className="group relative w-full sm:w-auto bg-primary text-on-primary px-10 py-5 font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all flex items-center justify-center gap-4 overflow-hidden"
                 >
                   {/* Button Inner Detail */}
@@ -739,7 +752,7 @@ export default function Landing() {
                     Start Free
                     <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </span>
-                </button>
+                </Link>
               </div>
               <p className="mt-10 text-[8px] md:text-[10px] text-on-surface-variant/60 font-black uppercase tracking-[0.4em]">
                 No credit card required. Always free for investors.
@@ -750,20 +763,20 @@ export default function Landing() {
       </main>
 
       {/* Footer -> Synced with Terms Style */}
-      <footer className="border-t border-white/5 mt-10 relative overflow-hidden pt-12 md:pt-24 pb-8 bg-gradient-to-b from-[#0e0e0e] via-[#0e0e0e] to-[#54e98a]/10">
+      <footer className="border-t border-white/5 mt-10 relative overflow-hidden pt-12 md:pt-24 pb-8 bg-gradient-to-b from-background via-background to-primary/10">
         {/* Subtle Background Pattern & Glow */}
-        <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_center,_#54e98a_1px,_transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#54e98a]/[0.08] blur-[120px] pointer-events-none rounded-t-[100%]" />
+        <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_center,_hsl(var(--primary))_1px,_transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/[0.08] blur-[120px] pointer-events-none rounded-t-[100%]" />
 
         <div className="max-w-6xl mx-auto px-6 relative z-10">
           {/* Top CTA Section */}
           <div className="max-w-2xl mb-12 md:mb-24">
-            <div className="text-[#54e98a] text-[10px] uppercase font-bold tracking-widest mb-4 flex items-center gap-2">
+            <div className="text-primary text-[10px] uppercase font-bold tracking-widest mb-4 flex items-center gap-2">
               <span className="text-xl leading-none -mt-1">+</span> Contact Us
             </div>
             <h2 className="text-2xl md:text-3xl lg:text-5xl font-bold tracking-tighter text-white leading-tight">
               A securing workspace for,{" "}
-              <span className="text-slate-500">
+              <span className="text-on-surface-variant/40">
                 founders and investors workflows.
               </span>
             </h2>
@@ -773,17 +786,17 @@ export default function Landing() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-12 mb-16">
             {/* Contact Info */}
             <div className="space-y-2">
-              <p className="text-slate-500 text-xs font-medium">
+              <p className="text-on-surface-variant text-xs font-medium">
                 Contact Team at:
               </p>
               <a
                 href="mailto:contact@deckly.space"
-                className="group inline-flex items-center gap-2 text-white hover:text-[#54e98a] text-lg md:text-xl font-bold transition-all"
+                className="group inline-flex items-center gap-2 text-white hover:text-primary text-lg md:text-xl font-bold transition-all"
               >
                 contact@deckly.space
                 <ArrowUpRight
                   size={20}
-                  className="text-slate-400 group-hover:text-[#54e98a] transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"
+                  className="text-on-surface-variant group-hover:text-primary transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"
                 />
               </a>
             </div>
@@ -793,7 +806,7 @@ export default function Landing() {
               <li>
                 <Link
                   to="/privacy"
-                  className="text-white hover:text-[#54e98a] text-sm md:text-base font-bold transition-colors"
+                  className="text-white hover:text-primary text-sm md:text-base font-bold transition-colors"
                 >
                   Privacy Policy
                 </Link>
@@ -801,7 +814,7 @@ export default function Landing() {
               <li>
                 <Link
                   to="/terms"
-                  className="text-white hover:text-[#54e98a] text-sm md:text-base font-bold transition-colors"
+                  className="text-white hover:text-primary text-sm md:text-base font-bold transition-colors"
                 >
                   Terms of Service
                 </Link>
@@ -830,13 +843,13 @@ export default function Landing() {
               © 2026 Deckly. All rights reserved.
             </p>
             <div className="flex gap-6 text-[10px] text-white font-medium tracking-wide">
-              <a href="#" className="hover:text-[#54e98a] transition-colors">
+              <a href="#" className="hover:text-primary transition-colors">
                 LinkedIn
               </a>
-              <a href="#" className="hover:text-[#54e98a] transition-colors">
+              <a href="#" className="hover:text-primary transition-colors">
                 Twitter
               </a>
-              <a href="#" className="hover:text-[#54e98a] transition-colors">
+              <a href="#" className="hover:text-primary transition-colors">
                 GitHub
               </a>
             </div>
@@ -847,75 +860,306 @@ export default function Landing() {
   );
 }
 
-// Child component for managed scroll depth animations
-function FeatureCard({ feature, index }: FeatureCardProps) {
-  const ref = useRef(null);
+// --- Sub-components for UI Elements ---
 
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
+const CornerBrackets = memo(({
+  className = "",
+  corners = ["tl", "tr", "bl", "br"],
+}: {
+  className?: string;
+  corners?: ("tl" | "tr" | "bl" | "br")[];
+}) => (
+  <>
+    {corners.includes("tl") && (
+      <div
+        className={`absolute top-0 left-0 w-4 h-4 border-t border-l border-white/20 transition-colors duration-500 ${className}`}
+      />
+    )}
+    {corners.includes("tr") && (
+      <div
+        className={`absolute top-0 right-0 w-4 h-4 border-t border-r border-white/20 transition-colors duration-500 ${className}`}
+      />
+    )}
+    {corners.includes("bl") && (
+      <div
+        className={`absolute bottom-0 left-0 w-4 h-4 border-b border-l border-white/20 transition-colors duration-500 ${className}`}
+      />
+    )}
+    {corners.includes("br") && (
+      <div
+        className={`absolute bottom-0 right-0 w-4 h-4 border-b border-r border-white/20 transition-colors duration-500 ${className}`}
+      />
+    )}
+  </>
+));
 
-  const opacity = useTransform(
-    scrollYProgress,
-    [0, 0.4, 0.6, 1],
-    [0, 1, 1, 0.4],
-  );
-  const scale = useTransform(
-    scrollYProgress,
-    [0, 0.4, 0.6, 1],
-    [0.9, 1.05, 1, 0.92],
-  );
-  const filter = useTransform(
-    scrollYProgress,
-    [0.6, 1],
-    ["blur(0px)", "blur(2px)"],
-  );
+// --- Capability Visuals (Bento Grid) ---
 
-  return (
-    <motion.div
-      ref={ref}
-      style={{
-        opacity,
-        scale,
-        filter,
-        top: `${160 + index * 20}px`,
-        zIndex: index,
-      }}
-      className="sticky w-full mb-24 last:mb-0"
-    >
-      <div className="p-5 md:p-6 lg:p-8 bg-surface-container border border-white/5 rounded-none shadow-[0_50px_100px_rgba(0,0,0,0.8)] group relative overflow-hidden flex flex-col min-h-[280px] md:min-h-[420px] justify-center transition-all duration-500 hover:border-primary/20">
-        {/* Floating Number Accent */}
-        <div className="absolute top-6 right-6 text-[8rem] font-black text-white/[0.02] pointer-events-none select-none group-hover:text-primary/[0.03] transition-colors duration-700">
-          0{index + 1}
+const EngagementVisual = memo(() => (
+  <div className="absolute inset-x-0 bottom-4 flex items-center justify-center opacity-20 group-hover:opacity-40 transition-all duration-1000 scale-100 translate-y-4">
+    <div className="w-full h-full p-8 flex flex-col justify-end">
+      <div className="absolute inset-0 p-8">
+        <div className="w-full h-full border-l border-b border-white/10 flex flex-col justify-between">
+          {PLACEHOLDER_5.map((_, i) => (
+            <div key={i} className="w-full border-t border-white/5 h-0" />
+          ))}
         </div>
+      </div>
 
-        <div className="relative z-10">
-          <div className="w-16 h-16 rounded-none bg-background border border-white/5 flex items-center justify-center mb-8 shadow-inner group-hover:border-primary/30 transition-all duration-500">
-            <span
-              className="material-symbols-outlined text-primary text-3xl"
-              style={{ fontVariationSettings: "'FILL' 1" }}
+      <div className="relative flex-1 mt-12 flex items-end gap-3 h-48">
+        {[60, 45, 90, 75, 40, 65, 85, 55, 70].map((h, i) => (
+          <div key={i} className="flex-1 flex flex-col justify-end h-full">
+            <motion.div
+              initial={{ height: 0 }}
+              whileInView={{ height: `${h}%` }}
+              transition={{ duration: 1, delay: i * 0.05 + 0.5 }}
+              className="w-full bg-gradient-to-t from-primary/40 to-primary border-t border-x border-white/10 relative group/bar"
             >
-              {feature.icon}
-            </span>
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] font-bold text-primary opacity-0 group-hover/bar:opacity-100 transition-opacity">
+                {h}%
+              </div>
+            </motion.div>
           </div>
+        ))}
+      </div>
 
-          <h3 className="text-2xl font-bold mb-4 text-white tracking-tight leading-tight transition-colors group-hover:text-primary">
-            {feature.title}
-          </h3>
-          <p className="text-base text-on-surface-variant leading-relaxed max-w-xl font-medium">
+      <div className="mt-8 flex flex-col gap-2">
+        {[
+          { name: "Investor X", time: "just now", status: "viewed slide 4" },
+          { name: "Fund Sequoia", time: "2m ago", status: "revisited" },
+        ].map((item, i) => (
+          <motion.div
+            key={i}
+            initial={{ x: 20, opacity: 0 }}
+            whileInView={{ x: 0, opacity: 1 }}
+            transition={{ delay: i * 0.2 + 1 }}
+            className="flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-2 rounded-full w-fit"
+          >
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-[10px] text-white/60 font-bold uppercase tracking-wider">
+              {item.name} {item.status}
+            </span>
+            <span className="text-[9px] text-primary/40">{item.time}</span>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="absolute -bottom-2 right-12 flex items-end gap-3 h-32 opacity-0 group-hover:opacity-100 transition-all duration-700 pointer-events-none">
+        {[40, 70, 50, 90, 60].map((h, i) => (
+          <motion.div
+            key={i}
+            initial={{ height: 0 }}
+            whileHover={{ height: `${h}%` }}
+            animate={
+              i % 2 === 0
+                ? { height: [`${h - 10}%`, `${h + 10}%`, `${h - 10}%`] }
+                : { height: [`${h + 10}%`, `${h - 10}%`, `${h + 10}%`] }
+            }
+            transition={{
+              height: { repeat: Infinity, duration: 2, ease: "easeInOut" },
+              default: { delay: i * 0.1 },
+            }}
+            style={{ height: `${h}%` }}
+            className="w-4 bg-primary/30 rounded-t-sm shadow-[0_-5px_20px_rgba(84,233,138,0.2)]"
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+));
+
+const LiveSyncVisual = memo(() => (
+  <div className="absolute inset-x-0 bottom-4 flex items-end justify-center p-8">
+    <div className="relative w-full h-24 flex items-center justify-center translate-y-4">
+      <div className="absolute top-0 flex gap-8 items-center opacity-20 group-hover:opacity-100 transition-all duration-700">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-16 border border-white/20 bg-white/5 relative overflow-hidden">
+            <div className="absolute inset-0 bg-red-500/10 group-hover:bg-transparent transition-colors" />
+          </div>
+          <span className="text-[8px] mt-2 text-white/40">V1.0</span>
+        </div>
+        <motion.div
+          animate={{ x: [0, 5, 0] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          className="material-symbols-outlined text-primary text-sm"
+        >
+          trending_flat
+        </motion.div>
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-16 border border-primary/20 bg-primary/5 relative overflow-hidden">
+            <div className="absolute inset-0 bg-primary/20 scale-y-0 group-hover:scale-y-100 transition-transform origin-bottom duration-700" />
+          </div>
+          <span className="text-[8px] mt-2 text-primary font-bold">V2.0</span>
+        </div>
+      </div>
+
+      <div className="absolute -bottom-4 w-32 h-32 flex items-center justify-center opacity-10 group-hover:opacity-30 group-hover:scale-125 transition-all duration-1000">
+        <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow" />
+        <span className="material-symbols-outlined text-[3rem] text-white">
+          sync
+        </span>
+      </div>
+    </div>
+  </div>
+));
+
+const DataRoomVisual = memo(() => (
+  <div className="absolute bottom-4 inset-x-0 p-8 flex flex-col items-end gap-4 overflow-hidden">
+    <div className="flex flex-wrap gap-2 justify-end w-40 opacity-10 group-hover:opacity-40 transition-opacity translate-y-6">
+      {PLACEHOLDER_9.map((_, i) => (
+        <motion.div
+          key={i}
+          whileHover={{ y: -5, borderColor: "rgba(84, 233, 138, 0.4)" }}
+          className="w-8 h-10 border border-white/20 bg-white/5 flex items-center justify-center transition-all duration-300"
+        >
+          <span className="material-symbols-outlined text-[8px]">
+            description
+          </span>
+        </motion.div>
+      ))}
+    </div>
+  </div>
+));
+
+const AISummaryVisual = memo(() => (
+  <div className="absolute bottom-6 inset-x-0 p-8 flex items-center justify-center opacity-[0.1] group-hover:opacity-40 transition-all duration-700 translate-y-4">
+    <div className="w-full max-w-[240px] flex items-center gap-4">
+      <div className="flex-1 flex flex-col gap-1.5 opacity-40 group-hover:opacity-20 transition-opacity">
+        {PLACEHOLDER_6.map((_, i) => (
+          <div key={i} className="w-full h-1 bg-white rounded-full" />
+        ))}
+      </div>
+
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex gap-1">
+          {PLACEHOLDER_3.map((_, i) => (
+            <motion.div
+              key={i}
+              animate={{ opacity: [0, 1, 0] }}
+              transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
+              className="w-1 h-1 rounded-full bg-primary"
+            />
+          ))}
+        </div>
+        <span className="material-symbols-outlined text-primary text-xl">
+          auto_awesome
+        </span>
+      </div>
+
+      <div className="flex-1 flex flex-col gap-1.5">
+        <motion.div
+          initial={{ width: 0 }}
+          whileInView={{ width: "100%" }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+          className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]"
+        />
+        <motion.div
+          initial={{ width: 0 }}
+          whileInView={{ width: "70%" }}
+          transition={{ duration: 0.8, delay: 0.7 }}
+          className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]"
+        />
+      </div>
+    </div>
+  </div>
+));
+
+const OrganizationVisual = memo(() => (
+  <div className="absolute bottom-4 right-0 p-6 flex flex-col items-end gap-3 opacity-10 group-hover:opacity-40 transition-all duration-500 translate-y-4">
+    <div className="flex gap-2">
+      {["SaaS", "Fintech", "Health"].map((tag, i) => (
+        <motion.div
+          key={i}
+          whileHover={{ scale: 1.1, backgroundColor: "rgba(84, 233, 138, 0.2)" }}
+          className="px-3 py-1 border border-white/40 text-[10px] font-bold text-white uppercase transition-colors"
+        >
+          {tag}
+        </motion.div>
+      ))}
+    </div>
+    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {PLACEHOLDER_3.map((_, i) => (
+        <div
+          key={i}
+          className="w-8 h-6 border-t-2 border-x border-white/20 bg-white/5"
+        />
+      ))}
+    </div>
+  </div>
+));
+
+const ControlVisual = memo(() => (
+  <div className="absolute inset-x-0 bottom-4 flex flex-col items-center justify-center p-8 opacity-5 group-hover:opacity-50 transition-opacity duration-500">
+    <div className="flex items-center gap-2 mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700 translate-y-4 group-hover:translate-y-0">
+      <span className="material-symbols-outlined text-primary text-xs">
+        verified_user
+      </span>
+      <span className="text-[10px] text-primary font-bold uppercase tracking-widest">
+        Access Protected
+      </span>
+    </div>
+    <div className="w-16 h-7 border border-white/20 rounded-full flex items-center px-1 scale-125 relative">
+      <motion.div
+        variants={{
+          initial: { x: 0, backgroundColor: "#fff" },
+          hover: { x: 36, backgroundColor: "#54e98a" },
+        }}
+        initial="initial"
+        whileHover="hover"
+        className="w-4 h-4 rounded-full transition-colors duration-500"
+      />
+    </div>
+  </div>
+));
+
+// Child component for Bento Grid Features
+const FeatureCard = memo(function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
+  return (
+    <div
+      className={`p-6 md:p-10 bg-surface-container border border-white/10 rounded-none shadow-[0_10px_30px_rgba(0,0,0,0.4)] group relative overflow-hidden flex flex-col transition-all duration-500 hover:border-primary/40 ${className} ${index === 0 ? "min-h-[450px]" : "min-h-[300px]"}`}
+    >
+      <CornerBrackets className="group-hover:border-primary/60" />
+      
+      {/* Visual Decoration Wrapper */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.4] group-hover:opacity-[0.7] transition-opacity duration-700 overflow-hidden">
+        <VisualDecoration index={index} />
+      </div>
+
+      <div className="relative z-10 flex flex-col h-full">
+        <div className="mt-0">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 shrink-0 rounded-none bg-background border border-white/5 flex items-center justify-center shadow-inner group-hover:border-primary/30 transition-all duration-500">
+              <span
+                className="material-symbols-outlined text-primary text-base"
+                style={FILL_ICON}
+              >
+                {feature.icon}
+              </span>
+            </div>
+            <h3 className="text-lg font-bold text-white tracking-tighter leading-tight transition-colors group-hover:text-primary">
+              {feature.title}
+            </h3>
+          </div>
+          <p className="text-sm text-on-surface-variant leading-relaxed max-w-[280px] font-medium opacity-80">
             {feature.desc}
           </p>
-
-          <div className="mt-8 flex items-center gap-4 text-primary font-black text-[10px] transition-all uppercase tracking-widest">
-            Read documentation{" "}
-            <ArrowUpRight size={14} className="transition-all" />
-          </div>
         </div>
-
-        {/* Subtle Bottom Accent */}
-        <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary/40 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700" />
       </div>
-    </motion.div>
+
+      {/* Subtle Hover Glow */}
+      <div className="absolute -inset-4 bg-primary/2 blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
+    </div>
   );
-}
+});
+
+const VisualDecoration = memo(function VisualDecoration({ index }: { index: number }) {
+  switch (index) {
+    case 0: return <EngagementVisual />;
+    case 1: return <LiveSyncVisual />;
+    case 2: return <DataRoomVisual />;
+    case 3: return <AISummaryVisual />;
+    case 4: return <OrganizationVisual />;
+    case 5: return <ControlVisual />;
+    default: return null;
+  }
+});
