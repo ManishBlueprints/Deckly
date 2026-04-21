@@ -37,7 +37,7 @@ const features = [
   {
     icon: "psychology",
     title: "Understand decks instantly",
-    desc: "Get quick AI summaries to grasp any pitch in seconds — perfect for fast decisions and busy investors.",
+    desc: "Chat with your documents and get quick AI summaries to grasp any pitch in seconds.",
   },
   {
     icon: "architecture",
@@ -89,7 +89,7 @@ const positioningFeatures: Feature[] = [
   },
   {
     icon: "inventory_2",
-    title: "Stay organized without spreadsheets",
+    title: "Stop tracking investors in spreadsheets",
     desc: "Automatic tracking of every interaction. No more manual data entry into your CRM while you're pitching.",
   },
 ];
@@ -107,7 +107,7 @@ const workflowSteps: WorkflowStep[] = [
   },
   {
     step: "03",
-    title: "Follow up with confidence",
+    title: "Follow up at the right time",
     desc: "Reach out to the investors who showed high intent. Know exactly where they stopped reading and address it head-on.",
   },
 ];
@@ -115,18 +115,18 @@ const workflowSteps: WorkflowStep[] = [
 const valueFeatures: ValueFeature[] = [
   {
     icon: "sell",
-    title: "No hidden pricing",
-    desc: "One clear plan for founders. Always free for investors to view.",
+    title: "Stop guessing investor interest",
+    desc: "Know exactly who's reading, what they care about, and when to follow up.",
   },
   {
     icon: "bolt",
-    title: "Open-source Core (Coming Soon)",
-    desc: "Transparent code for ultimate trust and data privacy.",
+    title: "Stop losing track of conversations",
+    desc: "Never forget who you spoke to, what they said, or which version they saw.",
   },
   {
     icon: "groups",
-    title: "Dual-Focus Design",
-    desc: "Optimized workflows for both sides of the table.",
+    title: "Stop overpaying for datarooms",
+    desc: "Get unlimited data rooms and sharing without expensive tools.",
   },
 ];
 
@@ -323,9 +323,12 @@ export default function Landing() {
             viewport={{ once: true, amount: 0.2 }}
             variants={fadeInUp}
           >
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-white max-w-2xl uppercase">
-              Built for how fundraising <br />
-              <span className="text-primary">actually works.</span>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white max-w-2xl uppercase">
+              Fundraising
+              <br />
+              <span className="text-primary">
+                shouldn’t feel like guessing.
+              </span>
             </h2>
           </motion.div>
 
@@ -388,10 +391,14 @@ export default function Landing() {
               {/* For Founders */}
               <motion.div
                 variants={fadeInUp}
-                className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.01] transition-colors duration-500"
+                className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.02] transition-all duration-500 relative group overflow-hidden hover:border-primary/40"
               >
-                <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)]">
+                {/* Decorative Corner Outlines */}
+                <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+                <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+
+                <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6 relative z-10">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)] group-hover:scale-110 group-hover:border-primary/50 transition-all duration-500">
                     <span
                       className="material-symbols-outlined text-2xl md:text-3xl"
                       style={{ fontVariationSettings: "'FILL' 1" }}
@@ -399,11 +406,11 @@ export default function Landing() {
                       rocket_launch
                     </span>
                   </div>
-                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase">
+                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase group-hover:text-primary transition-colors duration-500">
                     For Founders
                   </h3>
                 </div>
-                <ul className="space-y-6 md:space-y-10">
+                <ul className="space-y-6 md:space-y-10 relative z-10">
                   {[
                     {
                       title: "Share with a single link",
@@ -420,19 +427,19 @@ export default function Landing() {
                   ].map((item, i) => (
                     <li
                       key={i}
-                      className="flex items-start gap-4 md:gap-6 group"
+                      className="flex items-start gap-4 md:gap-6 group/item"
                     >
                       <span
-                        className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold"
+                        className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold group-hover/item:scale-125 transition-transform duration-300"
                         style={{ fontVariationSettings: "'FILL' 1" }}
                       >
                         check_circle
                       </span>
                       <div>
-                        <p className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 leading-none uppercase tracking-tight">
+                        <p className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 leading-none uppercase tracking-tight group-hover/item:text-primary transition-colors">
                           {item.title}
                         </p>
-                        <p className="text-on-surface-variant text-base font-medium opacity-80">
+                        <p className="text-on-surface-variant text-base font-medium opacity-60 group-hover/item:opacity-100 transition-opacity">
                           {item.desc}
                         </p>
                       </div>
@@ -444,10 +451,14 @@ export default function Landing() {
               {/* For Investors */}
               <motion.div
                 variants={fadeInUp}
-                className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.01] transition-colors duration-500"
+                className="p-6 md:p-12 lg:p-20 border-r border-b border-white/10 flex flex-col justify-center bg-surface-low/30 hover:bg-white/[0.02] transition-all duration-500 relative group overflow-hidden hover:border-primary/40"
               >
-                <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)]">
+                {/* Decorative Corner Outlines */}
+                <div className="absolute top-0 left-0 w-4 h-4 border-t border-l border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+                <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r border-white/20 group-hover:border-primary/60 transition-colors duration-500" />
+
+                <div className="mb-8 md:mb-12 flex items-center gap-4 md:gap-6 relative z-10">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_30px_rgba(84,233,138,0.1)] group-hover:scale-110 group-hover:border-primary/50 transition-all duration-500">
                     <span
                       className="material-symbols-outlined text-2xl md:text-3xl"
                       style={{ fontVariationSettings: "'FILL' 1" }}
@@ -455,11 +466,11 @@ export default function Landing() {
                       account_balance
                     </span>
                   </div>
-                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase">
+                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase group-hover:text-primary transition-colors duration-500">
                     For Investors
                   </h3>
                 </div>
-                <ul className="space-y-6 md:space-y-10">
+                <ul className="space-y-6 md:space-y-10 relative z-10">
                   {[
                     {
                       title: "Save and organize decks",
@@ -476,19 +487,19 @@ export default function Landing() {
                   ].map((item, i) => (
                     <li
                       key={i}
-                      className="flex items-start gap-4 md:gap-6 group"
+                      className="flex items-start gap-4 md:gap-6 group/item"
                     >
                       <span
-                        className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold"
+                        className="material-symbols-outlined text-primary text-2xl md:text-3xl font-bold group-hover/item:scale-125 transition-transform duration-300"
                         style={{ fontVariationSettings: "'FILL' 1" }}
                       >
                         check_circle
                       </span>
                       <div>
-                        <p className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 leading-none uppercase tracking-tight">
+                        <p className="text-lg md:text-xl font-bold text-white mb-1 md:mb-2 leading-none uppercase tracking-tight group-hover/item:text-primary transition-colors">
                           {item.title}
                         </p>
-                        <p className="text-on-surface-variant text-base font-medium opacity-80">
+                        <p className="text-on-surface-variant text-base font-medium opacity-60 group-hover/item:opacity-100 transition-opacity">
                           {item.desc}
                         </p>
                       </div>
@@ -622,15 +633,16 @@ export default function Landing() {
               className="max-w-xl"
             >
               <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-6 md:mb-8 leading-[1.1] text-white">
-                Simple, transparent, <br />
+                Why founders
+                <br />
                 <span className="text-on-surface-variant/40">
-                  and built to scale.
+                  switch to Deckly.
                 </span>
               </h2>
               <p className="text-on-surface-variant text-base md:text-xl leading-relaxed mb-8 md:mb-12 font-medium">
-                Fundraising is hard enough. Your tools should be the easiest
-                part of your day. We built Deckly to be invisible, fast, and
-                remarkably powerful.
+                Fundraising today is messy. You don’t know who’s actually
+                interested. You don’t know when to follow up. And you keep
+                resending decks over and over. Deckly fixes that.
               </p>
               <div className="flex items-center gap-4 text-xs font-black text-primary bg-primary/5 w-fit px-8 py-4 border border-primary/20 uppercase tracking-[0.2em]">
                 <span
@@ -639,7 +651,7 @@ export default function Landing() {
                 >
                   check_circle
                 </span>
-                Trusted by top founders globally
+                Built for founders actively fundraising
               </div>
             </motion.div>
 
@@ -863,7 +875,7 @@ export default function Landing() {
 // Child component for Bento Grid Features
 function FeatureCard({ feature, index, className = "" }: FeatureCardProps) {
   return (
-    <div 
+    <div
       className={`p-6 md:p-10 bg-surface-container border border-white/10 rounded-none shadow-[0_10px_30px_rgba(0,0,0,0.4)] group relative overflow-hidden flex flex-col transition-all duration-500 hover:border-primary/40 ${className} ${index === 0 ? "min-h-[450px]" : "min-h-[300px]"}`}
     >
       {/* Decorative Corner Outlines */}
@@ -974,10 +986,18 @@ function VisualDecoration({ index }: { index: number }) {
                   key={i}
                   initial={{ height: 0 }}
                   whileHover={{ height: `${h}%` }}
-                  animate={i % 2 === 0 ? { height: [`${h-10}%`, `${h+10}%`, `${h-10}%`] } : { height: [`${h+10}%`, `${h-10}%`, `${h+10}%`] }}
-                  transition={{ 
-                    height: { repeat: Infinity, duration: 2, ease: "easeInOut" },
-                    default: { delay: i * 0.1 }
+                  animate={
+                    i % 2 === 0
+                      ? { height: [`${h - 10}%`, `${h + 10}%`, `${h - 10}%`] }
+                      : { height: [`${h + 10}%`, `${h - 10}%`, `${h + 10}%`] }
+                  }
+                  transition={{
+                    height: {
+                      repeat: Infinity,
+                      duration: 2,
+                      ease: "easeInOut",
+                    },
+                    default: { delay: i * 0.1 },
                   }}
                   style={{ height: `${h}%` }}
                   className="w-4 bg-primary/30 rounded-t-sm shadow-[0_-5px_20px_rgba(84,233,138,0.2)]"
@@ -991,33 +1011,37 @@ function VisualDecoration({ index }: { index: number }) {
       return (
         <div className="absolute inset-x-0 bottom-4 flex items-end justify-center p-8">
           <div className="relative w-full h-24 flex items-center justify-center translate-y-4">
-             {/* Version Transition Visual */}
-             <div className="absolute top-0 flex gap-8 items-center opacity-20 group-hover:opacity-100 transition-all duration-700">
-                <div className="flex flex-col items-center">
-                   <div className="w-12 h-16 border border-white/20 bg-white/5 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-red-500/10 group-hover:bg-transparent transition-colors" />
-                   </div>
-                   <span className="text-[8px] mt-2 text-white/40">V1.0</span>
+            {/* Version Transition Visual */}
+            <div className="absolute top-0 flex gap-8 items-center opacity-20 group-hover:opacity-100 transition-all duration-700">
+              <div className="flex flex-col items-center">
+                <div className="w-12 h-16 border border-white/20 bg-white/5 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-red-500/10 group-hover:bg-transparent transition-colors" />
                 </div>
-                <motion.div 
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className="material-symbols-outlined text-primary text-sm"
-                >
-                  trending_flat
-                </motion.div>
-                <div className="flex flex-col items-center">
-                   <div className="w-12 h-16 border border-primary/20 bg-primary/5 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-primary/20 scale-y-0 group-hover:scale-y-100 transition-transform origin-bottom duration-700" />
-                   </div>
-                   <span className="text-[8px] mt-2 text-primary font-bold">V2.0</span>
+                <span className="text-[8px] mt-2 text-white/40">V1.0</span>
+              </div>
+              <motion.div
+                animate={{ x: [0, 5, 0] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="material-symbols-outlined text-primary text-sm"
+              >
+                trending_flat
+              </motion.div>
+              <div className="flex flex-col items-center">
+                <div className="w-12 h-16 border border-primary/20 bg-primary/5 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-primary/20 scale-y-0 group-hover:scale-y-100 transition-transform origin-bottom duration-700" />
                 </div>
-             </div>
+                <span className="text-[8px] mt-2 text-primary font-bold">
+                  V2.0
+                </span>
+              </div>
+            </div>
 
-             <div className="absolute -bottom-4 w-32 h-32 flex items-center justify-center opacity-10 group-hover:opacity-30 group-hover:scale-125 transition-all duration-1000">
-                <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow" />
-                <span className="material-symbols-outlined text-[3rem] text-white">sync</span>
-             </div>
+            <div className="absolute -bottom-4 w-32 h-32 flex items-center justify-center opacity-10 group-hover:opacity-30 group-hover:scale-125 transition-all duration-1000">
+              <div className="absolute inset-0 border border-white/10 rounded-full animate-spin-slow" />
+              <span className="material-symbols-outlined text-[3rem] text-white">
+                sync
+              </span>
+            </div>
           </div>
         </div>
       );
@@ -1026,12 +1050,14 @@ function VisualDecoration({ index }: { index: number }) {
         <div className="absolute bottom-4 inset-x-0 p-8 flex flex-col items-end gap-4 overflow-hidden">
           <div className="flex flex-wrap gap-2 justify-end w-40 opacity-10 group-hover:opacity-40 transition-opacity translate-y-6">
             {[...Array(9)].map((_, i) => (
-              <motion.div 
-                key={i} 
+              <motion.div
+                key={i}
                 whileHover={{ y: -5, borderColor: "rgba(84, 233, 138, 0.4)" }}
                 className="w-8 h-10 border border-white/20 bg-white/5 flex items-center justify-center transition-all duration-300"
               >
-                <span className="material-symbols-outlined text-[8px]">description</span>
+                <span className="material-symbols-outlined text-[8px]">
+                  description
+                </span>
               </motion.div>
             ))}
           </div>
@@ -1040,45 +1066,51 @@ function VisualDecoration({ index }: { index: number }) {
     case 3: // AI Summary
       return (
         <div className="absolute bottom-6 inset-x-0 p-8 flex items-center justify-center opacity-[0.1] group-hover:opacity-40 transition-all duration-700 translate-y-4">
-           <div className="w-full max-w-[240px] flex items-center gap-4">
-              {/* Source (Long Text) */}
-              <div className="flex-1 flex flex-col gap-1.5 opacity-40 group-hover:opacity-20 transition-opacity">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="w-full h-1 bg-white rounded-full" />
+          <div className="w-full max-w-[240px] flex items-center gap-4">
+            {/* Source (Long Text) */}
+            <div className="flex-1 flex flex-col gap-1.5 opacity-40 group-hover:opacity-20 transition-opacity">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="w-full h-1 bg-white rounded-full" />
+              ))}
+            </div>
+
+            {/* Distillation Arrow */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex gap-1">
+                {[...Array(3)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    animate={{ opacity: [0, 1, 0] }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 1,
+                      delay: i * 0.2,
+                    }}
+                    className="w-1 h-1 rounded-full bg-primary"
+                  />
                 ))}
               </div>
+              <span className="material-symbols-outlined text-primary text-xl">
+                auto_awesome
+              </span>
+            </div>
 
-              {/* Distillation Arrow */}
-              <div className="flex flex-col items-center gap-2">
-                 <div className="flex gap-1">
-                    {[...Array(3)].map((_, i) => (
-                      <motion.div 
-                        key={i}
-                        animate={{ opacity: [0, 1, 0] }}
-                        transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
-                        className="w-1 h-1 rounded-full bg-primary" 
-                      />
-                    ))}
-                 </div>
-                 <span className="material-symbols-outlined text-primary text-xl">auto_awesome</span>
-              </div>
-
-              {/* Summary (Clean Text) */}
-              <div className="flex-1 flex flex-col gap-1.5">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  whileInView={{ width: "100%" }}
-                  transition={{ duration: 0.8, delay: 0.5 }}
-                  className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]" 
-                />
-                <motion.div 
-                  initial={{ width: 0 }}
-                  whileInView={{ width: "70%" }}
-                  transition={{ duration: 0.8, delay: 0.7 }}
-                  className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]" 
-                />
-              </div>
-           </div>
+            {/* Summary (Clean Text) */}
+            <div className="flex-1 flex flex-col gap-1.5">
+              <motion.div
+                initial={{ width: 0 }}
+                whileInView={{ width: "100%" }}
+                transition={{ duration: 0.8, delay: 0.5 }}
+                className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]"
+              />
+              <motion.div
+                initial={{ width: 0 }}
+                whileInView={{ width: "70%" }}
+                transition={{ duration: 0.8, delay: 0.7 }}
+                className="h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(84,233,138,0.3)]"
+              />
+            </div>
+          </div>
         </div>
       );
     case 4: // Organization
@@ -1088,7 +1120,10 @@ function VisualDecoration({ index }: { index: number }) {
             {["SaaS", "Fintech", "Health"].map((tag, i) => (
               <motion.div
                 key={i}
-                whileHover={{ scale: 1.1, backgroundColor: "rgba(84, 233, 138, 0.2)" }}
+                whileHover={{
+                  scale: 1.1,
+                  backgroundColor: "rgba(84, 233, 138, 0.2)",
+                }}
                 className="px-3 py-1 border border-white/40 text-[10px] font-bold text-white uppercase transition-colors"
               >
                 {tag}
@@ -1097,30 +1132,37 @@ function VisualDecoration({ index }: { index: number }) {
           </div>
           {/* Folders visual */}
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-             {[...Array(3)].map((_, i) => (
-                <div key={i} className="w-8 h-6 border-t-2 border-x border-white/20 bg-white/5" />
-             ))}
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="w-8 h-6 border-t-2 border-x border-white/20 bg-white/5"
+              />
+            ))}
           </div>
         </div>
       );
     case 5: // Control
       return (
         <div className="absolute inset-x-0 bottom-4 flex flex-col items-center justify-center p-8 opacity-5 group-hover:opacity-50 transition-opacity duration-500">
-           {/* Protected Status */}
-           <div className="flex items-center gap-2 mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700 translate-y-4 group-hover:translate-y-0">
-              <span className="material-symbols-outlined text-primary text-xs">verified_user</span>
-              <span className="text-[10px] text-primary font-bold uppercase tracking-widest">Access Protected</span>
-           </div>
+          {/* Protected Status */}
+          <div className="flex items-center gap-2 mb-6 opacity-0 group-hover:opacity-100 transition-all duration-700 translate-y-4 group-hover:translate-y-0">
+            <span className="material-symbols-outlined text-primary text-xs">
+              verified_user
+            </span>
+            <span className="text-[10px] text-primary font-bold uppercase tracking-widest">
+              Access Protected
+            </span>
+          </div>
           <div className="w-16 h-7 border border-white/20 rounded-full flex items-center px-1 scale-125 relative">
-            <motion.div 
-               animate={{ x: 0 }}
-               variants={{
-                 hover: { x: 36 }
-               }}
-               className="w-4 h-4 bg-white group-hover:bg-primary rounded-full transition-colors duration-500" 
-               style={{ 
-                 transform: 'translateX(var(--toggle-x, 0))' 
-               }}
+            <motion.div
+              animate={{ x: 0 }}
+              variants={{
+                hover: { x: 36 },
+              }}
+              className="w-4 h-4 bg-white group-hover:bg-primary rounded-full transition-colors duration-500"
+              style={{
+                transform: "translateX(var(--toggle-x, 0))",
+              }}
             />
             {/* Simple CSS-based move for reliability */}
             <style>{`
@@ -1129,7 +1171,7 @@ function VisualDecoration({ index }: { index: number }) {
                 background-color: #54e98a;
               }
             `}</style>
-            <div 
+            <div
               data-toggle-pill
               className="absolute left-1 w-4 h-4 bg-white rounded-full transition-all duration-500 ease-in-out"
             />
