@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../services/supabase";
 import { Lock, Mail, CheckCircle2, User } from "lucide-react";
+import posthog from "posthog-js";
 import leftPanelBg from "../assets/Signup Left.png";
 import logo from "../assets/Deckly.png";
 import { Button } from "../components/ui/button";
@@ -19,6 +20,7 @@ function Signup() {
 
   useEffect(() => {
     document.title = "Sign Up | Deckly";
+    posthog.capture("user_signup_viewed");
   }, []);
 
   const formatErrorMessage = (msg: string) => {
@@ -36,6 +38,7 @@ function Signup() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    posthog.capture("user_signup_submitted", { method: "email" });
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -53,17 +56,20 @@ function Signup() {
 
       if (data.user) {
         setSuccess(true);
+        posthog.capture("user_signup_completed", { method: "email" });
         setTimeout(() => navigate("/login"), 4000);
       }
     } catch (err: unknown) {
       const rawMessage = err instanceof Error ? err.message : String(err);
       setError(formatErrorMessage(rawMessage));
+      posthog.capture("user_signup_failed", { method: "email", error: rawMessage });
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    posthog.capture("user_signup_submitted", { method: "google" });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -78,6 +84,7 @@ function Signup() {
   };
 
   const handleGitHubSignIn = async () => {
+    posthog.capture("user_signup_submitted", { method: "github" });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "github",
@@ -321,19 +328,19 @@ function Signup() {
 
           <p className="mt-6 text-[10px] text-slate-600 font-bold text-center leading-relaxed italic opacity-80">
             By signing up you agree to our{" "}
-            <Link
-              to="/terms"
+            <a
+              href="https://deckly.space/terms"
               className="underline cursor-pointer hover:text-slate-400 transition-colors"
             >
               terms and conditions
-            </Link>{" "}
+            </a>{" "}
             and our{" "}
-            <Link
-              to="/privacy"
+            <a
+              href="https://deckly.space/privacy"
               className="underline cursor-pointer hover:text-slate-400 transition-colors"
             >
               privacy policy
-            </Link>
+            </a>
           </p>
         </div>
       </div>

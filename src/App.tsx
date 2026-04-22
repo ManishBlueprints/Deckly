@@ -14,7 +14,6 @@ import "./App.css";
 
 // Lazy loaded pages
 const Home = lazy(() => import("./pages/Home"));
-const Landing = lazy(() => import("./pages/Landing"));
 const Viewer = lazy(() => import("./pages/Viewer"));
 const OwnerDeckPreview = lazy(() => import("./pages/OwnerDeckPreview"));
 const ManageDeck = lazy(() => import("./pages/ManageDeck"));
@@ -30,8 +29,6 @@ const DataRoomViewer = lazy(() => import("./pages/DataRoomViewer"));
 const OwnerDataRoomPreview = lazy(() => import("./pages/OwnerDataRoomPreview"));
 const SavedDecks = lazy(() => import("./pages/SavedDecks"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const Privacy = lazy(() => import("./pages/Privacy"));
-const Terms = lazy(() => import("./pages/Terms"));
 const Profile = lazy(() => import("./pages/Profile"));
 
 const LoadingFallback = () => (
@@ -188,14 +185,6 @@ const AppContent = () => {
             element={session ? <SavedDecks /> : <Navigate to="/login" />}
           />
           <Route
-            path="/privacy"
-            element={<Privacy />}
-          />
-          <Route
-            path="/terms"
-            element={<Terms />}
-          />
-          <Route
             path="/profile"
             element={session ? <Profile /> : <Navigate to="/login" />}
           />
@@ -208,12 +197,8 @@ const AppContent = () => {
             element={session ? <Navigate to="/admin" replace /> : <Navigate to="/login" replace />}
           />
           <Route
-            path="/landing"
-            element={<Landing />}
-          />
-          <Route
             path="/"
-            element={session ? <Home /> : <Navigate to="/landing" />}
+            element={session ? <Home /> : <Navigate to="/login" />}
           />
           <Route path="/:handle/room/:slug" element={<DataRoomViewer />} />
           <Route path="/:handle/:slug" element={<Viewer />} />

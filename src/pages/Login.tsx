@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "../services/supabase";
 import { Lock, Mail, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
+import posthog from "posthog-js";
 import leftPanelBg from "../assets/Signup Left.png";
 import logo from "../assets/Deckly.png";
 
@@ -16,12 +17,14 @@ function Login() {
 
   useEffect(() => {
     document.title = "Log In | Deckly";
+    posthog.capture("user_login_viewed");
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    posthog.capture("user_login_submitted", { method: "email" });
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -30,6 +33,7 @@ function Login() {
       });
 
       if (error) throw error;
+      posthog.capture("user_login_completed", { method: "email" });
       navigate("/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -39,6 +43,7 @@ function Login() {
   };
 
   const handleGoogleSignIn = async () => {
+    posthog.capture("user_login_submitted", { method: "google" });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -53,6 +58,7 @@ function Login() {
   };
 
   const handleGitHubSignIn = async () => {
+    posthog.capture("user_login_submitted", { method: "github" });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "github",
@@ -304,12 +310,12 @@ function Login() {
           {/* Footer */}
           <div className="mt-12 flex items-center justify-between">
             <p className="text-xs text-slate-600 font-medium">V0.0.5-ALPHA</p>
-            <Link
-              to="/privacy"
+            <a
+              href="https://deckly.space/privacy"
               className="text-xs text-slate-600 font-medium uppercase tracking-wider hover:text-slate-400 transition-colors"
             >
               PRIVACY POLICY
-            </Link>
+            </a>
           </div>
         </div>
       </div>

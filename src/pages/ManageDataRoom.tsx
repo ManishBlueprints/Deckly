@@ -31,6 +31,8 @@ import { normalizeSlug } from "../utils/slug";
 import { useQueryClient } from "@tanstack/react-query";
 import { getDataRoomPreviewPath, getDataRoomShareUrl } from "../utils/url";
 import { toast } from "sonner";
+import posthog from "posthog-js";
+import * as Sentry from "@sentry/react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -308,6 +310,12 @@ function ManageDataRoom() {
         }
       }
 
+      posthog.capture(isEditMode ? "data_room_updated" : "data_room_created", {
+        room_id: isEditMode ? roomId : "new",
+        name: name.trim(),
+        document_count: documents.length,
+      });
+
       // Invalidate queries to refresh dashboard/rooms
       queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
       queryClient.invalidateQueries({
@@ -317,6 +325,7 @@ function ManageDataRoom() {
       navigate("/rooms");
     } catch (err: unknown) {
       console.error("Failed to save", err);
+      Sentry.captureException(err);
       const e = err as { message?: string; code?: string };
       
       // Handle unique constraint violation for slug
@@ -369,8 +378,13 @@ function ManageDataRoom() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       toast.success("Public link activated and copied.");
+      posthog.capture("data_room_link_copied", {
+        room_id: roomId,
+        slug: slug,
+      });
     } catch (err) {
       console.error("Failed to publish data room", err);
+      Sentry.captureException(err);
       toast.error("Failed to activate public link.");
     } finally {
       setPublishing(false);
