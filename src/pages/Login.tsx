@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { supabase } from "../services/supabase";
 import { Lock, Mail, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import posthog from "posthog-js";
+import { Turnstile } from "@marsidev/react-turnstile";
 import leftPanelBg from "../assets/Signup Left.png";
 import logo from "../assets/Deckly.png";
 
@@ -13,6 +14,7 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,6 +32,9 @@ function Login() {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+          captchaToken: captchaToken || undefined,
+        },
       });
 
       if (error) throw error;
@@ -277,10 +282,21 @@ function Login() {
               </motion.div>
             )}
 
+            {/* Turnstile Captcha */}
+            <div className="flex justify-center mt-2">
+              <Turnstile
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || ""}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken(null)}
+                onError={() => setCaptchaToken(null)}
+                options={{ theme: "dark" }}
+              />
+            </div>
+
             {/* Sign In Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (!captchaToken && !!import.meta.env.VITE_TURNSTILE_SITE_KEY)}
               className="w-full h-12 bg-[#22C55E] text-black font-semibold text-sm uppercase tracking-wider rounded-lg hover:bg-[#22C55E]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
