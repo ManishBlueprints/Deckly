@@ -9,6 +9,8 @@ import { dataRoomService } from "../services/dataRoomService";
 import { processPdfToImages } from "../workflows/deckProcessing";
 import { extractStoragePath } from "../services/deckService.shared";
 import { Deck, SlidePage, UserProfile } from "../types";
+import posthog from "posthog-js";
+import * as Sentry from "@sentry/react";
 
 type SetState<T> = Dispatch<SetStateAction<T>>;
 
@@ -317,6 +319,13 @@ export function useManageDeckWorkflow({
       setError(null);
       setProgressPercent(0);
 
+      posthog.capture("deck_upload_initiated", {
+        title,
+        is_edit: !!editId,
+        file_type: fileType,
+        conversion_mode: conversionMode,
+      });
+
       try {
         let finalFileUrl = existingDeck?.file_url;
         let finalPages: SlidePage[] = existingDeck?.pages || [];
@@ -622,8 +631,16 @@ export function useManageDeckWorkflow({
         });
 
         navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content");
+        
+        posthog.capture("deck_upload_completed", {
+          deck_id: editId || "new",
+          title,
+          file_type: fileType,
+          is_edit: !!editId,
+        });
       } catch (err: unknown) {
         console.error("Upload error:", err);
+        Sentry.captureException(err);
         let errorMsg = "Something went wrong. Please try again.";
 
         if (isErrorWithMessageCode(err)) {
@@ -635,6 +652,10 @@ export function useManageDeckWorkflow({
         setError(errorMsg);
         setProgress("");
         setProgressPercent(0);
+        posthog.capture("deck_upload_failed", {
+          error: errorMsg,
+          is_edit: !!editId,
+        });
       } finally {
         setLoading(false);
       }

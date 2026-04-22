@@ -304,12 +304,12 @@ function Login() {
           {/* Footer */}
           <div className="mt-12 flex items-center justify-between">
             <p className="text-xs text-slate-600 font-medium">V0.0.5-ALPHA</p>
-            <Link
-              to="/privacy"
+            <a
+              href="https://deckly.space/privacy"
               className="text-xs text-slate-600 font-medium uppercase tracking-wider hover:text-slate-400 transition-colors"
             >
               PRIVACY POLICY
-            </Link>
+            </a>
           </div>
         </div>
       </div>

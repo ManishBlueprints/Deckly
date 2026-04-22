@@ -321,19 +321,19 @@ function Signup() {
 
           <p className="mt-6 text-[10px] text-slate-600 font-bold text-center leading-relaxed italic opacity-80">
             By signing up you agree to our{" "}
-            <Link
-              to="/terms"
+            <a
+              href="https://deckly.space/terms"
               className="underline cursor-pointer hover:text-slate-400 transition-colors"
             >
               terms and conditions
-            </Link>{" "}
+            </a>{" "}
             and our{" "}
-            <Link
-              to="/privacy"
+            <a
+              href="https://deckly.space/privacy"
               className="underline cursor-pointer hover:text-slate-400 transition-colors"
             >
               privacy policy
-            </Link>
+            </a>
           </p>
         </div>
       </div>
