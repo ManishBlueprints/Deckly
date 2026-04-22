@@ -1,11 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from "react";
+import * as Sentry from "@sentry/react";
 import { Session } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { userService } from "../services/userService";
 import { UserProfile, BrandingSettings } from "../types";
 import { useProfile, useBranding } from "../hooks/useAuthQueries";
+import posthog from "posthog-js";
 
 interface AuthContextType {
   session: Session | null;
@@ -40,6 +42,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // TanStack Queries
   const { data: profile, isLoading: profileLoading, isError: profileError } = useProfile(session?.user?.id);
   const { data: branding } = useBranding(session?.user?.id);
+
+  // Sync PostHog Identity
+  useEffect(() => {
+    if (session?.user) {
+      posthog.identify(session.user.id, {
+        email: session.user.email,
+        full_name: profile?.full_name,
+      });
+      Sentry.setUser({
+        id: session.user.id,
+        email: session.user.email,
+        username: profile?.full_name || undefined,
+      });
+    } else if (!loading) {
+      // Only reset if we are sure there is no session (loading is finished)
+      posthog.reset();
+      Sentry.setUser(null);
+    }
+  }, [session, profile, loading]);
 
   // Sync ref with state
   useEffect(() => {
