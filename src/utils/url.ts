@@ -10,11 +10,20 @@
  * Safely resolves the origin for SSR/test environments.
  * Falls back to process.env.BASE_URL or localhost in non-browser contexts.
  */
-function resolveOrigin(): string {
+/**
+ * Always returns the public-facing share domain (deckly.space).
+ * Sharing links must NEVER use app.deckly.space — they are proxied
+ * through the marketing site so the URL stays on the root domain.
+ */
+function resolveShareOrigin(): string {
+  if (typeof window !== 'undefined' && import.meta.env.VITE_SHARE_BASE_URL) {
+    return import.meta.env.VITE_SHARE_BASE_URL;
+  }
+  
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;
   }
-  // Fallback for SSR/tests - use env var or localhost
+  // Fallback for SSR/tests
   return process.env.BASE_URL || 'http://localhost:5173';
 }
 
@@ -24,7 +33,7 @@ export const getDeckPath = (handle: string, slug: string): string => {
 };
 
 export const getDeckShareUrl = (handle: string, slug: string): string => {
-  return `${resolveOrigin()}${getDeckPath(handle, slug)}`;
+  return `${resolveShareOrigin()}${getDeckPath(handle, slug)}`;
 };
 
 export const getDataRoomPath = (handle: string, slug: string): string => {
@@ -33,7 +42,7 @@ export const getDataRoomPath = (handle: string, slug: string): string => {
 };
 
 export const getDataRoomShareUrl = (handle: string, slug: string): string => {
-  return `${resolveOrigin()}${getDataRoomPath(handle, slug)}`;
+  return `${resolveShareOrigin()}${getDataRoomPath(handle, slug)}`;
 };
 
 export const getDeckPreviewPath = (deckId: string): string => {
