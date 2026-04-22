@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "../services/supabase";
 import { Lock, Mail, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import posthog from "posthog-js";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import leftPanelBg from "../assets/Signup Left.png";
 import logo from "../assets/Deckly.png";
 
@@ -15,6 +15,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,6 +45,9 @@ function Login() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
+      // Reset Turnstile on every attempt finish (especially on error)
+      setCaptchaToken(null);
+      turnstileRef.current?.reset();
     }
   };
 
@@ -283,15 +287,18 @@ function Login() {
             )}
 
             {/* Turnstile Captcha */}
-            <div className="flex justify-center mt-2">
-              <Turnstile
-                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || ""}
-                onSuccess={(token) => setCaptchaToken(token)}
-                onExpire={() => setCaptchaToken(null)}
-                onError={() => setCaptchaToken(null)}
-                options={{ theme: "dark" }}
-              />
-            </div>
+            {import.meta.env.VITE_TURNSTILE_SITE_KEY && (
+              <div className="flex justify-center mt-2">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                  onSuccess={(token) => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken(null)}
+                  onError={() => setCaptchaToken(null)}
+                  options={{ theme: "dark" }}
+                />
+              </div>
+            )}
 
             {/* Sign In Button */}
             <button

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../services/supabase";
@@ -8,7 +8,7 @@ import leftPanelBg from "../assets/Signup Left.png";
 import logo from "../assets/Deckly.png";
 import { Button } from "../components/ui/button";
 import { FormInput } from "../components/ui/form-input";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 function Signup() {
   const [email, setEmail] = useState("");
@@ -18,6 +18,7 @@ function Signup() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -68,6 +69,9 @@ function Signup() {
       posthog.capture("user_signup_failed", { method: "email", error: rawMessage });
     } finally {
       setLoading(false);
+      // Reset Turnstile on every attempt finish (especially on error)
+      setCaptchaToken(null);
+      turnstileRef.current?.reset();
     }
   };
 
@@ -302,15 +306,18 @@ function Signup() {
                   </div>
                 )}
 
-                <div className="mt-4 flex justify-center">
-                  <Turnstile
-                    siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || ""}
-                    onSuccess={(token) => setCaptchaToken(token)}
-                    onExpire={() => setCaptchaToken(null)}
-                    onError={() => setCaptchaToken(null)}
-                    options={{ theme: "dark" }}
-                  />
-                </div>
+                {import.meta.env.VITE_TURNSTILE_SITE_KEY && (
+                  <div className="mt-4 flex justify-center">
+                    <Turnstile
+                      ref={turnstileRef}
+                      siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                      onSuccess={(token) => setCaptchaToken(token)}
+                      onExpire={() => setCaptchaToken(null)}
+                      onError={() => setCaptchaToken(null)}
+                      options={{ theme: "dark" }}
+                    />
+                  </div>
+                )}
 
                 <div className="mt-4">
                   <Button
