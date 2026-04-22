@@ -373,6 +373,6 @@ entrypoint = "./functions/delete-account/index.ts"
 
 [functions.sign-deck-url]
 enabled = true
-verify_jwt = true
+verify_jwt = false  # Function implements its own auth via get_deck_payload re-validation
 import_map = "./functions/deno.json"
 entrypoint = "./functions/sign-deck-url/index.ts"

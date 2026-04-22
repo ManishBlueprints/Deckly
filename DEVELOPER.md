@@ -49,11 +49,14 @@ npm install
 npm run dev
 ```
 
-### Supabase Development
-
 Deckly uses the **Supabase CLI** for a robust, version-controlled database workflow. This ensures consistency between local development and production.
 
-#### Local Infrastructure
+#### 100% CLI-First Mandate
+
+> [!IMPORTANT]
+> **NEVER** edit the database schema directly in the Supabase Dashboard SQL Editor for features intended for the repository. The CLI is the exclusive source of truth.
+
+#### Local Infrastructure & One-Click Setup
 
 To start the local database, auth, and storage services:
 
@@ -61,17 +64,18 @@ To start the local database, auth, and storage services:
 npx supabase start
 ```
 
-This automatically applies all migrations in `supabase/migrations/` and prepares the local environment.
+This uses the consolidated **`00000000000000_initial_schema.sql`** baseline to prepare a production-ready environment in one click. To wipe and re-sync your local state to the latest baseline:
+
+```bash
+npx supabase db reset
+```
 
 #### Schema Changes
 
-> [!IMPORTANT]
-> **NEVER** edit the database schema directly in the Supabase Dashboard SQL Editor for features intended for the repository.
-> Always use the CLI to maintain a consistent history for all contributors.
-
 1. **Create a new migration**: `npx supabase migration new your_feature_name`
-2. **Apply to local DB**: The CLI will automatically detect the new file or you can run `npx supabase db reset` to re-sync.
-3. **Verify locally**: Ensure your changes work with the app before pushing.
+2. **Author SQL**: Write your DDL/DML in the generated file in `supabase/migrations/`.
+3. **Apply locally**: Run `npx supabase db reset` to verify the migration executes correctly.
+4. **Verify**: Ensure the application functions as expected with the new schema.
 
 #### Database Branching & Deployment
 
@@ -88,9 +92,9 @@ This pushes your locally verified migrations to the linked production project.
    cp .env.example .env.local
    ```
 2. Set the required environment variables:
-   - `VITE_SUPABASE_URL`: Your Supabase project URL (found in Project Settings > API).
-   - `VITE_SUPABASE_PUBLISHABLE_KEY`: Your Supabase publishable key (found in Project Settings > API).
-   - `PROJECT_SECRET_KEY`: (Server-side/Edge Functions) Your Supabase secret key.
+   - `VITE_SUPABASE_URL`: Your Supabase project URL.
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`: Your Supabase publishable key (browser-safe).
+   - `PROJECT_SECRET_KEY`: (Server-side/Edge Functions) Your project's service_role or secret key. Used by Edge Functions to authorize owner-mode operations (like signed URL generation) without exposing the key to the browser.
    - `VITE_POSTHOG_KEY`: (Optional) Your PostHog project API key.
    - `VITE_POSTHOG_HOST`: (Optional) Your PostHog host (e.g., `https://app.posthog.com`).
 
