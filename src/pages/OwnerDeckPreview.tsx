@@ -1,17 +1,46 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertCircle, ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  AlertCircle,
+  Bookmark,
+  BookmarkCheck,
+  Check,
+  MessageSquareText,
+} from "lucide-react";
 import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
 import DeckViewer from "../components/viewer/DeckViewer";
+import { AuthModal } from "../components/auth/AuthModal";
+import { NotesSidebar } from "../components/viewer/NotesSidebar";
 import { deckService } from "../services/deckService";
+import { supabase } from "../services/supabase";
+import { useAuth } from "../contexts/AuthContext";
 import { Deck } from "../types";
+import {
+  useIsDeckSaved,
+  useSaveToLibraryMutation,
+} from "../hooks/useViewerQueries";
 
 function OwnerDeckPreview() {
   const { deckId } = useParams<{ deckId: string }>();
+  const { session } = useAuth();
   const [deck, setDeck] = useState<Deck | null>(null);
+  const [viewerEmail, setViewerEmail] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+
+  useEffect(() => {
+    if (session?.user?.email) {
+      setViewerEmail(session.user.email);
+    } else {
+      setViewerEmail(undefined);
+    }
+  }, [session]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -32,6 +61,28 @@ function OwnerDeckPreview() {
         const data = await deckService.getDeckById(deckId);
         if (controller.signal.aborted) return;
         setDeck(data);
+
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
+        const userIsOwner = currentSession?.user?.id === data.user_id;
+        setIsOwner(userIsOwner);
+
+        if (userIsOwner) {
+          const fullDeck = await deckService.getDeckById(data.id);
+          if (controller.signal.aborted) return;
+          setDeck(fullDeck);
+        } else if (!data.require_email && !data.require_password) {
+          try {
+            const payload = await deckService.getDeckPayload(data.slug);
+            const resolvedPayload = payload.signed_url
+              ? { ...payload, file_url: payload.signed_url, expires_in: payload.expires_in }
+              : payload;
+            setDeck({ ...data, ...resolvedPayload });
+          } catch {
+            throw new Error("Failed to load document content.");
+          }
+        }
       } catch (err: unknown) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         if (controller.signal.aborted) return;
@@ -44,6 +95,47 @@ function OwnerDeckPreview() {
     loadDeck();
     return () => controller.abort();
   }, [deckId]);
+
+  const { data: isSaved = false } = useIsDeckSaved(deck?.id, session?.user?.id);
+  const saveToLibraryMutation = useSaveToLibraryMutation(session?.user?.id);
+
+  useEffect(() => {
+    if (session && deck) {
+      const pendingDeckId = localStorage.getItem("pending_save_deck_id");
+      if (pendingDeckId === deck.id) {
+        localStorage.removeItem("pending_save_deck_id");
+        if (!isSaved) {
+          saveToLibraryMutation.mutate({ deckId: deck.id, save: true });
+          setShowSuccessToast(true);
+          setTimeout(() => setShowSuccessToast(false), 3000);
+        }
+      }
+
+      if (isSaved) {
+        deckService.updateLibraryLastViewed(deck.id);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, deck?.id, isSaved]);
+
+  const handleSave = async () => {
+    if (!deck) return;
+
+    if (!session) {
+      localStorage.setItem("pending_save_deck_id", deck.id);
+      setShowAuthModal(true);
+      return;
+    }
+
+    const nextSaveState = !isSaved;
+
+    if (nextSaveState) {
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
+    }
+
+    saveToLibraryMutation.mutate({ deckId: deck.id, save: nextSaveState });
+  };
 
   return (
     <div className="fixed inset-0 bg-[#0d0d0d] flex flex-col items-stretch overflow-hidden">
@@ -61,7 +153,7 @@ function OwnerDeckPreview() {
               <div className="absolute inset-0 w-12 h-12 rounded-full border-t-2 border-deckly-primary animate-spin" />
             </div>
             <p className="text-slate-500 text-xs font-semibold tracking-wider">
-              Loading Private Preview...
+              Loading Presentation...
             </p>
           </motion.div>
         ) : error || !deck ? (
@@ -103,28 +195,86 @@ function OwnerDeckPreview() {
                   <span className="text-xs font-semibold">Back to Content</span>
                 </div>
               </Link>
+
+              <button
+                onClick={handleSave}
+                disabled={saveToLibraryMutation.isPending}
+                className={`flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 border transition-all active:scale-95 rounded-md ${
+                  isSaved
+                    ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
+                    : "bg-[#111] border-[#333] text-slate-400 hover:text-white"
+                }`}
+              >
+                {isSaved ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+                <span className="text-xs font-semibold">
+                  {saveToLibraryMutation.isPending
+                    ? "Saving..."
+                    : isSaved
+                      ? "Saved"
+                      : "Save"}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setIsNotesOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] text-slate-400 hover:text-white transition-all rounded-md active:scale-95"
+              >
+                <MessageSquareText size={16} />
+                <span className="text-xs font-semibold">Notes</span>
+              </button>
             </div>
 
             <div className="flex-1 w-full relative min-h-0">
-              {deck.status === "PENDING" || deck.status === "CONVERTING" ? (
-                <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-[#0d0d0d]">
-                  <div className="w-12 h-12 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin mb-6" />
-                  <h2 className="text-xl font-bold text-white mb-2">
-                    {deck.status === "CONVERTING" ? "Converting Content" : "Preparing Deck"}
-                  </h2>
-                  <p className="text-slate-400 text-sm max-w-sm">
-                    {deck.status === "CONVERTING"
-                      ? "The server is converting this document into an interactive experience."
-                      : "This deck is still being prepared for preview."}
-                  </p>
-                </div>
-              ) : deck.display_mode === "interactive" ||
-                (Array.isArray(deck.pages) && deck.pages.length > 0) ? (
-                <ImageDeckViewer deck={deck} isOwner />
+              {deck.display_mode === "interactive" || (Array.isArray(deck.pages) && deck.pages.length > 0) ? (
+                (deck.status === "PENDING" || deck.status === "CONVERTING") ? (
+                  <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-[#0d0d0d]">
+                    <div className="w-12 h-12 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin mb-6" />
+                    <h2 className="text-xl font-bold text-white mb-2">
+                      {deck.status === "CONVERTING" ? "Converting Content" : "Preparing Deck"}
+                    </h2>
+                    <p className="text-slate-400 text-sm max-w-sm">
+                      {deck.status === "CONVERTING"
+                        ? "The server is currently converting your document into an interactive experience. This usually takes less than a minute."
+                        : "We're setting up the interactive experience for this pitch deck. Please wait a moment while we prepare the slides."}
+                    </p>
+                  </div>
+                ) : (
+                  <ImageDeckViewer deck={deck} viewerEmail={viewerEmail} isOwner={isOwner} />
+                )
               ) : (
-                <DeckViewer deck={deck} isOwner />
+                <DeckViewer deck={deck} isOwner={isOwner} viewerEmail={viewerEmail} />
               )}
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} redirectTo={window.location.href} />
+
+      {deck && (
+        <NotesSidebar
+          isOpen={isNotesOpen}
+          onClose={() => setIsNotesOpen(false)}
+          deckId={deck.id}
+          onRequireAuth={() => {
+            setIsNotesOpen(false);
+            setShowAuthModal(true);
+          }}
+        />
+      )}
+
+      <AnimatePresence>
+        {showSuccessToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 px-5 py-3 bg-[#111] border border-[#333] text-white rounded-lg shadow-2xl"
+          >
+            <div className="w-6 h-6 bg-deckly-primary/10 border border-deckly-primary/20 rounded-full flex items-center justify-center text-deckly-primary">
+              <Check size={14} strokeWidth={3} />
+            </div>
+            <span className="text-sm font-medium">Saved</span>
           </motion.div>
         )}
       </AnimatePresence>

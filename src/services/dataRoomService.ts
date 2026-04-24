@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
-import { DataRoom, DataRoomDocument, Deck } from "../types";
+import { DataRoom, DataRoomDocument, DataRoomTag, Deck } from "../types";
 import { withRetry } from "../utils/resilience";
 import { extractStoragePath } from "./deckService.shared";
 
@@ -150,6 +150,47 @@ export const dataRoomService = {
         ...d,
         deck: d.deck || undefined,
       })) as DataRoomDocument[];
+
+      if (documents.length > 0) {
+        const documentIds = documents.map((doc) => doc.id);
+        const { data: tagLinksData, error: tagLinksError } = await supabase
+          .from("data_room_document_tags")
+          .select("document_id, tag_id")
+          .in("document_id", documentIds);
+
+        if (tagLinksError) throw tagLinksError;
+
+        const tagLinks = (tagLinksData || []) as { document_id: string; tag_id: string }[];
+        const tagIds = [...new Set(tagLinks.map((link) => link.tag_id))];
+        const tagsById = new Map<string, DataRoomTag>();
+
+        if (tagIds.length > 0) {
+          const { data: tagsData, error: tagsError } = await supabase
+            .from("data_room_tags")
+            .select("*")
+            .in("id", tagIds);
+
+          if (tagsError) throw tagsError;
+
+          (tagsData || []).forEach((tag) => {
+            const typedTag = tag as DataRoomTag;
+            tagsById.set(typedTag.id, typedTag);
+          });
+        }
+
+        const tagsByDocument = new Map<string, DataRoomTag[]>();
+        tagLinks.forEach((link) => {
+          const tag = tagsById.get(link.tag_id);
+          if (!tag) return;
+          const current = tagsByDocument.get(link.document_id) || [];
+          current.push(tag);
+          tagsByDocument.set(link.document_id, current);
+        });
+
+        documents.forEach((doc) => {
+          doc.tags = tagsByDocument.get(doc.id) || [];
+        });
+      }
 
       // Hydrate signed URLs only when explicitly requested
       if (options?.signUrls) {

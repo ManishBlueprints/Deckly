@@ -908,6 +908,16 @@ function ManageDataRoom() {
                   name: folder.name,
                 }))}
                 onMoveToFolder={handleMoveDocumentToFolder}
+                availableTags={isEditMode ? tags : []}
+                onUpdateDocumentTags={
+                  isEditMode
+                    ? async (deckId, tagIds) => {
+                        if (!roomId) return;
+                        await folderActions.setDocumentTags(deckId, tagIds);
+                        await refreshDocuments();
+                      }
+                    : undefined
+                }
               />
             )}
           </div>

@@ -4,6 +4,7 @@ import { Check, Loader2, Plus, X } from "lucide-react";
 import { DataRoomTag } from "../../types";
 import {
   DEFAULT_FOLDER_COLOR,
+  FOLDER_PICKER_COLORS,
   FOLDER_COLORS,
   FolderColorKey,
 } from "../../constants/folderColors";
@@ -171,7 +172,7 @@ export function DataRoomFolderModal({
                       FOLDER IDENTITY
                     </label>
                     <div className="flex items-center gap-3 ml-1">
-                      {FOLDER_COLORS.map((color) => (
+                      {FOLDER_PICKER_COLORS.map((color) => (
                         <button
                           key={color.key}
                           type="button"
@@ -193,17 +194,9 @@ export function DataRoomFolderModal({
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
-                        ADD TAGS
-                      </label>
-                      <span className="text-[10px] font-semibold text-[#bbcbbb]/40">
-                        {selectedTagIds.length}/{MAX_TAGS_PER_FOLDER}
-                      </span>
-                    </div>
-                    <p className="text-[#bbcbbb]/50 text-xs leading-relaxed font-medium">
-                      Tags stay owner-only and are limited to 4 per folder.
-                    </p>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
+                      ADD TAGS
+                    </label>
 
                     <div className="flex flex-wrap gap-2 mb-3">
                       {selectedTags.map((tag) => {

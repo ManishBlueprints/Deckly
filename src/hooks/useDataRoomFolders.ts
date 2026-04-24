@@ -127,6 +127,11 @@ export function useDataRoomFolders(roomId?: string) {
       ),
   });
 
+  const setDocumentTagsMutation = useMutation({
+    mutationFn: (input: { documentId: string; tagIds: string[] }) =>
+      dataRoomFolderService.setDocumentTags(input.documentId, input.tagIds),
+  });
+
   return {
     folders: (foldersQuery.data ?? []) as DataRoomFolderWithTags[],
     tags: (tagsQuery.data ?? []) as DataRoomTag[],
@@ -163,6 +168,8 @@ export function useDataRoomFolders(roomId?: string) {
         documentIds: string[],
         folderId: string | null,
       ) => bulkMoveDocumentsMutation.mutateAsync({ documentIds, folderId }),
+      setDocumentTags: (documentId: string, tagIds: string[]) =>
+        setDocumentTagsMutation.mutateAsync({ documentId, tagIds }),
       refetch: async () => {
         await Promise.all([foldersQuery.refetch(), tagsQuery.refetch()]);
       },

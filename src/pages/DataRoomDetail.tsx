@@ -1,27 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  Plus,
-  FileText,
-  Calendar,
-  Link as LinkIcon,
-  Copy,
-  Check,
-  Pencil,
-  Trash2,
-  ExternalLink,
-  EyeOff,
-  Users,
-  Loader2,
-  Monitor,
-  FolderOpen,
-} from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DocumentPicker } from "../components/dashboard/DocumentPicker";
 import { DataRoom, DataRoomDocument } from "../types";
-import { cn } from "@/lib/utils";
 import { dataRoomService } from "../services/dataRoomService";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
 import { deckService } from "../services/deckService";
@@ -31,14 +14,18 @@ import {
   getRoomVisitorSignals,
   VisitorSignal,
 } from "../services/interestSignalService";
-import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
 import { getDataRoomPreviewPath, getDataRoomShareUrl } from "../utils/url";
 import { useDataRoomFolders } from "../hooks/useDataRoomFolders";
 import { DataRoomFolderModal } from "../components/data-room/DataRoomFolderModal";
 import { DataRoomTagsModal } from "../components/data-room/DataRoomTagsModal";
-import { DataRoomFolderCard } from "../components/data-room/DataRoomFolderCard";
 import { FolderColorKey } from "../constants/folderColors";
-import { DataRoomFolderWithTags } from "../types";
+import { DataRoomFolderWithTags, DataRoomTag } from "../types";
+import { DataRoomDetailHeader } from "../components/data-room/detail/DataRoomDetailHeader";
+import { DataRoomDetailTabs, DataRoomDetailTab } from "../components/data-room/detail/DataRoomDetailTabs";
+import { DataRoomContentToolbar } from "../components/data-room/detail/DataRoomContentToolbar";
+import { DataRoomFolderStrip } from "../components/data-room/detail/DataRoomFolderStrip";
+import { DataRoomAnalyticsPanel } from "../components/data-room/detail/DataRoomAnalyticsPanel";
+import { DataRoomSettingsPanel } from "../components/data-room/detail/DataRoomSettingsPanel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,15 +36,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
-
-/* ───────── helpers ───────── */
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 /* ───────── main page ───────── */
 function DataRoomDetail() {
@@ -90,6 +68,9 @@ function DataRoomDetail() {
     useState<DataRoomFolderWithTags | null>(null);
   const [isFolderDeletePending, setIsFolderDeletePending] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<DataRoomDetailTab>("content");
+  const [contentSearch, setContentSearch] = useState("");
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isUpdatingShareState, setIsUpdatingShareState] = useState(false);
@@ -105,6 +86,22 @@ function DataRoomDetail() {
     }
     return counts;
   }, [documents]);
+
+  const visibleDocuments = useMemo(() => {
+    const query = contentSearch.trim().toLowerCase();
+    return documents.filter((doc) => {
+      const matchesSearch = !query || doc.deck?.title?.toLowerCase().includes(query);
+      const matchesFolder = activeFolderId
+        ? doc.folder_id === activeFolderId
+        : !doc.folder_id;
+      return matchesSearch && matchesFolder;
+    });
+  }, [activeFolderId, contentSearch, documents]);
+
+  const workspaceHandle = profile?.handle;
+  const shareUrlLabel = workspaceHandle
+    ? `/${workspaceHandle}/room/${room?.slug ?? ""}`
+    : "Set handle in profile to share";
 
   /* ── load data ── */
   // useCallback is used here to memoize the loading of room data, documents, and analytics
@@ -283,8 +280,62 @@ function DataRoomDetail() {
     }));
   };
 
+  const handleMoveDocumentToFolder = useCallback(
+    async (documentId: string, folderId: string | null) => {
+      if (!roomId) return;
+
+      const previousDocuments = documents;
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === documentId ? { ...doc, folder_id: folderId } : doc,
+        ),
+      );
+
+      try {
+        await folderActions.moveDocumentToFolder(documentId, folderId);
+        queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
+      } catch (err) {
+        setDocuments(previousDocuments);
+        console.error("Failed to move document to folder", err);
+        toast.error(
+          err instanceof Error ? err.message : "Failed to move document.",
+        );
+      }
+    },
+    [documents, folderActions, queryClient, roomId],
+  );
+
+  const handleUpdateDocumentTags = useCallback(
+    async (documentId: string, tagIds: string[]) => {
+      const previousDocuments = documents;
+      const selectedTags = tags.filter((tag) => tagIds.includes(tag.id));
+
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === documentId ? { ...doc, tags: selectedTags } : doc,
+        ),
+      );
+
+      try {
+        await folderActions.setDocumentTags(documentId, tagIds);
+        queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
+      } catch (err) {
+        setDocuments(previousDocuments);
+        console.error("Failed to update document tags", err);
+        toast.error(
+          err instanceof Error ? err.message : "Failed to update tags.",
+        );
+      }
+    },
+    [documents, folderActions, queryClient, tags],
+  );
+
   const handleReorderDocuments = async (orderedDeckIds: string[]) => {
     if (!roomId) return;
+    if (contentSearch.trim()) {
+      toast.info("Clear search to reorder documents");
+      return;
+    }
     setDocuments((prev) => {
       const newDocs = [...prev];
       newDocs.sort(
@@ -330,394 +381,136 @@ function DataRoomDetail() {
   return (
     <DashboardLayout title="Data Rooms" showFab={false}>
       <div className="space-y-6 pb-12">
-        {/* ── HEADER BAR ── */}
-        <div className="relative bg-surface-card border border-[#222] rounded-lg overflow-hidden shadow-sm">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6 p-6">
-            {/* Back */}
-            <button
-              onClick={() => navigate("/rooms")}
-              className="w-10 h-10 rounded-md bg-surface-lowest border border-white/5 flex items-center justify-center text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 transition-all shadow-sm shrink-0"
-              title="Back to Rooms"
-            >
-              <ArrowLeft size={16} />
-            </button>
+        <DataRoomDetailHeader
+          room={room}
+          isPublic={!!room.is_public}
+          copied={copied}
+          isUpdatingShareState={isUpdatingShareState}
+          onCopyLink={() => void handleCopyLink()}
+          onOpenPreview={() =>
+            window.open(
+              getDataRoomPreviewPath(room.id),
+              "_blank",
+              "noopener,noreferrer",
+            )
+          }
+        />
 
-            {/* Room Info */}
-            <div className="flex items-center gap-4 flex-1">
-              <div className="w-10 h-10 rounded-md bg-background border border-[#333] flex items-center justify-center shrink-0 overflow-hidden">
-                {room.icon_url ? (
-                  <img
-                    src={room.icon_url}
-                    alt={room.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Monitor size={18} className="text-slate-500" />
-                )}
-              </div>
+        <DataRoomDetailTabs activeTab={activeTab} onChange={setActiveTab} />
 
-              <div className="flex-1 min-w-0">
+        {activeTab === "content" && (
+          <div className="space-y-8">
+            <DataRoomContentToolbar
+              onNewDeck={() => navigate(`/upload?returnToRoom=${roomId}`)}
+              onAddExisting={() => setPickerOpen(true)}
+              onNewFolder={() => {
+                setEditingFolder(null);
+                setFolderModalOpen(true);
+              }}
+              onEditTags={() => setTagModalOpen(true)}
+              search={contentSearch}
+              onSearchChange={setContentSearch}
+            />
+
+            <DataRoomFolderStrip
+              folders={folders}
+              folderDocumentCounts={folderDocumentCounts}
+              loading={foldersLoading}
+              activeFolderId={activeFolderId}
+              onSelectFolder={setActiveFolderId}
+              onCreateFolder={() => {
+                setEditingFolder(null);
+                setFolderModalOpen(true);
+              }}
+              onEditFolder={(nextFolder) => {
+                setEditingFolder(nextFolder);
+                setFolderModalOpen(true);
+              }}
+              onDeleteFolder={(nextFolder) => setDeletingFolder(nextFolder)}
+            />
+
+            <div className="rounded-2xl border border-white/5 bg-[#111] overflow-hidden">
+              <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
                 <div className="flex items-center gap-3">
-                  <h1 className="text-lg font-semibold text-white tracking-tight truncate">
-                    {room.name}
-                  </h1>
-                  <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-                    {room.require_email && (
-                      <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[10px] font-medium text-blue-400">
-                        Email Required
-                      </span>
-                    )}
-                    {room.require_password && (
-                      <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 rounded text-[10px] font-medium text-purple-400">
-                        Password Gate
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {room.description && (
-                  <p className="text-xs text-slate-500 mt-0.5 max-w-xl line-clamp-1">
-                    {room.description}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => void handleCopyLink()}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all active:scale-95",
-                  copied
-                    ? "bg-green-500 text-white"
-                    : "bg-deckly-primary text-slate-950 hover:opacity-90",
-                )}
-                disabled={isUpdatingShareState}
-              >
-                {copied ? <Check size={16} /> : <Copy size={16} />}
-                <span>{copied ? "Copied!" : "Copy Link"}</span>
-              </button>
-
-              <button
-                onClick={() =>
-                  window.open(
-                    getDataRoomPreviewPath(room.id),
-                    "_blank",
-                    "noopener,noreferrer",
-                  )
-                }
-                className="p-2 bg-surface-low border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"
-                title="Open private preview"
-              >
-                <ExternalLink size={18} />
-              </button>
-
-              {room.is_public && (
-                <button
-                  onClick={() => void handleMakePrivate()}
-                  disabled={isUpdatingShareState}
-                  className="p-2 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
-                  title="Disable public link"
-                >
-                  <EyeOff size={18} />
-                </button>
-              )}
-
-              <button
-                onClick={() => navigate(`/rooms/${roomId}/edit`)}
-                className="p-2 bg-surface-low border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95"
-                title="Edit Details"
-              >
-                <Pencil size={18} />
-              </button>
-
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="p-2 bg-red-500/10 border border-red-500/20 rounded-md text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95"
-                title="Delete Room"
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── STATS BAR ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            icon={<FileText size={16} />}
-            label="Internal Assets"
-            value={documents.length}
-          />
-          <StatCard
-            icon={<Users size={16} />}
-            label="Total Visitors"
-            value={analytics.totalVisitors}
-          />
-          <StatCard
-            icon={<Calendar size={16} />}
-            label="Created On"
-            value={formatDate(room.created_at)}
-          />
-          <div className="p-4 bg-surface-card border border-[#222] rounded-lg group transition-all">
-            <div className="flex items-center gap-2 text-slate-500 mb-1 group-hover:text-deckly-primary transition-colors">
-              <LinkIcon size={14} />
-              <span className="text-[10px] font-medium">Access Link</span>
-            </div>
-            <p className="text-xs font-medium text-slate-300 truncate">
-              {profile?.handle
-                ? `/${profile.handle}/room/${room.slug}`
-                : "Set handle in profile to share"}
-            </p>
-            <p className="text-[10px] text-slate-500 mt-1">
-              {room.is_public
-                ? "Public link active"
-                : "Private until you copy the link"}
-            </p>
-          </div>
-        </div>
-
-        {/* ── MAIN: 2-col on large screens ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* LEFT: Folders + Room Assets (3/5) */}
-          <div className="lg:col-span-3 space-y-4 h-full flex flex-col">
-            <div className="space-y-8">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 h-1 bg-[#54e98a] rounded-full" />
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
-                      Active Folders
-                    </h2>
-                    <span className="text-[10px] font-medium bg-surface-low text-slate-500 px-2 py-0.5 rounded-full border border-[#222]">
-                      {folders.length}
+                  <FileText size={14} className="text-slate-400" />
+                  <h2 className="text-lg font-semibold text-[#e5e2e1]">
+                    {activeFolderId ? folders.find((folder) => folder.id === activeFolderId)?.name ?? "Documents / Decks" : "Unorganized Documents"}
+                  </h2>
+                    <span className="inline-flex items-center rounded-full border border-white/5 bg-white/5 px-2.5 py-0.5 text-[10px] font-bold text-slate-400">
+                      {visibleDocuments.length}
                     </span>
-                  </div>
                 </div>
-
-                <button
-                  onClick={() => {
-                    setEditingFolder(null);
-                    setFolderModalOpen(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#54e98a] text-[#003919] rounded-md text-xs font-semibold hover:bg-[#54e98a]/90 transition-all active:scale-95"
-                >
-                  <FolderOpen size={13} /> New Folder
-                </button>
               </div>
-
-              {foldersLoading ? (
-                <div className="bg-surface-card border border-[#222] rounded-lg p-6 text-center text-xs text-slate-500">
-                  Loading folders...
-                </div>
-              ) : folders.length === 0 ? (
-                <div className="bg-surface-card border border-white/5 p-8 flex flex-col items-center gap-4 text-center">
-                  <div className="w-20 h-20 bg-surface-card flex items-center justify-center text-[#54e98a]/20 border border-white/5">
-                    <FolderOpen size={32} />
+              {visibleDocuments.length === 0 ? (
+                <div className="py-20 flex flex-col items-center gap-3 text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-600">
+                    <FileText size={22} />
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-[#bbcbbb]/40 font-bold">
-                      No folders yet
-                    </p>
-                    <p className="text-xs text-[#bbcbbb]/30 leading-relaxed">
-                      Create a folder to organize room assets.
-                    </p>
-                  </div>
+                  <p className="text-sm font-bold text-slate-400">
+                    {documents.length === 0
+                      ? "No assets yet"
+                      : "No matching assets"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {documents.length === 0
+                      ? "Add decks to gate them inside this room."
+                      : "Clear your search to see everything again."}
+                  </p>
                   <button
-                    onClick={() => {
-                      setEditingFolder(null);
-                      setFolderModalOpen(true);
-                    }}
-                    className="px-8 py-3 bg-[#54e98a] text-[#003919] font-bold text-sm tracking-tight flex items-center gap-2 hover:shadow-[0_0_20px_rgba(84,233,138,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    onClick={() => navigate(`/upload?returnToRoom=${roomId}`)}
+                    className="mt-2 rounded-xl bg-[#54e98a] px-5 py-3 text-sm font-bold text-[#003919] transition-all hover:opacity-90"
                   >
-                    <Plus size={16} /> Create Folder
+                    New Deck
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <DataRoomFolderCard
-                    isNew
-                    onClick={() => {
-                      setEditingFolder(null);
-                      setFolderModalOpen(true);
-                    }}
+                <div className="p-4">
+                  <RoomDocumentList
+                    documents={visibleDocuments}
+                    onRemove={handleRemoveDocument}
+                    onReorder={handleReorderDocuments}
+                    folderOptions={folders.map((folder) => ({
+                      id: folder.id,
+                      name: folder.name,
+                    }))}
+                    onMoveToFolder={handleMoveDocumentToFolder}
+                    availableTags={tags}
+                    onUpdateDocumentTags={handleUpdateDocumentTags}
+                    onViewAnalytics={(deckId) =>
+                      navigate(`/analytics/${deckId}`)
+                    }
+                    onEditDeck={(deckId) => navigate(`/edit/${deckId}`)}
+                    signedThumbnails={signedThumbnails}
                   />
-                  {folders.map((folder) => (
-                    <DataRoomFolderCard
-                      key={folder.id}
-                      folder={folder}
-                      documentCount={folderDocumentCounts.get(folder.id) || 0}
-                      onEdit={(nextFolder) => {
-                        setEditingFolder(nextFolder);
-                        setFolderModalOpen(true);
-                      }}
-                      onDelete={(nextFolder) => setDeletingFolder(nextFolder)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-3 min-h-[72px] justify-between">
-              <div className="flex items-center gap-2">
-                <FileText size={14} className="text-deckly-primary" />
-                <h2 className="text-xs font-semibold text-slate-400">
-                  Room Assets
-                </h2>
-                <span className="text-[10px] font-medium bg-surface-low text-slate-500 px-2 py-0.5 rounded-full border border-[#222]">
-                  {documents.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 justify-end">
-                <button
-                  onClick={() => setFolderModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-low border border-[#333] rounded-md text-xs font-medium text-slate-400 hover:text-white hover:border-[#444] transition-all active:scale-95"
-                >
-                  <FolderOpen size={13} /> New Folder
-                </button>
-                <button
-                  onClick={() => setTagModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-low border border-[#333] rounded-md text-xs font-medium text-slate-400 hover:text-white hover:border-[#444] transition-all active:scale-95"
-                >
-                  <Plus size={13} /> Edit Tags
-                </button>
-                <button
-                  onClick={() => setPickerOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-low border border-[#333] rounded-md text-xs font-medium text-slate-400 hover:text-white hover:border-[#444] transition-all active:scale-95"
-                >
-                  <Plus size={13} /> Add Existing
-                </button>
-                <button
-                  onClick={() => navigate(`/upload?returnToRoom=${roomId}`)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-deckly-primary text-slate-950 rounded-md text-xs font-semibold hover:bg-deckly-primary/90 transition-all active:scale-95"
-                >
-                  <Plus size={13} /> New Deck
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-surface-card border border-[#222] rounded-lg overflow-hidden flex-1">
-              {documents.length === 0 ? (
-                <div className="py-12 flex flex-col items-center gap-3 text-center">
-                  <div className="w-12 h-12 rounded-lg bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-slate-600">
-                    <FileText size={20} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-500">
-                      No assets yet
-                    </p>
-                    <p className="text-[10px] text-slate-600 mt-1 uppercase tracking-widest">
-                      Add decks to gate them inside this room
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setPickerOpen(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-deckly-primary text-slate-950 rounded-md text-xs font-semibold hover:bg-deckly-primary/90 transition-all"
-                  >
-                    <Plus size={13} /> Add a Deck
-                  </button>
-                </div>
-              ) : (
-                <RoomDocumentList
-                  documents={documents}
-                  onRemove={handleRemoveDocument}
-                  onReorder={handleReorderDocuments}
-                  signedThumbnails={signedThumbnails}
-                />
-              )}
-            </div>
-          </div>
-
-          {/* RIGHT: Visitor Signals (2/5) */}
-          <div className="lg:col-span-2 space-y-4 h-full flex flex-col">
-            <div className="flex items-center justify-between min-h-[72px]">
-              <div className="flex items-center gap-2">
-                <Users size={14} className="text-deckly-primary" />
-                <h2 className="text-xs font-semibold text-slate-400">
-                  Visitor Signals
-                </h2>
-              </div>
-              {roomSignals.length > 0 && (
-                <span className="text-[10px] font-medium bg-deckly-primary/10 text-deckly-primary px-2 py-0.5 rounded-full border border-deckly-primary/20">
-                  {roomSignals.length} Viewer
-                  {roomSignals.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-
-            <div className="bg-surface-card border border-[#222] rounded-lg overflow-hidden flex-1">
-              {signalsLoading ? (
-                <div className="py-12 flex flex-col items-center gap-4 text-slate-600">
-                  <div className="w-8 h-8 border-2 border-white/5 border-t-deckly-primary rounded-full animate-spin" />
-                  <p className="text-[9px] font-bold uppercase tracking-widest">
-                    Gathering signals…
-                  </p>
-                </div>
-              ) : roomSignals.length === 0 ? (
-                <div className="py-12 flex flex-col items-center gap-3 text-center px-6">
-                  <div className="w-12 h-12 rounded-lg bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-slate-600">
-                    <Users size={20} />
-                  </div>
-                  <p className="text-sm font-semibold text-slate-500">
-                    No visitors yet
-                  </p>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Signals appear when investors view assets in this room
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-[#222]">
-                  {roomSignals.map((visitor, idx) => (
-                    <div
-                      key={visitor.visitorId}
-                      className="p-4 hover:bg-surface-high transition-colors"
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center shrink-0">
-                          <span className="text-[10px] font-semibold text-deckly-primary uppercase">
-                            V{idx + 1}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-slate-200 truncate">
-                            {visitor.viewerEmail || "Anonymous Viewer"}
-                          </p>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            <span className="text-[10px] text-slate-600 font-medium">
-                              {visitor.totalVisits} visits
-                            </span>
-                            <span className="text-[10px] text-slate-600 font-medium">
-                              {visitor.totalTime}s
-                            </span>
-                          </div>
-                        </div>
-                        {/* Intensity blocks */}
-                        <div className="flex gap-1">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <div
-                              key={i}
-                              className={cn(
-                                "w-1.5 h-3 rounded-[1px]",
-                                i <= visitor.signals.length
-                                  ? "bg-deckly-primary/40"
-                                  : "bg-[#222]",
-                              )}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {visitor.signals.map((signal) => (
-                          <InterestSignalBadge key={signal} signal={signal} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
             </div>
           </div>
-        </div>
+        )}
+
+        {activeTab === "analytics" && (
+          <DataRoomAnalyticsPanel
+            totalVisitors={analytics.totalVisitors}
+            signalsLoading={signalsLoading}
+            roomSignals={roomSignals}
+          />
+        )}
+
+        {activeTab === "settings" && (
+          <DataRoomSettingsPanel
+            isPublic={!!room.is_public}
+            onTogglePublic={() => {
+              if (room.is_public) {
+                void handleMakePrivate();
+                return;
+              }
+              void handleCopyLink();
+            }}
+            onEditRoom={() => navigate(`/rooms/${roomId}/edit`)}
+            onDeleteRoom={() => setConfirmDelete(true)}
+            shareUrlLabel={shareUrlLabel}
+          />
+        )}
       </div>
 
       {/* ── Delete Confirmation ── */}
@@ -775,7 +568,7 @@ function DataRoomDetail() {
             ? {
                 name: editingFolder.name,
                 color: editingFolder.color as FolderColorKey,
-                tagIds: editingFolder.tags.map((tag) => tag.id),
+                tagIds: editingFolder.tags.map((tag: DataRoomTag) => tag.id),
               }
             : null
         }
@@ -831,24 +624,3 @@ function DataRoomDetail() {
 
 export default DataRoomDetail;
 
-/* ─────────── Sub-components ─────────── */
-
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="p-4 bg-surface-card border border-[#222] rounded-lg">
-      <div className="flex items-center gap-2 text-slate-500 mb-1">
-        {icon}
-        <span className="text-[10px] font-medium">{label}</span>
-      </div>
-      <p className="text-lg font-semibold text-white">{value}</p>
-    </div>
-  );
-}

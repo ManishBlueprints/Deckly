@@ -85,6 +85,11 @@ export interface DataRoomFolderTag {
   tag_id: string;
 }
 
+export interface DataRoomDocumentTag {
+  document_id: string;
+  tag_id: string;
+}
+
 export interface DataRoomFolderWithTags extends DataRoomFolder {
   tags: DataRoomTag[];
 }
@@ -180,6 +185,7 @@ export interface DataRoomDocument {
   display_order: number;
   added_at: string;
   deck?: Deck;
+  tags?: DataRoomTag[];
 }
 
 export type NotificationType =

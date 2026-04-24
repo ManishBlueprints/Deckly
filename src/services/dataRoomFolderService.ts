@@ -91,6 +91,11 @@ const normalizeTagIds = (tagIds?: string[]): string[] => {
   return deduped;
 };
 
+const normalizeDocumentTagIds = (tagIds?: string[]): string[] =>
+  Array.from(
+    new Set((tagIds || []).map((tagId) => tagId.trim()).filter(Boolean)),
+  );
+
 const assertFolderName = (name: string): string => {
   const trimmed = normalizeFolderName(name);
   if (!trimmed) {
@@ -364,7 +369,7 @@ const replaceFolderTags = async (
     );
   }
 
-  const dedupedTagIds = normalizeTagIds(tagIds);
+  const dedupedTagIds = normalizeDocumentTagIds(tagIds);
   if (dedupedTagIds.length === 0) {
     const { error } = await supabase
       .from("data_room_folder_tags")
@@ -420,6 +425,91 @@ const replaceFolderTags = async (
       await supabase.from("data_room_folder_tags").insert(
         (previousLinks.data as { tag_id: string }[]).map((link) => ({
           folder_id: folderId,
+          tag_id: link.tag_id,
+        })),
+      );
+    }
+    throw insertError;
+  }
+
+  return tagRows;
+};
+
+const replaceDocumentTags = async (
+  documentId: string,
+  tagIds: string[],
+  options: { userId: string; roomId: string },
+): Promise<DataRoomTag[]> => {
+  const { data: document, error: documentError } = await supabase
+    .from("data_room_documents")
+    .select("id, data_room_id")
+    .eq("id", documentId)
+    .maybeSingle();
+
+  if (documentError) throw documentError;
+  if (!document || document.data_room_id !== options.roomId) {
+    throw new DataRoomFolderServiceError(
+      "DOCUMENT_NOT_FOUND",
+      "Document not found.",
+    );
+  }
+
+  const dedupedTagIds = normalizeTagIds(tagIds);
+  if (dedupedTagIds.length === 0) {
+    const { error } = await supabase
+      .from("data_room_document_tags")
+      .delete()
+      .eq("document_id", documentId);
+    if (error) throw error;
+    return [];
+  }
+
+  const { data: tagsData, error: tagsError } = await supabase
+    .from("data_room_tags")
+    .select("*")
+    .eq("data_room_id", options.roomId)
+    .in("id", dedupedTagIds);
+
+  if (tagsError) throw tagsError;
+
+  const tagRows = (tagsData || []).map((tag) =>
+    asDataRoomTag(tag as Record<string, unknown>),
+  );
+  if (tagRows.length !== dedupedTagIds.length) {
+    throw new DataRoomFolderServiceError(
+      "TAG_NOT_FOUND",
+      "One or more tags were not found in this room.",
+    );
+  }
+
+  const previousLinks = await supabase
+    .from("data_room_document_tags")
+    .select("tag_id")
+    .eq("document_id", documentId);
+
+  if (previousLinks.error) throw previousLinks.error;
+
+  const { error: deleteError } = await supabase
+    .from("data_room_document_tags")
+    .delete()
+    .eq("document_id", documentId);
+
+  if (deleteError) throw deleteError;
+
+  const { error: insertError } = await supabase
+    .from("data_room_document_tags")
+    .insert(
+      dedupedTagIds.map((tagId) => ({
+        document_id: documentId,
+        tag_id: tagId,
+      })),
+    );
+
+  if (insertError) {
+    if (previousLinks.data && previousLinks.data.length > 0) {
+      await supabase.from("data_room_document_tags").insert(
+        (previousLinks.data as { tag_id: string }[]).map((link) => ({
+          document_id: documentId,
           tag_id: link.tag_id,
         })),
       );
@@ -888,5 +978,33 @@ export const dataRoomFolderService = {
       .in("id", uniqueDocumentIds);
 
     if (error) throw error;
+  },
+
+  async setDocumentTags(
+    documentId: string,
+    tagIds: string[],
+    providedUserId?: string,
+  ): Promise<DataRoomTag[]> {
+    const userId = await getRequiredSessionUserId(providedUserId);
+    const { data: document, error: documentError } = await supabase
+      .from("data_room_documents")
+      .select("id, data_room_id")
+      .eq("id", documentId)
+      .maybeSingle();
+
+    if (documentError) throw documentError;
+    if (!document) {
+      throw new DataRoomFolderServiceError(
+        "DOCUMENT_NOT_FOUND",
+        "Document not found.",
+      );
+    }
+
+    const doc = document as { id: string; data_room_id: string };
+    await assertRoomOwnedByUser(doc.data_room_id, userId);
+    return replaceDocumentTags(documentId, tagIds, {
+      userId,
+      roomId: doc.data_room_id,
+    });
   },
 };
