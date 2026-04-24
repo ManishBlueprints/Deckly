@@ -4,6 +4,7 @@ import {
   FileText,
   BarChart3, // Changed from BarChart2 to BarChart3
   Pencil,
+  FolderInput,
 } from "lucide-react";
 import { DataRoomDocument } from "../../types";
 import { useState, useRef } from "react";
@@ -13,6 +14,8 @@ interface RoomDocumentListProps {
   documents: DataRoomDocument[];
   onRemove: (deckId: string) => void;
   onReorder: (orderedDeckIds: string[]) => void;
+  folderOptions?: { id: string; name: string }[];
+  onMoveToFolder?: (deckId: string, folderId: string | null) => void;
   signedThumbnails?: Record<string, string>;
 }
 
@@ -20,6 +23,8 @@ export function RoomDocumentList({
   documents,
   onRemove,
   onReorder,
+  folderOptions = [],
+  onMoveToFolder,
   signedThumbnails = {},
 }: RoomDocumentListProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -123,6 +128,32 @@ export function RoomDocumentList({
 
               {/* Actions */}
               <div className="flex items-center gap-1">
+                {onMoveToFolder && (
+                  <div className="relative">
+                    <select
+                      value={doc.folder_id ?? ""}
+                      onChange={(e) =>
+                        onMoveToFolder(
+                          doc.deck_id,
+                          e.target.value === "" ? null : e.target.value,
+                        )
+                      }
+                      className="h-8 max-w-36 rounded-md border border-white/10 bg-background px-2 pr-7 text-[10px] font-semibold uppercase tracking-wide text-slate-400 hover:text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary/40 appearance-none"
+                      title="Move to folder"
+                    >
+                      <option value="">Unorganized</option>
+                      {folderOptions.map((folder) => (
+                        <option key={folder.id} value={folder.id}>
+                          {folder.name}
+                        </option>
+                      ))}
+                    </select>
+                    <FolderInput
+                      size={12}
+                      className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-500"
+                    />
+                  </div>
+                )}
                 <Link
                   to={`/analytics/${doc.deck_id}`}
                   className="w-8 h-8 flex items-center justify-center bg-background border border-white/10 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/20 rounded-md transition-all active:scale-95"

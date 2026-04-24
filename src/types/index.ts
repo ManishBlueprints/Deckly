@@ -59,6 +59,36 @@ export interface LibraryFolder {
   created_at: string;
 }
 
+export interface DataRoomFolder {
+  id: string;
+  data_room_id: string;
+  name: string;
+  color: string;
+  position: string;
+  created_by: string;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataRoomTag {
+  id: string;
+  data_room_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataRoomFolderTag {
+  folder_id: string;
+  tag_id: string;
+}
+
+export interface DataRoomFolderWithTags extends DataRoomFolder {
+  tags: DataRoomTag[];
+}
+
 export interface SavedDeckOrganized {
   library_id: string;
   deck_id: string;
@@ -145,6 +175,8 @@ export interface DataRoomDocument {
   id: string;
   data_room_id: string;
   deck_id: string;
+  folder_id: string | null;
+  folder_name?: string | null;
   display_order: number;
   added_at: string;
   deck?: Deck;

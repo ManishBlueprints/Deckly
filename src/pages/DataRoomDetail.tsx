@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -16,6 +16,7 @@ import {
   Users,
   Loader2,
   Monitor,
+  FolderOpen,
 } from "lucide-react";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DocumentPicker } from "../components/dashboard/DocumentPicker";
@@ -32,6 +33,12 @@ import {
 } from "../services/interestSignalService";
 import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
 import { getDataRoomPreviewPath, getDataRoomShareUrl } from "../utils/url";
+import { useDataRoomFolders } from "../hooks/useDataRoomFolders";
+import { DataRoomFolderModal } from "../components/data-room/DataRoomFolderModal";
+import { DataRoomTagsModal } from "../components/data-room/DataRoomTagsModal";
+import { DataRoomFolderCard } from "../components/data-room/DataRoomFolderCard";
+import { FolderColorKey } from "../constants/folderColors";
+import { DataRoomFolderWithTags } from "../types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,6 +65,12 @@ function DataRoomDetail() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const {
+    folders,
+    tags,
+    isLoading: foldersLoading,
+    actions: folderActions,
+  } = useDataRoomFolders(roomId);
 
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
@@ -69,6 +82,13 @@ function DataRoomDetail() {
 
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [folderModalOpen, setFolderModalOpen] = useState(false);
+  const [tagModalOpen, setTagModalOpen] = useState(false);
+  const [editingFolder, setEditingFolder] =
+    useState<DataRoomFolderWithTags | null>(null);
+  const [deletingFolder, setDeletingFolder] =
+    useState<DataRoomFolderWithTags | null>(null);
+  const [isFolderDeletePending, setIsFolderDeletePending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -76,6 +96,15 @@ function DataRoomDetail() {
 
   const [roomSignals, setRoomSignals] = useState<VisitorSignal[]>([]);
   const [signalsLoading, setSignalsLoading] = useState(true);
+
+  const folderDocumentCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const doc of documents) {
+      if (!doc.folder_id) continue;
+      counts.set(doc.folder_id, (counts.get(doc.folder_id) || 0) + 1);
+    }
+    return counts;
+  }, [documents]);
 
   /* ── load data ── */
   // useCallback is used here to memoize the loading of room data, documents, and analytics
@@ -189,6 +218,58 @@ function DataRoomDetail() {
     await dataRoomService.addDocuments(roomId, deckIds);
     queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
     loadAll();
+  };
+
+  const handleSaveFolder = useCallback(
+    async (input: { name: string; color: string; tagIds: string[] }) => {
+      if (!roomId) return;
+      if (editingFolder) {
+        await folderActions.updateFolder(
+          editingFolder.id,
+          input.name,
+          input.color,
+          input.tagIds,
+        );
+      } else {
+        await folderActions.createFolder(input.name, input.color, input.tagIds);
+      }
+      setEditingFolder(null);
+      setFolderModalOpen(false);
+      toast.success(editingFolder ? "Folder updated" : "Folder created");
+    },
+    [editingFolder, folderActions, roomId],
+  );
+
+  const handleDeleteFolder = useCallback(async () => {
+    if (!deletingFolder) return;
+    setIsFolderDeletePending(true);
+    try {
+      await folderActions.deleteFolder(deletingFolder.id);
+      setDeletingFolder(null);
+      await loadAll();
+      toast.success("Folder deleted");
+    } catch (err) {
+      console.error("Failed to delete folder", err);
+      toast.error("Failed to delete folder");
+    } finally {
+      setIsFolderDeletePending(false);
+    }
+  }, [deletingFolder, folderActions, loadAll]);
+
+  const handleCreateTag = async (name: string, color?: string) => {
+    if (!roomId) throw new Error("Room not found");
+    return folderActions.createTag(name, color);
+  };
+
+  const handleUpdateTag = async (
+    tagId: string,
+    name: string,
+    color?: string,
+  ) => folderActions.updateTag(tagId, name, color);
+
+  const handleDeleteTag = async (tagId: string) => {
+    await folderActions.deleteTag(tagId);
+    toast.success("Tag deleted");
   };
 
   const handleRemoveDocument = async (deckId: string) => {
@@ -398,8 +479,85 @@ function DataRoomDetail() {
 
         {/* ── MAIN: 2-col on large screens ── */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* LEFT: Room Assets (3/5) */}
+          {/* LEFT: Folders + Room Assets (3/5) */}
           <div className="lg:col-span-3 space-y-4 h-full flex flex-col">
+            <div className="space-y-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-8 h-1 bg-[#54e98a] rounded-full" />
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
+                      Active Folders
+                    </h2>
+                    <span className="text-[10px] font-medium bg-surface-low text-slate-500 px-2 py-0.5 rounded-full border border-[#222]">
+                      {folders.length}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setEditingFolder(null);
+                    setFolderModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#54e98a] text-[#003919] rounded-md text-xs font-semibold hover:bg-[#54e98a]/90 transition-all active:scale-95"
+                >
+                  <FolderOpen size={13} /> New Folder
+                </button>
+              </div>
+
+              {foldersLoading ? (
+                <div className="bg-surface-card border border-[#222] rounded-lg p-6 text-center text-xs text-slate-500">
+                  Loading folders...
+                </div>
+              ) : folders.length === 0 ? (
+                <div className="bg-surface-card border border-white/5 p-8 flex flex-col items-center gap-4 text-center">
+                  <div className="w-20 h-20 bg-surface-card flex items-center justify-center text-[#54e98a]/20 border border-white/5">
+                    <FolderOpen size={32} />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[#bbcbbb]/40 font-bold">
+                      No folders yet
+                    </p>
+                    <p className="text-xs text-[#bbcbbb]/30 leading-relaxed">
+                      Create a folder to organize room assets.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingFolder(null);
+                      setFolderModalOpen(true);
+                    }}
+                    className="px-8 py-3 bg-[#54e98a] text-[#003919] font-bold text-sm tracking-tight flex items-center gap-2 hover:shadow-[0_0_20px_rgba(84,233,138,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  >
+                    <Plus size={16} /> Create Folder
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <DataRoomFolderCard
+                    isNew
+                    onClick={() => {
+                      setEditingFolder(null);
+                      setFolderModalOpen(true);
+                    }}
+                  />
+                  {folders.map((folder) => (
+                    <DataRoomFolderCard
+                      key={folder.id}
+                      folder={folder}
+                      documentCount={folderDocumentCounts.get(folder.id) || 0}
+                      onEdit={(nextFolder) => {
+                        setEditingFolder(nextFolder);
+                        setFolderModalOpen(true);
+                      }}
+                      onDelete={(nextFolder) => setDeletingFolder(nextFolder)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="flex flex-col gap-3 min-h-[72px] justify-between">
               <div className="flex items-center gap-2">
                 <FileText size={14} className="text-deckly-primary" />
@@ -411,6 +569,18 @@ function DataRoomDetail() {
                 </span>
               </div>
               <div className="flex items-center gap-1.5 justify-end">
+                <button
+                  onClick={() => setFolderModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-low border border-[#333] rounded-md text-xs font-medium text-slate-400 hover:text-white hover:border-[#444] transition-all active:scale-95"
+                >
+                  <FolderOpen size={13} /> New Folder
+                </button>
+                <button
+                  onClick={() => setTagModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-low border border-[#333] rounded-md text-xs font-medium text-slate-400 hover:text-white hover:border-[#444] transition-all active:scale-95"
+                >
+                  <Plus size={13} /> Edit Tags
+                </button>
                 <button
                   onClick={() => setPickerOpen(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-low border border-[#333] rounded-md text-xs font-medium text-slate-400 hover:text-white hover:border-[#444] transition-all active:scale-95"
@@ -591,6 +761,70 @@ function DataRoomDetail() {
         onAdd={handleAddDocuments}
         excludeDeckIds={documents.map((d) => d.deck_id)}
       />
+
+      <DataRoomFolderModal
+        isOpen={folderModalOpen}
+        onClose={() => {
+          setFolderModalOpen(false);
+          setEditingFolder(null);
+        }}
+        onSubmit={handleSaveFolder}
+        existingTags={tags}
+        initialData={
+          editingFolder
+            ? {
+                name: editingFolder.name,
+                color: editingFolder.color as FolderColorKey,
+                tagIds: editingFolder.tags.map((tag) => tag.id),
+              }
+            : null
+        }
+      />
+
+      <DataRoomTagsModal
+        isOpen={tagModalOpen}
+        onClose={() => setTagModalOpen(false)}
+        tags={tags}
+        onCreate={handleCreateTag}
+        onUpdate={handleUpdateTag}
+        onDelete={handleDeleteTag}
+      />
+
+      <AlertDialog
+        open={!!deletingFolder}
+        onOpenChange={(open) => {
+          if (!open && !isFolderDeletePending) {
+            setDeletingFolder(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete "{deletingFolder?.name}" permanently?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the folder, but documents inside will return to
+              Unorganized.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isFolderDeletePending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteFolder();
+              }}
+              disabled={isFolderDeletePending}
+            >
+              {isFolderDeletePending ? "Deleting..." : "Delete Folder"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

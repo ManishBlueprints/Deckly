@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,6 +15,8 @@ import {
   AlertCircle,
   ExternalLink,
   EyeOff,
+  Tags,
+  FolderOpen,
 } from "lucide-react";
 import { useCheckDataRoomSlug } from "../hooks/useSlugValidation";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -24,10 +26,12 @@ import { AccessProtectionSection } from "../components/dashboard/form-sections/A
 import { DangerZoneSection } from "../components/dashboard/form-sections/DangerZoneSection";
 import { DataRoomDocument } from "../types";
 import { dataRoomService } from "../services/dataRoomService";
+import { useDataRoomFolders } from "../hooks/useDataRoomFolders";
 import { useAuth } from "../contexts/AuthContext";
 import { DataRoomCreateTour } from "../components/tours/DataRoomCreateTour";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
+import { FolderColorKey } from "../constants/folderColors";
 import { useQueryClient } from "@tanstack/react-query";
 import { getDataRoomPreviewPath, getDataRoomShareUrl } from "../utils/url";
 import { toast } from "sonner";
@@ -43,6 +47,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
+import { DataRoomFolderCard } from "../components/data-room/DataRoomFolderCard";
+import { DataRoomFolderModal } from "../components/data-room/DataRoomFolderModal";
+import { DataRoomTagsModal } from "../components/data-room/DataRoomTagsModal";
+import { DataRoomFolderWithTags } from "../types";
 
 function ManageDataRoom() {
   const { roomId } = useParams();
@@ -50,6 +58,12 @@ function ManageDataRoom() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const isEditMode = !!roomId && roomId !== "new";
+  const {
+    folders,
+    tags,
+    isLoading: foldersLoading,
+    actions: folderActions,
+  } = useDataRoomFolders(isEditMode ? roomId : undefined);
 
   // Tier limit safety check for create mode
   useEffect(() => {
@@ -92,6 +106,13 @@ function ManageDataRoom() {
   // Documents
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [folderModalOpen, setFolderModalOpen] = useState(false);
+  const [tagModalOpen, setTagModalOpen] = useState(false);
+  const [editingFolder, setEditingFolder] =
+    useState<DataRoomFolderWithTags | null>(null);
+  const [deletingFolder, setDeletingFolder] =
+    useState<DataRoomFolderWithTags | null>(null);
+  const [isFolderDeletePending, setIsFolderDeletePending] = useState(false);
 
   // UI state
   const [loading, setLoading] = useState(isEditMode);
@@ -138,6 +159,32 @@ function ManageDataRoom() {
     }
     load();
   }, [roomId, isEditMode, navigate]);
+
+  const refreshDocuments = useCallback(async () => {
+    if (!roomId) return;
+    const docs = await dataRoomService.getDocuments(roomId);
+    setDocuments(docs);
+  }, [roomId]);
+
+  const folderDocumentCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const doc of documents) {
+      if (!doc.folder_id) continue;
+      counts.set(doc.folder_id, (counts.get(doc.folder_id) || 0) + 1);
+    }
+    return counts;
+  }, [documents]);
+
+  const folderLookup = useMemo(
+    () =>
+      new Map(
+        folders.map((folder) => [
+          folder.id,
+          { id: folder.id, name: folder.name },
+        ]),
+      ),
+    [folders],
+  );
 
   // Auto-generate slug from name (only in create mode)
   useEffect(() => {
@@ -189,6 +236,7 @@ function ManageDataRoom() {
           id: `temp-${id}`,
           data_room_id: "",
           deck_id: id,
+          folder_id: null,
           display_order: documents.length + i,
           added_at: new Date().toISOString(),
         })) as DataRoomDocument[];
@@ -240,6 +288,75 @@ function ManageDataRoom() {
     },
     [isEditMode, roomId, documents, queryClient],
   );
+
+  const handleMoveDocumentToFolder = useCallback(
+    async (deckId: string, folderId: string | null) => {
+      if (!roomId) return;
+      const previousDocuments = documents;
+      const folderMeta = folderId ? folderLookup.get(folderId) : null;
+
+      setDocuments((current) =>
+        current.map((doc) =>
+          doc.deck_id === deckId
+            ? {
+                ...doc,
+                folder_id: folderId,
+                folder_name: folderMeta?.name ?? null,
+              }
+            : doc,
+        ),
+      );
+
+      try {
+        await folderActions.moveDocumentToFolder(deckId, folderId);
+        toast.success(folderId ? "Document moved." : "Document moved to Unorganized.");
+      } catch (err) {
+        console.error("Failed to move document to folder", err);
+        setDocuments(previousDocuments);
+        toast.error("Failed to move document");
+      }
+    },
+    [documents, folderActions, folderLookup, roomId],
+  );
+
+  const handleSaveFolder = useCallback(
+    async (input: { name: string; color: string; tagIds: string[] }) => {
+      if (!roomId) return;
+      if (editingFolder) {
+        await folderActions.updateFolder(
+          editingFolder.id,
+          input.name,
+          input.color,
+          input.tagIds,
+        );
+      } else {
+        await folderActions.createFolder(input.name, input.color, input.tagIds);
+      }
+      setEditingFolder(null);
+      setFolderModalOpen(false);
+    },
+    [editingFolder, folderActions, roomId],
+  );
+
+  const handleDeleteFolder = useCallback(async () => {
+    if (!deletingFolder) return;
+    setIsFolderDeletePending(true);
+    try {
+      await folderActions.deleteFolder(deletingFolder.id);
+      if (documents.some((doc) => doc.folder_id === deletingFolder.id)) {
+        await refreshDocuments();
+      }
+      if (editingFolder?.id === deletingFolder.id) {
+        setEditingFolder(null);
+      }
+      setDeletingFolder(null);
+    } catch (err) {
+      console.error("Failed to delete folder", err);
+      toast.error("Failed to delete folder");
+    } finally {
+      setIsFolderDeletePending(false);
+    }
+  }, [deletingFolder, documents, editingFolder, folderActions, refreshDocuments]);
 
   const parsedExpiry = expiryEnabled && expiryDate ? expiryDate.split('-').map(Number) : null;
   const expiryInstant = parsedExpiry 
@@ -657,6 +774,89 @@ function ManageDataRoom() {
           </div>
         </div>
 
+        {/* ──── Section 2: Folders ──── */}
+        {isEditMode && roomId && (
+          <div className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative">
+            <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-medium text-white">
+                  Folders & Tags
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Flat grouping only. Tags stay owner-only and do not appear in shared links.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTagModalOpen(true)}
+                  className="flex items-center gap-2 h-8 px-3 bg-surface-container border border-white/10 hover:border-white/20 text-white rounded-md text-xs font-medium transition-all"
+                >
+                  <Tags size={14} />
+                  Manage Tags
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingFolder(null);
+                    setFolderModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 h-8 px-3 bg-deckly-primary text-slate-950 rounded-md text-xs font-semibold hover:bg-deckly-primary/90 transition-all"
+                >
+                  <FolderOpen size={14} />
+                  New Folder
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              {foldersLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 size={20} className="text-deckly-primary animate-spin" />
+                </div>
+              ) : folders.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.03] p-8 text-sm text-slate-400 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-slate-200">No folders yet</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Create a folder to organize documents and attach up to 4 tags.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingFolder(null);
+                      setFolderModalOpen(true);
+                    }}
+                    className="h-10 px-4 rounded-md bg-deckly-primary text-slate-950 text-xs font-semibold hover:bg-deckly-primary/90 transition-colors"
+                  >
+                    New Folder
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <DataRoomFolderCard
+                    isNew
+                    onClick={() => {
+                      setEditingFolder(null);
+                      setFolderModalOpen(true);
+                    }}
+                  />
+                  {folders.map((folder) => (
+                    <DataRoomFolderCard
+                      key={folder.id}
+                      folder={folder}
+                      isActive={false}
+                      documentCount={folderDocumentCounts.get(folder.id) || 0}
+                      onEdit={(next) => {
+                        setEditingFolder(next);
+                        setFolderModalOpen(true);
+                      }}
+                      onDelete={(next) => setDeletingFolder(next)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ──── Section 2: Documents ──── */}
         <div 
           data-tour="room-assets"
@@ -703,6 +903,11 @@ function ManageDataRoom() {
                 documents={documents}
                 onRemove={handleRemoveDocument}
                 onReorder={handleReorder}
+                folderOptions={folders.map((folder) => ({
+                  id: folder.id,
+                  name: folder.name,
+                }))}
+                onMoveToFolder={handleMoveDocumentToFolder}
               />
             )}
           </div>
@@ -809,6 +1014,70 @@ function ManageDataRoom() {
         onAdd={handleAddDocuments}
         excludeDeckIds={documents.map((d) => d.deck_id)}
       />
+
+      <DataRoomFolderModal
+        isOpen={folderModalOpen}
+        onClose={() => {
+          setFolderModalOpen(false);
+          setEditingFolder(null);
+        }}
+        onSubmit={handleSaveFolder}
+        existingTags={tags}
+        initialData={
+          editingFolder
+          ? {
+                name: editingFolder.name,
+                color: editingFolder.color as FolderColorKey,
+                tagIds: editingFolder.tags.map((tag) => tag.id),
+              }
+            : null
+        }
+      />
+
+      <DataRoomTagsModal
+        isOpen={tagModalOpen}
+        onClose={() => setTagModalOpen(false)}
+        tags={tags}
+        onCreate={(name, color) => folderActions.createTag(name, color)}
+        onUpdate={(tagId, name, color) =>
+          folderActions.updateTag(tagId, name, color)
+        }
+        onDelete={folderActions.deleteTag}
+      />
+
+      <AlertDialog
+        open={!!deletingFolder}
+        onOpenChange={(open) => {
+          if (!open && !isFolderDeletePending) {
+            setDeletingFolder(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Folder</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete "{deletingFolder?.name}" permanently? Documents in it will
+              fall back to Unorganized.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isFolderDeletePending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteFolder();
+              }}
+              disabled={isFolderDeletePending}
+            >
+              {isFolderDeletePending ? "Deleting..." : "Delete Folder"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

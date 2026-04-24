@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, AlertCircle, FileText, ChevronRight } from "lucide-react";
@@ -6,6 +6,7 @@ import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
 import DeckViewer from "../components/viewer/DeckViewer";
 import AccessGate from "../components/viewer/AccessGate";
 import { dataRoomService } from "../services/dataRoomService";
+import { dataRoomFolderService } from "../services/dataRoomFolderService";
 import { analyticsService } from "../services/analyticsService";
 import { supabase } from "../services/supabase";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
@@ -16,6 +17,7 @@ function DataRoomViewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
+  const [folderGroups, setFolderGroups] = useState<{ id: string; name: string }[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [viewerEmail, setViewerEmail] = useState<string | undefined>();
@@ -81,9 +83,18 @@ function DataRoomViewer() {
       const isOwner = session?.user?.id === data.user_id;
 
       let docsToSet: DataRoomDocument[] = [];
+      let foldersToSet: { id: string; name: string }[] = [];
 
       if (isOwner) {
-        docsToSet = await dataRoomService.getDocuments(data.id);
+        const [ownerDocs, ownerFolders] = await Promise.all([
+          dataRoomService.getDocuments(data.id),
+          dataRoomFolderService.listFolders(data.id),
+        ]);
+        docsToSet = ownerDocs;
+        foldersToSet = ownerFolders.map((folder) => ({
+          id: folder.id,
+          name: folder.name,
+        }));
         setIsUnlocked(true);
       } else if (!data.require_email && !data.require_password) {
         // Free public
@@ -92,16 +103,34 @@ function DataRoomViewer() {
             data.slug,
           );
           docsToSet = payloadDocs.map((deckObj: unknown, index: number) => {
-            const deck = deckObj as Deck;
+            const deck = deckObj as Deck & {
+              folder_id?: string | null;
+              folder_name?: string | null;
+            };
             return {
               id: deck.id,
               data_room_id: data.id,
               deck_id: deck.id,
+              folder_id: deck.folder_id ?? null,
+              folder_name: deck.folder_name ?? null,
               display_order: index,
               added_at: new Date().toISOString(),
               deck,
             } as DataRoomDocument;
           });
+          foldersToSet = Array.from(
+            new Map(
+              docsToSet
+                .filter((doc) => doc.folder_id)
+                .map((doc) => [
+                  doc.folder_id as string,
+                  {
+                    id: doc.folder_id as string,
+                    name: doc.folder_name || "Folder",
+                  },
+                ]),
+            ).values(),
+          );
           setIsUnlocked(true);
         } catch {
           throw new Error("Failed to load documents payload.");
@@ -109,6 +138,7 @@ function DataRoomViewer() {
       }
 
       setDocuments(docsToSet);
+      setFolderGroups(foldersToSet);
       if (docsToSet.length > 0 && docsToSet[0].deck) {
         setSelectedDeck(docsToSet[0].deck);
       }
@@ -156,6 +186,50 @@ function DataRoomViewer() {
         view_password: room.view_password,
       } as Deck)
     : null;
+
+  const groupedDocuments = useMemo(() => {
+    const docsByFolder = new Map<string, DataRoomDocument[]>();
+    const folderOrder = folderGroups.map((folder) => folder.id);
+    const discoveredFolderOrder: string[] = [];
+
+    documents.forEach((doc) => {
+      const folderId = doc.folder_id || "unorganized";
+      if (folderId !== "unorganized" && !discoveredFolderOrder.includes(folderId)) {
+        discoveredFolderOrder.push(folderId);
+      }
+
+      const current = docsByFolder.get(folderId) || [];
+      current.push(doc);
+      docsByFolder.set(folderId, current);
+    });
+
+    const orderedFolderIds = [
+      ...folderOrder.filter((folderId) => docsByFolder.has(folderId)),
+      ...discoveredFolderOrder.filter(
+        (folderId) => !folderOrder.includes(folderId),
+      ),
+    ];
+
+    const sections = orderedFolderIds.map((folderId) => ({
+      id: folderId,
+      name:
+        folderGroups.find((folder) => folder.id === folderId)?.name ||
+        docsByFolder.get(folderId)?.[0]?.folder_name ||
+        "Folder",
+      documents: docsByFolder.get(folderId) || [],
+    }));
+
+    const unorganized = docsByFolder.get("unorganized");
+    if (unorganized && unorganized.length > 0) {
+      sections.push({
+        id: "unorganized",
+        name: "Unorganized",
+        documents: unorganized,
+      });
+    }
+
+    return sections;
+  }, [documents, folderGroups]);
 
   return (
     <div className="fixed inset-0 bg-[#0d0d0d] flex flex-col items-stretch overflow-hidden">
@@ -231,16 +305,34 @@ function DataRoomViewer() {
                 const payloadDocs = await dataRoomService.getDataRoomPayload(room.slug, password);
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const docsToSet = payloadDocs.map((deckObj: any, index: number) => {
-                  const deck = deckObj as Deck;
-                  return {
-                    id: deck.id,
-                    data_room_id: room.id,
-                    deck_id: deck.id,
-                    display_order: index,
-                    added_at: new Date().toISOString(),
-                    deck,
-                  } as DataRoomDocument;
+                const deck = deckObj as Deck & {
+                  folder_id?: string | null;
+                  folder_name?: string | null;
+                };
+                return {
+                  id: deck.id,
+                  data_room_id: room.id,
+                  deck_id: deck.id,
+                  folder_id: deck.folder_id ?? null,
+                  folder_name: deck.folder_name ?? null,
+                  display_order: index,
+                  added_at: new Date().toISOString(),
+                  deck,
+                } as DataRoomDocument;
                 });
+                setFolderGroups(Array.from(
+                  new Map(
+                    docsToSet
+                      .filter((doc) => doc.folder_id)
+                      .map((doc) => [
+                        doc.folder_id as string,
+                        {
+                          id: doc.folder_id as string,
+                          name: doc.folder_name || "Folder",
+                        },
+                      ]),
+                  ).values(),
+                ));
                 
                 setDocuments(docsToSet);
                 if (docsToSet.length > 0 && docsToSet[0].deck) {
@@ -314,58 +406,110 @@ function DataRoomViewer() {
               </div>
 
               {/* Document List */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {documents.map((doc) => {
-                  const deck = doc.deck;
-                  const isActive = selectedDeck?.id === deck?.id;
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                {groupedDocuments.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <div className="mx-auto mb-4 w-12 h-12 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center text-slate-600">
+                      <FileText size={20} />
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      No resources found in this room.
+                    </p>
+                  </div>
+                ) : (
+                  groupedDocuments.map((group, index) => {
+                    const isUnorganized = group.id === "unorganized";
 
-                  return (
-                    <button
-                      key={doc.deck_id}
-                      onClick={() => deck && setSelectedDeck(deck)}
-                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-md border transition-all duration-200 group ${
-                        isActive
-                          ? "bg-deckly-primary/5 border-deckly-primary/40 shadow-sm"
-                          : "hover:bg-[#1a1a1a] border-transparent"
-                      }`}
-                    >
-                      {/* Thumbnail */}
-                      <div
-                        className={`w-10 h-8 rounded-sm bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${isActive ? "border-deckly-primary/40 shadow-sm" : "border-[#222] grayscale group-hover:grayscale-0"}`}
+                    return (
+                      <section
+                        key={group.id}
+                        className={`rounded-xl border p-3 shadow-sm ${
+                          isUnorganized
+                            ? "border-dashed border-white/10 bg-white/[0.03]"
+                            : "border-white/10 bg-[#151515]/80"
+                        }`}
                       >
-                        {deck?.pages?.[0]?.image_url ? (
-                          <img
-                            src={deck.pages[0].image_url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <FileText size={16} className="text-slate-800" />
+                        <div className="flex items-center justify-between gap-3 px-1 pb-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`h-2.5 w-2.5 rounded-full ${
+                                  isUnorganized
+                                    ? "bg-slate-600"
+                                    : "bg-deckly-primary"
+                                }`}
+                              />
+                              <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300 truncate">
+                                {group.name}
+                              </h3>
+                            </div>
+                            <p className="mt-1 text-[10px] text-slate-500">
+                              Section {String(index + 1).padStart(2, "0")}
+                            </p>
                           </div>
-                        )}
-                      </div>
+                          <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[10px] font-semibold text-slate-400">
+                            {group.documents.length}
+                          </span>
+                        </div>
 
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-xs font-semibold truncate transition-colors ${
-                            isActive
-                              ? "text-deckly-primary"
-                              : "text-slate-300 group-hover:text-deckly-primary"
-                          }`}
-                        >
-                          {deck?.title || "Untitled Resource"}
-                        </p>
-                        <p
-                          className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-600"}`}
-                        >
-                          {deck?.pages?.length || 0} Slides
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
+                        <div className="space-y-2">
+                          {group.documents.map((doc) => {
+                            const deck = doc.deck;
+                            const isActive = selectedDeck?.id === deck?.id;
+
+                            return (
+                              <button
+                                key={doc.deck_id}
+                                onClick={() => deck && setSelectedDeck(deck)}
+                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg border transition-all duration-200 group ${
+                                  isActive
+                                    ? "bg-deckly-primary/5 border-deckly-primary/40 shadow-sm"
+                                    : "hover:bg-[#1a1a1a] border-transparent"
+                                }`}
+                              >
+                                <div
+                                  className={`w-10 h-8 rounded-md bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${isActive ? "border-deckly-primary/40 shadow-sm" : "border-[#222] grayscale group-hover:grayscale-0"}`}
+                                >
+                                  {deck?.pages?.[0]?.image_url ? (
+                                    <img
+                                      src={deck.pages[0].image_url}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <FileText
+                                        size={16}
+                                        className="text-slate-800"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex-1 min-w-0">
+                                  <p
+                                    className={`text-xs font-semibold truncate transition-colors ${
+                                      isActive
+                                        ? "text-deckly-primary"
+                                        : "text-slate-300 group-hover:text-deckly-primary"
+                                    }`}
+                                  >
+                                    {deck?.title || "Untitled Resource"}
+                                  </p>
+                                  <p
+                                    className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-600"}`}
+                                  >
+                                    {deck?.pages?.length || 0} Slides
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    );
+                  })
+                )}
               </div>
 
               {/* Footer */}

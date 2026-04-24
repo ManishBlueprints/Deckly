@@ -443,7 +443,10 @@ export const dataRoomService = {
     return !!data;
   },
 
-  async getDataRoomPayload(slug: string, password?: string): Promise<Deck[]> {
+  async getDataRoomPayload(
+    slug: string,
+    password?: string,
+  ): Promise<(Deck & { folder_id?: string | null; folder_name?: string | null })[]> {
     const { data: rawData, error } = await supabase.rpc("get_data_room_payload", {
       p_slug: slug,
       p_password: password || null,
@@ -451,7 +454,11 @@ export const dataRoomService = {
     if (error) throw error;
     if (!rawData) return [];
 
-    const decks = rawData as (Deck & { storage_path?: string })[];
+    const decks = rawData as (Deck & {
+      storage_path?: string;
+      folder_id?: string | null;
+      folder_name?: string | null;
+    })[];
 
     // Hydrate signed URLs for guests via the sign-deck-url Edge Function
     const allPaths: string[] = [];
