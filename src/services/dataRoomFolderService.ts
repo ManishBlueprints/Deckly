@@ -32,6 +32,7 @@ export type DataRoomFolderErrorCode =
   | "MAX_TAGS_PER_FOLDER"
   | "CROSS_ROOM_MOVE"
   | "INVALID_FOLDER_ORDER"
+  | "FOLDER_DELETE_FAILED"
   | "INVALID_FOLDER_TAGS";
 
 export class DataRoomFolderServiceError extends Error {
@@ -166,6 +167,24 @@ const toServiceError = (
   fallbackMessage: string,
 ): DataRoomFolderServiceError => {
   const message = error instanceof Error ? error.message : fallbackMessage;
+  const errorCode =
+    typeof error === "object" && error && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
+
+  const isForeignKeyViolation =
+    errorCode === "23503" ||
+    message.includes("violates foreign key constraint") ||
+    message.includes("still referenced") ||
+    message.includes("depends on") ||
+    message.includes("restrict");
+
+  if (isForeignKeyViolation) {
+    return new DataRoomFolderServiceError(
+      "FOLDER_DELETE_FAILED",
+      "Remove documents from this folder first.",
+    );
+  }
 
   if (message.includes("Free plans allow up to 1 folder per room.")) {
     return new DataRoomFolderServiceError(
@@ -668,8 +687,8 @@ export const dataRoomFolderService = {
     if (error) {
       throw toServiceError(
         error,
-        "INVALID_FOLDER_ORDER",
-        "Failed to reorder folders",
+        "FOLDER_DELETE_FAILED",
+        "Failed to delete folder.",
       );
     }
   },
