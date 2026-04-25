@@ -10,6 +10,7 @@ interface DataRoomFolderCardProps {
   folder?: DataRoomFolderWithTags;
   isNew?: boolean;
   isActive?: boolean;
+  compact?: boolean;
   onClick?: () => void;
   onEdit?: (folder: DataRoomFolderWithTags) => void;
   onDelete?: (folder: DataRoomFolderWithTags) => void;
@@ -23,6 +24,7 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
   folder,
   isNew,
   isActive,
+  compact,
   onClick,
   onEdit,
   onDelete,
@@ -47,12 +49,21 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
         onKeyDown={handleKeyDown}
-        className="h-[190px] w-full bg-surface-card border border-dashed border-[#333] flex flex-col items-center justify-center gap-3 group hover:border-primary/30 transition-colors cursor-pointer rounded-md"
+        className={compact
+          ? "h-[160px] w-full bg-surface-card border border-dashed border-border flex flex-col items-center justify-center gap-2.5 group hover:border-border hover:bg-surface-high transition-colors cursor-pointer rounded-md"
+          : "h-[190px] w-full bg-surface-card border border-dashed border-border flex flex-col items-center justify-center gap-3 group hover:border-border hover:bg-surface-high transition-colors cursor-pointer rounded-md"
+        }
       >
-        <div className="w-10 h-10 bg-surface-low flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
-          <Folder size={20} />
+        <div className={compact
+          ? "w-9 h-9 bg-surface-low flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors"
+          : "w-10 h-10 bg-surface-low flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors"
+        }>
+          <Folder size={compact ? 18 : 20} />
         </div>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500 group-hover:text-primary transition-colors">
+        <span className={compact
+          ? "text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground group-hover:text-primary transition-colors"
+          : "text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground group-hover:text-primary transition-colors"
+        }>
           New Folder
         </span>
       </motion.div>
@@ -70,9 +81,11 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
       transition={{ duration: 0.1 }}
       onClick={onClick}
       onKeyDown={handleKeyDown}
-      className={cn(
-        "h-[190px] w-full bg-surface-card border border-[#222] p-4 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md",
-        isActive && "border-primary/30",
+        className={cn(
+          compact
+            ? "h-[160px] w-full bg-surface-card border border-border p-3.5 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md"
+            : "h-[190px] w-full bg-surface-card border border-border p-4 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md",
+        isActive && "border-border",
       )}
     >
       {isActive && (
@@ -82,9 +95,9 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
         />
       )}
 
-      <div className="mb-6 transition-colors">
+      <div className={compact ? "mb-4 transition-colors" : "mb-6 transition-colors"}>
         <Folder
-          className="w-6 h-6"
+          className={compact ? "w-5 h-5" : "w-6 h-6"}
           style={{ color: folderColor }}
           fill={folderColor}
         />
@@ -97,7 +110,7 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
             onEdit?.(folder);
           }}
           aria-label="Edit folder"
-          className="p-2 rounded-md bg-surface-low hover:bg-[#1a1a1a] text-slate-400 hover:text-white transition-colors"
+          className="p-2 rounded-md bg-surface-low hover:bg-surface-high text-muted-foreground hover:text-foreground transition-colors"
         >
           <Edit2 size={14} />
         </button>
@@ -107,14 +120,17 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
             onDelete?.(folder);
           }}
           aria-label="Delete folder"
-          className="p-2 rounded-md bg-surface-low hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors"
+          className="p-2 rounded-md bg-surface-low hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
         >
           <Trash2 size={14} />
         </button>
       </div>
 
       <div className="space-y-2 flex-1">
-        <h3 className="text-base font-semibold text-white leading-tight truncate">
+        <h3 className={compact
+          ? "text-sm font-semibold text-foreground leading-tight truncate"
+          : "text-base font-semibold text-foreground leading-tight truncate"
+        }>
           {folder.name}
         </h3>
 
@@ -129,20 +145,23 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
             );
           })}
           {folder.tags.length === 0 && (
-            <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
               No Tags
             </span>
           )}
           {folder.tags.length > 4 && (
-            <span className="text-[10px] font-semibold text-slate-500 uppercase ml-1">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase ml-1">
               +{folder.tags.length - 4} More
             </span>
           )}
         </div>
       </div>
 
-      <div className="pt-2.5 border-t border-[#222] w-full">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
+      <div className={compact ? "pt-2 border-t border-border w-full" : "pt-2.5 border-t border-border w-full"}>
+        <span className={compact
+          ? "text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground"
+          : "text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground"
+        }>
           {documentCount ?? 0} Document{(documentCount ?? 0) !== 1 ? "s" : ""}
         </span>
       </div>

@@ -18,18 +18,18 @@ export function DataRoomDetailTabs({
   ];
 
   return (
-    <div className="border-b border-white/5">
+    <div className="border-b border-border">
       <div className="flex items-center gap-8">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => onChange(tab.key)}
-            className={cn(
-              "relative py-3 text-sm font-semibold transition-colors",
-              activeTab === tab.key
-                ? "text-white"
-                : "text-slate-500 hover:text-slate-300",
-            )}
+              className={cn(
+                "relative py-3 text-sm font-semibold transition-colors",
+                activeTab === tab.key
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+              )}
           >
             {tab.label}
             <span

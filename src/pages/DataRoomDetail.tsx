@@ -26,6 +26,7 @@ import { DataRoomContentToolbar } from "../components/data-room/detail/DataRoomC
 import { DataRoomFolderStrip } from "../components/data-room/detail/DataRoomFolderStrip";
 import { DataRoomAnalyticsPanel } from "../components/data-room/detail/DataRoomAnalyticsPanel";
 import { DataRoomSettingsPanel } from "../components/data-room/detail/DataRoomSettingsPanel";
+import { analyticsService } from "../services/analyticsService";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,6 +58,17 @@ function DataRoomDetail() {
     totalVisitors: number;
     perDeck: { deckId: string; title: string; visitors: number }[];
   }>({ totalVisitors: 0, perDeck: [] });
+  const [roomLocations, setRoomLocations] = useState<{
+    countries: { name: string; count: number; code: string }[];
+    cities: { name: string; count: number; country: string }[];
+  }>({ countries: [], cities: [] });
+  const [roomDocumentStats, setRoomDocumentStats] = useState<{
+    deckId: string;
+    title: string;
+    totalViews: number;
+    totalTimeSeconds: number;
+    uniqueVisitors: number;
+  }[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -131,12 +143,37 @@ function DataRoomDetail() {
           setRoomSignals([]);
         })
         .finally(() => setSignalsLoading(false));
+
+      analyticsService
+        .getDataRoomLocations(roomId)
+        .then(setRoomLocations)
+        .catch((err: unknown) => {
+          console.error("Failed to load room locations", err);
+          setRoomLocations({ countries: [], cities: [] });
+        });
+
+      analyticsService
+        .getDataRoomDocumentStats(roomId)
+        .then(setRoomDocumentStats)
+        .catch((err: unknown) => {
+          console.error("Failed to load room document stats", err);
+          setRoomDocumentStats([]);
+        });
     } catch (err) {
       console.error("Failed to load room", err);
     } finally {
       setLoading(false);
     }
   }, [roomId, navigate]);
+
+  const totalRoomViews = useMemo(
+    () => roomDocumentStats.reduce((acc, doc) => acc + doc.totalViews, 0),
+    [roomDocumentStats],
+  );
+  const totalRoomTimeSeconds = useMemo(
+    () => roomDocumentStats.reduce((acc, doc) => acc + doc.totalTimeSeconds, 0),
+    [roomDocumentStats],
+  );
 
   useEffect(() => {
     loadAll();
@@ -491,6 +528,10 @@ function DataRoomDetail() {
         {activeTab === "analytics" && (
           <DataRoomAnalyticsPanel
             totalVisitors={analytics.totalVisitors}
+            totalViews={totalRoomViews}
+            totalTimeSeconds={totalRoomTimeSeconds}
+            roomLocations={roomLocations}
+            roomDocumentStats={roomDocumentStats}
             signalsLoading={signalsLoading}
             roomSignals={roomSignals}
           />

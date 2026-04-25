@@ -131,21 +131,21 @@ export function DataRoomFolderModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] bg-background/70 backdrop-blur-sm"
           />
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="pointer-events-auto w-full max-w-md bg-[#232323] border border-white/5 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden"
+              className="pointer-events-auto w-full max-w-md bg-surface-card border border-border shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden"
             >
               <div className="p-8 space-y-8">
                 <div className="space-y-3">
-                  <h2 className="text-2xl font-headline font-bold text-white tracking-tight">
+                  <h2 className="text-2xl font-headline font-bold text-foreground tracking-tight">
                     {initialData ? "Edit Folder" : "Create New Folder"}
                   </h2>
-                  <p className="text-[#bbcbbb]/60 text-sm leading-relaxed font-medium">
+                  <p className="text-muted-foreground text-sm leading-relaxed font-medium">
                     {initialData
                       ? "Update your collection's name, color, and tags."
                       : "Organize your investment pipeline by creating a dedicated collection for specific sectors, stages, or research themes."}
@@ -154,7 +154,7 @@ export function DataRoomFolderModal({
 
                 <div className="space-y-6">
                   <div className="space-y-2.5">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1">
                       FOLDER NAME
                     </label>
                     <input
@@ -162,13 +162,13 @@ export function DataRoomFolderModal({
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g., Q1 FinTech Research"
-                      className="w-full bg-surface-card border border-white/5 px-4 py-3.5 text-sm text-[#e5e2e1] placeholder-[#bbcbbb]/20 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/30 transition-all font-medium"
+                      className="w-full bg-surface-low border border-border px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all font-medium"
                       autoFocus
                     />
                   </div>
 
                   <div className="space-y-2.5">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1">
                       FOLDER IDENTITY
                     </label>
                     <div className="flex items-center gap-3 ml-1">
@@ -179,14 +179,14 @@ export function DataRoomFolderModal({
                           onClick={() => setSelectedColor(color.key)}
                           className={`w-8 h-8 rounded-full border transition-all flex items-center justify-center ${
                             selectedColor === color.key
-                              ? "scale-110 border-white/40"
-                              : "border-white/10 hover:scale-105"
+                              ? "scale-110 border-primary/50"
+                              : "border-border hover:scale-105"
                           }`}
                           style={{ backgroundColor: color.hex }}
                           title={color.label}
                         >
                           {selectedColor === color.key && (
-                            <Check size={14} className="text-black/50" />
+                            <Check size={14} className="text-primary-foreground/80" />
                           )}
                         </button>
                       ))}
@@ -194,7 +194,7 @@ export function DataRoomFolderModal({
                   </div>
 
                   <div className="space-y-3">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1">
                       ADD TAGS
                     </label>
 
@@ -204,7 +204,7 @@ export function DataRoomFolderModal({
                         return (
                           <div
                             key={tag.id}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 group border transition-colors"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 group border border-border transition-colors"
                             style={{
                               backgroundColor: `${baseColor}15`,
                               borderColor: `${baseColor}30`,
@@ -219,7 +219,7 @@ export function DataRoomFolderModal({
                             <button
                               type="button"
                               onClick={() => removeTag(tag.id)}
-                              className="opacity-50 hover:opacity-100 hover:text-red-400 transition-all"
+                              className="opacity-50 hover:opacity-100 hover:text-destructive transition-all"
                               style={{ color: baseColor }}
                             >
                               <X size={10} strokeWidth={3} />
@@ -241,12 +241,12 @@ export function DataRoomFolderModal({
                         onBlur={() => setShowSuggestions(false)}
                         onKeyDown={(e) => e.key === "Enter" && addTagFromQuery()}
                         placeholder="Add more tags..."
-                        className="w-full bg-surface-card border border-white/5 px-4 py-3.5 text-xs text-[#e5e2e1] placeholder-[#bbcbbb]/10 focus:outline-none focus:ring-1 focus:ring-[#54e98a]/20 transition-all font-medium pr-10"
+                        className="w-full bg-surface-low border border-border px-4 py-3.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all font-medium pr-10"
                       />
                       <button
                         type="button"
                         onClick={addTagFromQuery}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#bbcbbb]/20 hover:text-[#54e98a] transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-primary transition-colors"
                       >
                         <Plus size={16} />
                       </button>
@@ -257,7 +257,7 @@ export function DataRoomFolderModal({
                             initial={{ opacity: 0, y: 5 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 5 }}
-                            className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#2a2a2a] border border-white/10 shadow-xl overflow-hidden max-h-48 overflow-y-auto custom-scrollbar"
+                            className="absolute z-50 top-full left-0 right-0 mt-2 bg-surface-high border border-border shadow-xl overflow-hidden max-h-48 overflow-y-auto custom-scrollbar"
                           >
                             {filteredSuggestions.map((suggestion) => (
                               <button
@@ -267,13 +267,13 @@ export function DataRoomFolderModal({
                                   e.preventDefault();
                                   addTag(suggestion.id);
                                 }}
-                                className="w-full px-4 py-2 hover:bg-white/5 cursor-pointer flex items-center gap-2 text-left"
+                                className="w-full px-4 py-2 hover:bg-surface-highest cursor-pointer flex items-center gap-2 text-left"
                               >
                                 <div
                                   className="w-2 h-2 rounded-full"
                                   style={{ backgroundColor: suggestion.color }}
                                 />
-                                <span className="text-sm font-medium text-[#e5e2e1]">
+                                <span className="text-sm font-medium text-foreground">
                                   {suggestion.name}
                                 </span>
                               </button>
@@ -289,7 +289,7 @@ export function DataRoomFolderModal({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="text-sm font-bold text-[#bbcbbb]/40 hover:text-white transition-colors"
+                    className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Cancel
                   </button>
@@ -297,7 +297,7 @@ export function DataRoomFolderModal({
                     type="button"
                     onClick={() => void handleSubmit()}
                     disabled={isSaving || !name.trim()}
-                    className="px-8 py-3.5 bg-[#54e98a] text-[#003919] font-bold text-sm tracking-tight flex items-center gap-2 hover:shadow-[0_0_20px_rgba(84,233,138,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none"
+                    className="px-8 py-3.5 bg-primary text-primary-foreground font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-primary/90 hover:shadow-[0_0_20px_hsla(142,76%,62%,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none"
                   >
                     {isSaving ? (
                       <Loader2 size={16} className="animate-spin" />

@@ -621,8 +621,8 @@ function DataRoomViewer() {
               sidebarOpen={sidebarOpen}
               onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
               isMobile={isMobile}
-              sidebarWidthClassName="w-56"
-              toggleOffset="14rem"
+              sidebarWidthClassName="w-28"
+              toggleOffset="7rem"
               emptyMessage="No resources found in this room."
             />
 

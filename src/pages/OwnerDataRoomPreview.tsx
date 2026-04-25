@@ -353,8 +353,8 @@ function OwnerDataRoomPreview() {
               sidebarOpen={sidebarOpen}
               onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
               isMobile={isMobile}
-              sidebarWidthClassName="w-64"
-              toggleOffset="16rem"
+              sidebarWidthClassName="w-32"
+              toggleOffset="8rem"
               emptyMessage="No resources found in this room."
             />
 
