@@ -1,14 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertCircle, ArrowLeft, ChevronRight, FileText, FolderOpen } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Bookmark,
+  BookmarkCheck,
+  Check,
+  ChevronRight,
+  FileText,
+  FolderOpen,
+  MessageSquareText,
+} from "lucide-react";
 import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
 import DeckViewer from "../components/viewer/DeckViewer";
+import { AuthModal } from "../components/auth/AuthModal";
+import { RoomNotesSidebar } from "../components/viewer/RoomNotesSidebar";
 import { DataRoomSidebar, buildDataRoomSidebarSections } from "../components/viewer/DataRoomSidebar";
 import { dataRoomService } from "../services/dataRoomService";
 import { dataRoomFolderService } from "../services/dataRoomFolderService";
+import { dataRoomLibraryService } from "../services/dataRoomLibraryService";
 import { useAuth } from "../contexts/AuthContext";
 import { DataRoom, DataRoomDocument, DataRoomFolderWithTags, Deck } from "../types";
+import {
+  useIsDataRoomSaved,
+  useSaveDataRoomToLibraryMutation,
+} from "../hooks/useDataRoomViewerQueries";
 
 function OwnerDataRoomPreview() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -23,6 +40,13 @@ function OwnerDataRoomPreview() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"save" | "notes" | null>(null);
+
+  const { data: isSaved = false } = useIsDataRoomSaved(room?.id, session?.user?.id);
+  const saveToLibraryMutation = useSaveDataRoomToLibraryMutation(session?.user?.id);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -84,6 +108,31 @@ function OwnerDataRoomPreview() {
     };
   }, [roomId, session?.user?.id]);
 
+  useEffect(() => {
+    if (!session || !room) return;
+
+    const pendingSaveId = localStorage.getItem("pending_save_data_room_id");
+    if (pendingSaveId === room.id) {
+      localStorage.removeItem("pending_save_data_room_id");
+      if (!isSaved) {
+        saveToLibraryMutation.mutate({ dataRoomId: room.id, save: true });
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 3000);
+      }
+    }
+
+    const pendingRoomAction = localStorage.getItem("pending_data_room_action");
+    if (pendingRoomAction === "notes" && pendingAction === "notes") {
+      localStorage.removeItem("pending_data_room_action");
+      setIsNotesOpen(true);
+      setPendingAction(null);
+    }
+
+    if (isSaved) {
+      dataRoomLibraryService.updateLibraryLastViewed(room.id);
+    }
+  }, [session, room?.id, isSaved, saveToLibraryMutation, pendingAction, room]);
+
   const visibleDocuments = documents.filter((doc) =>
     activeFolderId === null ? !doc.folder_id : doc.folder_id === activeFolderId,
   );
@@ -100,6 +149,37 @@ function OwnerDataRoomPreview() {
     }
     setSelectedDeck(null);
   }, [activeFolderId, documents, visibleDocuments]);
+
+  const handleSave = () => {
+    if (!room) return;
+
+    if (!session) {
+      localStorage.setItem("pending_save_data_room_id", room.id);
+      setPendingAction("save");
+      setShowAuthModal(true);
+      return;
+    }
+
+    const nextSaveState = !isSaved;
+    if (nextSaveState) {
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
+    }
+    saveToLibraryMutation.mutate({ dataRoomId: room.id, save: nextSaveState });
+  };
+
+  const handleNotes = () => {
+    if (!room) return;
+
+    if (!session) {
+      localStorage.setItem("pending_data_room_action", "notes");
+      setPendingAction("notes");
+      setShowAuthModal(true);
+      return;
+    }
+
+    setIsNotesOpen(true);
+  };
 
   return (
     <div className="fixed inset-0 bg-[#0d0d0d] flex flex-col items-stretch overflow-hidden">
@@ -357,17 +437,49 @@ function OwnerDataRoomPreview() {
             />
 
             <div className="flex-1 flex flex-col items-stretch relative">
-              <Link
-                to="/rooms"
-                className={`absolute ${isMobile ? "top-6 right-4" : "top-6 right-6"} z-[100] group`}
-              >
-                <div className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95">
-                  <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+              <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[100] flex flex-wrap items-center gap-2 px-2 md:px-0">
+                <Link
+                  to="/rooms"
+                  className="group"
+                >
+                  <div className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95">
+                    <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+                    <span className="text-xs font-semibold">
+                      {isMobile ? "Exit" : "Back to Rooms"}
+                    </span>
+                  </div>
+                </Link>
+
+                <button
+                  onClick={handleSave}
+                  disabled={saveToLibraryMutation.isPending}
+                  className={`
+                    flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 border transition-all active:scale-95 rounded-md
+                    ${
+                      isSaved
+                        ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
+                        : "bg-[#111] border-[#333] text-slate-400 hover:text-white"
+                    }
+                  `}
+                >
+                  {isSaved ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
                   <span className="text-xs font-semibold">
-                    {isMobile ? "Exit" : "Back to Rooms"}
+                    {saveToLibraryMutation.isPending
+                      ? "Saving..."
+                      : isSaved
+                        ? "Saved"
+                        : "Save"}
                   </span>
-                </div>
-              </Link>
+                </button>
+
+                <button
+                  onClick={handleNotes}
+                  className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] text-slate-400 hover:text-white transition-all rounded-md active:scale-95"
+                >
+                  <MessageSquareText size={16} />
+                  <span className="text-xs font-semibold">Notes</span>
+                </button>
+              </div>
 
               <div className="flex-1 w-full h-full relative">
                 {selectedDeck ? (
@@ -384,6 +496,43 @@ function OwnerDataRoomPreview() {
                 )}
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        message="Sign up to save rooms or keep private room notes."
+        redirectTo={window.location.href}
+      />
+
+      {room && (
+        <RoomNotesSidebar
+          isOpen={isNotesOpen}
+          onClose={() => setIsNotesOpen(false)}
+          dataRoomId={room.id}
+          onRequireAuth={() => {
+            setIsNotesOpen(false);
+            localStorage.setItem("pending_data_room_action", "notes");
+            setPendingAction("notes");
+            setShowAuthModal(true);
+          }}
+        />
+      )}
+
+      <AnimatePresence>
+        {showSuccessToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 px-5 py-3 bg-[#111] border border-[#333] text-white rounded-lg shadow-2xl"
+          >
+            <div className="w-6 h-6 bg-deckly-primary/10 border border-deckly-primary/20 rounded-full flex items-center justify-center text-deckly-primary">
+              <Check size={14} strokeWidth={3} />
+            </div>
+            <span className="text-sm font-medium">Saved</span>
           </motion.div>
         )}
       </AnimatePresence>

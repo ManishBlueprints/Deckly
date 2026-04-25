@@ -24,9 +24,9 @@ export function DataRoomDetailHeader({
 
   return (
     <div className="rounded-lg border border-border bg-surface-card">
-      <div className="flex flex-col gap-4 p-5 lg:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+      <div className="flex flex-col gap-4 p-4 sm:p-5 lg:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-3 min-w-0">
             <button
               onClick={() => navigate("/rooms")}
               className="w-10 h-10 rounded-md border border-border bg-surface-low flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border hover:bg-surface-high transition-colors shrink-0"
@@ -50,8 +50,8 @@ export function DataRoomDetailHeader({
             </div>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-3 min-w-0">
-                <h1 className="text-xl md:text-2xl font-semibold text-foreground truncate">
+              <div className="flex flex-col gap-2 min-w-0 sm:flex-row sm:items-center sm:gap-3">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground truncate">
                   {room.name}
                 </h1>
                 <span
@@ -81,12 +81,12 @@ export function DataRoomDetailHeader({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:items-center shrink-0">
             <button
               onClick={onCopyLink}
               disabled={isUpdatingShareState}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-colors",
+                "inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-colors w-full sm:w-auto",
                 copied
                   ? "bg-primary text-primary-foreground"
                   : "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -97,7 +97,7 @@ export function DataRoomDetailHeader({
             </button>
             <button
               onClick={onOpenPreview}
-              className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface-low px-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border hover:bg-surface-high transition-colors"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-surface-low px-3 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-border hover:bg-surface-high transition-colors w-full sm:w-auto"
               title="Preview room"
             >
               <Eye size={18} className="shrink-0" />

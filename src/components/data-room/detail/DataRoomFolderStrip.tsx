@@ -26,14 +26,14 @@ export function DataRoomFolderStrip({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <h3 className="text-lg font-semibold text-foreground">Folders</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-foreground">Folders</h3>
         <span className="inline-flex items-center rounded-md border border-border bg-surface-low px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
           {folders.length}
         </span>
       </div>
 
       {loading ? (
-        <div className="rounded-lg border border-border bg-surface-card p-6 text-sm text-muted-foreground">
+        <div className="rounded-lg border border-border bg-surface-card p-4 sm:p-6 text-sm text-muted-foreground">
           Loading folders...
         </div>
       ) : (

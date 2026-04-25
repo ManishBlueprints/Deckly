@@ -114,6 +114,71 @@ export interface SavedDeckOrganized {
   updated_at: string;
 }
 
+export interface SavedDataRoomOrganized {
+  library_id: string;
+  data_room_id: string | null;
+  folder_id: string | null;
+  tags: LibraryTag[];
+  saved_at: string;
+  last_viewed_at: string | null;
+  title: string;
+  slug: string;
+  room_handle: string;
+  room_owner_handle: string;
+  room_owner_id: string;
+  description: string | null;
+  investor_note: string | null;
+  is_available: boolean;
+  is_deleted: boolean;
+  expires_at: string | null;
+  require_email: boolean;
+  require_password: boolean;
+  updated_at: string;
+}
+
+export type SavedLibraryItemType = "deck" | "data_room";
+
+export interface SavedLibraryItemBase {
+  library_id: string;
+  item_type: SavedLibraryItemType;
+  folder_id: string | null;
+  tags: LibraryTag[];
+  saved_at: string;
+  last_viewed_at: string | null;
+  investor_note: string | null;
+  title: string;
+  description: string | null;
+  updated_at: string;
+}
+
+export interface SavedDeckLibraryItem extends SavedLibraryItemBase {
+  item_type: "deck";
+  deck_id: string;
+  slug: string;
+  user_handle: string;
+  file_type?: string;
+  status: "PENDING" | "CONVERTING" | "PROCESSED" | "DELETED";
+  is_available: boolean;
+}
+
+export interface SavedDataRoomLibraryItem extends SavedLibraryItemBase {
+  item_type: "data_room";
+  data_room_id: string | null;
+  slug: string;
+  room_handle: string;
+  room_owner_handle: string;
+  room_owner_id: string;
+  is_available: boolean;
+  is_deleted: boolean;
+  expires_at: string | null;
+  require_email: boolean;
+  require_password: boolean;
+}
+
+export type SavedLibraryItem =
+  | SavedDeckLibraryItem
+  | SavedDataRoomLibraryItem;
+
 export interface SavedDeck extends Deck {
   library_id?: string;
   investor_note?: string;

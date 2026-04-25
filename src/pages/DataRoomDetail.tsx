@@ -425,7 +425,7 @@ function DataRoomDetail() {
 
   return (
     <DashboardLayout title="Data Rooms" showFab={false}>
-      <div className="space-y-6 pb-12">
+      <div className="space-y-4 md:space-y-6 pb-28 md:pb-12">
         <DataRoomDetailHeader
           room={room}
           isPublic={!!room.is_public}
@@ -665,7 +665,7 @@ function DataRoomContentSection({
   signedThumbnails: Record<string, string>;
 }) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <DataRoomContentToolbar
         onNewDeck={onNewDeck}
         onAddExisting={onAddExisting}
@@ -686,11 +686,11 @@ function DataRoomContentSection({
         onDeleteFolder={onDeleteFolder}
       />
 
-      <div className="rounded-2xl border border-white/5 bg-[#111] overflow-hidden">
-        <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
-          <div className="flex items-center gap-3">
+      <div className="rounded-xl md:rounded-2xl border border-white/5 bg-[#111] overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-white/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex items-center gap-3 min-w-0">
             <FileText size={14} className="text-slate-400" />
-            <h2 className="text-lg font-semibold text-[#e5e2e1]">
+            <h2 className="text-base sm:text-lg font-semibold text-[#e5e2e1] truncate">
               {activeFolderId
                 ? folders.find((folder) => folder.id === activeFolderId)?.name ??
                   "Documents / Decks"
@@ -702,7 +702,7 @@ function DataRoomContentSection({
           </div>
         </div>
         {visibleDocuments.length === 0 ? (
-          <div className="py-20 flex flex-col items-center gap-3 text-center">
+          <div className="px-4 py-16 sm:px-6 sm:py-20 flex flex-col items-center gap-3 text-center">
             <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-600">
               <FileText size={22} />
             </div>
@@ -722,7 +722,7 @@ function DataRoomContentSection({
             </button>
           </div>
         ) : (
-          <div className="p-4">
+          <div className="p-3 sm:p-4">
             <RoomDocumentList
               documents={visibleDocuments}
               onRemove={onRemoveDocument}
