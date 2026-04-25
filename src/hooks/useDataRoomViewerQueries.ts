@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { dataRoomLibraryService } from "../services/dataRoomLibraryService";
 import { roomNoteService } from "../services/roomNoteService";
+import { DataRoom } from "../types";
 
 const viewerQueryKeys = {
   roomSaved: (dataRoomId: string | undefined, userId: string | undefined) =>
@@ -35,12 +36,20 @@ export function useSaveDataRoomToLibraryMutation(userId: string | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ dataRoomId, save }: { dataRoomId: string; save: boolean }) => {
+    mutationFn: ({
+      dataRoomId,
+      save,
+      roomSnapshot,
+    }: {
+      dataRoomId: string;
+      save: boolean;
+      roomSnapshot?: DataRoom;
+    }) => {
       if (!userId) {
         return Promise.reject(new Error("User must be authenticated to save rooms"));
       }
       return save
-        ? dataRoomLibraryService.saveToLibrary(dataRoomId)
+        ? dataRoomLibraryService.saveToLibrary(dataRoomId, roomSnapshot)
         : dataRoomLibraryService.removeFromLibrary(dataRoomId);
     },
     onMutate: async ({ dataRoomId, save }) => {

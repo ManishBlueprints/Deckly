@@ -115,9 +115,15 @@ function OwnerDataRoomPreview() {
     if (pendingSaveId === room.id) {
       localStorage.removeItem("pending_save_data_room_id");
       if (!isSaved) {
-        saveToLibraryMutation.mutate({ dataRoomId: room.id, save: true });
-        setShowSuccessToast(true);
-        setTimeout(() => setShowSuccessToast(false), 3000);
+        void saveToLibraryMutation
+          .mutateAsync({ dataRoomId: room.id, save: true, roomSnapshot: room })
+          .then(() => {
+            setShowSuccessToast(true);
+            setTimeout(() => setShowSuccessToast(false), 3000);
+          })
+          .catch((err: unknown) => {
+            console.error("[OwnerDataRoomPreview] pending save failed", err);
+          });
       }
     }
 
@@ -165,7 +171,11 @@ function OwnerDataRoomPreview() {
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 3000);
     }
-    saveToLibraryMutation.mutate({ dataRoomId: room.id, save: nextSaveState });
+    void saveToLibraryMutation.mutateAsync({
+      dataRoomId: room.id,
+      save: nextSaveState,
+      roomSnapshot: room,
+    });
   };
 
   const handleNotes = () => {

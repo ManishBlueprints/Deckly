@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { GripVertical } from "lucide-react";
 import { SavedDeckOrganized, LibraryFolder, LibraryTag } from "../../types";
 import { TagChip } from "./TagChip";
-import { DeckActionMenu } from "./DeckActionMenu";
+import { LibraryActionMenu } from "./LibraryActionMenu";
 import { toast } from "sonner";
 import { cn } from "../../utils/cn";
 
@@ -202,10 +202,18 @@ export const DocumentRow = memo(function DocumentRow({
 
         {/* Actions */}
         <div className="flex items-center gap-3 shrink-0 ml-auto">
-          <DeckActionMenu
-            deck={deck}
+          <LibraryActionMenu
+            item={{
+              title: deck.title,
+              folder_id: deck.folder_id,
+              tags: deck.tags,
+            }}
             folders={folders}
             tags={tags}
+            openLabel="Open Deck"
+            openAction={() => window.open(`/${deck.user_handle}/${deck.slug}`, "_blank", "noopener,noreferrer")}
+            unsaveLabel="Remove from Saved"
+            unsaveDescription={`Are you sure you want to remove "${deck.title}" from your saved decks? You can still access it via the original URL if needed.`}
             onMoveToFolder={onMoveToFolder}
             onUpdateTags={onUpdateTags}
             onUnsave={onUnsave}

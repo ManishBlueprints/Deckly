@@ -27,6 +27,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
 import { getDataRoomPath } from "../utils/url";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   useIsDataRoomSaved,
   useSaveDataRoomToLibraryMutation,
@@ -191,9 +192,20 @@ function DataRoomViewer() {
     if (pendingSaveId === room.id) {
       localStorage.removeItem("pending_save_data_room_id");
       if (!isSaved) {
-        saveToLibraryMutation.mutate({ dataRoomId: room.id, save: true });
-        setShowSuccessToast(true);
-        setTimeout(() => setShowSuccessToast(false), 3000);
+        void saveToLibraryMutation
+          .mutateAsync({ dataRoomId: room.id, save: true, roomSnapshot: room })
+          .then(() => {
+            setShowSuccessToast(true);
+            setTimeout(() => setShowSuccessToast(false), 3000);
+          })
+          .catch((err: unknown) => {
+            console.error("[DataRoomViewer] pending save failed", err);
+            toast.error(
+              err instanceof Error
+                ? err.message
+                : "Failed to save room. Please try again.",
+            );
+          });
       }
     }
 
@@ -250,12 +262,24 @@ function DataRoomViewer() {
 
     const nextSaveState = !isSaved;
 
-    if (nextSaveState) {
-      setShowSuccessToast(true);
-      setTimeout(() => setShowSuccessToast(false), 3000);
-    }
+    try {
+      await saveToLibraryMutation.mutateAsync({
+        dataRoomId: room.id,
+        save: nextSaveState,
+        roomSnapshot: room,
+      });
 
-    saveToLibraryMutation.mutate({ dataRoomId: room.id, save: nextSaveState });
+      if (nextSaveState) {
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 3000);
+      }
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Failed to save room. Please try again.",
+      );
+    }
   }, [room, session, isSaved, saveToLibraryMutation]);
 
   const handleNotes = useCallback(() => {
