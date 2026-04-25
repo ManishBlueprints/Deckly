@@ -20,7 +20,7 @@ function OwnerDataRoomPreview() {
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
@@ -28,7 +28,7 @@ function OwnerDataRoomPreview() {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      setSidebarOpen(!mobile);
+      if (mobile) setSidebarOpen(false);
     };
 
     checkMobile();
@@ -353,8 +353,6 @@ function OwnerDataRoomPreview() {
               sidebarOpen={sidebarOpen}
               onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
               isMobile={isMobile}
-              sidebarWidthClassName="w-32"
-              toggleOffset="8rem"
               emptyMessage="No resources found in this room."
             />
 

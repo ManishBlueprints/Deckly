@@ -24,7 +24,7 @@ function DataRoomViewer() {
   const [viewerEmail, setViewerEmail] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
@@ -34,7 +34,6 @@ function DataRoomViewer() {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       if (mobile) setSidebarOpen(false);
-      else setSidebarOpen(true);
     };
 
     checkMobile();
@@ -621,8 +620,6 @@ function DataRoomViewer() {
               sidebarOpen={sidebarOpen}
               onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
               isMobile={isMobile}
-              sidebarWidthClassName="w-28"
-              toggleOffset="7rem"
               emptyMessage="No resources found in this room."
             />
 
