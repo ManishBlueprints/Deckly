@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Save, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { X, Save, ShieldAlert, Loader2, StickyNote } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Button } from "../ui/button";
 import {
@@ -75,132 +75,132 @@ export function NotesSidebar({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] lg:hidden"
+            className="fixed inset-0 bg-black/35 backdrop-blur-[2px] z-[110]"
           />
 
           <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-full max-w-md bg-[#0d0f14] border-l border-white/10 z-[120] flex flex-col shadow-2xl"
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="fixed top-4 right-4 z-[120] flex h-auto w-[min(22rem,calc(100vw-2rem))] max-h-[18rem] flex-col overflow-hidden border border-white/10 bg-[#101114] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
           >
             {/* Header */}
-            <div className="p-6 border-b border-white/5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-deckly-primary/10 flex items-center justify-center">
-                  <Sparkles size={20} className="text-deckly-primary" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white tracking-tight">
-                    Private Notes
-                  </h3>
-                  <div className="flex items-center gap-1.5">
-                    <ShieldAlert size={12} className="text-emerald-500" />
-                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-                      Founder cannot see this
-                    </span>
+            <div className="border-b border-white/5 bg-[#0f1116] px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary">
+                    <StickyNote size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-[12px] font-semibold uppercase tracking-[0.22em] text-slate-100">
+                      Private Notes
+                    </h3>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <ShieldAlert size={11} className="text-emerald-500" />
+                      <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-emerald-500">
+                        Private to you
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[9px] leading-relaxed text-slate-500">
+                      Save Deck to see notes related to this deck
+                    </p>
                   </div>
                 </div>
+                <div>
+                  <button
+                    onClick={onClose}
+                    className="flex h-8 w-8 items-center justify-center border border-white/10 bg-white/[0.03] text-slate-400 transition-colors hover:text-white"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={onClose}
-                className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/5 transition-all"
-              >
-                <X size={20} />
-              </button>
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 p-6 flex flex-col gap-4">
+            <div className="p-3">
               {!session ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
-                  <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center text-slate-400">
-                    <Save size={32} />
+                <div className="flex h-full flex-col items-center justify-center text-center space-y-4 px-3">
+                  <div className="flex h-12 w-12 items-center justify-center border border-white/10 bg-white/[0.03] text-slate-400">
+                    <Save size={20} />
                   </div>
                   <div className="space-y-2">
-                    <h4 className="text-lg font-bold text-white">
+                    <h4 className="text-base font-semibold text-white">
                       Sign in to take notes
                     </h4>
-                    <p className="text-sm text-slate-400 max-w-[240px] mx-auto leading-relaxed">
+                    <p className="mx-auto max-w-[220px] text-sm leading-relaxed text-slate-400">
                       Your notes are private to you and auto-saved to your
                       account.
                     </p>
                   </div>
                   <Button
                     onClick={onRequireAuth}
-                    className="bg-deckly-primary hover:bg-deckly-primary/90 text-slate-950 font-bold px-8"
+                    className="bg-deckly-primary px-5 font-semibold text-slate-950 hover:bg-deckly-primary/90"
                   >
                     Get Started
                   </Button>
                 </div>
               ) : isInitialLoading ? (
-                <div className="flex-1 flex items-center justify-center">
+                <div className="flex h-full items-center justify-center">
                   <Loader2
-                    size={32}
+                    size={24}
                     className="text-deckly-primary animate-spin"
                   />
                 </div>
               ) : (
-                <div className="flex-1 flex flex-col relative group">
-                  <textarea
-                    value={content}
-                    onChange={handleChange}
-                    placeholder="Write your private thoughts, questions, or analysis here..."
-                    className="flex-1 w-full bg-transparent text-slate-200 placeholder:text-slate-600 resize-none outline-none text-base leading-relaxed font-medium"
-                    autoFocus
-                  />
-
-                  {/* Status Indicator */}
-                  <div className="absolute bottom-0 right-0 py-4 flex items-center gap-2 pointer-events-none">
-                    <AnimatePresence mode="wait">
-                      {saveNoteMutation.isPending ? (
-                        <motion.div
-                          key="saving"
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          className="flex items-center gap-2 text-[10px] font-bold text-deckly-primary uppercase tracking-widest"
-                        >
-                          <Loader2 size={12} className="animate-spin" />
-                          Saving...
-                        </motion.div>
-                      ) : content !== (initialNote || "") ? (
-                        <motion.div
-                          key="unsaved"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="text-[10px] font-bold text-slate-500 uppercase tracking-widest"
-                        >
-                          Unsaved changes
-                        </motion.div>
-                      ) : (
-                        content && (
+                <div className="flex flex-col">
+                  <div className="rounded-none border border-deckly-primary/15 bg-[#0d1016] p-3">
+                    <textarea
+                      value={content}
+                      onChange={handleChange}
+                      placeholder="Write a private note..."
+                      className="min-h-[7.5rem] w-full resize-none border-none bg-transparent text-sm leading-relaxed text-slate-100 outline-none placeholder:text-slate-500"
+                      autoFocus
+                    />
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <AnimatePresence mode="wait">
+                        {saveNoteMutation.isPending ? (
                           <motion.div
-                            key="saved"
+                            key="saving"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-deckly-primary"
+                          >
+                            <Loader2 size={11} className="animate-spin" />
+                            Saving...
+                          </motion.div>
+                        ) : content !== (initialNote || "") ? (
+                          <motion.div
+                            key="unsaved"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="text-[10px] font-bold text-slate-600 uppercase tracking-widest"
+                            className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500"
                           >
-                            All notes saved
+                            Unsaved changes
                           </motion.div>
-                        )
-                      )}
-                    </AnimatePresence>
+                        ) : (
+                          content && (
+                            <motion.div
+                              key="saved"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600"
+                            >
+                              All notes saved
+                            </motion.div>
+                          )
+                        )}
+                      </AnimatePresence>
+                      <p className="text-[9px] text-slate-500">
+                        Auto-saves as you type
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Footer Tip */}
-            {session && (
-              <div className="p-6 bg-white/[0.02] border-t border-white/5">
-                <p className="text-[11px] text-slate-500 leading-relaxed italic">
-                  Tip: Use these notes to compile your thoughts. They'll always
-                  be here when you return to this room.{" "}
-                </p>
-              </div>
-            )}
           </motion.div>
         </>
       )}
