@@ -6,7 +6,47 @@ import { getTierConfig } from "../constants/tiers";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
-let geoCache: { country: string; city: string; country_code: string } | null = null;
+type GeoLocation = {
+  country: string;
+  city: string;
+  country_code: string;
+};
+
+const GEO_CACHE_KEY = "deckly_geo_cache";
+let geoCache: GeoLocation | null = null;
+
+const readGeoCacheFromSession = (): GeoLocation | null => {
+  try {
+    const raw = sessionStorage.getItem(GEO_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<GeoLocation>;
+    if (
+      typeof parsed.country !== "string" ||
+      typeof parsed.city !== "string" ||
+      typeof parsed.country_code !== "string"
+    ) {
+      sessionStorage.removeItem(GEO_CACHE_KEY);
+      return null;
+    }
+
+    return {
+      country: parsed.country,
+      city: parsed.city,
+      country_code: parsed.country_code,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const writeGeoCacheToSession = (value: GeoLocation) => {
+  try {
+    sessionStorage.setItem(GEO_CACHE_KEY, JSON.stringify(value));
+  } catch {
+    // Ignore sessionStorage errors and continue with in-memory cache only.
+  }
+};
 
 export const analyticsService = {
   // Track when someone views a deck
@@ -68,8 +108,14 @@ export const analyticsService = {
   },
 
   // Get geolocation from Vercel Edge headers
-  async getGeoLocation(): Promise<{ country: string; city: string; country_code: string }> {
+  async getGeoLocation(): Promise<GeoLocation> {
     if (geoCache) return geoCache;
+
+    const sessionCachedGeo = readGeoCacheFromSession();
+    if (sessionCachedGeo) {
+      geoCache = sessionCachedGeo;
+      return sessionCachedGeo;
+    }
     
     try {
       // Fetch from our local Vercel API route
@@ -87,6 +133,7 @@ export const analyticsService = {
         city: data.city || "Unknown City",
         country_code: data.country_code || "US"
       };
+      writeGeoCacheToSession(geoCache);
       return geoCache!;
     } catch (err) {
       console.warn("Failed to fetch geolocation, falling back to defaults:", err);

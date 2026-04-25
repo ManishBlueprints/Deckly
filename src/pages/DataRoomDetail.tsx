@@ -26,6 +26,7 @@ import { DataRoomContentToolbar } from "../components/data-room/detail/DataRoomC
 import { DataRoomFolderStrip } from "../components/data-room/detail/DataRoomFolderStrip";
 import { DataRoomAnalyticsPanel } from "../components/data-room/detail/DataRoomAnalyticsPanel";
 import { DataRoomSettingsPanel } from "../components/data-room/detail/DataRoomSettingsPanel";
+import { reorderDataRoomDocuments } from "../utils/dataRoomOrdering";
 import { analyticsService } from "../services/analyticsService";
 import {
   AlertDialog,
@@ -98,6 +99,11 @@ function DataRoomDetail() {
     }
     return counts;
   }, [documents]);
+
+  const folderLookup = useMemo(
+    () => new Map(folders.map((folder) => [folder.id, folder])),
+    [folders],
+  );
 
   const visibleDocuments = useMemo(() => {
     const query = contentSearch.trim().toLowerCase();
@@ -321,6 +327,11 @@ function DataRoomDetail() {
     async (documentId: string, folderId: string | null) => {
       if (!roomId) return;
 
+      if (folderId && !folderLookup.has(folderId)) {
+        toast.error("Selected folder is no longer available.");
+        return;
+      }
+
       const previousDocuments = documents;
       setDocuments((prev) =>
         prev.map((doc) =>
@@ -339,7 +350,7 @@ function DataRoomDetail() {
         );
       }
     },
-    [documents, folderActions, queryClient, roomId],
+    [documents, folderActions, folderLookup, queryClient, roomId],
   );
 
   const handleUpdateDocumentTags = useCallback(
@@ -373,15 +384,12 @@ function DataRoomDetail() {
       toast.info("Clear search to reorder documents");
       return;
     }
-    setDocuments((prev) => {
-      const newDocs = [...prev];
-      newDocs.sort(
-        (a, b) =>
-          orderedDeckIds.indexOf(a.deck_id) - orderedDeckIds.indexOf(b.deck_id),
-      );
-      return newDocs;
-    });
-    await dataRoomService.reorderDocuments(roomId, orderedDeckIds);
+    const nextDocuments = reorderDataRoomDocuments(documents, orderedDeckIds);
+    setDocuments(nextDocuments);
+    await dataRoomService.reorderDocuments(
+      roomId,
+      nextDocuments.map((doc) => doc.deck_id),
+    );
     queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
   };
 
@@ -436,93 +444,37 @@ function DataRoomDetail() {
         <DataRoomDetailTabs activeTab={activeTab} onChange={setActiveTab} />
 
         {activeTab === "content" && (
-          <div className="space-y-8">
-            <DataRoomContentToolbar
-              onNewDeck={() => navigate(`/upload?returnToRoom=${roomId}`)}
-              onAddExisting={() => setPickerOpen(true)}
-              onNewFolder={() => {
-                setEditingFolder(null);
-                setFolderModalOpen(true);
-              }}
-              onEditTags={() => setTagModalOpen(true)}
-              search={contentSearch}
-              onSearchChange={setContentSearch}
-            />
-
-            <DataRoomFolderStrip
-              folders={folders}
-              folderDocumentCounts={folderDocumentCounts}
-              loading={foldersLoading}
-              activeFolderId={activeFolderId}
-              onSelectFolder={setActiveFolderId}
-              onCreateFolder={() => {
-                setEditingFolder(null);
-                setFolderModalOpen(true);
-              }}
-              onEditFolder={(nextFolder) => {
-                setEditingFolder(nextFolder);
-                setFolderModalOpen(true);
-              }}
-              onDeleteFolder={(nextFolder) => setDeletingFolder(nextFolder)}
-            />
-
-            <div className="rounded-2xl border border-white/5 bg-[#111] overflow-hidden">
-              <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <FileText size={14} className="text-slate-400" />
-                  <h2 className="text-lg font-semibold text-[#e5e2e1]">
-                    {activeFolderId ? folders.find((folder) => folder.id === activeFolderId)?.name ?? "Documents / Decks" : "Unorganized Documents"}
-                  </h2>
-                    <span className="inline-flex items-center rounded-full border border-white/5 bg-white/5 px-2.5 py-0.5 text-[10px] font-bold text-slate-400">
-                      {visibleDocuments.length}
-                    </span>
-                </div>
-              </div>
-              {visibleDocuments.length === 0 ? (
-                <div className="py-20 flex flex-col items-center gap-3 text-center">
-                  <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-600">
-                    <FileText size={22} />
-                  </div>
-                  <p className="text-sm font-bold text-slate-400">
-                    {documents.length === 0
-                      ? "No assets yet"
-                      : "No matching assets"}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {documents.length === 0
-                      ? "Add decks to gate them inside this room."
-                      : "Clear your search to see everything again."}
-                  </p>
-                  <button
-                    onClick={() => navigate(`/upload?returnToRoom=${roomId}`)}
-                    className="mt-2 rounded-xl bg-[#54e98a] px-5 py-3 text-sm font-bold text-[#003919] transition-all hover:opacity-90"
-                  >
-                    New Deck
-                  </button>
-                </div>
-              ) : (
-                <div className="p-4">
-                  <RoomDocumentList
-                    documents={visibleDocuments}
-                    onRemove={handleRemoveDocument}
-                    onReorder={handleReorderDocuments}
-                    folderOptions={folders.map((folder) => ({
-                      id: folder.id,
-                      name: folder.name,
-                    }))}
-                    onMoveToFolder={handleMoveDocumentToFolder}
-                    availableTags={tags}
-                    onUpdateDocumentTags={handleUpdateDocumentTags}
-                    onViewAnalytics={(deckId) =>
-                      navigate(`/analytics/${deckId}`)
-                    }
-                    onEditDeck={(deckId) => navigate(`/edit/${deckId}`)}
-                    signedThumbnails={signedThumbnails}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
+          <DataRoomContentSection
+            folders={folders}
+            foldersLoading={foldersLoading}
+            folderDocumentCounts={folderDocumentCounts}
+            activeFolderId={activeFolderId}
+            onSelectFolder={setActiveFolderId}
+            onNewDeck={() => navigate(`/upload?returnToRoom=${roomId}`)}
+            onAddExisting={() => setPickerOpen(true)}
+            onNewFolder={() => {
+              setEditingFolder(null);
+              setFolderModalOpen(true);
+            }}
+            onEditFolder={(nextFolder) => {
+              setEditingFolder(nextFolder);
+              setFolderModalOpen(true);
+            }}
+            onDeleteFolder={(nextFolder) => setDeletingFolder(nextFolder)}
+            onEditTags={() => setTagModalOpen(true)}
+            contentSearch={contentSearch}
+            onSearchChange={setContentSearch}
+            documents={documents}
+            visibleDocuments={visibleDocuments}
+            onRemoveDocument={handleRemoveDocument}
+            onReorderDocuments={handleReorderDocuments}
+            tags={tags}
+            onUpdateDocumentTags={handleUpdateDocumentTags}
+            onMoveDocumentToFolder={handleMoveDocumentToFolder}
+            onViewAnalytics={(deckId) => navigate(`/analytics/${deckId}`)}
+            onEditDeck={(deckId) => navigate(`/edit/${deckId}`)}
+            signedThumbnails={signedThumbnails}
+          />
         )}
 
         {activeTab === "analytics" && (
@@ -660,6 +612,136 @@ function DataRoomDetail() {
         </AlertDialogContent>
       </AlertDialog>
     </DashboardLayout>
+  );
+}
+
+function DataRoomContentSection({
+  folders,
+  foldersLoading,
+  folderDocumentCounts,
+  activeFolderId,
+  onSelectFolder,
+  onNewDeck,
+  onAddExisting,
+  onNewFolder,
+  onEditFolder,
+  onDeleteFolder,
+  onEditTags,
+  contentSearch,
+  onSearchChange,
+  documents,
+  visibleDocuments,
+  onRemoveDocument,
+  onReorderDocuments,
+  tags,
+  onUpdateDocumentTags,
+  onMoveDocumentToFolder,
+  onViewAnalytics,
+  onEditDeck,
+  signedThumbnails,
+}: {
+  folders: DataRoomFolderWithTags[];
+  foldersLoading: boolean;
+  folderDocumentCounts: Map<string, number>;
+  activeFolderId: string | null;
+  onSelectFolder: (folderId: string | null) => void;
+  onNewDeck: () => void;
+  onAddExisting: () => void;
+  onNewFolder: () => void;
+  onEditFolder: (folder: DataRoomFolderWithTags) => void;
+  onDeleteFolder: (folder: DataRoomFolderWithTags) => void;
+  onEditTags: () => void;
+  contentSearch: string;
+  onSearchChange: (value: string) => void;
+  documents: DataRoomDocument[];
+  visibleDocuments: DataRoomDocument[];
+  onRemoveDocument: (deckId: string) => Promise<void>;
+  onReorderDocuments: (orderedDeckIds: string[]) => Promise<void>;
+  tags: DataRoomTag[];
+  onUpdateDocumentTags: (documentId: string, tagIds: string[]) => Promise<void>;
+  onMoveDocumentToFolder: (documentId: string, folderId: string | null) => Promise<void>;
+  onViewAnalytics: (deckId: string) => void;
+  onEditDeck: (deckId: string) => void;
+  signedThumbnails: Record<string, string>;
+}) {
+  return (
+    <div className="space-y-8">
+      <DataRoomContentToolbar
+        onNewDeck={onNewDeck}
+        onAddExisting={onAddExisting}
+        onNewFolder={onNewFolder}
+        onEditTags={onEditTags}
+        search={contentSearch}
+        onSearchChange={onSearchChange}
+      />
+
+      <DataRoomFolderStrip
+        folders={folders}
+        folderDocumentCounts={folderDocumentCounts}
+        loading={foldersLoading}
+        activeFolderId={activeFolderId}
+        onSelectFolder={onSelectFolder}
+        onCreateFolder={onNewFolder}
+        onEditFolder={onEditFolder}
+        onDeleteFolder={onDeleteFolder}
+      />
+
+      <div className="rounded-2xl border border-white/5 bg-[#111] overflow-hidden">
+        <div className="flex items-center justify-between border-b border-white/5 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <FileText size={14} className="text-slate-400" />
+            <h2 className="text-lg font-semibold text-[#e5e2e1]">
+              {activeFolderId
+                ? folders.find((folder) => folder.id === activeFolderId)?.name ??
+                  "Documents / Decks"
+                : "Unorganized Documents"}
+            </h2>
+            <span className="inline-flex items-center rounded-full border border-white/5 bg-white/5 px-2.5 py-0.5 text-[10px] font-bold text-slate-400">
+              {visibleDocuments.length}
+            </span>
+          </div>
+        </div>
+        {visibleDocuments.length === 0 ? (
+          <div className="py-20 flex flex-col items-center gap-3 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-600">
+              <FileText size={22} />
+            </div>
+            <p className="text-sm font-bold text-slate-400">
+              {documents.length === 0 ? "No assets yet" : "No matching assets"}
+            </p>
+            <p className="text-xs text-slate-500">
+              {documents.length === 0
+                ? "Add decks to gate them inside this room."
+                : "Clear your search to see everything again."}
+            </p>
+            <button
+              onClick={onNewDeck}
+              className="mt-2 rounded-xl bg-[#54e98a] px-5 py-3 text-sm font-bold text-[#003919] transition-all hover:opacity-90"
+            >
+              New Deck
+            </button>
+          </div>
+        ) : (
+          <div className="p-4">
+            <RoomDocumentList
+              documents={visibleDocuments}
+              onRemove={onRemoveDocument}
+              onReorder={onReorderDocuments}
+              folderOptions={folders.map((folder) => ({
+                id: folder.id,
+                name: folder.name,
+              }))}
+              onMoveToFolder={onMoveDocumentToFolder}
+              availableTags={tags}
+              onUpdateDocumentTags={onUpdateDocumentTags}
+              onViewAnalytics={onViewAnalytics}
+              onEditDeck={onEditDeck}
+              signedThumbnails={signedThumbnails}
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

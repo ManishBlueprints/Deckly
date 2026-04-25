@@ -37,11 +37,23 @@ function Signup() {
     return msg;
   };
 
+  const isNetworkErrorMessage = (msg: string) => {
+    const normalized = msg.toLowerCase();
+    return (
+      normalized.includes("failed to fetch") ||
+      normalized.includes("network") ||
+      normalized.includes("fetch") ||
+      normalized.includes("load failed")
+    );
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     posthog.capture("user_signup_submitted", { method: "email" });
+
+    let shouldResetTurnstile = true;
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -65,13 +77,17 @@ function Signup() {
       }
     } catch (err: unknown) {
       const rawMessage = err instanceof Error ? err.message : String(err);
+      if (isNetworkErrorMessage(rawMessage)) {
+        shouldResetTurnstile = false;
+      }
       setError(formatErrorMessage(rawMessage));
       posthog.capture("user_signup_failed", { method: "email", error: rawMessage });
     } finally {
       setLoading(false);
-      // Reset Turnstile on every attempt finish (especially on error)
-      setCaptchaToken(null);
-      turnstileRef.current?.reset();
+      if (shouldResetTurnstile) {
+        setCaptchaToken(null);
+        turnstileRef.current?.reset();
+      }
     }
   };
 

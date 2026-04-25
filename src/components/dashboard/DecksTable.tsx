@@ -138,7 +138,12 @@ export function DecksTable({
                     ? ` · ${new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(deck.last_viewed_at)).replace(/\//g, "-")}`
                     : ""}
                 </p>
-                <p className="text-[11px] mt-1 text-slate-500">
+                <p
+                  className={cn(
+                    "text-[11px] mt-1",
+                    isDeckPublic(deck) ? "text-emerald-400" : "text-slate-500",
+                  )}
+                >
                   {isDeckPublic(deck)
                     ? "Public link active"
                     : "Copy link to make it public"}
@@ -279,7 +284,14 @@ export function DecksTable({
                         {deck.title}
                       </span>
                     </Link>
-                    <p className="text-[11px] mt-1 text-slate-500">
+                    <p
+                      className={cn(
+                        "text-[11px] mt-1",
+                        isDeckPublic(deck)
+                          ? "text-emerald-400"
+                          : "text-slate-500",
+                      )}
+                    >
                       {isDeckPublic(deck)
                         ? "Public link active"
                         : "Copy link to make it public"}

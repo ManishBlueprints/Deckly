@@ -255,7 +255,7 @@ export function SavedDecksView() {
                 className="flex items-center gap-3 px-6 py-3 bg-surface-low border border-border text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all"
               >
                 <Tag size={14} />
-                Manage Tags
+                Edit Tags
               </button>
             </div>
           </div>
