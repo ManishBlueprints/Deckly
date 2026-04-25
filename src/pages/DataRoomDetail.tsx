@@ -26,6 +26,9 @@ import { DataRoomContentToolbar } from "../components/data-room/detail/DataRoomC
 import { DataRoomFolderStrip } from "../components/data-room/detail/DataRoomFolderStrip";
 import { DataRoomAnalyticsPanel } from "../components/data-room/detail/DataRoomAnalyticsPanel";
 import { DataRoomSettingsPanel } from "../components/data-room/detail/DataRoomSettingsPanel";
+import { MetadataSearchMenu } from "../components/search/MetadataSearchMenu";
+import { useMetadataSearchState } from "../hooks/useMetadataSearchState";
+import { filterDataRoomDocuments } from "../utils/metadataSearchAdapters";
 import { reorderDataRoomDocuments } from "../utils/dataRoomOrdering";
 import { analyticsService } from "../services/analyticsService";
 import {
@@ -82,11 +85,11 @@ function DataRoomDetail() {
   const [isFolderDeletePending, setIsFolderDeletePending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<DataRoomDetailTab>("content");
-  const [contentSearch, setContentSearch] = useState("");
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isUpdatingShareState, setIsUpdatingShareState] = useState(false);
+  const search = useMetadataSearchState("data_room");
 
   const [roomSignals, setRoomSignals] = useState<VisitorSignal[]>([]);
   const [signalsLoading, setSignalsLoading] = useState(true);
@@ -106,15 +109,8 @@ function DataRoomDetail() {
   );
 
   const visibleDocuments = useMemo(() => {
-    const query = contentSearch.trim().toLowerCase();
-    return documents.filter((doc) => {
-      const matchesSearch = !query || doc.deck?.title?.toLowerCase().includes(query);
-      const matchesFolder = activeFolderId
-        ? doc.folder_id === activeFolderId
-        : !doc.folder_id;
-      return matchesSearch && matchesFolder;
-    });
-  }, [activeFolderId, contentSearch, documents]);
+    return filterDataRoomDocuments(documents, search.filter, activeFolderId);
+  }, [activeFolderId, documents, search.filter]);
 
   const workspaceHandle = profile?.handle;
   const shareUrlLabel = workspaceHandle
@@ -380,7 +376,7 @@ function DataRoomDetail() {
 
   const handleReorderDocuments = async (orderedDeckIds: string[]) => {
     if (!roomId) return;
-    if (contentSearch.trim()) {
+    if (search.isActive) {
       toast.info("Clear search to reorder documents");
       return;
     }
@@ -462,8 +458,7 @@ function DataRoomDetail() {
             }}
             onDeleteFolder={(nextFolder) => setDeletingFolder(nextFolder)}
             onEditTags={() => setTagModalOpen(true)}
-            contentSearch={contentSearch}
-            onSearchChange={setContentSearch}
+            search={search}
             documents={documents}
             visibleDocuments={visibleDocuments}
             onRemoveDocument={handleRemoveDocument}
@@ -627,8 +622,7 @@ function DataRoomContentSection({
   onEditFolder,
   onDeleteFolder,
   onEditTags,
-  contentSearch,
-  onSearchChange,
+  search,
   documents,
   visibleDocuments,
   onRemoveDocument,
@@ -651,8 +645,7 @@ function DataRoomContentSection({
   onEditFolder: (folder: DataRoomFolderWithTags) => void;
   onDeleteFolder: (folder: DataRoomFolderWithTags) => void;
   onEditTags: () => void;
-  contentSearch: string;
-  onSearchChange: (value: string) => void;
+  search: ReturnType<typeof useMetadataSearchState>;
   documents: DataRoomDocument[];
   visibleDocuments: DataRoomDocument[];
   onRemoveDocument: (deckId: string) => Promise<void>;
@@ -671,8 +664,20 @@ function DataRoomContentSection({
         onAddExisting={onAddExisting}
         onNewFolder={onNewFolder}
         onEditTags={onEditTags}
-        search={contentSearch}
-        onSearchChange={onSearchChange}
+        searchControl={
+          <MetadataSearchMenu
+            filter={search.filter}
+            isActive={search.isActive}
+            onModeChange={search.setMode}
+            onQueryChange={search.setQuery}
+            onDatePresetChange={search.setDatePreset}
+            onCustomDateRangeChange={search.setCustomDateRange}
+            onClear={search.resetFilter}
+            resultCount={visibleDocuments.length}
+            triggerLabel="Search"
+            namePlaceholder="Search document titles..."
+          />
+        }
       />
 
       <DataRoomFolderStrip
@@ -712,7 +717,7 @@ function DataRoomContentSection({
             <p className="text-xs text-slate-500">
               {documents.length === 0
                 ? "Add decks to gate them inside this room."
-                : "Clear your search to see everything again."}
+                : "Clear your search or date filter to see everything again."}
             </p>
             <button
               onClick={onNewDeck}

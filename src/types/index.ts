@@ -1,3 +1,5 @@
+export * from "./metadataSearch";
+
 export interface PdfLinkHotspot {
   href: string;
   rect: {

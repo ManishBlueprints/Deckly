@@ -5,7 +5,7 @@ import {
   SavedDataRoomOrganized,
   SavedDeckOrganized,
 } from "../../types";
-import { Loader2, Filter, Tag, Search, X } from "lucide-react";
+import { Loader2, Filter, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +28,12 @@ import { ManageTagsModal } from "./ManageTagsModal";
 import { useLibrary } from "../../hooks/useLibrary";
 import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
 import { cn } from "../../lib/utils";
+import { MetadataSearchMenu } from "../search/MetadataSearchMenu";
+import { useMetadataSearchState } from "../../hooks/useMetadataSearchState";
+import {
+  filterSavedDeckRows,
+  filterSavedRoomRows,
+} from "../../utils/metadataSearchAdapters";
 
 export function SavedDecksView() {
   const { session } = useAuth();
@@ -46,8 +52,8 @@ export function SavedDecksView() {
     string | "uncategorized"
   >("uncategorized");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const search = useMetadataSearchState("saved_decks");
 
   // Modal state
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
@@ -69,27 +75,13 @@ export function SavedDecksView() {
   // --- Derived / filtered list ---
   const filteredDecks = useMemo(
     () =>
-      decks.filter((deck) => {
-        // When 'uncategorized' is selected show decks with no folder assigned
-        const matchesFolder =
-          selectedFolderId === "uncategorized"
-            ? deck.folder_id === null
-            : deck.folder_id === selectedFolderId;
-        const matchesTag =
-          selectedTagId === null ||
-          deck.tags.some((t) => t.id === selectedTagId);
-        const matchesSearch =
-          searchQuery === "" ||
-          deck.title.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesFolder && matchesTag && matchesSearch;
-      }),
-    [decks, selectedFolderId, selectedTagId, searchQuery],
+      filterSavedDeckRows(decks, search.filter, selectedFolderId, selectedTagId),
+    [decks, search.filter, selectedFolderId, selectedTagId],
   );
 
   const filteredSavedRooms = useMemo(() => {
-    if (selectedFolderId === "uncategorized") return [];
-    return savedRooms.filter((room) => room.folder_id === selectedFolderId);
-  }, [savedRooms, selectedFolderId]);
+    return filterSavedRoomRows(savedRooms, search.filter, selectedFolderId);
+  }, [savedRooms, search.filter, selectedFolderId]);
 
   const roomCountByFolder = useMemo(() => {
     return savedRooms.reduce<Record<string, number>>((acc, room) => {
@@ -264,6 +256,18 @@ export function SavedDecksView() {
             </div>
 
             <div className="flex items-center gap-4">
+              <MetadataSearchMenu
+                filter={search.filter}
+                isActive={search.isActive}
+                onModeChange={search.setMode}
+                onQueryChange={search.setQuery}
+                onDatePresetChange={search.setDatePreset}
+                onCustomDateRangeChange={search.setCustomDateRange}
+                onClear={search.resetFilter}
+                resultCount={filteredDecks.length + filteredSavedRooms.length}
+                triggerLabel="Search"
+                namePlaceholder="Search saved titles..."
+              />
               <button
                 onClick={() => setIsFilterOpen((v) => !v)}
                 className={cn(
@@ -296,31 +300,9 @@ export function SavedDecksView() {
                 transition={{ duration: 0.15 }}
                 className="overflow-hidden"
               >
-                <div className="p-6 bg-surface-card border border-white/5 flex flex-col md:flex-row gap-6">
-                  {/* Search */}
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#bbcbbb]/40" />
-                    <input
-                      type="text"
-                      placeholder="Search documents by title..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-12 pr-10 py-3 bg-surface-container border border-white/10 text-[#e5e2e1] placeholder:text-[#bbcbbb]/40 focus:outline-none focus:border-[#54e98a]/50 transition-colors"
-                    />
-                    {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery("")}
-                        aria-label="Clear search"
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#bbcbbb]/40 hover:text-white"
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Tag Filters */}
+                <div className="p-6 bg-surface-card border border-white/5 flex flex-col gap-6">
                   {tags.length > 0 && (
-                    <div className="flex-1 flex gap-2 flex-wrap items-center">
+                    <div className="flex gap-2 flex-wrap items-center">
                       <span className="text-xs font-bold text-[#bbcbbb]/40 uppercase tracking-wider mr-2">
                         Tags:
                       </span>
