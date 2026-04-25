@@ -1,28 +1,59 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, AlertCircle, FileText, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  AlertCircle,
+  Bookmark,
+  BookmarkCheck,
+  Check,
+  ChevronRight,
+  FileText,
+  FolderOpen,
+  MessageSquareText,
+} from "lucide-react";
 import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
 import DeckViewer from "../components/viewer/DeckViewer";
 import AccessGate from "../components/viewer/AccessGate";
+import { AuthModal } from "../components/auth/AuthModal";
+import { DataRoomSidebar, buildDataRoomSidebarSections } from "../components/viewer/DataRoomSidebar";
+import { RoomNotesSidebar } from "../components/viewer/RoomNotesSidebar";
 import { dataRoomService } from "../services/dataRoomService";
+import { dataRoomFolderService } from "../services/dataRoomFolderService";
+import { dataRoomLibraryService } from "../services/dataRoomLibraryService";
 import { analyticsService } from "../services/analyticsService";
 import { supabase } from "../services/supabase";
+import { useAuth } from "../contexts/AuthContext";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
 import { getDataRoomPath } from "../utils/url";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  useIsDataRoomSaved,
+  useSaveDataRoomToLibraryMutation,
+} from "../hooks/useDataRoomViewerQueries";
 
 function DataRoomViewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
+  const { session } = useAuth();
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
+  const [folderGroups, setFolderGroups] = useState<{ id: string; name: string }[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [viewerEmail, setViewerEmail] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"save" | "notes" | null>(null);
+
+  const { data: isSaved = false } = useIsDataRoomSaved(room?.id, session?.user?.id);
+  const saveToLibraryMutation = useSaveDataRoomToLibraryMutation(session?.user?.id);
 
   // Handle responsive sidebar and screen size
   useEffect(() => {
@@ -30,7 +61,6 @@ function DataRoomViewer() {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       if (mobile) setSidebarOpen(false);
-      else setSidebarOpen(true);
     };
 
     checkMobile();
@@ -81,9 +111,18 @@ function DataRoomViewer() {
       const isOwner = session?.user?.id === data.user_id;
 
       let docsToSet: DataRoomDocument[] = [];
+      let foldersToSet: { id: string; name: string }[] = [];
 
       if (isOwner) {
-        docsToSet = await dataRoomService.getDocuments(data.id);
+        const [ownerDocs, ownerFolders] = await Promise.all([
+          dataRoomService.getDocuments(data.id, { signUrls: true }),
+          dataRoomFolderService.listFolders(data.id),
+        ]);
+        docsToSet = ownerDocs;
+        foldersToSet = ownerFolders.map((folder) => ({
+          id: folder.id,
+          name: folder.name,
+        }));
         setIsUnlocked(true);
       } else if (!data.require_email && !data.require_password) {
         // Free public
@@ -92,16 +131,34 @@ function DataRoomViewer() {
             data.slug,
           );
           docsToSet = payloadDocs.map((deckObj: unknown, index: number) => {
-            const deck = deckObj as Deck;
+            const deck = deckObj as Deck & {
+              folder_id?: string | null;
+              folder_name?: string | null;
+            };
             return {
               id: deck.id,
               data_room_id: data.id,
               deck_id: deck.id,
+              folder_id: deck.folder_id ?? null,
+              folder_name: deck.folder_name ?? null,
               display_order: index,
               added_at: new Date().toISOString(),
               deck,
             } as DataRoomDocument;
           });
+          foldersToSet = Array.from(
+            new Map(
+              docsToSet
+                .filter((doc) => doc.folder_id)
+                .map((doc) => [
+                  doc.folder_id as string,
+                  {
+                    id: doc.folder_id as string,
+                    name: doc.folder_name || "Folder",
+                  },
+                ]),
+            ).values(),
+          );
           setIsUnlocked(true);
         } catch {
           throw new Error("Failed to load documents payload.");
@@ -109,9 +166,9 @@ function DataRoomViewer() {
       }
 
       setDocuments(docsToSet);
-      if (docsToSet.length > 0 && docsToSet[0].deck) {
-        setSelectedDeck(docsToSet[0].deck);
-      }
+      setFolderGroups(foldersToSet);
+       const initialDeck = docsToSet.find((doc) => !doc.folder_id)?.deck || docsToSet[0]?.deck || null;
+       setSelectedDeck(initialDeck);
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Failed to load data room.",
@@ -127,6 +184,42 @@ function DataRoomViewer() {
   useEffect(() => {
     loadRoom();
   }, [loadRoom]);
+
+  useEffect(() => {
+    if (!session || !room) return;
+
+    const pendingSaveId = localStorage.getItem("pending_save_data_room_id");
+    if (pendingSaveId === room.id) {
+      localStorage.removeItem("pending_save_data_room_id");
+      if (!isSaved) {
+        void saveToLibraryMutation
+          .mutateAsync({ dataRoomId: room.id, save: true, roomSnapshot: room })
+          .then(() => {
+            setShowSuccessToast(true);
+            setTimeout(() => setShowSuccessToast(false), 3000);
+          })
+          .catch((err: unknown) => {
+            console.error("[DataRoomViewer] pending save failed", err);
+            toast.error(
+              err instanceof Error
+                ? err.message
+                : "Failed to save room. Please try again.",
+            );
+          });
+      }
+    }
+
+    const pendingRoomAction = localStorage.getItem("pending_data_room_action");
+    if (pendingRoomAction === "notes" && pendingAction === "notes") {
+      localStorage.removeItem("pending_data_room_action");
+      setIsNotesOpen(true);
+      setPendingAction(null);
+    }
+
+    if (isSaved) {
+      dataRoomLibraryService.updateLibraryLastViewed(room.id);
+    }
+  }, [session, room?.id, isSaved, saveToLibraryMutation, pendingAction, room]);
 
   // Track view when a document is selected
   useEffect(() => {
@@ -156,6 +249,59 @@ function DataRoomViewer() {
         view_password: room.view_password,
       } as Deck)
     : null;
+
+  const handleSave = useCallback(async () => {
+    if (!room) return;
+
+    if (!session) {
+      localStorage.setItem("pending_save_data_room_id", room.id);
+      setPendingAction("save");
+      setShowAuthModal(true);
+      return;
+    }
+
+    const nextSaveState = !isSaved;
+
+    try {
+      await saveToLibraryMutation.mutateAsync({
+        dataRoomId: room.id,
+        save: nextSaveState,
+        roomSnapshot: room,
+      });
+
+      if (nextSaveState) {
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 3000);
+      }
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Failed to save room. Please try again.",
+      );
+    }
+  }, [room, session, isSaved, saveToLibraryMutation]);
+
+  const handleNotes = useCallback(() => {
+    if (!room) return;
+
+    if (!session) {
+      localStorage.setItem("pending_data_room_action", "notes");
+      setPendingAction("notes");
+      setShowAuthModal(true);
+      return;
+    }
+
+    setIsNotesOpen(true);
+  }, [room, session]);
+
+  const sidebarSections = useMemo(
+    () => buildDataRoomSidebarSections(documents, folderGroups),
+    [documents, folderGroups],
+  );
+  const groupedDocuments = sidebarSections;
+  const folderSections = groupedDocuments.filter((group) => group.icon === "folder");
+  const documentsSection = groupedDocuments.find((group) => group.id === "unorganized");
 
   return (
     <div className="fixed inset-0 bg-[#0d0d0d] flex flex-col items-stretch overflow-hidden">
@@ -231,21 +377,38 @@ function DataRoomViewer() {
                 const payloadDocs = await dataRoomService.getDataRoomPayload(room.slug, password);
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const docsToSet = payloadDocs.map((deckObj: any, index: number) => {
-                  const deck = deckObj as Deck;
-                  return {
-                    id: deck.id,
-                    data_room_id: room.id,
-                    deck_id: deck.id,
-                    display_order: index,
-                    added_at: new Date().toISOString(),
-                    deck,
-                  } as DataRoomDocument;
+                const deck = deckObj as Deck & {
+                  folder_id?: string | null;
+                  folder_name?: string | null;
+                };
+                return {
+                  id: deck.id,
+                  data_room_id: room.id,
+                  deck_id: deck.id,
+                  folder_id: deck.folder_id ?? null,
+                  folder_name: deck.folder_name ?? null,
+                  display_order: index,
+                  added_at: new Date().toISOString(),
+                  deck,
+                } as DataRoomDocument;
                 });
+                setFolderGroups(Array.from(
+                  new Map(
+                    docsToSet
+                      .filter((doc) => doc.folder_id)
+                      .map((doc) => [
+                        doc.folder_id as string,
+                        {
+                          id: doc.folder_id as string,
+                          name: doc.folder_name || "Folder",
+                        },
+                      ]),
+                  ).values(),
+                ));
                 
                 setDocuments(docsToSet);
-                if (docsToSet.length > 0 && docsToSet[0].deck) {
-                  setSelectedDeck(docsToSet[0].deck);
-                }
+                const initialDeck = docsToSet.find((doc) => !doc.folder_id)?.deck || docsToSet[0]?.deck || null;
+                setSelectedDeck(initialDeck);
 
                 setIsUnlocked(true);
                 if (email) setViewerEmail(email);
@@ -264,6 +427,7 @@ function DataRoomViewer() {
             animate={{ opacity: 1 }}
             className="flex-1 flex items-stretch relative"
           >
+            <div className="hidden">
             {/* ── Mobile Backdrop ── */}
             <AnimatePresence>
               {isMobile && sidebarOpen && (
@@ -280,7 +444,7 @@ function DataRoomViewer() {
             {/* ── Document Sidebar ── */}
             <div
               className={`
-                ${sidebarOpen ? (isMobile ? "w-[280px]" : "w-80") : "w-0"} 
+                ${sidebarOpen ? (isMobile ? "w-[220px]" : "w-56") : "w-0"} 
                 bg-[#111] border-r border-[#222] flex flex-col transition-all duration-500 overflow-hidden shrink-0 relative z-50 shadow-xl
                 ${isMobile ? "absolute inset-y-0 left-0" : "relative"}
               `}
@@ -314,58 +478,210 @@ function DataRoomViewer() {
               </div>
 
               {/* Document List */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {documents.map((doc) => {
-                  const deck = doc.deck;
-                  const isActive = selectedDeck?.id === deck?.id;
+              <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+                {groupedDocuments.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <div className="mx-auto mb-4 w-12 h-12 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center text-slate-600">
+                      <FileText size={20} />
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      No resources found in this room.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {false && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 px-1">
+                          <FolderOpen size={12} className="text-deckly-primary" />
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                            Folders
+                          </p>
+                        </div>
 
-                  return (
-                    <button
-                      key={doc.deck_id}
-                      onClick={() => deck && setSelectedDeck(deck)}
-                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-md border transition-all duration-200 group ${
-                        isActive
-                          ? "bg-deckly-primary/5 border-deckly-primary/40 shadow-sm"
-                          : "hover:bg-[#1a1a1a] border-transparent"
-                      }`}
-                    >
-                      {/* Thumbnail */}
-                      <div
-                        className={`w-10 h-8 rounded-sm bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${isActive ? "border-deckly-primary/40 shadow-sm" : "border-[#222] grayscale group-hover:grayscale-0"}`}
-                      >
-                        {deck?.pages?.[0]?.image_url ? (
-                          <img
-                            src={deck.pages[0].image_url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <FileText size={16} className="text-slate-800" />
+                        {folderSections.map((group) => (
+                          <section key={group.id} className="space-y-2">
+                            <div className="flex items-center justify-between gap-3 px-1">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <FolderOpen size={13} className="text-deckly-primary shrink-0" />
+                                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300 truncate">
+                                    {group.title}
+                                  </h3>
+                                </div>
+                              </div>
+                              <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[10px] font-semibold text-slate-400">
+                                {group.documents.length}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              {group.documents.map((doc) => {
+                                const deck = doc.deck;
+                                const isActive = selectedDeck?.id === deck?.id;
+
+                                return (
+                                  <button
+                                    key={doc.deck_id}
+                                    onClick={() => deck && setSelectedDeck(deck)}
+                                      className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-md border transition-all duration-200 group ${
+                                        isActive
+                                        ? "bg-deckly-primary/5 border-deckly-primary/30"
+                                        : "hover:bg-[#1a1a1a] border-transparent"
+                                      }`}
+                                    >
+                                    <div className={`w-9 h-7 rounded-sm bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${isActive ? "border-deckly-primary/40" : "border-[#222] grayscale group-hover:grayscale-0"}`}>
+                                      {deck?.pages?.[0]?.image_url ? (
+                                        <img src={deck.pages[0].image_url} alt="" className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          <FileText size={16} className="text-slate-800" />
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-xs font-semibold truncate transition-colors ${isActive ? "text-deckly-primary" : "text-slate-300 group-hover:text-deckly-primary"}`}>
+                                        {deck?.title || "Untitled Resource"}
+                                      </p>
+                                      <p className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-600"}`}>
+                                        {deck?.pages?.length || 0} Slides
+                                      </p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </section>
+                        ))}
+                      </div>
+                    )}
+
+                    {documentsSection && documentsSection.documents.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 px-1">
+                          <FileText size={12} className="text-slate-500" />
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                            Documents
+                          </p>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            {documentsSection.documents.map((doc) => {
+                              const deck = doc.deck;
+                              const isActive = selectedDeck?.id === deck?.id;
+
+                              return (
+                                <button
+                                  key={doc.deck_id}
+                                  onClick={() => deck && setSelectedDeck(deck)}
+                                  className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-md border transition-all duration-200 group ${isActive ? "bg-deckly-primary/5 border-deckly-primary/30" : "hover:bg-[#1a1a1a] border-transparent"}`}
+                                >
+                                  <div className={`w-9 h-7 rounded-sm bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${isActive ? "border-deckly-primary/40" : "border-[#222] grayscale group-hover:grayscale-0"}`}>
+                                    {deck?.pages?.[0]?.image_url ? (
+                                      <img src={deck.pages[0].image_url} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <FileText size={16} className="text-slate-800" />
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-xs font-semibold truncate transition-colors ${isActive ? "text-deckly-primary" : "text-slate-300 group-hover:text-deckly-primary"}`}>
+                                      {deck?.title || "Untitled Resource"}
+                                    </p>
+                                    <p className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-600"}`}>
+                                      {deck?.pages?.length || 0} Slides
+                                    </p>
+                                  </div>
+                                  </button>
+                                );
+                              })}
                           </div>
-                        )}
                       </div>
+                    )}
 
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-xs font-semibold truncate transition-colors ${
-                            isActive
-                              ? "text-deckly-primary"
-                              : "text-slate-300 group-hover:text-deckly-primary"
-                          }`}
-                        >
-                          {deck?.title || "Untitled Resource"}
-                        </p>
-                        <p
-                          className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-600"}`}
-                        >
-                          {deck?.pages?.length || 0} Slides
-                        </p>
+                    {folderSections.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 px-1">
+                          <FolderOpen size={12} className="text-deckly-primary" />
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                            Folders
+                          </p>
+                        </div>
+
+                        {folderSections.map((group) => {
+                          const isExpanded = expandedFolders[group.id] ?? false;
+
+                          return (
+                            <section key={group.id} className="space-y-2">
+                              <div className="flex items-center justify-between gap-3 px-1">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExpandedFolders((prev) => ({
+                                      ...prev,
+                                      [group.id]: !(prev[group.id] ?? false),
+                                    }))
+                                  }
+                                  className="flex min-w-0 items-center gap-2 text-left"
+                                >
+                                  <ChevronRight
+                                    size={13}
+                                    className={`text-deckly-primary shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                                  />
+                                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300 truncate">
+                                    {group.title}
+                                  </h3>
+                                </button>
+                                <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[10px] font-semibold text-slate-400">
+                                  {group.documents.length}
+                                </span>
+                              </div>
+
+                              {isExpanded && (
+                                <div className="space-y-1.5">
+                                  {group.documents.map((doc) => {
+                                    const deck = doc.deck;
+                                    const isActive = selectedDeck?.id === deck?.id;
+
+                                    return (
+                                      <button
+                                        key={doc.deck_id}
+                                        onClick={() => deck && setSelectedDeck(deck)}
+                                        className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-md border transition-all duration-200 group ${isActive ? "bg-deckly-primary/5 border-deckly-primary/30" : "hover:bg-[#1a1a1a] border-transparent"}`}
+                                      >
+                                        <div className={`w-9 h-7 rounded-sm bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${isActive ? "border-deckly-primary/40" : "border-[#222] grayscale group-hover:grayscale-0"}`}>
+                                          {deck?.pages?.[0]?.image_url ? (
+                                            <img src={deck.pages[0].image_url} alt="" className="w-full h-full object-cover" />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                              <FileText size={16} className="text-slate-800" />
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <div className="flex-1 min-w-0">
+                                          <p className={`text-xs font-semibold truncate transition-colors ${isActive ? "text-deckly-primary" : "text-slate-300 group-hover:text-deckly-primary"}`}>
+                                            {deck?.title || "Untitled Resource"}
+                                          </p>
+                                          <p className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-600"}`}>
+                                            {deck?.pages?.length || 0} Slides
+                                          </p>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </section>
+                          );
+                        })}
                       </div>
-                    </button>
-                  );
-                })}
+                    )}
+                  </>
+                )}
               </div>
 
               {/* Footer */}
@@ -381,7 +697,7 @@ function DataRoomViewer() {
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="absolute top-1/2 -translate-y-1/2 z-30 w-6 h-10 flex items-center justify-center bg-[#111] border border-[#222] rounded-r-md text-slate-500 hover:text-deckly-primary transition-all shadow-xl"
-                style={{ left: sidebarOpen ? "20rem" : "0" }}
+                style={{ left: sidebarOpen ? "14rem" : "0" }}
               >
                 <ChevronRight
                   size={16}
@@ -399,25 +715,64 @@ function DataRoomViewer() {
               </button>
             )}
 
+            </div>
+
+            <DataRoomSidebar
+              roomName={room.name}
+              roomIconUrl={room.icon_url}
+              totalDocuments={documents.length}
+              totalLabel="Resources"
+              sections={sidebarSections}
+              selectedDeckId={selectedDeck?.id || null}
+              onSelectDeck={(deck) => setSelectedDeck(deck)}
+              sidebarOpen={sidebarOpen}
+              onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+              isMobile={isMobile}
+              emptyMessage="No resources found in this room."
+            />
+
             {/* ── Main Viewer ── */}
             <div className="flex-1 flex flex-col items-stretch relative">
-              {/* Back to room */}
-              <Link
-                to="/"
-                className={`absolute ${isMobile ? "top-6 right-4" : "top-6 right-6"} z-[100] group`}
-              >
-                <div
-                  className={`flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all active:scale-95`}
-                >
-                  <ArrowLeft
-                    size={16}
-                    className="group-hover:-translate-x-0.5 transition-transform"
-                  />
+            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[100] flex flex-wrap items-center gap-2 px-2 md:px-0">
+              <Link to="/" className="group">
+                <div className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all">
+                  <ArrowLeft size={16} />
                   <span className="text-xs font-semibold">
                     {isMobile ? "Exit" : "Exit Room"}
                   </span>
                 </div>
               </Link>
+
+              <button
+                onClick={handleSave}
+                disabled={saveToLibraryMutation.isPending}
+                className={`
+                  flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 border transition-all active:scale-95 rounded-md
+                  ${
+                    isSaved
+                      ? "bg-deckly-primary/10 border-deckly-primary/30 text-deckly-primary"
+                      : "bg-[#111] border-[#333] text-slate-400 hover:text-white"
+                  }
+                `}
+              >
+                {isSaved ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+                <span className="text-xs font-semibold">
+                  {saveToLibraryMutation.isPending
+                    ? "Saving..."
+                    : isSaved
+                      ? "Saved"
+                      : "Save"}
+                </span>
+              </button>
+
+              <button
+                onClick={handleNotes}
+                className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] text-slate-400 hover:text-white transition-all rounded-md active:scale-95"
+              >
+                <MessageSquareText size={16} />
+                <span className="text-xs font-semibold">Notes</span>
+              </button>
+            </div>
 
               <div className="flex-1 w-full h-full relative">
                 {selectedDeck ? (
@@ -443,6 +798,43 @@ function DataRoomViewer() {
             </div>
           </motion.div>
         ) : null}
+      </AnimatePresence>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        message="Sign up to save rooms or keep private room notes."
+        redirectTo={window.location.href}
+      />
+
+      {room && (
+        <RoomNotesSidebar
+          isOpen={isNotesOpen}
+          onClose={() => setIsNotesOpen(false)}
+          dataRoomId={room.id}
+          onRequireAuth={() => {
+            setIsNotesOpen(false);
+            localStorage.setItem("pending_data_room_action", "notes");
+            setPendingAction("notes");
+            setShowAuthModal(true);
+          }}
+        />
+      )}
+
+      <AnimatePresence>
+        {showSuccessToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 px-5 py-3 bg-[#111] border border-[#333] text-white rounded-lg shadow-2xl"
+          >
+            <div className="w-6 h-6 bg-deckly-primary/10 border border-deckly-primary/20 rounded-full flex items-center justify-center text-deckly-primary">
+              <Check size={14} strokeWidth={3} />
+            </div>
+            <span className="text-sm font-medium">Saved</span>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

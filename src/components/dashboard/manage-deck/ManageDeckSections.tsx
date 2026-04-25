@@ -82,7 +82,7 @@ export function ManageDeckUploadSection({
           file
             ? "border-deckly-primary/30 bg-surface-container"
             : "bg-surface-low hover:bg-surface-container hover:border-border",
-          (loading || disabled) ? "opacity-30 cursor-not-allowed" : "",
+          loading || disabled ? "opacity-30 cursor-not-allowed" : "",
         )}
       >
         <div className="flex flex-col items-center gap-3">
@@ -129,7 +129,9 @@ export function ManageDeckUploadSection({
         <div className="p-4 md:p-6 rounded-lg border border-white/5 bg-surface-lowest flex flex-col gap-4 mt-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold text-white">Experience Mode</p>
+              <p className="text-sm font-semibold text-white">
+                Experience Mode
+              </p>
               <p className="text-xs text-slate-400 mt-1">
                 How should visitors see this?
               </p>
@@ -219,7 +221,10 @@ export function ManageDeckDetailsSection({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label htmlFor="title" className="text-xs font-semibold text-slate-300">
+          <Label
+            htmlFor="title"
+            className="text-xs font-semibold text-slate-300"
+          >
             Asset Title
           </Label>
           <Input
@@ -233,12 +238,15 @@ export function ManageDeckDetailsSection({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="slug" className="text-xs font-semibold text-slate-300">
+          <Label
+            htmlFor="slug"
+            className="text-xs font-semibold text-slate-300"
+          >
             URL Slug
           </Label>
           <div className="relative group/slug">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none z-10">
-              <span className="text-sm text-deckly-primary">
+            <div className="absolute left-5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pointer-events-none z-10">
+              <span className="text-sm text-deckly-primary whitespace-nowrap">
                 {authHandle || userProfile?.handle || "..."}/
               </span>
             </div>
@@ -251,11 +259,13 @@ export function ManageDeckDetailsSection({
               disabled={!!editId}
               className={cn(
                 "h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#2B2B2B] disabled:opacity-50",
-                "pl-12"
+                "pl-8",
               )}
               style={
-                (authHandle || userProfile?.handle)
-                  ? { paddingLeft: `${((authHandle || userProfile?.handle || "...").length * 8) + 48}px` }
+                authHandle || userProfile?.handle
+                  ? {
+                      paddingLeft: `${(authHandle || userProfile?.handle || "...").length * 7 + 32}px`,
+                    }
                   : undefined
               }
             />
@@ -361,7 +371,10 @@ export function ManageDeckAccessSection({
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   return (
-    <div id="tour-security-panel" className="pt-6 border-t border-white/5 space-y-6">
+    <div
+      id="tour-security-panel"
+      className="pt-6 border-t border-white/5 space-y-6"
+    >
       <div className="flex items-center gap-2 mb-2">
         <Lock size={16} className="text-deckly-primary" />
         <h3 className="text-sm font-medium text-white">Security & Access</h3>
@@ -392,7 +405,10 @@ export function ManageDeckAccessSection({
               <p className="text-xs text-slate-500 mt-0.5">ID Authentication</p>
             </div>
           </div>
-          <Switch checked={requireEmail} onCheckedChange={onRequireEmailChange} />
+          <Switch
+            checked={requireEmail}
+            onCheckedChange={onRequireEmailChange}
+          />
         </div>
 
         <div
@@ -455,7 +471,9 @@ export function ManageDeckAccessSection({
                   type="button"
                   onClick={onTogglePasswordVisibility}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
-                  aria-label={showPasswordField ? "Hide password" : "Show password"}
+                  aria-label={
+                    showPasswordField ? "Hide password" : "Show password"
+                  }
                 >
                   {showPasswordField ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>

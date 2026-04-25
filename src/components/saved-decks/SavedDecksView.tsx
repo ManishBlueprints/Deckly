@@ -1,9 +1,14 @@
 import { useState, useMemo, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { LibraryFolder, SavedDeckOrganized } from "../../types";
+import {
+  LibraryFolder,
+  SavedDataRoomOrganized,
+  SavedDeckOrganized,
+} from "../../types";
 import { Loader2, Filter, Tag, Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,8 +23,10 @@ import { SavedDeckEmptyState } from "./SavedDeckEmptyState";
 import { CreateFolderModal } from "./CreateFolderModal";
 import { FolderCard } from "./FolderCard";
 import { DocumentRow } from "./DocumentRow";
+import { SavedRoomRow } from "./SavedRoomRow";
 import { ManageTagsModal } from "./ManageTagsModal";
 import { useLibrary } from "../../hooks/useLibrary";
+import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
 import { cn } from "../../lib/utils";
 
 export function SavedDecksView() {
@@ -27,6 +34,12 @@ export function SavedDecksView() {
   const { decks, folders, tags, isLoading, isError, actions } = useLibrary(
     session?.user?.id,
   );
+  const { data: savedRooms = [] } = useQuery({
+    queryKey: ["saved-data-rooms", session?.user?.id],
+    queryFn: () => dataRoomLibraryService.getSavedRooms(),
+    enabled: !!session?.user?.id,
+    staleTime: 30_000,
+  });
 
   // --- UI state only ---
   const [selectedFolderId, setSelectedFolderId] = useState<
@@ -72,6 +85,19 @@ export function SavedDecksView() {
       }),
     [decks, selectedFolderId, selectedTagId, searchQuery],
   );
+
+  const filteredSavedRooms = useMemo(() => {
+    if (selectedFolderId === "uncategorized") return [];
+    return savedRooms.filter((room) => room.folder_id === selectedFolderId);
+  }, [savedRooms, selectedFolderId]);
+
+  const roomCountByFolder = useMemo(() => {
+    return savedRooms.reduce<Record<string, number>>((acc, room) => {
+      if (!room.folder_id) return acc;
+      acc[room.folder_id] = (acc[room.folder_id] || 0) + 1;
+      return acc;
+    }, {});
+  }, [savedRooms]);
 
   // --- Confirm: Unsave deck ---
   const handleConfirmUnsave = useCallback(async () => {
@@ -205,7 +231,7 @@ export function SavedDecksView() {
     );
   }
 
-  if (decks.length === 0 && folders.length === 0) {
+  if (decks.length === 0 && folders.length === 0 && savedRooms.length === 0) {
     return (
       <div className="min-h-[calc(100vh-140px)] bg-deckly-background overflow-hidden">
         <SavedDeckEmptyState
@@ -255,7 +281,7 @@ export function SavedDecksView() {
                 className="flex items-center gap-3 px-6 py-3 bg-surface-low border border-border text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all"
               >
                 <Tag size={14} />
-                Manage Tags
+                Edit Tags
               </button>
             </div>
           </div>
@@ -359,6 +385,7 @@ export function SavedDecksView() {
                   key={folder.id}
                   folder={folder}
                   isActive={selectedFolderId === folder.id}
+                  documentCount={folder.deck_count + (roomCountByFolder[folder.id] || 0)}
                   onClick={() => handleFolderClick(folder.id)}
                   onEdit={handleEditFolderRequest}
                   onDelete={handleDeleteFolderRequest}
@@ -366,6 +393,32 @@ export function SavedDecksView() {
               ))}
             </div>
           </div>
+
+          {/* Saved Rooms */}
+          {filteredSavedRooms.length > 0 && (
+            <div className="space-y-8">
+              <div className="flex items-center gap-4">
+                <div className="w-8 h-1 bg-[#54e98a] rounded-full" />
+                <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
+                  Saved Rooms
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                {filteredSavedRooms.map((room: SavedDataRoomOrganized) => (
+                  <SavedRoomRow
+                    key={room.library_id}
+                    room={room}
+                    folders={folders}
+                    tags={tags}
+                    onUnsave={() => {
+                      void actions.refetch();
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Documents */}
           <div className="space-y-8">

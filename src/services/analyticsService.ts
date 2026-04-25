@@ -6,7 +6,47 @@ import { getTierConfig } from "../constants/tiers";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
-let geoCache: { country: string; city: string; country_code: string } | null = null;
+type GeoLocation = {
+  country: string;
+  city: string;
+  country_code: string;
+};
+
+const GEO_CACHE_KEY = "deckly_geo_cache";
+let geoCache: GeoLocation | null = null;
+
+const readGeoCacheFromSession = (): GeoLocation | null => {
+  try {
+    const raw = sessionStorage.getItem(GEO_CACHE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<GeoLocation>;
+    if (
+      typeof parsed.country !== "string" ||
+      typeof parsed.city !== "string" ||
+      typeof parsed.country_code !== "string"
+    ) {
+      sessionStorage.removeItem(GEO_CACHE_KEY);
+      return null;
+    }
+
+    return {
+      country: parsed.country,
+      city: parsed.city,
+      country_code: parsed.country_code,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const writeGeoCacheToSession = (value: GeoLocation) => {
+  try {
+    sessionStorage.setItem(GEO_CACHE_KEY, JSON.stringify(value));
+  } catch {
+    // Ignore sessionStorage errors and continue with in-memory cache only.
+  }
+};
 
 export const analyticsService = {
   // Track when someone views a deck
@@ -68,8 +108,14 @@ export const analyticsService = {
   },
 
   // Get geolocation from Vercel Edge headers
-  async getGeoLocation(): Promise<{ country: string; city: string; country_code: string }> {
+  async getGeoLocation(): Promise<GeoLocation> {
     if (geoCache) return geoCache;
+
+    const sessionCachedGeo = readGeoCacheFromSession();
+    if (sessionCachedGeo) {
+      geoCache = sessionCachedGeo;
+      return sessionCachedGeo;
+    }
     
     try {
       // Fetch from our local Vercel API route
@@ -87,6 +133,7 @@ export const analyticsService = {
         city: data.city || "Unknown City",
         country_code: data.country_code || "US"
       };
+      writeGeoCacheToSession(geoCache);
       return geoCache!;
     } catch (err) {
       console.warn("Failed to fetch geolocation, falling back to defaults:", err);
@@ -557,5 +604,107 @@ export const analyticsService = {
       countries: Array.from(countryMap.values()).sort((a, b) => b.count - a.count),
       cities: Array.from(cityMap.values()).sort((a, b) => b.count - a.count),
     };
+  },
+
+  // Get aggregated location stats for a data room
+  async getDataRoomLocations(roomId: string) {
+    try {
+      const { data, error } = await supabase.rpc("get_data_room_locations", {
+        p_room_id: roomId,
+      });
+
+      if (error) {
+        console.warn("RPC get_data_room_locations not available, using fallback:", error.message);
+        return this._getDataRoomLocationsFallback(roomId);
+      }
+
+      return data || { countries: [], cities: [] };
+    } catch (err) {
+      console.warn("Error in getDataRoomLocations, using fallback:", err);
+      return this._getDataRoomLocationsFallback(roomId);
+    }
+  },
+
+  async _getDataRoomLocationsFallback(roomId: string) {
+    const { data, error } = await supabase
+      .from("deck_page_views")
+      .select("country, city, country_code")
+      .eq("data_room_id", roomId);
+
+    if (error) throw error;
+    if (!data) return { countries: [], cities: [] };
+
+    const countryMap = new Map<string, { name: string; count: number; code: string }>();
+    const cityMap = new Map<string, { name: string; count: number; country: string }>();
+
+    data.forEach((row) => {
+      const cName = row.country || "Unknown";
+      const cCode = row.country_code || "US";
+      const cityName = row.city || "Unknown City";
+
+      if (!countryMap.has(cName)) {
+        countryMap.set(cName, { name: cName, count: 0, code: cCode });
+      }
+      countryMap.get(cName)!.count++;
+
+      const cityKey = `${cityName}-${cName}`;
+      if (!cityMap.has(cityKey)) {
+        cityMap.set(cityKey, { name: cityName, count: 0, country: cName });
+      }
+      cityMap.get(cityKey)!.count++;
+    });
+
+    return {
+      countries: Array.from(countryMap.values()).sort((a, b) => b.count - a.count),
+      cities: Array.from(cityMap.values()).sort((a, b) => b.count - a.count),
+    };
+  },
+
+  // Get document-level analytics for a data room
+  async getDataRoomDocumentStats(roomId: string) {
+    try {
+      const { data, error } = await supabase
+        .from("deck_page_views")
+        .select("deck_id, visitor_id, time_spent, deck:decks(title)")
+        .eq("data_room_id", roomId);
+
+      if (error) throw error;
+      if (!data) return [];
+
+      const byDeck = new Map<string, {
+        deckId: string;
+        title: string;
+        totalViews: number;
+        totalTimeSeconds: number;
+        uniqueVisitors: number;
+      }>();
+      const visitorsByDeck = new Map<string, Set<string>>();
+
+      for (const row of data as unknown as { deck_id: string; visitor_id: string; time_spent: number | null; deck?: { title?: string | null } | null }[]) {
+        const deckId = row.deck_id;
+        const current = byDeck.get(deckId) || {
+          deckId,
+          title: row.deck?.title || "Untitled",
+          totalViews: 0,
+          totalTimeSeconds: 0,
+          uniqueVisitors: 0,
+        };
+        current.totalViews += 1;
+        current.totalTimeSeconds += Number(row.time_spent || 0);
+
+        if (!visitorsByDeck.has(deckId)) visitorsByDeck.set(deckId, new Set());
+        visitorsByDeck.get(deckId)!.add(row.visitor_id);
+        current.uniqueVisitors = visitorsByDeck.get(deckId)!.size;
+
+        byDeck.set(deckId, current);
+      }
+
+      return Array.from(byDeck.values()).sort(
+        (a, b) => b.totalViews - a.totalViews || b.totalTimeSeconds - a.totalTimeSeconds,
+      );
+    } catch (err) {
+      console.warn("Error in getDataRoomDocumentStats, using fallback:", err);
+      return [];
+    }
   },
 };

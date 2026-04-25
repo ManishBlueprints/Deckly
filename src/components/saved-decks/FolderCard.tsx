@@ -12,6 +12,7 @@ interface FolderCardProps {
   isActive?: boolean;
   onEdit?: (folder: LibraryFolder) => void;
   onDelete?: (folder: LibraryFolder) => void;
+  documentCount?: number;
 }
 
 export const FolderCard = memo(function FolderCard({
@@ -21,6 +22,7 @@ export const FolderCard = memo(function FolderCard({
   isActive,
   onEdit,
   onDelete,
+  documentCount,
 }: FolderCardProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
@@ -128,7 +130,7 @@ export const FolderCard = memo(function FolderCard({
 
       <div className="pt-4 border-t border-white/5 w-full">
         <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/20">
-          {folder.deck_count} Document{folder.deck_count !== 1 ? "s" : ""}
+          {(documentCount ?? folder.deck_count)} Document{(documentCount ?? folder.deck_count) !== 1 ? "s" : ""}
         </span>
       </div>
     </motion.div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Plus, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { FOLDER_PICKER_COLORS } from "../../constants/folderColors";
 
 interface CreateFolderModalProps {
   isOpen: boolean;
@@ -11,15 +12,6 @@ interface CreateFolderModalProps {
   initialData?: { name: string; color: string; tags: string[] } | null;
 }
 
-const FOLDER_COLORS = [
-  { id: "grey", value: "#666666" },
-  { id: "green", value: "#54e98a" },
-  { id: "blue", value: "#3b82f6" },
-  { id: "purple", value: "#a855f7" },
-  { id: "orange", value: "#f97316" },
-  { id: "red", value: "#ef4444" },
-];
-
 export function CreateFolderModal({
   isOpen,
   onClose,
@@ -28,7 +20,9 @@ export function CreateFolderModal({
   initialData,
 }: CreateFolderModalProps) {
   const [name, setName] = useState("");
-  const [selectedColor, setSelectedColor] = useState(FOLDER_COLORS[0].value);
+  const [selectedColor, setSelectedColor] = useState(
+    FOLDER_PICKER_COLORS[0].hex,
+  );
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -42,7 +36,7 @@ export function CreateFolderModal({
         setTags(initialData.tags);
       } else {
         setName("");
-        setSelectedColor(FOLDER_COLORS[0].value);
+        setSelectedColor(FOLDER_PICKER_COLORS[0].hex);
         setTags([]);
       }
       setTagInput("");
@@ -140,18 +134,18 @@ export function CreateFolderModal({
                       FOLDER IDENTITY
                     </label>
                     <div className="flex items-center gap-3 ml-1">
-                      {FOLDER_COLORS.map((color) => (
+                      {FOLDER_PICKER_COLORS.map((color) => (
                         <button
-                          key={color.id}
-                          onClick={() => setSelectedColor(color.value)}
+                          key={color.key}
+                          onClick={() => setSelectedColor(color.hex)}
                           className={`w-8 h-8 transition-all relative ${
-                            selectedColor === color.value
+                            selectedColor === color.hex
                               ? "ring-2 ring-white/10 ring-offset-4 ring-offset-[#232323] scale-110"
                               : "hover:scale-105 opacity-80 hover:opacity-100"
                           }`}
-                          style={{ backgroundColor: color.value }}
+                          style={{ backgroundColor: color.hex }}
                         >
-                          {selectedColor === color.value && (
+                          {selectedColor === color.hex && (
                             <motion.div
                               layoutId="activeColor"
                               className="absolute inset-0 border-2 border-white/20"

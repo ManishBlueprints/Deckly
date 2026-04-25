@@ -4,13 +4,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../services/supabase";
 import { Lock, Mail, CheckCircle2, User } from "lucide-react";
 import posthog from "posthog-js";
+import { toast } from "sonner";
 import leftPanelBg from "../assets/Signup Left.png";
 import logo from "../assets/Deckly.png";
 import { Button } from "../components/ui/button";
 import { FormInput } from "../components/ui/form-input";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { getFriendlyAuthErrorMessage } from "../utils/authErrorMessages";
 
 function Signup() {
+  const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+  const captchaRequired = import.meta.env.PROD;
+  const captchaConfigError =
+    captchaRequired && !captchaSiteKey
+      ? "CAPTCHA is required for email signup, but the Turnstile site key is missing."
+      : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -37,11 +45,34 @@ function Signup() {
     return msg;
   };
 
+  const isNetworkErrorMessage = (msg: string) => {
+    const normalized = msg.toLowerCase();
+    return (
+      normalized.includes("failed to fetch") ||
+      normalized.includes("network") ||
+      normalized.includes("fetch") ||
+      normalized.includes("load failed")
+    );
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (captchaConfigError) {
+      setError(captchaConfigError);
+      toast.error(captchaConfigError);
+      return;
+    }
+    if (captchaRequired && !captchaToken) {
+      const message = "Please complete the CAPTCHA to continue.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
     setLoading(true);
     setError(null);
     posthog.capture("user_signup_submitted", { method: "email" });
+
+    let shouldResetTurnstile = true;
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -65,13 +96,20 @@ function Signup() {
       }
     } catch (err: unknown) {
       const rawMessage = err instanceof Error ? err.message : String(err);
-      setError(formatErrorMessage(rawMessage));
+      const friendlyMessage = getFriendlyAuthErrorMessage(err);
+      if (isNetworkErrorMessage(rawMessage)) {
+        shouldResetTurnstile = false;
+      }
+      const finalMessage = formatErrorMessage(friendlyMessage);
+      setError(finalMessage);
+      toast.error(finalMessage);
       posthog.capture("user_signup_failed", { method: "email", error: rawMessage });
     } finally {
       setLoading(false);
-      // Reset Turnstile on every attempt finish (especially on error)
-      setCaptchaToken(null);
-      turnstileRef.current?.reset();
+      if (shouldResetTurnstile) {
+        setCaptchaToken(null);
+        turnstileRef.current?.reset();
+      }
     }
   };
 
@@ -306,16 +344,22 @@ function Signup() {
                   </div>
                 )}
 
-                {import.meta.env.VITE_TURNSTILE_SITE_KEY && (
+                {captchaSiteKey && (
                   <div className="mt-4 flex justify-center">
                     <Turnstile
                       ref={turnstileRef}
-                      siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                      siteKey={captchaSiteKey}
                       onSuccess={(token) => setCaptchaToken(token)}
                       onExpire={() => setCaptchaToken(null)}
                       onError={() => setCaptchaToken(null)}
                       options={{ theme: "dark" }}
                     />
+                  </div>
+                )}
+
+                {captchaConfigError && (
+                  <div className="bg-deckly-accent/10 border border-deckly-accent/20 text-deckly-accent text-xs font-bold p-3 rounded-xl text-center">
+                    {captchaConfigError}
                   </div>
                 )}
 
@@ -325,7 +369,7 @@ function Signup() {
                     fullWidth
                     size="lg"
                     loading={loading}
-                    disabled={!captchaToken && !!import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                    disabled={loading || (captchaRequired && (!captchaSiteKey || !captchaToken))}
                     className="w-full h-12 bg-[#22C55E] text-black font-semibold text-sm uppercase tracking-wider rounded-lg hover:bg-[#22C55E]/90 transition-colors flex items-center justify-center"
                   >
                     SIGN UP

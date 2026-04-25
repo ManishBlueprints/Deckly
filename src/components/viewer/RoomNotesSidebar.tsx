@@ -1,45 +1,42 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useState, useRef, useCallback, type ChangeEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Save, ShieldAlert, Loader2, StickyNote } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { Button } from "../ui/button";
 import {
-  useInvestorNotes,
-  useSaveNoteMutation,
-} from "../../hooks/useViewerQueries";
+  useDataRoomNotes,
+  useSaveDataRoomNoteMutation,
+} from "../../hooks/useDataRoomViewerQueries";
 
-interface NotesSidebarProps {
+interface RoomNotesSidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  deckId: string;
+  dataRoomId: string;
   onRequireAuth: () => void;
 }
 
-export function NotesSidebar({
+export function RoomNotesSidebar({
   isOpen,
   onClose,
-  deckId,
+  dataRoomId,
   onRequireAuth,
-}: NotesSidebarProps) {
+}: RoomNotesSidebarProps) {
   const { session } = useAuth();
   const [content, setContent] = useState("");
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // TanStack Queries
-  const { data: initialNote, isLoading: isInitialLoading } = useInvestorNotes(
-    deckId,
+  const { data: initialNote, isLoading: isInitialLoading } = useDataRoomNotes(
+    dataRoomId,
     session?.user?.id,
   );
-  const saveNoteMutation = useSaveNoteMutation(session?.user?.id);
+  const saveNoteMutation = useSaveDataRoomNoteMutation(session?.user?.id);
 
-  // Sync local state with initial query data
   useEffect(() => {
     if (initialNote !== undefined) {
       setContent(initialNote);
     }
   }, [initialNote]);
 
-  // Debounced save
   const debouncedSave = useCallback(
     (newContent: string) => {
       if (!session) return;
@@ -49,13 +46,13 @@ export function NotesSidebar({
       }
 
       saveTimeoutRef.current = setTimeout(() => {
-        saveNoteMutation.mutate({ deckId, content: newContent });
-      }, 1000); // 1 second debounce
+        saveNoteMutation.mutate({ dataRoomId, content: newContent });
+      }, 1000);
     },
-    [deckId, session, saveNoteMutation],
+    [dataRoomId, session, saveNoteMutation],
   );
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     if (!session) {
       onRequireAuth();
       return;
@@ -69,7 +66,6 @@ export function NotesSidebar({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop for mobile */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -85,7 +81,6 @@ export function NotesSidebar({
             transition={{ duration: 0.18, ease: "easeOut" }}
             className="fixed top-4 right-4 z-[120] flex h-auto w-[min(22rem,calc(100vw-2rem))] max-h-[18rem] flex-col overflow-hidden border border-white/10 bg-[#101114] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
           >
-            {/* Header */}
             <div className="border-b border-white/5 bg-[#0f1116] px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -103,7 +98,7 @@ export function NotesSidebar({
                       </span>
                     </div>
                     <p className="mt-1 text-[9px] leading-relaxed text-slate-500">
-                      Save Deck to see notes related to this deck
+                      Notes for this saved room stay private to your account
                     </p>
                   </div>
                 </div>
@@ -118,7 +113,6 @@ export function NotesSidebar({
               </div>
             </div>
 
-            {/* Content Area */}
             <div className="p-3">
               {!session ? (
                 <div className="flex h-full flex-col items-center justify-center text-center space-y-4 px-3">
@@ -130,8 +124,7 @@ export function NotesSidebar({
                       Sign in to take notes
                     </h4>
                     <p className="mx-auto max-w-[220px] text-sm leading-relaxed text-slate-400">
-                      Your notes are private to you and auto-saved to your
-                      account.
+                      Your notes are private to you and saved to your account.
                     </p>
                   </div>
                   <Button
@@ -143,10 +136,7 @@ export function NotesSidebar({
                 </div>
               ) : isInitialLoading ? (
                 <div className="flex h-full items-center justify-center">
-                  <Loader2
-                    size={24}
-                    className="text-deckly-primary animate-spin"
-                  />
+                  <Loader2 size={24} className="text-deckly-primary animate-spin" />
                 </div>
               ) : (
                 <div className="flex flex-col">
