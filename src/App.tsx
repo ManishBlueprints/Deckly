@@ -41,6 +41,32 @@ const LoadingFallback = () => (
   </div>
 );
 
+const WorkspaceLoadError = ({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) => (
+  <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
+    <div className="max-w-md w-full border border-white/10 bg-white/5 p-6 space-y-4">
+      <div className="w-12 h-12 mx-auto rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 font-bold">
+        !
+      </div>
+      <div className="space-y-2">
+        <h2 className="text-lg font-bold text-white">We couldn’t load your workspace</h2>
+        <p className="text-sm text-slate-400">{message}</p>
+      </div>
+      <button
+        onClick={onRetry}
+        className="px-6 py-2.5 bg-deckly-primary text-slate-950 text-sm font-bold hover:brightness-110 transition-all"
+      >
+        Retry
+      </button>
+    </div>
+  </div>
+);
+
 const LegacyRedirect = () => {
   const { slug } = useParams<{ slug: string }>();
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
@@ -75,7 +101,19 @@ const LegacyRedirect = () => {
 };
 
 const AppContent = () => {
-  const { session, loading, initializationError, profile, branding, profileLoading, brandingLoading } = useAuth();
+  const {
+    session,
+    loading,
+    initializationError,
+    profile,
+    branding,
+    profileLoading,
+    profileError,
+    brandingLoading,
+    brandingError,
+    refreshProfile,
+    refreshBranding,
+  } = useAuth();
   const [showSlowMessage, setShowSlowMessage] = useState(false);
 
   useEffect(() => {
@@ -133,6 +171,23 @@ const AppContent = () => {
 
   if (session && (profileLoading || brandingLoading)) {
     return <LoadingFallback />;
+  }
+
+  if (session && (profileError || brandingError)) {
+    const message = profileError && brandingError
+      ? "We couldn’t load your profile or workspace settings. Please retry."
+      : profileError
+        ? "We couldn’t load your profile. Please retry."
+        : "We couldn’t load your workspace settings. Please retry.";
+
+    return (
+      <WorkspaceLoadError
+        message={message}
+        onRetry={async () => {
+          await Promise.all([refreshProfile(), refreshBranding()]);
+        }}
+      />
+    );
   }
 
   const onboardingStage = getOnboardingStage(profile, branding);

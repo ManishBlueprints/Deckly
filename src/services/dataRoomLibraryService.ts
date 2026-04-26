@@ -5,7 +5,7 @@ import { DataRoom, LibraryTag, SavedDataRoomOrganized } from "../types";
 import { getRequiredSessionUserId } from "./authSession";
 
 interface SavedDataRoomRow {
-  id?: string;
+  id: string;
   user_id: string;
   data_room_id: string | null;
   folder_id: string | null;
@@ -234,9 +234,7 @@ export const dataRoomLibraryService = {
       if (error) throw error;
 
       const rows = (data || []) as Array<SavedDataRoomRow>;
-      const roomIds = rows
-        .map((row) => row.id)
-        .filter((id): id is string => !!id);
+      const roomIds = rows.map((row) => row.id);
 
       const tagMap = new Map<string, LibraryTag[]>();
       if (roomIds.length > 0) {
@@ -275,7 +273,7 @@ export const dataRoomLibraryService = {
       }
 
       return rows.map((row) => ({
-        library_id: row.id ?? row.data_room_id ?? crypto.randomUUID(),
+        library_id: row.id,
         data_room_id: row.data_room_id,
         title: row.room_title,
         slug: row.room_slug,
@@ -283,7 +281,7 @@ export const dataRoomLibraryService = {
         room_owner_handle: row.room_owner_handle,
         room_owner_id: row.room_owner_id ?? row.user_id,
         folder_id: row.folder_id ?? null,
-        tags: tagMap.get(row.id ?? "") || [],
+        tags: tagMap.get(row.id) || [],
         saved_at: row.created_at || row.updated_at,
         last_viewed_at: row.last_viewed_at,
         investor_note: null,

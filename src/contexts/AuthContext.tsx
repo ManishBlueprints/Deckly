@@ -17,6 +17,7 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   branding: BrandingSettings | null;
   brandingLoading: boolean;
+  brandingError: boolean;
   setBranding: (branding: BrandingSettings | null) => void;
   refreshBranding: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -43,9 +44,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // TanStack Queries
   const { data: profile, isLoading: profileLoading, isError: profileError } =
     useProfile(session?.user?.id);
-  const { data: branding, isLoading: brandingLoading } = useBranding(
-    session?.user?.id,
-  );
+  const { data: branding, isLoading: brandingLoading, isError: brandingError } =
+    useBranding(session?.user?.id);
 
   // Sync PostHog Identity
   useEffect(() => {
@@ -186,11 +186,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       value={{
         session,
         profile: profile || null,
-      branding: branding || null,
-      brandingLoading,
-      setBranding,
-      loading,
-      isPro,
+        branding: branding || null,
+        brandingLoading,
+        brandingError,
+        setBranding,
+        loading,
+        isPro,
         refreshProfile,
         refreshBranding,
         signOut,
