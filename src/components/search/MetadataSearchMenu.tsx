@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { CalendarDays, Search, SlidersHorizontal, X } from "lucide-react";
+import {
+  CalendarDays,
+  Filter,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -30,6 +36,14 @@ export interface MetadataSearchMenuProps {
   className?: string;
   triggerLabel?: string;
   namePlaceholder?: string;
+  filterOptions?: Array<{
+    id: string;
+    name: string;
+    color: string;
+  }>;
+  selectedFilterId?: string | null;
+  onFilterChange?: (filterId: string | null) => void;
+  filterEmptyMessage?: string;
 }
 
 /**
@@ -48,17 +62,26 @@ export function MetadataSearchMenu({
   className,
   triggerLabel = "Search",
   namePlaceholder = "Search by name...",
+  filterOptions = [],
+  selectedFilterId = null,
+  onFilterChange,
+  filterEmptyMessage = "No filters available",
 }: MetadataSearchMenuProps) {
-  const activeSummary = buildActiveSummary(filter);
+  const activeSummary = buildActiveSummary(
+    filter,
+    selectedFilterId ? filterOptions.find((option) => option.id === selectedFilterId)?.name : null,
+  );
   const [open, setOpen] = useState(false);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!open || filter.mode !== "name") return;
+    if (!open || (filter.mode !== "name" && filter.mode !== "filter")) return;
 
     const timeout = window.setTimeout(() => {
-      nameInputRef.current?.focus();
-      nameInputRef.current?.select();
+      if (filter.mode === "name") {
+        nameInputRef.current?.focus();
+        nameInputRef.current?.select();
+      }
     }, 0);
 
     return () => window.clearTimeout(timeout);
@@ -123,7 +146,7 @@ export function MetadataSearchMenu({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 border border-border bg-surface-low">
+        <div className={cn("grid border border-border bg-surface-low", filterOptions.length > 0 ? "grid-cols-3" : "grid-cols-2")}>
           <ModeButton
             active={filter.mode === "name"}
             icon={<Search size={16} />}
@@ -136,6 +159,14 @@ export function MetadataSearchMenu({
             label="Date"
             onClick={() => onModeChange("date")}
           />
+          {filterOptions.length > 0 && (
+            <ModeButton
+              active={filter.mode === "filter"}
+              icon={<Filter size={16} />}
+              label="Filter"
+              onClick={() => onModeChange("filter")}
+            />
+          )}
         </div>
 
         {filter.mode === "name" ? (
@@ -151,6 +182,65 @@ export function MetadataSearchMenu({
               aria-label="Search by name"
               className="h-12 border-primary/35 bg-surface-low px-4 text-base text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/40"
             />
+          </div>
+        ) : filter.mode === "filter" ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Available filters
+              </label>
+              <button
+                type="button"
+                onClick={() => onFilterChange?.(null)}
+                disabled={!selectedFilterId}
+                className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-primary disabled:pointer-events-none disabled:opacity-40"
+              >
+                <X size={11} />
+                Clear
+              </button>
+            </div>
+
+            {filterOptions.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border bg-surface-low px-4 py-6 text-sm text-muted-foreground">
+                {filterEmptyMessage}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filterOptions.map((option) => {
+                  const isSelected = selectedFilterId === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() =>
+                        onFilterChange?.(isSelected ? null : option.id)
+                      }
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-md border px-4 py-3 text-left transition-all",
+                        isSelected
+                          ? "border-primary/35 bg-primary/12"
+                          : "border-border bg-surface-low hover:border-primary/20 hover:bg-surface-high",
+                      )}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span
+                          className="h-3 w-3 shrink-0 rounded-full"
+                          style={{ backgroundColor: option.color }}
+                        />
+                        <span className="truncate text-sm font-semibold text-foreground">
+                          {option.name}
+                        </span>
+                      </div>
+                      {isSelected ? (
+                        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
+                          Applied
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -209,10 +299,14 @@ export function MetadataSearchMenu({
   );
 }
 
-function buildActiveSummary(filter: MetadataSearchFilterState) {
+function buildActiveSummary(filter: MetadataSearchFilterState, activeFilterName?: string | null) {
   if (filter.mode === "name") {
     const query = filter.query.trim();
     return query ? `Name: ${query}` : "Name";
+  }
+
+  if (filter.mode === "filter") {
+    return activeFilterName ? `Filter: ${activeFilterName}` : "Filter";
   }
 
   return `Date: ${formatDateFilterSummary(filter.date)}`;

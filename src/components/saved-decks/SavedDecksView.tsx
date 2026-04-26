@@ -1,12 +1,8 @@
 import { useState, useMemo, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import {
-  LibraryFolder,
-  SavedDataRoomOrganized,
-  SavedDeckOrganized,
-} from "../../types";
-import { Loader2, Filter, Tag } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { LibraryFolder, SavedDeckOrganized } from "../../types";
+import { Filter, Loader2 } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -27,12 +23,14 @@ import { SavedRoomRow } from "./SavedRoomRow";
 import { ManageTagsModal } from "./ManageTagsModal";
 import { useLibrary } from "../../hooks/useLibrary";
 import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
-import { cn } from "../../lib/utils";
 import { MetadataSearchMenu } from "../search/MetadataSearchMenu";
 import { useMetadataSearchState } from "../../hooks/useMetadataSearchState";
+import { ManageTagsButton } from "../shared/ManageTagsButton";
 import {
   filterSavedDeckRows,
   filterSavedRoomRows,
+  type SavedDeckSearchResult,
+  type SavedRoomSearchResult,
 } from "../../utils/metadataSearchAdapters";
 
 export function SavedDecksView() {
@@ -52,7 +50,6 @@ export function SavedDecksView() {
     string | "uncategorized"
   >("uncategorized");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const search = useMetadataSearchState("saved_decks");
 
   // Modal state
@@ -80,8 +77,13 @@ export function SavedDecksView() {
   );
 
   const filteredSavedRooms = useMemo(() => {
-    return filterSavedRoomRows(savedRooms, search.filter, selectedFolderId);
-  }, [savedRooms, search.filter, selectedFolderId]);
+    return filterSavedRoomRows(
+      savedRooms,
+      search.filter,
+      selectedFolderId,
+      selectedTagId,
+    );
+  }, [savedRooms, search.filter, selectedFolderId, selectedTagId]);
 
   const roomCountByFolder = useMemo(() => {
     return savedRooms.reduce<Record<string, number>>((acc, room) => {
@@ -258,93 +260,30 @@ export function SavedDecksView() {
             <div className="flex items-center gap-4">
               <MetadataSearchMenu
                 filter={search.filter}
-                isActive={search.isActive}
+                isActive={search.isActive || selectedTagId !== null}
                 onModeChange={search.setMode}
                 onQueryChange={search.setQuery}
                 onDatePresetChange={search.setDatePreset}
                 onCustomDateRangeChange={search.setCustomDateRange}
-                onClear={search.resetFilter}
+                onClear={() => {
+                  search.resetFilter();
+                  setSelectedTagId(null);
+                }}
                 resultCount={filteredDecks.length + filteredSavedRooms.length}
                 triggerLabel="Search"
                 namePlaceholder="Search saved titles..."
+                filterOptions={tags.map((tag) => ({
+                  id: tag.id,
+                  name: tag.name,
+                  color: tag.color,
+                }))}
+                selectedFilterId={selectedTagId}
+                onFilterChange={setSelectedTagId}
+                filterEmptyMessage="No tags created"
               />
-              <button
-                onClick={() => setIsFilterOpen((v) => !v)}
-                className={cn(
-                  "flex items-center gap-3 px-6 py-3 border text-xs font-bold transition-all",
-                  isFilterOpen
-                    ? "bg-[#54e98a]/10 border-[#54e98a]/20 text-[#54e98a]"
-                    : "bg-surface-low border-border text-[#bbcbbb]/60 hover:text-white",
-                )}
-              >
-                <Filter size={14} />
-                Filter By
-              </button>
-              <button
-                onClick={() => setIsManageTagsModalOpen(true)}
-                className="flex items-center gap-3 px-6 py-3 bg-surface-low border border-border text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all"
-              >
-                <Tag size={14} />
-                Edit Tags
-              </button>
+              <ManageTagsButton onClick={() => setIsManageTagsModalOpen(true)} />
             </div>
           </div>
-
-          {/* Filter Expandable */}
-          <AnimatePresence>
-            {isFilterOpen && (
-              <motion.div
-                initial={false}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="overflow-hidden"
-              >
-                <div className="p-6 bg-surface-card border border-white/5 flex flex-col gap-6">
-                  {tags.length > 0 && (
-                    <div className="flex gap-2 flex-wrap items-center">
-                      <span className="text-xs font-bold text-[#bbcbbb]/40 uppercase tracking-wider mr-2">
-                        Tags:
-                      </span>
-                      {tags.map((tag) => {
-                        const isSelected = selectedTagId === tag.id;
-                        return (
-                          <button
-                            key={tag.id}
-                            onClick={() =>
-                              setSelectedTagId(isSelected ? null : tag.id)
-                            }
-                            className={cn(
-                              "px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all border",
-                              isSelected
-                                ? "border-transparent text-[#131313]"
-                                : "bg-surface-container border-border hover:border-white/20",
-                            )}
-                            style={{
-                              backgroundColor: isSelected
-                                ? tag.color
-                                : undefined,
-                              color: isSelected ? "#131313" : tag.color,
-                            }}
-                          >
-                            {tag.name}
-                          </button>
-                        );
-                      })}
-                      {selectedTagId && (
-                        <button
-                          onClick={() => setSelectedTagId(null)}
-                          className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all bg-surface-container border border-red-500/20 text-red-400 hover:bg-red-500/10"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* Folders */}
           <div className="space-y-8">
@@ -387,12 +326,13 @@ export function SavedDecksView() {
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                {filteredSavedRooms.map((room: SavedDataRoomOrganized) => (
+                {filteredSavedRooms.map((result: SavedRoomSearchResult) => (
                   <SavedRoomRow
-                    key={room.library_id}
-                    room={room}
+                    key={result.room.library_id}
+                    room={result.room}
                     folders={folders}
                     tags={tags}
+                    matchedTagNames={result.matchedTagNames}
                     onUnsave={() => {
                       void actions.refetch();
                     }}
@@ -435,23 +375,27 @@ export function SavedDecksView() {
                     <p className="text-[#bbcbbb]/40 font-bold">
                       No documents matching the current filter
                     </p>
+                    <p className="text-[#bbcbbb]/40 text-sm mt-2">
+                      Try another title, tag, or clear the current search.
+                    </p>
                   </div>
                 ) : (
-                  filteredDecks.map((deck) => (
+                  filteredDecks.map((result: SavedDeckSearchResult) => (
                     <DocumentRow
-                      key={deck.library_id}
-                      deck={deck}
+                      key={result.deck.library_id}
+                      deck={result.deck}
                       folders={folders}
                       tags={tags}
+                      matchedTagNames={result.matchedTagNames}
                       onMoveToFolder={(folderId) =>
-                        handleMoveToFolder(deck.library_id, folderId)
+                        handleMoveToFolder(result.deck.library_id, folderId)
                       }
                       onUpdateTags={(tagIds) =>
-                        handleUpdateTags(deck.library_id, tagIds)
+                        handleUpdateTags(result.deck.library_id, tagIds)
                       }
-                      onSaveNote={(note) => handleSaveNote(deck.deck_id, note)}
-                      onUnsave={() => handleUnsaveRequest(deck)}
-                      isUnsaving={unsaveTarget?.library_id === deck.library_id}
+                      onSaveNote={(note) => handleSaveNote(result.deck.deck_id, note)}
+                      onUnsave={() => handleUnsaveRequest(result.deck)}
+                      isUnsaving={unsaveTarget?.library_id === result.deck.library_id}
                     />
                   ))
                 )}

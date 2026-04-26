@@ -10,6 +10,7 @@ interface DataRoomCardProps {
   documentCount: number;
   totalVisitors: number;
   matchedDocumentTitles?: string[];
+  matchedTagNames?: string[];
 }
 
 export function DataRoomCard({
@@ -17,6 +18,7 @@ export function DataRoomCard({
   documentCount,
   totalVisitors,
   matchedDocumentTitles = [],
+  matchedTagNames = [],
 }: DataRoomCardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -91,6 +93,9 @@ export function DataRoomCard({
             <h3 className="text-base font-semibold text-slate-200 group-hover:text-deckly-primary transition-colors truncate">
               {room.name}
             </h3>
+            <span className="text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-1 border border-white/10 text-[#bbcbbb]/40">
+              Data Room
+            </span>
             {isExpired && (
               <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-[9px] font-bold text-red-500 uppercase tracking-wider animate-pulse">
                 <AlertCircle size={10} />
@@ -108,6 +113,13 @@ export function DataRoomCard({
               {matchedDocumentTitles.length === 1
                 ? `Matched file in this data room: ${matchedDocumentTitles[0]}`
                 : `Matched files in this data room: ${matchedDocumentTitles.slice(0, 2).join(", ")}${matchedDocumentTitles.length > 2 ? ` +${matchedDocumentTitles.length - 2} more` : ""}`}
+            </p>
+          )}
+          {matchedTagNames.length > 0 && (
+            <p className="text-[11px] text-emerald-300/90 mt-1.5 leading-relaxed">
+              Matched by tag{matchedTagNames.length > 1 ? "s" : ""}:{" "}
+              {matchedTagNames.slice(0, 3).join(", ")}
+              {matchedTagNames.length > 3 ? ` +${matchedTagNames.length - 3} more` : ""}
             </p>
           )}
           <div className="flex flex-wrap items-center gap-3 mt-4">

@@ -3,6 +3,7 @@ import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
 import { DataRoom, DataRoomDocument, DataRoomTag, Deck } from "../types";
 import { withRetry } from "../utils/resilience";
 import { extractStoragePath } from "./deckService.shared";
+import { globalTagService } from "./globalTagService";
 
 export const dataRoomService = {
   // ── CRUD ────────────────────────────────────────────────
@@ -165,14 +166,9 @@ export const dataRoomService = {
         const tagsById = new Map<string, DataRoomTag>();
 
         if (tagIds.length > 0) {
-          const { data: tagsData, error: tagsError } = await supabase
-            .from("data_room_tags")
-            .select("*")
-            .in("id", tagIds);
+          const tags = await globalTagService.fetchTagsByIds(tagIds);
 
-          if (tagsError) throw tagsError;
-
-          (tagsData || []).forEach((tag) => {
+          tags.forEach((tag) => {
             const typedTag = tag as DataRoomTag;
             tagsById.set(typedTag.id, typedTag);
           });

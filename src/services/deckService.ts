@@ -11,6 +11,7 @@ import {
   BrandingSettings,
   Deck,
   DeckWithAnalytics,
+  LibraryTag,
   SavedDeck,
   SlidePage,
 } from "../types";
@@ -398,12 +399,21 @@ const deckAnalyticsService = {
 
       const { data: decks, error: decksError } = await supabase
         .from("decks")
-        .select("*")
+        .select(`
+          *,
+          library_deck_tags (
+            global_tags (*)
+          )
+        `)
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
       if (decksError) throw decksError;
       if (!decks || decks.length === 0) return [];
+
+      type DeckJoinResult = Deck & {
+        library_deck_tags?: { global_tags: LibraryTag }[];
+      };
 
       const deckIds = decks.map((deck) => deck.id);
       const [
@@ -450,11 +460,12 @@ const deckAnalyticsService = {
         }
       });
 
-      return decks.map((deck) => ({
+      return (decks as DeckJoinResult[]).map((deck) => ({
         ...deck,
         total_views: viewsMap[deck.id]?.size || 0,
         save_count: savesMap[deck.id] || 0,
         last_viewed_at: lastActiveMap[deck.id] || null,
+        tags: (deck.library_deck_tags || []).map((link) => link.global_tags),
       })) as DeckWithAnalytics[];
     });
   },

@@ -2,13 +2,14 @@ import { supabase } from "./supabase";
 import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
 import { withRetry } from "../utils/resilience";
 import { LibraryFolder, LibraryTag, SavedDeckOrganized } from "../types";
+import { globalTagService } from "./globalTagService";
 
 interface FolderJoinResult {
   id: string;
   name: string;
   color: string;
   created_at: string;
-  library_folder_tags: { library_tags: LibraryTag }[];
+  library_folder_tags: { global_tags: LibraryTag }[];
   investor_library: { count: number }[];
 }
 
@@ -20,7 +21,7 @@ interface InvestorLibraryEntry {
   folder_id: string | null;
   created_at: string;
   last_viewed_at: string | null;
-  library_deck_tags: { library_tags: LibraryTag }[];
+  library_deck_tags: { global_tags: LibraryTag }[];
 }
 
 export const organizerService = {
@@ -36,7 +37,7 @@ export const organizerService = {
         .select(`
           *,
           library_folder_tags (
-            library_tags (*)
+            global_tags (*)
           ),
           investor_library (count)
         `)
@@ -72,7 +73,7 @@ export const organizerService = {
         color: f.color || "#666666",
         created_at: f.created_at,
         deck_count: f.investor_library?.[0]?.count || 0,
-        tags: (f.library_folder_tags || []).map((ft) => ft.library_tags),
+        tags: (f.library_folder_tags || []).map((ft) => ft.global_tags),
       }));
     });
   },
@@ -114,76 +115,34 @@ export const organizerService = {
     if (finalError) throw finalError;
 
     const createdTags: LibraryTag[] = [];
-    const newlyCreatedTagIds = new Set<string>();
 
     try {
-      // Link tags
-      const canonicalTags = tagNames 
-        ? Array.from(new Set(tagNames.map(t => t.trim().toUpperCase()).filter(Boolean)))
+      const canonicalTags = tagNames
+        ? Array.from(new Set(tagNames.map((t) => t.trim().toUpperCase()).filter(Boolean)))
         : [];
-      if (canonicalTags.length > 0) {
-        for (const tagName of canonicalTags) {
-          let tagData: LibraryTag | null = null;
-          
-          // 1. Try to find existing tag
-          const { data: existingTag, error: existingTagErr } = await supabase
-            .from("library_tags")
-            .select("*")
-            .eq("user_id", userId)
-            .eq("name", tagName)
-            .maybeSingle();
+      for (const tagName of canonicalTags) {
+        const tagData = await globalTagService.createOrRestoreTag(
+          userId,
+          tagName,
+          "#666666",
+        );
 
-          if (existingTagErr) throw existingTagErr;
-          
-          tagData = existingTag;
+        const { error: linkErr } = await supabase
+          .from("library_folder_tags")
+          .insert([{ folder_id: finalData.id, tag_id: tagData.id }]);
 
-          // 2. Create if it doesn't exist
-          if (!tagData) {
-            const { data: newTag, error: tagErr } = await supabase
-              .from("library_tags")
-              .insert([{
-                name: tagName,
-                color: "#666666",
-                user_id: userId,
-              }])
-              .select()
-              .single();
-            
-            if (tagErr) throw tagErr;
-            if (newTag) {
-              tagData = newTag;
-              newlyCreatedTagIds.add(newTag.id);
-            }
-          }
-
-          if (tagData) {
-            // 3. Link tag to folder
-            const { error: linkErr } = await supabase
-              .from("library_folder_tags")
-              .insert([{ folder_id: finalData.id, tag_id: tagData.id }]);
-
-            if (linkErr) {
-              console.error(`Failed to link tag ${tagName}:`, {
-                folder_id: finalData.id,
-                tag_id: tagData.id,
-                error: linkErr,
-              });
-              throw linkErr;
-            }
-            createdTags.push(tagData);
-          }
+        if (linkErr) {
+          console.error(`Failed to link tag ${tagName}:`, {
+            folder_id: finalData.id,
+            tag_id: tagData.id,
+            error: linkErr,
+          });
+          throw linkErr;
         }
+        createdTags.push(tagData);
       }
     } catch (err) {
       console.error("Critical failure during folder creation process, rolling back:", err);
-      // Centralized cleanup: remove all tags created during this process
-      for (const tagId of newlyCreatedTagIds) {
-        try {
-          await supabase.from("library_tags").delete().eq("id", tagId);
-        } catch (cleanupErr) {
-          console.error(`Cleanup failed for tag ${tagId}:`, cleanupErr);
-        }
-      }
       // Cleanup the folder so we don't end up with partial/broken states
       if (finalData?.id) {
         try {
@@ -282,7 +241,6 @@ export const organizerService = {
     if (delErr) throw delErr;
 
     const createdTags: LibraryTag[] = [];
-    const newlyCreatedTagIds = new Set<string>();
     let updateFailed = false;
     let originalError: unknown = null;
 
@@ -293,33 +251,11 @@ export const organizerService = {
         : [];
       if (canonicalTags.length > 0) {
         for (const tagName of canonicalTags) {
-          const { data: existingTag, error: lookupErr } = await supabase
-            .from("library_tags")
-            .select("*")
-            .eq("user_id", userId)
-            .eq("name", tagName)
-            .maybeSingle();
-
-          if (lookupErr) throw lookupErr;
-          let tagData = existingTag;
-
-          if (!tagData) {
-            const { data: newTag, error: tagErr } = await supabase
-              .from("library_tags")
-              .insert([{
-                name: tagName,
-                color: "#666666",
-                user_id: userId,
-              }])
-              .select()
-              .single();
-            
-            if (tagErr) throw tagErr;
-            if (newTag) {
-              tagData = newTag;
-              newlyCreatedTagIds.add(newTag.id);
-            }
-          }
+          const tagData = await globalTagService.createOrRestoreTag(
+            userId,
+            tagName,
+            "#666666",
+          );
 
           if (tagData) {
             const { error: insertErr } = await supabase
@@ -348,11 +284,6 @@ export const organizerService = {
     // 5. Rollback if process failed - restore BOTH tags AND folder row, cleanup orphans
     if (updateFailed) {
       try {
-        // Cleanup newly created orphaned tags
-        for (const tagId of newlyCreatedTagIds) {
-          await supabase.from("library_tags").delete().eq("id", tagId);
-        }
-
         // Wipe broken links
         await supabase
           .from("library_folder_tags")
@@ -424,9 +355,10 @@ export const organizerService = {
       if (!uid) return [];
 
       const { data, error } = await supabase
-        .from("library_tags")
+        .from("global_tags")
         .select("*")
         .eq("user_id", uid)
+        .is("deleted_at", null)
         .order("name");
 
       if (error) throw error;
@@ -441,39 +373,21 @@ export const organizerService = {
       const userId = await getRequiredSessionUserId();
 
       const canonicalName = name.trim().toUpperCase();
-      const { data, error } = await supabase
-        .from("library_tags")
-        .upsert(
-          [{ name: canonicalName, color, user_id: userId }],
-          { onConflict: "user_id,name" }
-        )
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      return globalTagService.createOrRestoreTag(userId, canonicalName, color);
     });
   },
 
   async updateTag(id: string, name: string, color: string): Promise<void> {
     return withRetry(async () => {
-      const { error } = await supabase
-        .from("library_tags")
-        .update({ name, color })
-        .eq("id", id);
-
-      if (error) throw error;
+      const userId = await getRequiredSessionUserId();
+      await globalTagService.updateTag(id, userId, name, color);
     });
   },
 
   async deleteTag(id: string): Promise<void> {
     return withRetry(async () => {
-      const { error } = await supabase
-        .from("library_tags")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      const userId = await getRequiredSessionUserId();
+      await globalTagService.deleteTag(id, userId);
     });
   },
 
@@ -495,6 +409,14 @@ export const organizerService = {
 
   async updateDeckTags(libraryId: string, tagIds: string[]): Promise<void> {
     return withRetry(async () => {
+      const uid = await getRequiredSessionUserId();
+
+      const ownedTags = await globalTagService.fetchTagsByIds(tagIds, uid, false);
+      const ownedTagIds = ownedTags.map((tag) => tag.id);
+      if (ownedTagIds.length !== Array.from(new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean))).length) {
+        throw new Error("One or more tags were not found.");
+      }
+
       // 1. Get current tags
       const { data: currentTags, error: fetchError } = await supabase
         .from("library_deck_tags")
@@ -505,8 +427,8 @@ export const organizerService = {
 
       const currentTagIds = (currentTags || []).map((t) => t.tag_id);
 
-      const toAdd = tagIds.filter((id) => !currentTagIds.includes(id));
-      const toRemove = currentTagIds.filter((id) => !tagIds.includes(id));
+      const toAdd = ownedTagIds.filter((id) => !currentTagIds.includes(id));
+      const toRemove = currentTagIds.filter((id) => !ownedTagIds.includes(id));
 
       // 2. Remove tags
       if (toRemove.length > 0) {
@@ -565,7 +487,7 @@ export const organizerService = {
           created_at,
           last_viewed_at,
           library_deck_tags (
-            library_tags (*)
+            global_tags (*)
           )
         `)
         .eq("user_id", uid)
@@ -659,7 +581,7 @@ export const organizerService = {
           description: deckData?.description || null,
           investor_note: notesMap[item.deck_id] || "",
           is_available: !!deckData,
-          tags: (item.library_deck_tags || []).map((dt) => dt.library_tags),
+          tags: (item.library_deck_tags || []).map((dt) => dt.global_tags),
         };
       });
     });

@@ -105,7 +105,7 @@ export function DataRoomTagsModal({
               Manage Tags
             </h2>
             <p className="text-sm text-muted-foreground">
-              Create owner-only folder tags for filtering and grouping.
+              Create and manage tags for filtering and grouping.
             </p>
           </div>
           <button

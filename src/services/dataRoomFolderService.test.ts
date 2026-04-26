@@ -153,23 +153,25 @@ describe("dataRoomFolderService", () => {
       ],
       error: null,
     });
-    mocks.queueResponse("data_room_tags.select", {
+    mocks.queueResponse("global_tags.select", {
       data: [
         {
           id: "tag-1",
-          data_room_id: "room-1",
           name: "Q1",
           color: "blue",
+          user_id: "user-1",
           created_at: "2026-04-25T00:00:00.000Z",
           updated_at: "2026-04-25T00:00:00.000Z",
+          deleted_at: null,
         },
         {
           id: "tag-2",
-          data_room_id: "room-1",
           name: "Legal",
           color: "emerald",
+          user_id: "user-1",
           created_at: "2026-04-25T00:00:00.000Z",
           updated_at: "2026-04-25T00:00:00.000Z",
+          deleted_at: null,
         },
       ],
       error: null,

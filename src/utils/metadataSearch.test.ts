@@ -189,7 +189,7 @@ describe("metadataSearch", () => {
     );
 
     expect(results).toHaveLength(1);
-    expect(results[0].id).toBe("1");
+    expect(results[0].document.id).toBe("1");
   });
 
   it("filters saved decks with folder/tag constraints preserved", () => {
@@ -209,7 +209,7 @@ describe("metadataSearch", () => {
     );
 
     expect(results).toHaveLength(1);
-    expect(results[0].library_id).toBe("1");
+    expect(results[0].deck.library_id).toBe("1");
   });
 
   it("filters saved rooms by selected folder and saved_at", () => {
@@ -229,7 +229,7 @@ describe("metadataSearch", () => {
     );
 
     expect(results).toHaveLength(1);
-    expect(results[0].library_id).toBe("1");
+    expect(results[0].room.library_id).toBe("1");
   });
 
   it("matches data rooms by room name on the overview page", () => {
@@ -247,6 +247,7 @@ describe("metadataSearch", () => {
     expect(results).toHaveLength(1);
     expect(results[0].room.id).toBe("1");
     expect(results[0].matchedDocumentTitles).toEqual([]);
+    expect(results[0].matchedTagNames).toEqual([]);
   });
 
   it("matches data rooms by document title and returns matched file names", () => {
@@ -269,5 +270,62 @@ describe("metadataSearch", () => {
     expect(results).toHaveLength(1);
     expect(results[0].room.name).toBe("Finance Room");
     expect(results[0].matchedDocumentTitles).toEqual(["Budget FY26"]);
+    expect(results[0].matchedTagNames).toEqual([]);
+  });
+
+  it("matches saved decks by tag names as well as title", () => {
+    const filter: MetadataSearchFilterState = {
+      ...createDefaultMetadataSearchFilter("saved_decks"),
+      query: "saas",
+    };
+
+    const results = filterSavedDeckRows(
+      [
+        makeSavedDeck({
+          library_id: "1",
+          title: "Alpha Saved Deck",
+          tags: [{ id: "tag-1", name: "SaaS", color: "#54e98a" }],
+        }),
+        makeSavedDeck({ library_id: "2", title: "Beta Saved Deck" }),
+      ],
+      filter,
+      "uncategorized",
+      null,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].deck.library_id).toBe("1");
+    expect(results[0].matchedTagNames).toEqual(["SaaS"]);
+  });
+
+  it("matches data room documents by tag names and surfaces the match", () => {
+    const filter: MetadataSearchFilterState = {
+      ...createDefaultMetadataSearchFilter("data_room"),
+      query: "legal",
+    };
+
+    const results = filterDataRoomDocuments(
+      [
+        makeRoomDocument({
+          id: "1",
+          tags: [
+            {
+              id: "tag-1",
+              data_room_id: "room-1",
+              name: "Legal",
+              color: "#54e98a",
+              created_at: "2026-04-24T00:00:00.000Z",
+              updated_at: "2026-04-24T00:00:00.000Z",
+            },
+          ],
+        }),
+      ],
+      filter,
+      null,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].document.id).toBe("1");
+    expect(results[0].matchedTagNames).toEqual(["Legal"]);
   });
 });
