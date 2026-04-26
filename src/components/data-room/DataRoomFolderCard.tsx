@@ -85,7 +85,6 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
           compact
             ? "h-[160px] w-full bg-surface-card border border-border p-3.5 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md"
             : "h-[190px] w-full bg-surface-card border border-border p-4 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md",
-        isActive && "border-border",
       )}
     >
       {isActive && (

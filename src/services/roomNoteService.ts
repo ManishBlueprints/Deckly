@@ -25,6 +25,7 @@ export const roomNoteService = {
   async saveNote(dataRoomId: string, content: string): Promise<void> {
     return withRetry(async () => {
       const userId = await getRequiredSessionUserId();
+      const noteContent = content.slice(0, 1000);
 
       const { error } = await supabase
         .from("saved_data_room_notes")
@@ -32,7 +33,7 @@ export const roomNoteService = {
           {
             user_id: userId,
             data_room_id: dataRoomId,
-            content,
+            content: noteContent,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "user_id,data_room_id" },

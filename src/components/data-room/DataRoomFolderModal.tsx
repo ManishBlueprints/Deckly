@@ -97,10 +97,21 @@ export function DataRoomFolderModal({
   };
 
   const addTagFromQuery = () => {
-    const match = existingTags.find(
-      (tag) => tag.name.toLowerCase() === tagQuery.trim().toLowerCase(),
+    const normalizedQuery = tagQuery.trim().toLowerCase();
+    if (!normalizedQuery) return;
+
+    const exactMatch = existingTags.find(
+      (tag) => tag.name.toLowerCase() === normalizedQuery,
     );
-    if (match) addTag(match.id);
+    if (exactMatch) {
+      addTag(exactMatch.id);
+      return;
+    }
+
+    const fallbackMatch = filteredSuggestions[0];
+    if (fallbackMatch) {
+      addTag(fallbackMatch.id);
+    }
   };
 
   const removeTag = (tagId: string) => {
@@ -222,6 +233,7 @@ export function DataRoomFolderModal({
                 <button
                   type="button"
                   onClick={addTagFromQuery}
+                  disabled={filteredSuggestions.length === 0 && !existingTags.some((tag) => tag.name.toLowerCase() === tagQuery.trim().toLowerCase())}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-primary transition-colors"
                 >
                   <Plus size={16} />

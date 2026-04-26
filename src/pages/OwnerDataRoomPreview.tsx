@@ -7,9 +7,7 @@ import {
   Bookmark,
   BookmarkCheck,
   Check,
-  ChevronRight,
   FileText,
-  FolderOpen,
   MessageSquareText,
 } from "lucide-react";
 import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
@@ -34,13 +32,11 @@ function OwnerDataRoomPreview() {
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
   const [folders, setFolders] = useState<DataRoomFolderWithTags[]>([]);
-  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
@@ -140,22 +136,10 @@ function OwnerDataRoomPreview() {
     }
   }, [session, room?.id, isSaved, saveToLibraryMutation, pendingAction, room]);
 
-  const visibleDocuments = documents.filter((doc) =>
-    activeFolderId === null ? !doc.folder_id : doc.folder_id === activeFolderId,
-  );
-
   const sidebarSections = useMemo(
     () => buildDataRoomSidebarSections(documents, folders),
     [documents, folders],
   );
-
-  useEffect(() => {
-    if (visibleDocuments.length > 0) {
-      setSelectedDeck(visibleDocuments[0].deck || null);
-      return;
-    }
-    setSelectedDeck(null);
-  }, [activeFolderId, documents, visibleDocuments]);
 
   const handleSave = () => {
     if (!room) return;
@@ -243,196 +227,6 @@ function OwnerDataRoomPreview() {
             animate={{ opacity: 1 }}
             className="flex-1 flex items-stretch relative"
           >
-            <div className="hidden">
-            <AnimatePresence>
-              {isMobile && sidebarOpen && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setSidebarOpen(false)}
-                  className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
-                />
-              )}
-            </AnimatePresence>
-
-            <div
-              className={`
-                ${sidebarOpen ? (isMobile ? "w-[240px]" : "w-64") : "w-0"}
-                bg-[#111] border-r border-[#222] flex flex-col transition-all duration-500 overflow-hidden shrink-0 relative z-50 shadow-xl
-                ${isMobile ? "absolute inset-y-0 left-0" : "relative"}
-              `}
-            >
-              <div className="p-6 border-b border-[#222] bg-[#1a1a1a]/30">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-md bg-[#1a1a1a] flex items-center justify-center border border-[#333]">
-                    <FileText size={18} className="text-deckly-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-xs font-semibold text-slate-200 truncate">
-                      {room.name}
-                    </h2>
-                    <p className="text-[10px] text-slate-500 font-medium mt-0.5">
-                      {documents.length} {documents.length === 1 ? "Document" : "Documents"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
-                {visibleDocuments.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 px-1">
-                      <FileText size={12} className="text-slate-500" />
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        Documents
-                      </p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {visibleDocuments.map((doc) => {
-                        const deck = doc.deck;
-                        const isActive = deck?.id !== undefined && selectedDeck?.id !== undefined && selectedDeck.id === deck.id;
-
-                        return (
-                          <button
-                            key={doc.deck_id}
-                            onClick={() => deck && setSelectedDeck(deck)}
-                            className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-md border transition-all duration-200 group ${isActive ? "bg-deckly-primary/5 border-deckly-primary/30" : "hover:bg-[#1a1a1a] border-transparent"}`}
-                          >
-                            <div className={`w-9 h-7 rounded-sm bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${isActive ? "border-deckly-primary/40" : "border-[#222] grayscale group-hover:grayscale-0"}`}>
-                              {deck?.pages?.[0]?.image_url ? (
-                                <img src={deck.pages[0].image_url} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <FileText size={16} className="text-slate-800" />
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-xs font-semibold truncate transition-colors ${isActive ? "text-deckly-primary" : "text-slate-300 group-hover:text-deckly-primary"}`}>
-                                {deck?.title || "Untitled Resource"}
-                              </p>
-                              <p className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-600"}`}>
-                                {deck?.pages?.length || 0} Slides
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {folders.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 px-1">
-                      <FolderOpen size={12} className="text-deckly-primary" />
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        Folders
-                      </p>
-                    </div>
-
-                    {folders.map((folder) => {
-                      const folderDocs = documents.filter((doc) => doc.folder_id === folder.id);
-                      const isActive = activeFolderId === folder.id;
-                      const isExpanded = expandedFolders[folder.id] ?? false;
-
-                      return (
-                        <section key={folder.id} className="space-y-2">
-                          <div className="flex items-center justify-between gap-3 px-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveFolderId(folder.id);
-                                  setExpandedFolders((prev) => ({
-                                    ...prev,
-                                    [folder.id]: !(prev[folder.id] ?? false),
-                                  }));
-                                }}
-                                className="flex min-w-0 items-center gap-2 text-left"
-                              >
-                              <ChevronRight
-                                size={13}
-                                className={`text-deckly-primary shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-                              />
-                              <h3 className={`text-[10px] font-bold uppercase tracking-[0.2em] truncate ${isActive ? "text-slate-100" : "text-slate-300"}`}>
-                                {folder.name}
-                              </h3>
-                            </button>
-                            <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[10px] font-semibold text-slate-400">
-                              {folderDocs.length}
-                            </span>
-                          </div>
-
-                          {isExpanded && (
-                            <div className="space-y-1.5">
-                              {folderDocs.map((doc) => {
-                                const deck = doc.deck;
-                                const docActive = selectedDeck?.id === deck?.id;
-
-                                return (
-                                  <button
-                                    key={doc.deck_id}
-                                    onClick={() => deck && setSelectedDeck(deck)}
-                                    className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-md border transition-all duration-200 group ${docActive ? "bg-deckly-primary/5 border-deckly-primary/30" : "hover:bg-[#1a1a1a] border-transparent"}`}
-                                  >
-                                    <div className={`w-9 h-7 rounded-sm bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${docActive ? "border-deckly-primary/40" : "border-[#222] grayscale group-hover:grayscale-0"}`}>
-                                      {deck?.pages?.[0]?.image_url ? (
-                                        <img src={deck.pages[0].image_url} alt="" className="w-full h-full object-cover" />
-                                      ) : (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                          <FileText size={16} className="text-slate-800" />
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                      <p className={`text-xs font-semibold truncate transition-colors ${docActive ? "text-deckly-primary" : "text-slate-300 group-hover:text-deckly-primary"}`}>
-                                        {deck?.title || "Untitled Resource"}
-                                      </p>
-                                      <p className={`text-[10px] font-medium mt-0.5 transition-colors ${docActive ? "text-deckly-primary/60" : "text-slate-600"}`}>
-                                        {deck?.pages?.length || 0} Slides
-                                      </p>
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </section>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {!isMobile && (
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="absolute top-1/2 -translate-y-1/2 z-30 w-6 h-10 flex items-center justify-center bg-[#111] border border-[#222] rounded-r-md text-slate-500 hover:text-deckly-primary transition-all shadow-xl"
-                style={{ left: sidebarOpen ? "16rem" : "0" }}
-              >
-                <ChevronRight
-                  size={16}
-                  className={`transition-transform duration-500 ${sidebarOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-            )}
-
-            {isMobile && !sidebarOpen && (
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="absolute top-6 left-4 z-[100] w-9 h-9 flex items-center justify-center bg-[#111] border border-[#333] rounded-md text-white shadow-xl active:scale-95"
-              >
-                <ChevronRight size={18} />
-              </button>
-            )}
-
-            </div>
-
             <DataRoomSidebar
               roomName={room.name}
               roomIconUrl={room.icon_url}
