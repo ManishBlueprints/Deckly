@@ -127,7 +127,6 @@ export const DocumentRow = memo(function DocumentRow({
 
   return (
     <motion.div
-      layout
       onMouseEnter={handleMouseEnter}
       className={cn(
         "bg-surface-card border border-white/5 p-6 flex flex-col md:flex-row items-center gap-6 group hover:border-[#54e98a]/20 transition-all",
