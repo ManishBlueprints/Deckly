@@ -54,6 +54,7 @@ export function SavedItemNoteCard({
                 onChange={(event) => onNoteChange(event.target.value)}
                 onBlur={onSave}
                 onKeyDown={onKeyDown}
+                maxLength={1000}
                 rows={3}
                 placeholder="Write a note..."
                 className="w-full rounded-lg border border-[#e6d8b0]/20 bg-[#120f0b]/65 px-2.5 py-2 text-[11px] sm:text-xs text-[#f3ead0] placeholder:text-[#f3ead0]/30 resize-none outline-none focus:border-[#e6d8b0]/40 transition-colors"

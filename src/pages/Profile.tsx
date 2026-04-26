@@ -34,7 +34,6 @@ import {
   isOnboardingComplete,
 } from "../utils/onboarding";
 import { ProfileOnboardingFlow } from "../components/onboarding/ProfileOnboardingFlow";
-import { WorkspaceOnboardingTour } from "../components/tours/WorkspaceOnboardingTour";
 
 const TIER_PRICING: Record<Tier, { monthly: number; yearly: number; cta: string }> = {
   FREE: { monthly: 0, yearly: 0, cta: "Switch to Free" },
@@ -194,7 +193,6 @@ function Profile() {
           </div>
 
           <div className="p-4 md:p-8 pt-4 md:pt-6 max-w-4xl mx-auto w-full">
-            <WorkspaceOnboardingTour />
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSection}
@@ -239,17 +237,23 @@ function IdentitySection({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const profileHydratedRef = useRef(false);
 
   const [roomName, setRoomName] = useState(branding?.room_name || "");
   const [workspaceSlug, setWorkspaceSlug] = useState(profile?.handle || "");
   const [debouncedSlug, setDebouncedSlug] = useState(workspaceSlug);
 
   useEffect(() => {
+    if (profileHydratedRef.current) return;
+    if (!branding?.room_name && !profile?.handle) return;
+
     if (branding?.room_name) setRoomName(branding.room_name);
     if (profile?.handle) {
       setWorkspaceSlug(profile.handle);
       setDebouncedSlug(profile.handle);
     }
+
+    profileHydratedRef.current = true;
   }, [branding?.room_name, profile?.handle]);
 
   useEffect(() => {

@@ -279,7 +279,7 @@ export function DataRoomAnalyticsPanel({
                             <span className="w-1 h-1 rounded-full bg-border" />
                             <span className="text-xs text-muted-foreground font-medium">
                               {visitor.distinctDays} Day
-                              {visitor.distinctDays > 1 ? "s" : ""}
+                              {visitor.distinctDays !== 1 ? "s" : ""}
                             </span>
                           </div>
                         </div>

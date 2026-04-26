@@ -64,7 +64,7 @@ GRANT EXECUTE ON FUNCTION public.update_tutorial_state(JSONB) TO authenticated;
 
 -- 1. DECKS TABLE
 CREATE TABLE IF NOT EXISTS public.decks (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     slug TEXT NOT NULL UNIQUE,
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS public.decks (
 
 -- 2. BRANDING TABLE
 CREATE TABLE IF NOT EXISTS public.branding (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
     room_name TEXT DEFAULT 'Deckly Data Room',
     banner_url TEXT,

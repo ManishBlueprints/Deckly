@@ -1,7 +1,7 @@
 -- Saved data rooms and private room notes
 
 CREATE TABLE IF NOT EXISTS public.saved_data_rooms (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     data_room_id UUID REFERENCES public.data_rooms(id) ON DELETE SET NULL,
     folder_id UUID REFERENCES public.library_folders(id) ON DELETE SET NULL,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS public.saved_data_rooms (
 );
 
 CREATE TABLE IF NOT EXISTS public.saved_data_room_notes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     data_room_id UUID REFERENCES public.data_rooms(id) ON DELETE SET NULL,
     content TEXT DEFAULT '',

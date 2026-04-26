@@ -11,6 +11,19 @@ const mocks = vi.hoisted(() => {
     count?: number;
   };
 
+  type TableChain = {
+    select: ReturnType<typeof vi.fn>;
+    insert: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+    eq: ReturnType<typeof vi.fn>;
+    in: ReturnType<typeof vi.fn>;
+    order: ReturnType<typeof vi.fn>;
+    maybeSingle: ReturnType<typeof vi.fn>;
+    single: ReturnType<typeof vi.fn>;
+    then: PromiseLike<MockResponse>["then"];
+  };
+
   const responseQueues = new Map<string, MockResponse[]>();
 
   const queueResponse = (
@@ -29,7 +42,7 @@ const mocks = vi.hoisted(() => {
 
   const createTableChain = (table: string) => {
     let mode = "select";
-    const chain: any = {
+    const chain = {
       select: vi.fn(() => {
         mode = "select";
         return chain;
@@ -53,11 +66,12 @@ const mocks = vi.hoisted(() => {
         consumeResponse(`${table}.${mode}.maybeSingle`),
       ),
       single: vi.fn(async () => consumeResponse(`${table}.${mode}.single`)),
-      then: (
-        resolve: (value: unknown) => void,
-        reject: (reason: unknown) => void,
-      ) => Promise.resolve(consumeResponse(`${table}.${mode}`)).then(resolve, reject),
-    };
+      then: ((resolve, reject) =>
+        Promise.resolve(consumeResponse(`${table}.${mode}`)).then(
+          resolve,
+          reject,
+        )) as TableChain["then"],
+    } as TableChain;
 
     return chain;
   };
