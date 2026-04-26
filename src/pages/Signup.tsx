@@ -402,6 +402,8 @@ function Signup() {
             and our{" "}
             <a
               href="https://deckly.space/privacy"
+              target="_blank"
+              rel="noreferrer noopener"
               className="underline cursor-pointer hover:text-slate-400 transition-colors"
             >
               privacy policy
