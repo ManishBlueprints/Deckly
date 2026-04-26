@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BrandingSettings, UserProfile } from "../../types";
 import { deckService } from "../../services/deckService";
 import { userService } from "../../services/userService";
+import { useAuth } from "../../contexts/AuthContext";
 import { normalizeSlug } from "../../utils/slug";
 import penguinMascot from "../../assets/penguine.png";
 import { useTourState } from "../../contexts/TourContext";
@@ -24,6 +25,8 @@ interface MascotSettingsModalProps {
   branding: BrandingSettings | null;
   onUpdate: (newBranding: BrandingSettings) => void;
   userProfile?: UserProfile;
+  setupMode?: boolean;
+  onComplete?: () => void;
 }
 
 export function MascotSettingsModal({
@@ -32,12 +35,15 @@ export function MascotSettingsModal({
   branding,
   onUpdate,
   userProfile,
+  setupMode = false,
+  onComplete,
 }: MascotSettingsModalProps) {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { markTourComplete, resetTours } = useTourState();
+  const { refreshProfile } = useAuth();
 
   // Workspace settings
   const [roomName, setRoomName] = useState(branding?.room_name || "");
@@ -131,27 +137,23 @@ export function MascotSettingsModal({
       }
 
       // 2. Update Slug if changed and available
-      let shouldReload = false;
       if (workspaceSlug !== userProfile?.handle && isSlugAvailable) {
         if (userProfile?.id) {
           await userService.updateProfile(userProfile.id, {
             handle: workspaceSlug,
           });
-          shouldReload = true;
+          await refreshProfile();
         }
       }
 
-      // Mark onboarding as complete so it doesn't pop up again
-      if (userProfile && !userProfile.handle) {
-        await markTourComplete("onboarding_completed");
+      if (setupMode && userProfile?.id) {
+        await markTourComplete("workspace_setup_completed");
       }
 
-      onClose();
-
-      // Perform reload last, if needed
-      if (shouldReload) {
-        window.location.reload();
-        return; // Prevent further execution during reload
+      if (setupMode) {
+        onComplete?.();
+      } else {
+        onClose();
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -169,7 +171,7 @@ export function MascotSettingsModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={setupMode ? undefined : onClose}
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
           />
 
@@ -191,6 +193,7 @@ export function MascotSettingsModal({
               </div>
               <button
                 onClick={onClose}
+                style={setupMode ? { display: "none" } : undefined}
                 className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-none transition-colors"
                 disabled={uploading || saving}
               >
@@ -247,7 +250,8 @@ export function MascotSettingsModal({
                     </div>
                   </div>
 
-                  {workspaceSlug !== userProfile?.handle &&
+                  {!setupMode &&
+                    workspaceSlug !== userProfile?.handle &&
                     isSlugAvailable === false && (
                       <motion.div
                         initial={{ opacity: 0, y: -5 }}
@@ -261,7 +265,8 @@ export function MascotSettingsModal({
                       </motion.div>
                     )}
 
-                  {workspaceSlug !== userProfile?.handle &&
+                  {!setupMode &&
+                    workspaceSlug !== userProfile?.handle &&
                     workspaceSlug.length > 0 &&
                     workspaceSlug.length < 3 && (
                       <motion.div
@@ -276,7 +281,8 @@ export function MascotSettingsModal({
                       </motion.div>
                     )}
 
-                  {workspaceSlug !== userProfile?.handle &&
+                  {!setupMode &&
+                    workspaceSlug !== userProfile?.handle &&
                     isSlugAvailable === true && (
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
@@ -383,31 +389,33 @@ export function MascotSettingsModal({
                       </button>
                     )}
 
-                    <div className="pt-4 mt-4 border-t border-white/5 space-y-4">
-                      <div className="flex items-center gap-2 text-slate-500">
-                        <Info size={14} />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">
-                          Tutorial Settings
-                        </span>
+                    {!setupMode && (
+                      <div className="pt-4 mt-4 border-t border-white/5 space-y-4">
+                        <div className="flex items-center gap-2 text-slate-500">
+                          <Info size={14} />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">
+                            Tutorial Settings
+                          </span>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await resetTours();
+                              onClose();
+                              window.location.reload();
+                            } catch (err: unknown) {
+                              const message =
+                                err instanceof Error ? err.message : String(err);
+                              setError(message || "Failed to reset tutorials.");
+                            }
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-none border border-white/10 transition-all text-[10px] font-bold uppercase tracking-widest"
+                        >
+                          <RotateCcw size={16} className="opacity-50" />
+                          Reset All Tutorials
+                        </button>
                       </div>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await resetTours();
-                            onClose();
-                            window.location.reload();
-                          } catch (err: unknown) {
-                            const message =
-                              err instanceof Error ? err.message : String(err);
-                            setError(message || "Failed to reset tutorials.");
-                          }
-                        }}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-none border border-white/10 transition-all text-[10px] font-bold uppercase tracking-widest"
-                      >
-                        <RotateCcw size={16} className="opacity-50" />
-                        Reset All Tutorials
-                      </button>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -1,9 +1,14 @@
 import { useState, useMemo, useCallback } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { LibraryFolder, SavedDeckOrganized } from "../../types";
-import { Loader2, Filter, Tag, Search, X } from "lucide-react";
+import {
+  LibraryFolder,
+  SavedDataRoomOrganized,
+  SavedDeckOrganized,
+} from "../../types";
+import { Loader2, Filter, Tag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,23 +23,37 @@ import { SavedDeckEmptyState } from "./SavedDeckEmptyState";
 import { CreateFolderModal } from "./CreateFolderModal";
 import { FolderCard } from "./FolderCard";
 import { DocumentRow } from "./DocumentRow";
+import { SavedRoomRow } from "./SavedRoomRow";
 import { ManageTagsModal } from "./ManageTagsModal";
 import { useLibrary } from "../../hooks/useLibrary";
+import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
 import { cn } from "../../lib/utils";
+import { MetadataSearchMenu } from "../search/MetadataSearchMenu";
+import { useMetadataSearchState } from "../../hooks/useMetadataSearchState";
+import {
+  filterSavedDeckRows,
+  filterSavedRoomRows,
+} from "../../utils/metadataSearchAdapters";
 
 export function SavedDecksView() {
   const { session } = useAuth();
   const { decks, folders, tags, isLoading, isError, actions } = useLibrary(
     session?.user?.id,
   );
+  const { data: savedRooms = [] } = useQuery({
+    queryKey: ["saved-data-rooms", session?.user?.id],
+    queryFn: () => dataRoomLibraryService.getSavedRooms(),
+    enabled: !!session?.user?.id,
+    staleTime: 30_000,
+  });
 
   // --- UI state only ---
   const [selectedFolderId, setSelectedFolderId] = useState<
     string | "uncategorized"
   >("uncategorized");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const search = useMetadataSearchState("saved_decks");
 
   // Modal state
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
@@ -56,22 +75,21 @@ export function SavedDecksView() {
   // --- Derived / filtered list ---
   const filteredDecks = useMemo(
     () =>
-      decks.filter((deck) => {
-        // When 'uncategorized' is selected show decks with no folder assigned
-        const matchesFolder =
-          selectedFolderId === "uncategorized"
-            ? deck.folder_id === null
-            : deck.folder_id === selectedFolderId;
-        const matchesTag =
-          selectedTagId === null ||
-          deck.tags.some((t) => t.id === selectedTagId);
-        const matchesSearch =
-          searchQuery === "" ||
-          deck.title.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesFolder && matchesTag && matchesSearch;
-      }),
-    [decks, selectedFolderId, selectedTagId, searchQuery],
+      filterSavedDeckRows(decks, search.filter, selectedFolderId, selectedTagId),
+    [decks, search.filter, selectedFolderId, selectedTagId],
   );
+
+  const filteredSavedRooms = useMemo(() => {
+    return filterSavedRoomRows(savedRooms, search.filter, selectedFolderId);
+  }, [savedRooms, search.filter, selectedFolderId]);
+
+  const roomCountByFolder = useMemo(() => {
+    return savedRooms.reduce<Record<string, number>>((acc, room) => {
+      if (!room.folder_id) return acc;
+      acc[room.folder_id] = (acc[room.folder_id] || 0) + 1;
+      return acc;
+    }, {});
+  }, [savedRooms]);
 
   // --- Confirm: Unsave deck ---
   const handleConfirmUnsave = useCallback(async () => {
@@ -205,7 +223,7 @@ export function SavedDecksView() {
     );
   }
 
-  if (decks.length === 0 && folders.length === 0) {
+  if (decks.length === 0 && folders.length === 0 && savedRooms.length === 0) {
     return (
       <div className="min-h-[calc(100vh-140px)] bg-deckly-background overflow-hidden">
         <SavedDeckEmptyState
@@ -225,7 +243,7 @@ export function SavedDecksView() {
   return (
     <div className="min-h-[calc(100vh-140px)] bg-deckly-background">
       <main className="overflow-y-auto custom-scrollbar">
-        <div className="p-6 md:p-12 space-y-16 w-full max-w-[1600px] mx-auto">
+        <div className="px-6 pb-12 md:px-12 md:pb-12 pt-0 space-y-16 w-full max-w-[1600px] mx-auto">
           {/* Main Header */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-0">
             <div className="space-y-3">
@@ -238,6 +256,18 @@ export function SavedDecksView() {
             </div>
 
             <div className="flex items-center gap-4">
+              <MetadataSearchMenu
+                filter={search.filter}
+                isActive={search.isActive}
+                onModeChange={search.setMode}
+                onQueryChange={search.setQuery}
+                onDatePresetChange={search.setDatePreset}
+                onCustomDateRangeChange={search.setCustomDateRange}
+                onClear={search.resetFilter}
+                resultCount={filteredDecks.length + filteredSavedRooms.length}
+                triggerLabel="Search"
+                namePlaceholder="Search saved titles..."
+              />
               <button
                 onClick={() => setIsFilterOpen((v) => !v)}
                 className={cn(
@@ -255,7 +285,7 @@ export function SavedDecksView() {
                 className="flex items-center gap-3 px-6 py-3 bg-surface-low border border-border text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all"
               >
                 <Tag size={14} />
-                Manage Tags
+                Edit Tags
               </button>
             </div>
           </div>
@@ -270,31 +300,9 @@ export function SavedDecksView() {
                 transition={{ duration: 0.15 }}
                 className="overflow-hidden"
               >
-                <div className="p-6 bg-surface-card border border-white/5 flex flex-col md:flex-row gap-6">
-                  {/* Search */}
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#bbcbbb]/40" />
-                    <input
-                      type="text"
-                      placeholder="Search documents by title..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-12 pr-10 py-3 bg-surface-container border border-white/10 text-[#e5e2e1] placeholder:text-[#bbcbbb]/40 focus:outline-none focus:border-[#54e98a]/50 transition-colors"
-                    />
-                    {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery("")}
-                        aria-label="Clear search"
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#bbcbbb]/40 hover:text-white"
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Tag Filters */}
+                <div className="p-6 bg-surface-card border border-white/5 flex flex-col gap-6">
                   {tags.length > 0 && (
-                    <div className="flex-1 flex gap-2 flex-wrap items-center">
+                    <div className="flex gap-2 flex-wrap items-center">
                       <span className="text-xs font-bold text-[#bbcbbb]/40 uppercase tracking-wider mr-2">
                         Tags:
                       </span>
@@ -359,6 +367,7 @@ export function SavedDecksView() {
                   key={folder.id}
                   folder={folder}
                   isActive={selectedFolderId === folder.id}
+                  documentCount={folder.deck_count + (roomCountByFolder[folder.id] || 0)}
                   onClick={() => handleFolderClick(folder.id)}
                   onEdit={handleEditFolderRequest}
                   onDelete={handleDeleteFolderRequest}
@@ -366,6 +375,32 @@ export function SavedDecksView() {
               ))}
             </div>
           </div>
+
+          {/* Saved Rooms */}
+          {filteredSavedRooms.length > 0 && (
+            <div className="space-y-8">
+              <div className="flex items-center gap-4">
+                <div className="w-8 h-1 bg-[#54e98a] rounded-full" />
+                <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
+                  Saved Rooms
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                {filteredSavedRooms.map((room: SavedDataRoomOrganized) => (
+                  <SavedRoomRow
+                    key={room.library_id}
+                    room={room}
+                    folders={folders}
+                    tags={tags}
+                    onUnsave={() => {
+                      void actions.refetch();
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Documents */}
           <div className="space-y-8">

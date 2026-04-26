@@ -79,7 +79,7 @@ export function EmptyStateOverlay() {
     <div className="relative">
       {/* Greyed-out dashboard ghost behind */}
       <div
-        className="absolute inset-0 blur-[4px] opacity-[0.05] pointer-events-none select-none"
+        className="absolute inset-0 hidden md:block blur-[4px] opacity-[0.05] pointer-events-none select-none"
         aria-hidden
       >
         <div className="space-y-12 pb-12">
@@ -92,14 +92,14 @@ export function EmptyStateOverlay() {
       </div>
 
       {/* Overlay content */}
-      <div className="relative z-10 flex items-center justify-center py-4 md:py-8 min-h-[calc(100vh-200px)]">
+      <div className="relative z-10 flex items-start md:items-center justify-center py-3 sm:py-4 md:py-8 min-h-[calc(100vh-200px)]">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="w-full max-w-2xl mx-auto px-4"
+          className="w-full max-w-2xl mx-auto px-3 sm:px-4"
         >
-          <div className="bg-surface-card border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 md:p-12 text-center relative overflow-hidden group min-h-[520px] flex flex-col justify-between">
+          <div className="bg-surface-card border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] px-4 py-5 sm:px-6 sm:py-6 md:p-12 text-center relative overflow-hidden group min-h-0 md:min-h-[520px] flex flex-col justify-start md:justify-between gap-6 md:gap-0">
             {/* Ambient Glow */}
             <AnimatePresence mode="wait">
               <motion.div
@@ -107,24 +107,24 @@ export function EmptyStateOverlay() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.6 }}
                 exit={{ opacity: 0 }}
-                className={`absolute -top-24 -left-24 w-64 h-64 ${step.glow} rounded-full blur-[100px] pointer-events-none transition-all duration-1000`}
+                className={`absolute -top-24 -left-24 w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 ${step.glow} rounded-full blur-[100px] pointer-events-none transition-all duration-1000`}
               />
             </AnimatePresence>
 
             {/* Header Greeting */}
-            <div className="relative z-10 space-y-2 mb-2">
-              <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+            <div className="relative z-10 space-y-1 sm:space-y-2 mb-0 md:mb-2">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight leading-tight">
                 Welcome, {firstName}! 🚀
               </h2>
-              <p className="text-slate-400 text-sm font-medium">
+              <p className="text-slate-400 text-xs sm:text-sm font-medium leading-relaxed max-w-[26rem] mx-auto">
                 Let's get your first pitch deck ready for investors.
               </p>
             </div>
 
             {/* Feature Slider Content */}
-            <div className="relative z-10 flex-1 flex flex-col justify-center py-6">
+            <div className="relative z-10 flex-1 flex flex-col justify-start md:justify-center py-0 md:py-6">
               {/* Floating Navigation Arrows */}
-              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none px-2 z-20">
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 hidden md:flex justify-between pointer-events-none px-2 z-20">
                 <button
                   onClick={prevStep}
                   className="p-3 bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-90 pointer-events-auto shadow-2xl backdrop-blur-md"
@@ -148,23 +148,27 @@ export function EmptyStateOverlay() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="space-y-6"
+                  className="space-y-4 sm:space-y-6"
                 >
                   <div
-                    className={`w-24 h-24 mx-auto bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-2xl relative transition-all group-hover:scale-105 duration-500`}
+                    className={`w-20 h-20 sm:w-24 sm:h-24 mx-auto bg-white/5 border border-white/10 flex items-center justify-center mb-4 sm:mb-6 shadow-2xl relative transition-all group-hover:scale-105 duration-500`}
                   >
                     <step.icon
-                      size={44}
-                      className={`${step.color} transition-colors duration-500`}
+                      size={36}
+                      className={`${step.color} sm:hidden transition-colors duration-500`}
                     />
-                    <Sparkles className="absolute -top-2 -right-2 text-deckly-primary opacity-50 w-6 h-6 animate-pulse" />
+                    <step.icon
+                      size={44}
+                      className={`${step.color} hidden sm:block transition-colors duration-500`}
+                    />
+                    <Sparkles className="absolute -top-2 -right-2 text-deckly-primary opacity-50 w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
                   </div>
 
-                  <div className="space-y-3">
-                    <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight uppercase tracking-[0.1em]">
+                  <div className="space-y-2 sm:space-y-3">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white uppercase tracking-[0.1em]">
                       {step.title}
                     </h3>
-                    <p className="text-slate-400 text-sm md:text-base max-w-md mx-auto leading-relaxed font-medium px-12">
+                    <p className="text-slate-400 text-sm sm:text-base max-w-md mx-auto leading-relaxed font-medium px-2 sm:px-8 md:px-12">
                       {step.description}
                     </p>
                   </div>
@@ -173,7 +177,7 @@ export function EmptyStateOverlay() {
             </div>
 
             {/* Pagination & CTA Section */}
-            <div className="relative z-10 space-y-8">
+            <div className="relative z-10 space-y-4 sm:space-y-6 md:space-y-8">
               {/* Dots */}
               <div className="flex justify-center gap-2.5">
                 {tutorialSteps.map((_, i) => (
@@ -182,24 +186,24 @@ export function EmptyStateOverlay() {
                     onClick={() => setCurrentStep(i)}
                     className={`h-1.5 transition-all duration-500 ${
                       i === currentStep
-                        ? "w-10 bg-deckly-primary"
-                        : "w-4 bg-white/10 hover:bg-white/20"
+                        ? "w-8 sm:w-10 bg-deckly-primary"
+                        : "w-3 sm:w-4 bg-white/10 hover:bg-white/20"
                     }`}
                   />
                 ))}
               </div>
 
               {/* Action Bar - Centered */}
-              <div className="pt-8 border-t border-white/5 flex justify-center">
+              <div className="pt-4 md:pt-8 border-t border-white/5 flex justify-center">
                 <Link to="/upload" className="w-full max-w-md" id="tour-upload-deck-btn">
-                  <Button className="w-full h-14 rounded-none bg-deckly-primary hover:bg-deckly-primary/90 text-slate-900 font-bold text-xs uppercase tracking-[0.2em] transition-all active:scale-95 border-none group/btn">
+                  <Button className="w-full h-12 sm:h-14 rounded-none bg-deckly-primary hover:bg-deckly-primary/90 text-slate-900 font-bold text-[10px] sm:text-xs uppercase tracking-[0.18em] sm:tracking-[0.2em] transition-all active:scale-95 border-none group/btn">
                     <Upload
-                      size={18}
-                      className="mr-3 transition-transform group-hover/btn:-translate-y-1"
+                      size={16}
+                      className="mr-2 sm:mr-3 transition-transform group-hover/btn:-translate-y-1"
                     />
                     Upload First Deck
                     <ArrowRight
-                      size={18}
+                      size={16}
                       className="ml-2 transition-all opacity-0 group-hover/btn:opacity-100 group-hover/btn:translate-x-1"
                     />
                   </Button>

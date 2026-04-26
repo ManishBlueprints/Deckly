@@ -1,18 +1,29 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { supabase } from "../services/supabase";
 import { Lock, Mail, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import posthog from "posthog-js";
+import { toast } from "sonner";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import leftPanelBg from "../assets/Signup Left.png";
 import logo from "../assets/Deckly.png";
+import { getFriendlyAuthErrorMessage } from "../utils/authErrorMessages";
 
 function Login() {
+  const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+  const captchaRequired = import.meta.env.PROD;
+  const captchaConfigError =
+    captchaRequired && !captchaSiteKey
+      ? "CAPTCHA is required for email sign in, but the Turnstile site key is missing."
+      : null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,6 +33,17 @@ function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (captchaConfigError) {
+      setError(captchaConfigError);
+      toast.error(captchaConfigError);
+      return;
+    }
+    if (captchaRequired && !captchaToken) {
+      const message = "Please complete the CAPTCHA to continue.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
     setLoading(true);
     setError(null);
     posthog.capture("user_login_submitted", { method: "email" });
@@ -30,15 +52,23 @@ function Login() {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+          captchaToken: captchaToken || undefined,
+        },
       });
 
       if (error) throw error;
       posthog.capture("user_login_completed", { method: "email" });
       navigate("/");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      const friendlyMessage = getFriendlyAuthErrorMessage(err);
+      setError(friendlyMessage);
+      toast.error(friendlyMessage);
     } finally {
       setLoading(false);
+      // Reset Turnstile on every attempt finish (especially on error)
+      setCaptchaToken(null);
+      turnstileRef.current?.reset();
     }
   };
 
@@ -277,10 +307,30 @@ function Login() {
               </motion.div>
             )}
 
+            {/* Turnstile Captcha */}
+            {captchaSiteKey && (
+              <div className="flex justify-center mt-2">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={captchaSiteKey}
+                  onSuccess={(token) => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken(null)}
+                  onError={() => setCaptchaToken(null)}
+                  options={{ theme: "dark" }}
+                />
+              </div>
+            )}
+
+            {captchaConfigError && (
+              <div className="bg-deckly-accent/20 border border-deckly-accent/40 text-deckly-accent text-sm font-bold p-4 rounded-lg text-center">
+                {captchaConfigError}
+              </div>
+            )}
+
             {/* Sign In Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (captchaRequired && (!captchaSiteKey || !captchaToken))}
               className="w-full h-12 bg-[#22C55E] text-black font-semibold text-sm uppercase tracking-wider rounded-lg hover:bg-[#22C55E]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -312,6 +362,8 @@ function Login() {
             <p className="text-xs text-slate-600 font-medium">V0.0.5-ALPHA</p>
             <a
               href="https://deckly.space/privacy"
+              target="_blank"
+              rel="noreferrer noopener"
               className="text-xs text-slate-600 font-medium uppercase tracking-wider hover:text-slate-400 transition-colors"
             >
               PRIVACY POLICY

@@ -1,4 +1,5 @@
 import { LibraryTag } from "../../types";
+import { FOLDER_COLORS } from "../../constants/folderColors";
 import { cn } from "../../utils/cn";
 import { hexWithAlpha } from "../../utils/colorHelpers";
 
@@ -9,6 +10,9 @@ interface TagChipProps {
 }
 
 export function TagChip({ tag, className, size = "sm" }: TagChipProps) {
+  const resolvedColor =
+    FOLDER_COLORS.find((color) => color.key === tag.color)?.hex ?? tag.color;
+
   return (
     <span
       className={cn(
@@ -17,9 +21,9 @@ export function TagChip({ tag, className, size = "sm" }: TagChipProps) {
         className,
       )}
       style={{
-        backgroundColor: hexWithAlpha(tag.color, 0.15),
-        color: tag.color,
-        border: `1px solid ${hexWithAlpha(tag.color, 0.3)}`,
+        backgroundColor: hexWithAlpha(resolvedColor, 0.15),
+        color: resolvedColor,
+        border: `1px solid ${hexWithAlpha(resolvedColor, 0.3)}`,
       }}
     >
       {tag.name}
