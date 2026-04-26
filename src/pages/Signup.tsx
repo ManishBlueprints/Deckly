@@ -395,6 +395,8 @@ function Signup() {
             By signing up you agree to our{" "}
             <a
               href="https://deckly.space/terms"
+              target="_blank"
+              rel="noreferrer noopener"
               className="underline cursor-pointer hover:text-slate-400 transition-colors"
             >
               terms and conditions
