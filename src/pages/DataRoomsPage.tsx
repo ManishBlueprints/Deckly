@@ -1,4 +1,5 @@
 import { Plus, Monitor, Lock, Zap } from "lucide-react";
+import { useMemo, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DataRoomCard } from "../components/dashboard/DataRoomCard";
@@ -6,14 +7,38 @@ import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { useDataRoomsWithMeta } from "../hooks/useDataRooms";
 import { cn } from "@/lib/utils";
-import { DataRoom } from "../types";
+import { DataRoom, DataRoomDocument } from "../types";
 import { DataRoomTour } from "../components/tours/DataRoomTour";
+import { useQuery } from "@tanstack/react-query";
+import { dataRoomService } from "../services/dataRoomService";
+import { MetadataSearchMenu } from "../components/search/MetadataSearchMenu";
+import { useMetadataSearchState } from "../hooks/useMetadataSearchState";
+import { filterDataRoomOverviewRooms } from "../utils/metadataSearchAdapters";
 
 function DataRoomsPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const search = useMetadataSearchState("data_room");
 
   const { data: rooms = [], isLoading, isFetching } = useDataRoomsWithMeta();
+  const { data: roomDocumentsByRoomId = {} } = useQuery({
+    queryKey: ["data-rooms", "search-documents", rooms.map((room: DataRoom) => room.id)],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        rooms.map(async (room: DataRoom) => {
+          const documents = await dataRoomService.getDocuments(room.id);
+          return [room.id, documents] as const;
+        }),
+      );
+
+      return Object.fromEntries(entries) as Record<string, DataRoomDocument[]>;
+    },
+    enabled:
+      rooms.length > 0 &&
+      search.filter.mode === "name" &&
+      search.filter.query.trim().length > 0,
+    staleTime: 30000,
+  });
 
   const tier: Tier = (profile?.tier as Tier) || "FREE";
   const tierConfig = TIER_CONFIG[tier];
@@ -23,6 +48,10 @@ function DataRoomsPage() {
 
   const loading = isLoading && rooms.length === 0;
   const isRefreshing = isFetching;
+  const filteredRooms = useMemo(
+    () => filterDataRoomOverviewRooms(rooms, roomDocumentsByRoomId, search.filter),
+    [roomDocumentsByRoomId, rooms, search.filter],
+  );
 
   return (
     <DashboardLayout title="Data Rooms">
@@ -38,6 +67,20 @@ function DataRoomsPage() {
             maxRooms={maxRooms}
             isUnlimited={isUnlimited}
             isAtLimit={isAtLimit}
+            searchControl={
+              <MetadataSearchMenu
+                filter={search.filter}
+                isActive={search.isActive}
+                onModeChange={search.setMode}
+                onQueryChange={search.setQuery}
+                onDatePresetChange={search.setDatePreset}
+                onCustomDateRangeChange={search.setCustomDateRange}
+                onClear={search.resetFilter}
+                resultCount={filteredRooms.length}
+                triggerLabel="Search"
+                namePlaceholder="Search rooms or file titles..."
+              />
+            }
             onCreate={() => navigate("/rooms/new")}
           />
         )}
@@ -52,14 +95,17 @@ function DataRoomsPage() {
           <RoomsLoadingGrid />
         ) : rooms.length === 0 ? (
           <RoomsEmptyState onCreate={() => navigate("/rooms/new")} />
+        ) : search.isActive && filteredRooms.length === 0 ? (
+          <RoomsNoResults onClear={search.resetFilter} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room: DataRoom & { docCount?: number, visitors?: number }) => (
+            {filteredRooms.map(({ room, matchedDocumentTitles }) => (
               <DataRoomCard
                 key={room.id}
                 room={room}
                 documentCount={room.docCount || 0}
                 totalVisitors={room.visitors || 0}
+                matchedDocumentTitles={matchedDocumentTitles}
               />
             ))}
           </div>
@@ -100,12 +146,14 @@ function RoomsActions({
   maxRooms,
   isUnlimited,
   isAtLimit,
+  searchControl,
   onCreate,
 }: {
   rooms: number;
   maxRooms: number;
   isUnlimited: boolean;
   isAtLimit: boolean;
+  searchControl: ReactNode;
   onCreate: () => void;
 }) {
   return (
@@ -136,19 +184,42 @@ function RoomsActions({
         </div>
       </div>
 
+      <div className="flex w-full sm:w-auto items-center justify-end gap-3">
+        {searchControl}
+        <button
+          onClick={() => !isAtLimit && onCreate()}
+          disabled={isAtLimit}
+          data-tour="new-room-btn"
+          className={cn(
+            "flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-xs rounded-lg transition-all active:scale-95 w-full sm:w-auto",
+            isAtLimit
+              ? "bg-surface-low text-slate-500 border border-[#222] cursor-not-allowed"
+              : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90",
+          )}
+        >
+          {isAtLimit ? <Lock size={14} /> : <Plus size={14} />}
+          <span>{isAtLimit ? "Limit Reached" : "New Room"}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RoomsNoResults({ onClear }: { onClear: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center bg-[#1a1a1a] border border-[#222] rounded-lg">
+      <div className="w-16 h-16 rounded-lg bg-[#1a1a1a] border border-[#333] flex items-center justify-center mb-6 group">
+        <Monitor size={32} className="text-slate-500" />
+      </div>
+      <h3 className="text-lg font-semibold text-white mb-2">No matching data rooms</h3>
+      <p className="text-sm text-slate-400 mb-8 max-w-sm px-6">
+        Try another room name or file title, or clear the current search.
+      </p>
       <button
-        onClick={() => !isAtLimit && onCreate()}
-        disabled={isAtLimit}
-        data-tour="new-room-btn"
-        className={cn(
-          "flex items-center justify-center gap-2 px-6 py-2.5 font-semibold text-xs rounded-lg transition-all active:scale-95 w-full sm:w-auto",
-          isAtLimit
-            ? "bg-surface-low text-slate-500 border border-[#222] cursor-not-allowed"
-            : "bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90",
-        )}
+        onClick={onClear}
+        className="flex items-center gap-2 px-6 py-2.5 bg-deckly-primary text-slate-950 font-semibold text-xs rounded-md transition-all active:scale-95"
       >
-        {isAtLimit ? <Lock size={14} /> : <Plus size={14} />}
-        <span>{isAtLimit ? "Limit Reached" : "New Room"}</span>
+        Clear Search
       </button>
     </div>
   );

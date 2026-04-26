@@ -1,10 +1,14 @@
 import { useAuth } from "../../contexts/AuthContext";
+import { useMemo } from "react";
 import { ContentStatsCard } from "./ContentStatsCard";
 import { DecksTable } from "./DecksTable";
 import { useDecks } from "../../hooks/useDecks";
 import { useUserTotalStats } from "../../hooks/useUserTotalStats";
 import { useQueryClient } from "@tanstack/react-query";
 import { deckService } from "../../services/deckService";
+import { MetadataSearchMenu } from "../search/MetadataSearchMenu";
+import { useMetadataSearchState } from "../../hooks/useMetadataSearchState";
+import { filterContentLibraryDecks } from "../../utils/metadataSearchAdapters";
 
 export function ContentView() {
   const { session, profile } = useAuth();
@@ -23,6 +27,12 @@ export function ContentView() {
 
   const loading = (decksLoading || statsLoading) && decks.length === 0;
   const isRefreshing = decksFetching || statsFetching;
+  const search = useMetadataSearchState("content_library");
+  const filteredDecks = useMemo(
+    () => filterContentLibraryDecks(decks, search.filter),
+    [decks, search.filter],
+  );
+  const hasSearchResults = filteredDecks.length > 0;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleDeleteDeck = async (deck: any) => {
@@ -52,13 +62,28 @@ export function ContentView() {
   return (
     <div className="space-y-12 pb-12 animate-in fade-in duration-700 relative">
       {/* Header Section */}
-      <div className="flex flex-col gap-2">
-        <span className="text-primary text-[10px] font-bold uppercase tracking-[0.3em]">
-          Manage your assets and track engagement across all your decks.
-        </span>
-        <h1 className="text-5xl font-bold tracking-tight text-white mb-2">
-          Content Library
-        </h1>
+      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-2">
+          <span className="text-primary text-[10px] font-bold uppercase tracking-[0.3em]">
+            Manage your assets and track engagement across all your decks.
+          </span>
+          <h1 className="text-5xl font-bold tracking-tight text-white mb-2">
+            Content Library
+          </h1>
+        </div>
+
+        <MetadataSearchMenu
+          filter={search.filter}
+          isActive={search.isActive}
+          onModeChange={search.setMode}
+          onQueryChange={search.setQuery}
+          onDatePresetChange={search.setDatePreset}
+          onCustomDateRangeChange={search.setCustomDateRange}
+          onClear={search.resetFilter}
+          resultCount={filteredDecks.length}
+          triggerLabel="Search"
+          namePlaceholder="Search deck titles..."
+        />
       </div>
 
       {/* Subtle refresh indicator */}
@@ -79,10 +104,15 @@ export function ContentView() {
       />
 
       <DecksTable
-        decks={decks}
+        decks={filteredDecks}
         userHandle={profile?.handle || "username"}
         loading={loading}
         onDelete={handleDeleteDeck}
+        emptyMessage={
+          search.isActive && !hasSearchResults
+            ? "No decks match the current search"
+            : "No decks uploaded yet"
+        }
       />
     </div>
   );

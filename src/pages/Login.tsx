@@ -362,6 +362,8 @@ function Login() {
             <p className="text-xs text-slate-600 font-medium">V0.0.5-ALPHA</p>
             <a
               href="https://deckly.space/privacy"
+              target="_blank"
+              rel="noreferrer noopener"
               className="text-xs text-slate-600 font-medium uppercase tracking-wider hover:text-slate-400 transition-colors"
             >
               PRIVACY POLICY
