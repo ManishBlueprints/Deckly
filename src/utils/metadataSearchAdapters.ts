@@ -1,5 +1,6 @@
 import type {
   DataRoomDocument,
+  DataRoom,
   DeckWithAnalytics,
   MetadataSearchFilterState,
   SavedDataRoomOrganized,
@@ -72,4 +73,46 @@ export function filterSavedRoomRows(
     const matchesDate = matchesMetadataDateFilter(room.saved_at, filter.date);
     return matchesFolder && matchesName && matchesDate;
   });
+}
+
+export interface DataRoomOverviewRoom extends DataRoom {
+  docCount?: number;
+  visitors?: number;
+}
+
+export interface DataRoomOverviewSearchResult {
+  room: DataRoomOverviewRoom;
+  matchedDocumentTitles: string[];
+}
+
+export function filterDataRoomOverviewRooms(
+  rooms: DataRoomOverviewRoom[],
+  documentsByRoomId: Record<string, DataRoomDocument[]>,
+  filter: MetadataSearchFilterState,
+) {
+  return rooms.reduce<DataRoomOverviewSearchResult[]>((results, room) => {
+    const roomDocuments = documentsByRoomId[room.id] || [];
+    const matchedDocumentTitles =
+      filter.mode === "name" && filter.query.trim()
+        ? roomDocuments
+            .filter((document) =>
+              matchesMetadataNameQuery(document.deck?.title, filter.query),
+            )
+            .map((document) => document.deck?.title)
+            .filter((title): title is string => Boolean(title))
+        : [];
+
+    const matchesName =
+      filter.mode === "name"
+        ? matchesMetadataNameQuery(room.name, filter.query) ||
+          matchedDocumentTitles.length > 0
+        : true;
+    const matchesDate = matchesMetadataDateFilter(room.created_at, filter.date);
+
+    if (matchesName && matchesDate) {
+      results.push({ room, matchedDocumentTitles });
+    }
+
+    return results;
+  }, []);
 }

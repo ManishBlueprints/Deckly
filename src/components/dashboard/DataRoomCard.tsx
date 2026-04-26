@@ -9,12 +9,14 @@ interface DataRoomCardProps {
   room: DataRoom;
   documentCount: number;
   totalVisitors: number;
+  matchedDocumentTitles?: string[];
 }
 
 export function DataRoomCard({
   room,
   documentCount,
   totalVisitors,
+  matchedDocumentTitles = [],
 }: DataRoomCardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -99,6 +101,13 @@ export function DataRoomCard({
           {room.description && (
             <p className="text-xs text-slate-500 line-clamp-2 mt-0.5 leading-relaxed">
               {room.description}
+            </p>
+          )}
+          {matchedDocumentTitles.length > 0 && (
+            <p className="text-[11px] text-deckly-primary/85 mt-2 leading-relaxed">
+              {matchedDocumentTitles.length === 1
+                ? `Matched file in this data room: ${matchedDocumentTitles[0]}`
+                : `Matched files in this data room: ${matchedDocumentTitles.slice(0, 2).join(", ")}${matchedDocumentTitles.length > 2 ? ` +${matchedDocumentTitles.length - 2} more` : ""}`}
             </p>
           )}
           <div className="flex flex-wrap items-center gap-3 mt-4">

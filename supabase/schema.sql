@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     handle TEXT UNIQUE,
     avatar_url TEXT,
     tier TEXT DEFAULT 'FREE', -- FREE, PRO, PRO_PLUS
+    onboarding_profile JSONB DEFAULT '{}'::jsonb,
     tutorial_state JSONB DEFAULT '{}'::jsonb,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_at TIMESTAMPTZ DEFAULT NOW()

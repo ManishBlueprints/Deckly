@@ -7,6 +7,7 @@ import type {
   SavedDeckOrganized,
 } from "../types";
 import {
+  filterDataRoomOverviewRooms,
   filterContentLibraryDecks,
   filterDataRoomDocuments,
   filterSavedDeckRows,
@@ -100,6 +101,20 @@ function makeSavedRoom(overrides: Partial<SavedDataRoomOrganized>): SavedDataRoo
     require_email: false,
     require_password: false,
     updated_at: "2026-04-25T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function makeOverviewRoom(overrides: Partial<Parameters<typeof filterDataRoomOverviewRooms>[0][number]>) {
+  return {
+    id: "room-1",
+    user_id: "user-1",
+    name: "Alpha Room",
+    slug: "alpha-room",
+    created_at: "2026-04-25T00:00:00.000Z",
+    updated_at: "2026-04-25T00:00:00.000Z",
+    docCount: 2,
+    visitors: 1,
     ...overrides,
   };
 }
@@ -215,5 +230,44 @@ describe("metadataSearch", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0].library_id).toBe("1");
+  });
+
+  it("matches data rooms by room name on the overview page", () => {
+    const filter: MetadataSearchFilterState = {
+      ...createDefaultMetadataSearchFilter("data_room"),
+      query: "alpha",
+    };
+
+    const results = filterDataRoomOverviewRooms(
+      [makeOverviewRoom({ id: "1", name: "Alpha Room" }), makeOverviewRoom({ id: "2", name: "Beta Room" })],
+      {},
+      filter,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].room.id).toBe("1");
+    expect(results[0].matchedDocumentTitles).toEqual([]);
+  });
+
+  it("matches data rooms by document title and returns matched file names", () => {
+    const filter: MetadataSearchFilterState = {
+      ...createDefaultMetadataSearchFilter("data_room"),
+      query: "budget",
+    };
+
+    const results = filterDataRoomOverviewRooms(
+      [makeOverviewRoom({ id: "room-1", name: "Finance Room" })],
+      {
+        "room-1": [
+          makeRoomDocument({ id: "doc-1", deck: { ...makeRoomDocument({}).deck!, title: "Budget FY26" } }),
+          makeRoomDocument({ id: "doc-2", deck: { ...makeRoomDocument({}).deck!, title: "Roadmap" } }),
+        ],
+      },
+      filter,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].room.name).toBe("Finance Room");
+    expect(results[0].matchedDocumentTitles).toEqual(["Budget FY26"]);
   });
 });

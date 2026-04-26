@@ -243,7 +243,7 @@ export function SavedDecksView() {
   return (
     <div className="min-h-[calc(100vh-140px)] bg-deckly-background">
       <main className="overflow-y-auto custom-scrollbar">
-        <div className="p-6 md:p-12 space-y-16 w-full max-w-[1600px] mx-auto">
+        <div className="px-6 pb-12 md:px-12 md:pb-12 pt-0 space-y-16 w-full max-w-[1600px] mx-auto">
           {/* Main Header */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-0">
             <div className="space-y-3">

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CalendarDays, Search, SlidersHorizontal, X } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
@@ -50,9 +50,22 @@ export function MetadataSearchMenu({
   namePlaceholder = "Search by name...",
 }: MetadataSearchMenuProps) {
   const activeSummary = buildActiveSummary(filter);
+  const [open, setOpen] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!open || filter.mode !== "name") return;
+
+    const timeout = window.setTimeout(() => {
+      nameInputRef.current?.focus();
+      nameInputRef.current?.select();
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [open, filter.mode]);
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -131,6 +144,7 @@ export function MetadataSearchMenu({
               Search query
             </label>
             <Input
+              ref={nameInputRef}
               value={filter.query}
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder={namePlaceholder}

@@ -213,8 +213,16 @@ export interface TutorialState {
   data_room_completed?: boolean;
   data_room_create_completed?: boolean;
   upload_completed?: boolean;
+  workspace_setup_completed?: boolean;
+  profile_onboarding_completed?: boolean;
   onboarding_completed?: boolean;
   dashboard_completed?: boolean;
+}
+
+export interface OnboardingProfile {
+  role?: string | null;
+  company_size?: string | null;
+  primary_use_case?: string | null;
 }
 
 export interface UserProfile {
@@ -223,6 +231,7 @@ export interface UserProfile {
   handle: string | null;
   avatar_url: string | null;
   tier: "FREE" | "PRO" | "PRO_PLUS";
+  onboarding_profile?: OnboardingProfile | null;
   tutorial_state?: TutorialState | null;
   updated_at: string | null;
 }

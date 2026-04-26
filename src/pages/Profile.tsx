@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
+import { useTourState } from "../contexts/TourContext";
 import { deckService } from "../services/deckService";
 import { userService } from "../services/userService";
 import { normalizeSlug } from "../utils/slug";
@@ -27,11 +28,18 @@ import { TIER_CONFIG, Tier } from "../constants/tiers";
 import penguinMascot from "../assets/penguine.png";
 import { cn } from "../utils/cn";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  getOnboardingStage,
+  isOnboardingComplete,
+} from "../utils/onboarding";
+import { ProfileOnboardingFlow } from "../components/onboarding/ProfileOnboardingFlow";
+import { WorkspaceOnboardingTour } from "../components/tours/WorkspaceOnboardingTour";
 
 const TIER_PRICING: Record<Tier, { monthly: number; yearly: number; cta: string }> = {
   FREE: { monthly: 0, yearly: 0, cta: "Switch to Free" },
   PRO: { monthly: 9, yearly: 86, cta: "Get Pro" },
-  PRO_PLUS: { monthly: 19, yearly: 182, cta: "Get Pro+" },
+  PRO_PLUS: { monthly: 24, yearly: 230, cta: "Get Pro+" },
 };
 
 const TIER_ORDER: Record<Tier, number> = {
@@ -44,7 +52,9 @@ type ProfileSection = "identity" | "tier" | "collaboration" | "danger";
 
 function Profile() {
   const navigate = useNavigate();
-  const { profile, signOutAllDevices, deleteAccount } = useAuth();
+  const queryClient = useQueryClient();
+  const { profile, branding, signOutAllDevices, deleteAccount } = useAuth();
+  const { markTourComplete } = useTourState();
   const [activeSection, setActiveSection] = useState<ProfileSection>("identity");
 
   useEffect(() => {
@@ -54,6 +64,29 @@ function Profile() {
 
   const isValidTier = (t: string | undefined | null): t is Tier => ["FREE", "PRO", "PRO_PLUS"].includes(t as string);
   const tier: Tier = isValidTier(profile?.tier) ? profile.tier : "FREE";
+  const onboardingStage = getOnboardingStage(profile, branding);
+  const onboardingMode = onboardingStage !== "complete";
+  const setupComplete = onboardingStage !== "workspace";
+
+  useEffect(() => {
+    if (
+      isOnboardingComplete(profile, branding) &&
+      profile?.id &&
+      !profile?.tutorial_state?.onboarding_completed
+    ) {
+      markTourComplete("onboarding_completed");
+    }
+  }, [
+    branding,
+    markTourComplete,
+    profile,
+    profile?.id,
+    profile?.tutorial_state?.onboarding_completed,
+  ]);
+
+  if (onboardingMode) {
+    return <ProfileOnboardingFlow />;
+  }
 
   const sections: { id: ProfileSection; label: string; icon: React.ElementType }[] = [
     { id: "identity", label: "Identity", icon: User },
@@ -161,6 +194,7 @@ function Profile() {
           </div>
 
           <div className="p-4 md:p-8 pt-4 md:pt-6 max-w-4xl mx-auto w-full">
+            <WorkspaceOnboardingTour />
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSection}
@@ -169,7 +203,13 @@ function Profile() {
                 exit={{ opacity: 0, x: -10 }}
                 transition={{ duration: 0.15 }}
               >
-                {activeSection === "identity" && <IdentitySection />}
+                {activeSection === "identity" && (
+                  <IdentitySection
+                    onboardingMode={onboardingMode}
+                    setupComplete={setupComplete}
+                    queryClient={queryClient}
+                  />
+                )}
                 {activeSection === "tier" && <TierSection currentTier={tier} />}
                 {activeSection === "collaboration" && <CollaborationSection />}
                 {activeSection === "danger" && <DangerSection onSignOut={signOutAllDevices} onDeleteAccount={deleteAccount} />}
@@ -183,8 +223,18 @@ function Profile() {
 }
 
 /* ── Identity Section ── */
-function IdentitySection() {
-  const { profile, branding, setBranding } = useAuth();
+function IdentitySection({
+  onboardingMode,
+  setupComplete,
+  queryClient,
+}: {
+  onboardingMode: boolean;
+  setupComplete: boolean;
+  queryClient: ReturnType<typeof useQueryClient>;
+}) {
+  const navigate = useNavigate();
+  const { profile, branding, setBranding, refreshProfile } = useAuth();
+  const { markTourComplete } = useTourState();
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -218,6 +268,7 @@ function IdentitySection() {
   });
 
   const isSlugAvailable = needsCheck ? slugData : null;
+  const hasWorkspaceSetup = setupComplete || Boolean(profile?.handle && branding?.room_name && branding.room_name !== "Deckly Data Room");
 
   const currentLogo = branding?.logo_url || penguinMascot;
 
@@ -275,20 +326,26 @@ function IdentitySection() {
         setBranding(updated);
       }
 
-      let shouldReload = false;
       if (debouncedSlug !== profile?.handle && isSlugAvailable) {
         if (profile?.id) {
-          await userService.updateProfile(profile.id, {
+          const updatedProfile = await userService.updateProfile(profile.id, {
             handle: debouncedSlug,
           });
-          shouldReload = true;
+          queryClient.setQueryData(["profile", profile.id], updatedProfile);
         }
+      }
+
+      if (profile?.id) {
+        if (!profile.tutorial_state?.onboarding_completed) {
+          await markTourComplete("onboarding_completed");
+        }
+        await refreshProfile();
       }
 
       toast.success("Workspace settings saved");
 
-      if (shouldReload) {
-        window.location.reload();
+      if (onboardingMode) {
+        navigate("/", { replace: true });
         return;
       }
     } catch (err: unknown) {
@@ -301,6 +358,18 @@ function IdentitySection() {
 
   return (
     <div className="space-y-6">
+      {onboardingMode && !hasWorkspaceSetup && (
+        <div className="bg-deckly-primary/10 border border-deckly-primary/20 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-deckly-primary">
+            Complete workspace setup to unlock the dashboard
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            Add your workspace name and public handle here. Once saved, we will
+            send you into the dashboard automatically.
+          </p>
+        </div>
+      )}
+
       {/* Logo Upload */}
       <div className="bg-surface-low border border-border p-4 md:p-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
@@ -371,6 +440,7 @@ function IdentitySection() {
             Workspace Name
           </label>
           <input
+            id="tour-workspace-name"
             type="text"
             value={roomName}
             onChange={(e) => setRoomName(e.target.value)}
@@ -386,6 +456,7 @@ function IdentitySection() {
           <div className="flex items-center bg-surface-lowest border border-border overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary/30 focus-within:border-deckly-primary transition-all">
             <span className="pl-4 pr-1 text-xs text-muted-foreground select-none">/</span>
             <input
+              id="tour-workspace-slug"
               type="text"
               value={workspaceSlug}
               onChange={(e) => setWorkspaceSlug(normalizeSlug(e.target.value))}

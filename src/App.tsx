@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy } from "react";
+import { useState, useEffect, Suspense, lazy, type ReactElement } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -10,6 +10,7 @@ import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { TourProvider } from "./contexts/TourContext";
 import { deckService } from "./services/deckService";
+import { getOnboardingStage } from "./utils/onboarding";
 import "./App.css";
 
 // Lazy loaded pages
@@ -74,11 +75,11 @@ const LegacyRedirect = () => {
 };
 
 const AppContent = () => {
-  const { session, loading, initializationError } = useAuth();
+  const { session, loading, initializationError, profile, branding, profileLoading, brandingLoading } = useAuth();
   const [showSlowMessage, setShowSlowMessage] = useState(false);
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     if (loading) {
       timeout = setTimeout(() => {
         setShowSlowMessage(true);
@@ -86,7 +87,9 @@ const AppContent = () => {
     } else {
       setShowSlowMessage(false);
     }
-    return () => clearTimeout(timeout);
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
   }, [loading]);
 
   if (loading) {
@@ -128,77 +131,114 @@ const AppContent = () => {
     );
   }
 
+  if (session && (profileLoading || brandingLoading)) {
+    return <LoadingFallback />;
+  }
+
+  const onboardingStage = getOnboardingStage(profile, branding);
+  const onboardingRedirect = (
+    <Navigate
+      to={`/profile?onboarding=${onboardingStage === "about-you" ? "about-you" : "workspace"}`}
+      replace
+    />
+  );
+
+  const requireSession = (element: ReactElement) =>
+    session ? (onboardingStage === "complete" ? element : onboardingRedirect) : <Navigate to="/login" replace />;
+
   return (
     <div className="min-h-screen bg-deckly-background text-slate-200 selection:bg-deckly-primary/30 selection:text-deckly-primary">
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route
             path="/content"
-            element={session ? <ContentPage /> : <Navigate to="/login" />}
+            element={requireSession(<ContentPage />)}
           />
           <Route
             path="/upload"
-            element={session ? <ManageDeck /> : <Navigate to="/login" />}
+            element={requireSession(<ManageDeck />)}
           />
           <Route
             path="/analytics/:deckId"
-            element={session ? <DeckAnalytics /> : <Navigate to="/login" />}
+            element={requireSession(<DeckAnalytics />)}
           />
           <Route
             path="/preview/deck/:deckId"
-            element={session ? <OwnerDeckPreview /> : <Navigate to="/login" />}
+            element={requireSession(<OwnerDeckPreview />)}
           />
           <Route
             path="/edit/:deckId"
-            element={session ? <EditDeck /> : <Navigate to="/login" />}
+            element={requireSession(<EditDeck />)}
           />
           <Route
             path="/rooms"
-            element={session ? <DataRoomsPage /> : <Navigate to="/login" />}
+            element={requireSession(<DataRoomsPage />)}
           />
           <Route
             path="/rooms/new"
-            element={session ? <ManageDataRoom /> : <Navigate to="/login" />}
+            element={requireSession(<ManageDataRoom />)}
           />
           <Route
             path="/rooms/:roomId"
-            element={session ? <DataRoomDetail /> : <Navigate to="/login" />}
+            element={requireSession(<DataRoomDetail />)}
           />
           <Route
             path="/preview/room/:roomId"
-            element={session ? <OwnerDataRoomPreview /> : <Navigate to="/login" />}
+            element={requireSession(<OwnerDataRoomPreview />)}
           />
           <Route
             path="/rooms/:roomId/edit"
-            element={session ? <ManageDataRoom /> : <Navigate to="/login" />}
+            element={requireSession(<ManageDataRoom />)}
           />
           <Route
             path="/login"
-            element={!session ? <Login /> : <Navigate to="/" />}
+            element={
+              !session ? (
+                <Login />
+              ) : onboardingStage === "complete" ? (
+                <Navigate to="/" replace />
+              ) : (
+                <Navigate
+                  to={`/profile?onboarding=${onboardingStage === "about-you" ? "about-you" : "workspace"}`}
+                  replace
+                />
+              )
+            }
           />
           <Route
             path="/signup"
-            element={!session ? <Signup /> : <Navigate to="/" />}
+            element={
+              !session ? (
+                <Signup />
+              ) : onboardingStage === "complete" ? (
+                <Navigate to="/" replace />
+              ) : (
+                <Navigate
+                  to={`/profile?onboarding=${onboardingStage === "about-you" ? "about-you" : "workspace"}`}
+                  replace
+                />
+              )
+            }
           />
           <Route
             path="/saved-decks"
-            element={session ? <SavedDecks /> : <Navigate to="/login" />}
+            element={requireSession(<SavedDecks />)}
           />
           <Route
             path="/profile"
-            element={session ? <Profile /> : <Navigate to="/login" />}
+            element={session ? <Profile /> : <Navigate to="/login" replace />}
           />
           <Route
             path="/admin"
-            element={session ? <AdminDashboard /> : <Navigate to="/login" replace />}
+            element={requireSession(<AdminDashboard />)}
           />
           <Route
             path="/admin/notifications"
-            element={session ? <Navigate to="/admin" replace /> : <Navigate to="/login" replace />}
+            element={requireSession(<Navigate to="/admin" replace />)}
           />
           <Route
             path="/"
-            element={session ? <Home /> : <Navigate to="/login" />}
+            element={requireSession(<Home />)}
           />
           <Route path="/:handle/room/:slug" element={<DataRoomViewer />} />
           <Route path="/:handle/:slug" element={<Viewer />} />
