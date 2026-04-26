@@ -1,3 +1,5 @@
+export * from "./metadataSearch";
+
 export interface PdfLinkHotspot {
   href: string;
   rect: {
@@ -59,6 +61,41 @@ export interface LibraryFolder {
   created_at: string;
 }
 
+export interface DataRoomFolder {
+  id: string;
+  data_room_id: string;
+  name: string;
+  color: string;
+  position: string;
+  created_by: string;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataRoomTag {
+  id: string;
+  data_room_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DataRoomFolderTag {
+  folder_id: string;
+  tag_id: string;
+}
+
+export interface DataRoomDocumentTag {
+  document_id: string;
+  tag_id: string;
+}
+
+export interface DataRoomFolderWithTags extends DataRoomFolder {
+  tags: DataRoomTag[];
+}
+
 export interface SavedDeckOrganized {
   library_id: string;
   deck_id: string;
@@ -78,6 +115,71 @@ export interface SavedDeckOrganized {
   is_available: boolean;
   updated_at: string;
 }
+
+export interface SavedDataRoomOrganized {
+  library_id: string;
+  data_room_id: string | null;
+  folder_id: string | null;
+  tags: LibraryTag[];
+  saved_at: string;
+  last_viewed_at: string | null;
+  title: string;
+  slug: string;
+  room_handle: string;
+  room_owner_handle: string;
+  room_owner_id: string;
+  description: string | null;
+  investor_note: string | null;
+  is_available: boolean;
+  is_deleted: boolean;
+  expires_at: string | null;
+  require_email: boolean;
+  require_password: boolean;
+  updated_at: string;
+}
+
+export type SavedLibraryItemType = "deck" | "data_room";
+
+export interface SavedLibraryItemBase {
+  library_id: string;
+  item_type: SavedLibraryItemType;
+  folder_id: string | null;
+  tags: LibraryTag[];
+  saved_at: string;
+  last_viewed_at: string | null;
+  investor_note: string | null;
+  title: string;
+  description: string | null;
+  updated_at: string;
+}
+
+export interface SavedDeckLibraryItem extends SavedLibraryItemBase {
+  item_type: "deck";
+  deck_id: string;
+  slug: string;
+  user_handle: string;
+  file_type?: string;
+  status: "PENDING" | "CONVERTING" | "PROCESSED" | "DELETED";
+  is_available: boolean;
+}
+
+export interface SavedDataRoomLibraryItem extends SavedLibraryItemBase {
+  item_type: "data_room";
+  data_room_id: string | null;
+  slug: string;
+  room_handle: string;
+  room_owner_handle: string;
+  room_owner_id: string;
+  is_available: boolean;
+  is_deleted: boolean;
+  expires_at: string | null;
+  require_email: boolean;
+  require_password: boolean;
+}
+
+export type SavedLibraryItem =
+  | SavedDeckLibraryItem
+  | SavedDataRoomLibraryItem;
 
 export interface SavedDeck extends Deck {
   library_id?: string;
@@ -111,8 +213,16 @@ export interface TutorialState {
   data_room_completed?: boolean;
   data_room_create_completed?: boolean;
   upload_completed?: boolean;
+  workspace_setup_completed?: boolean;
+  profile_onboarding_completed?: boolean;
   onboarding_completed?: boolean;
   dashboard_completed?: boolean;
+}
+
+export interface OnboardingProfile {
+  role?: string | null;
+  company_size?: string | null;
+  primary_use_case?: string | null;
 }
 
 export interface UserProfile {
@@ -121,6 +231,7 @@ export interface UserProfile {
   handle: string | null;
   avatar_url: string | null;
   tier: "FREE" | "PRO" | "PRO_PLUS";
+  onboarding_profile?: OnboardingProfile | null;
   tutorial_state?: TutorialState | null;
   updated_at: string | null;
 }
@@ -145,9 +256,12 @@ export interface DataRoomDocument {
   id: string;
   data_room_id: string;
   deck_id: string;
+  folder_id: string | null;
+  folder_name?: string | null;
   display_order: number;
   added_at: string;
   deck?: Deck;
+  tags?: DataRoomTag[];
 }
 
 export type NotificationType =

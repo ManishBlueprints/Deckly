@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "full_name" text,
     "avatar_url" text,
     "tier" text DEFAULT 'FREE'::text,
+    "onboarding_profile" jsonb DEFAULT '{}'::jsonb,
     "handle" text UNIQUE,
     "created_at" timestamp with time zone DEFAULT now(),
     "tutorial_state" jsonb DEFAULT '{}'::jsonb

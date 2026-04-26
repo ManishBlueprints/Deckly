@@ -13,6 +13,12 @@ export interface SlideTime {
   time: number;
 }
 
+export interface DeckVisitSummary {
+  deckId: string;
+  totalVisits: number;
+  totalTime: number;
+}
+
 export interface VisitorSignal {
   visitorId: string;
   viewerEmail: string | null;
@@ -23,6 +29,7 @@ export interface VisitorSignal {
   daysBetweenFirstAndLast: number | null;
   signals: SignalLabel[];
   slideBreakdown: SlideTime[];
+  deckBreakdown?: DeckVisitSummary[];
   isEngaged: boolean;
 }
 
@@ -304,7 +311,25 @@ export async function getRoomVisitorSignals(
     if (totalTime >= 60) signals.push("Extended viewing");
 
     // We don't need slide breakdown for Room level analytics UI usually, so we can mock it or leave it empty, but we'll populate it with unique instances
-    const slideBreakdown: SlideTime[] = [];
+    const deckMap = new Map<string, { totalVisits: number; totalTime: number }>();
+    for (const row of rows) {
+      if (!row.deck_id) continue;
+      const current = deckMap.get(row.deck_id) || {
+        totalVisits: 0,
+        totalTime: 0,
+      };
+      current.totalVisits += 1;
+      current.totalTime += row.time_spent || 0;
+      deckMap.set(row.deck_id, current);
+    }
+
+    const deckBreakdown: DeckVisitSummary[] = Array.from(deckMap.entries())
+      .map(([deckId, summary]) => ({
+        deckId,
+        totalVisits: summary.totalVisits,
+        totalTime: Math.round(summary.totalTime),
+      }))
+      .sort((a, b) => b.totalVisits - a.totalVisits || b.totalTime - a.totalTime);
 
     results.push({
       visitorId,
@@ -315,7 +340,8 @@ export async function getRoomVisitorSignals(
       deepSlides,
       daysBetweenFirstAndLast: daysBetween,
       signals,
-      slideBreakdown,
+      slideBreakdown: [],
+      deckBreakdown,
       isEngaged: signals.length > 0,
     });
   }

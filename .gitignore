@@ -20,6 +20,7 @@ testsprite_tests
 .kilocode
 .sisyphus
 .claude
+.playwright-mcp
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

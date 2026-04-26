@@ -1,0 +1,233 @@
+import { useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
+  DropdownMenuCheckboxItem,
+} from "../ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
+import { LibraryFolder, LibraryTag } from "../../types";
+import { cn } from "../../utils/cn";
+
+export interface LibraryActionMenuItem {
+  title: string;
+  folder_id: string | null;
+  tags: LibraryTag[];
+}
+
+interface LibraryActionMenuProps {
+  item: LibraryActionMenuItem;
+  folders: LibraryFolder[];
+  tags: LibraryTag[];
+  openLabel: string;
+  openAction: () => void;
+  unsaveLabel: string;
+  unsaveDescription: string;
+  onMoveToFolder: (folderId: string | null) => void;
+  onUpdateTags: (tagIds: string[]) => void;
+  onUnsave: () => void;
+}
+
+export function LibraryActionMenu({
+  item,
+  folders,
+  tags,
+  openLabel,
+  openAction,
+  unsaveLabel,
+  unsaveDescription,
+  onMoveToFolder,
+  onUpdateTags,
+  onUnsave,
+}: LibraryActionMenuProps) {
+  const [showUnsaveConfirm, setShowUnsaveConfirm] = useState(false);
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label={`${item.title} actions`}
+          className="p-2.5 bg-[#1c1b1b] border border-[#3d4a3e]/10 text-[#bbcbbb]/40 hover:text-[#54e98a] transition-all shadow-xl outline-none group-focus-within:border-[#54e98a]/30"
+        >
+          <span className="material-symbols-outlined text-lg">more_vert</span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-64 bg-[#0e0e0e] border-[#1c1b1b] p-2 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] font-headline"
+        >
+          <DropdownMenuLabel className="text-[#bbcbbb]/20 text-[10px] uppercase font-bold tracking-[0.2em] px-4 py-3">
+            Document Control
+          </DropdownMenuLabel>
+
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              openAction();
+            }}
+            className="text-[#e5e2e1] data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] cursor-pointer px-4 py-3 transition-colors flex items-center gap-3"
+          >
+            <span className="material-symbols-outlined text-lg opacity-40">
+              bookmark
+            </span>
+            <span className="font-bold text-sm">{openLabel}</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-[#e5e2e1] data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] data-[state=open]:bg-[#54e98a]/10 cursor-pointer px-4 py-3 transition-colors flex items-center gap-3">
+              <span className="material-symbols-outlined text-lg opacity-40">
+                drive_file_move
+              </span>
+              <span className="font-bold text-sm">Move to Collection</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent className="bg-[#0e0e0e] border-[#1c1b1b] min-w-[200px] p-2 shadow-2xl font-headline">
+                <DropdownMenuItem
+                  onClick={() => onMoveToFolder(null)}
+                  className={cn(
+                    "text-[#bbcbbb]/60 data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] cursor-pointer flex items-center justify-between px-4 py-3 transition-colors",
+                    !item.folder_id &&
+                      "text-[#54e98a] bg-[#54e98a]/5 font-bold",
+                  )}
+                >
+                  <span className="text-sm font-bold">Standalone</span>
+                  {!item.folder_id && (
+                    <span className="material-symbols-outlined text-sm">
+                      check
+                    </span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-[#1c1b1b] my-2" />
+                {folders.map((folder) => (
+                  <DropdownMenuItem
+                    key={folder.id}
+                    onClick={() => onMoveToFolder(folder.id)}
+                    className={cn(
+                      "text-[#bbcbbb]/60 data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] cursor-pointer flex items-center justify-between px-4 py-3 transition-colors",
+                      item.folder_id === folder.id &&
+                        "text-[#54e98a] bg-[#54e98a]/5 font-bold",
+                    )}
+                  >
+                    <div className="flex items-center gap-3 truncate">
+                      <div
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: folder.color }}
+                      />
+                      <span className="truncate text-sm font-bold">
+                        {folder.name}
+                      </span>
+                    </div>
+                    {item.folder_id === folder.id && (
+                      <span className="material-symbols-outlined text-sm">
+                        check
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                {folders.length === 0 && (
+                  <div className="px-4 py-3 text-xs text-[#bbcbbb]/20 italic font-medium">
+                    No folders available
+                  </div>
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-[#e5e2e1] data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] data-[state=open]:bg-[#54e98a]/10 cursor-pointer px-4 py-3 transition-colors flex items-center gap-3">
+              <span className="material-symbols-outlined text-lg opacity-40">
+                sell
+              </span>
+              <span className="font-bold text-sm">Add Tags</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent className="bg-[#0e0e0e] border-[#1c1b1b] min-w-[200px] p-2 shadow-2xl font-headline">
+                {tags.map((tag) => {
+                  const isSelected = item.tags.some((t) => t.id === tag.id);
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={tag.id}
+                      checked={isSelected}
+                      onCheckedChange={(checked: boolean) => {
+                        const newTagIds = checked
+                          ? [...item.tags.map((t) => t.id), tag.id]
+                          : item.tags.filter((t) => t.id !== tag.id).map((t) => t.id);
+                        onUpdateTags(newTagIds);
+                      }}
+                      onSelect={(e: Event) => e.preventDefault()}
+                      className="text-[#bbcbbb]/60 data-[highlighted]:bg-[#1c1b1b] data-[highlighted]:text-white cursor-pointer px-4 py-3 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        <span className="text-sm font-bold">{tag.name}</span>
+                      </div>
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+                {tags.length === 0 && (
+                  <div className="px-4 py-3 text-xs text-[#bbcbbb]/20 italic font-medium">
+                    No tags created
+                  </div>
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
+
+          <DropdownMenuSeparator className="bg-[#1c1b1b] my-2" />
+
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              setShowUnsaveConfirm(true);
+            }}
+            className="text-[#ff4d4d]/60 data-[highlighted]:bg-[#ff4d4d]/10 data-[highlighted]:text-[#ff4d4d] cursor-pointer px-4 py-3 transition-colors flex items-center gap-3"
+          >
+            <span className="material-symbols-outlined text-lg">
+              bookmark_remove
+            </span>
+            <span className="font-bold text-sm">{unsaveLabel}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={showUnsaveConfirm} onOpenChange={setShowUnsaveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{unsaveLabel}</AlertDialogTitle>
+            <AlertDialogDescription>{unsaveDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                onUnsave();
+                setShowUnsaveConfirm(false);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}

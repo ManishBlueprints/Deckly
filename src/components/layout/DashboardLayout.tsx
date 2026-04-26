@@ -191,12 +191,12 @@ export function DashboardLayout({
 
             {/* Popout Options */}
             {fabOpen && (
-              <div className="absolute bottom-full right-0 mb-5 flex flex-col gap-3 w-64 bg-surface-low border border-white/10 p-2.5 rounded-[24px] shadow-2xl shadow-primary/10 z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className="absolute bottom-full right-0 mb-5 flex flex-col gap-3 w-64 bg-surface-low border border-white/10 p-2.5 rounded-none shadow-2xl shadow-primary/10 z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200">
                 <button
                   onClick={() => handleFabAction("/rooms/new")}
-                  className="w-full flex items-center gap-5 px-5 py-4 rounded-2xl hover:bg-primary/10 transition-all group text-slate-200 hover:text-primary"
+                  className="w-full flex items-center gap-5 px-5 py-4 rounded-none hover:bg-primary/10 transition-all group text-slate-200 hover:text-primary"
                 >
-                  <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                  <div className="w-11 h-11 rounded-none bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                     <RoomIcon size={24} />
                   </div>
                   <div className="flex flex-col items-start translate-y-[1px]">
@@ -207,9 +207,9 @@ export function DashboardLayout({
  
                 <button
                   onClick={() => handleFabAction("/upload")}
-                  className="w-full flex items-center gap-5 px-5 py-4 rounded-2xl hover:bg-primary/10 transition-all group text-slate-200 hover:text-primary"
+                  className="w-full flex items-center gap-5 px-5 py-4 rounded-none hover:bg-primary/10 transition-all group text-slate-200 hover:text-primary"
                 >
-                  <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                  <div className="w-11 h-11 rounded-none bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                     <Upload size={24} />
                   </div>
                   <div className="flex flex-col items-start translate-y-[1px]">

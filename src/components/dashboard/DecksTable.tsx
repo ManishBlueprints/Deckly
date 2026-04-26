@@ -31,6 +31,7 @@ interface DecksTableProps {
   userHandle: string;
   loading?: boolean;
   onDelete?: (deck: DeckWithAnalytics) => Promise<void>;
+  emptyMessage?: string;
 }
 
 export function DecksTable({
@@ -38,6 +39,7 @@ export function DecksTable({
   userHandle,
   loading,
   onDelete,
+  emptyMessage = "No decks uploaded yet",
 }: DecksTableProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] =
@@ -109,7 +111,7 @@ export function DecksTable({
             ))
         ) : decks.length === 0 ? (
           <p className="p-8 text-center text-slate-400 text-sm">
-            No decks uploaded yet
+            {emptyMessage}
           </p>
         ) : (
           decks.map((deck) => (
@@ -138,7 +140,12 @@ export function DecksTable({
                     ? ` · ${new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(deck.last_viewed_at)).replace(/\//g, "-")}`
                     : ""}
                 </p>
-                <p className="text-[11px] mt-1 text-slate-500">
+                <p
+                  className={cn(
+                    "text-[11px] mt-1",
+                    isDeckPublic(deck) ? "text-emerald-400" : "text-slate-500",
+                  )}
+                >
                   {isDeckPublic(deck)
                     ? "Public link active"
                     : "Copy link to make it public"}
@@ -253,7 +260,7 @@ export function DecksTable({
                   colSpan={7}
                   className="p-20 text-center text-slate-500 text-sm"
                 >
-                  No decks uploaded yet
+                  {emptyMessage}
                 </TableCell>
               </TableRow>
             ) : (
@@ -279,7 +286,14 @@ export function DecksTable({
                         {deck.title}
                       </span>
                     </Link>
-                    <p className="text-[11px] mt-1 text-slate-500">
+                    <p
+                      className={cn(
+                        "text-[11px] mt-1",
+                        isDeckPublic(deck)
+                          ? "text-emerald-400"
+                          : "text-slate-500",
+                      )}
+                    >
                       {isDeckPublic(deck)
                         ? "Public link active"
                         : "Copy link to make it public"}

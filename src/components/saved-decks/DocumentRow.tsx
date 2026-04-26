@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import { GripVertical } from "lucide-react";
 import { SavedDeckOrganized, LibraryFolder, LibraryTag } from "../../types";
 import { TagChip } from "./TagChip";
-import { DeckActionMenu } from "./DeckActionMenu";
+import { LibraryActionMenu } from "./LibraryActionMenu";
+import { SavedItemNoteCard } from "./SavedItemNoteCard";
 import { toast } from "sonner";
 import { cn } from "../../utils/cn";
 
@@ -111,6 +112,11 @@ export const DocumentRow = memo(function DocumentRow({
     }
   };
 
+  const handleNoteDiscard = () => {
+    setNote(deck.investor_note || "");
+    setIsEditingNote(false);
+  };
+
   const handleMouseEnter = () => {
     // Preload Viewer chunk on hover only once
     if (!viewerPreloaded) {
@@ -121,7 +127,6 @@ export const DocumentRow = memo(function DocumentRow({
 
   return (
     <motion.div
-      layout
       onMouseEnter={handleMouseEnter}
       className={cn(
         "bg-surface-card border border-white/5 p-6 flex flex-col md:flex-row items-center gap-6 group hover:border-[#54e98a]/20 transition-all",
@@ -164,48 +169,33 @@ export const DocumentRow = memo(function DocumentRow({
           ))}
         </div>
 
-        {/* Note Snippet — inline editable */}
-        <div className="hidden xl:block flex-1 max-w-[300px]">
-          {isEditingNote ? (
-            <textarea
-              ref={textareaRef}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              onBlur={handleNoteSave}
-              onKeyDown={handleNoteKeyDown}
-              rows={2}
-              placeholder="Write a note..."
-              className="w-full bg-surface-lowest border border-deckly-primary/30 px-3 py-2 text-xs text-slate-200 placeholder:text-[#bbcbbb]/20 resize-none focus:outline-none focus:border-deckly-primary/60 transition-colors"
-            />
-          ) : (
-            <button
-              onClick={handleNoteClick}
-              title="Click to edit note"
-              className="text-left w-full group/note"
-            >
-              <p
-                className={cn(
-                  "text-xs font-medium italic line-clamp-1 leading-relaxed transition-colors",
-                  note
-                    ? "text-[#bbcbbb]/60 group-hover/note:text-[#bbcbbb]/90"
-                    : "text-[#bbcbbb]/20 group-hover/note:text-[#bbcbbb]/40",
-                )}
-              >
-                {note || "Add a note..."}
-              </p>
-              <p className="text-[9px] font-bold uppercase text-[#bbcbbb]/20 tracking-[0.1em] mt-1">
-                {isSavingNote ? "SAVING..." : `SAVED ${savedDateStr}`}
-              </p>
-            </button>
-          )}
-        </div>
+        <SavedItemNoteCard
+          note={note}
+          isEditing={isEditingNote}
+          isSaving={isSavingNote}
+          savedDateLabel={savedDateStr}
+          textareaRef={textareaRef}
+          onNoteChange={setNote}
+          onEdit={handleNoteClick}
+          onSave={handleNoteSave}
+          onDiscard={handleNoteDiscard}
+          onKeyDown={handleNoteKeyDown}
+        />
 
         {/* Actions */}
         <div className="flex items-center gap-3 shrink-0 ml-auto">
-          <DeckActionMenu
-            deck={deck}
+          <LibraryActionMenu
+            item={{
+              title: deck.title,
+              folder_id: deck.folder_id,
+              tags: deck.tags,
+            }}
             folders={folders}
             tags={tags}
+            openLabel="Open Deck"
+            openAction={() => window.open(`/${deck.user_handle}/${deck.slug}`, "_blank", "noopener,noreferrer")}
+            unsaveLabel="Remove from Saved"
+            unsaveDescription={`Are you sure you want to remove "${deck.title}" from your saved decks? You can still access it via the original URL if needed.`}
             onMoveToFolder={onMoveToFolder}
             onUpdateTags={onUpdateTags}
             onUnsave={onUnsave}
