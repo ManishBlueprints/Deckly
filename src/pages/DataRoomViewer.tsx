@@ -16,7 +16,8 @@ import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
 import DeckViewer from "../components/viewer/DeckViewer";
 import AccessGate from "../components/viewer/AccessGate";
 import { AuthModal } from "../components/auth/AuthModal";
-import { DataRoomSidebar, buildDataRoomSidebarSections } from "../components/viewer/DataRoomSidebar";
+import { DataRoomSidebar } from "../components/viewer/DataRoomSidebar";
+import { buildDataRoomSidebarSections } from "../components/viewer/dataRoomSidebarUtils";
 import { RoomNotesSidebar } from "../components/viewer/RoomNotesSidebar";
 import { dataRoomService } from "../services/dataRoomService";
 import { dataRoomFolderService } from "../services/dataRoomFolderService";
@@ -490,73 +491,6 @@ function DataRoomViewer() {
                   </div>
                 ) : (
                   <>
-                    {false && (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                          <FolderOpen size={12} className="text-deckly-primary" />
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                            Folders
-                          </p>
-                        </div>
-
-                        {folderSections.map((group) => (
-                          <section key={group.id} className="space-y-2">
-                            <div className="flex items-center justify-between gap-3 px-1">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <FolderOpen size={13} className="text-deckly-primary shrink-0" />
-                                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300 truncate">
-                                    {group.title}
-                                  </h3>
-                                </div>
-                              </div>
-                              <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[10px] font-semibold text-slate-400">
-                                {group.documents.length}
-                              </span>
-                            </div>
-
-                            <div className="space-y-1.5">
-                              {group.documents.map((doc) => {
-                                const deck = doc.deck;
-                                const isActive = selectedDeck?.id === deck?.id;
-
-                                return (
-                                  <button
-                                    key={doc.deck_id}
-                                    onClick={() => deck && setSelectedDeck(deck)}
-                                      className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-md border transition-all duration-200 group ${
-                                        isActive
-                                        ? "bg-deckly-primary/5 border-deckly-primary/30"
-                                        : "hover:bg-[#1a1a1a] border-transparent"
-                                      }`}
-                                    >
-                                    <div className={`w-9 h-7 rounded-sm bg-black/40 border overflow-hidden shrink-0 transition-all duration-500 ${isActive ? "border-deckly-primary/40" : "border-[#222] grayscale group-hover:grayscale-0"}`}>
-                                      {deck?.pages?.[0]?.image_url ? (
-                                        <img src={deck.pages[0].image_url} alt="" className="w-full h-full object-cover" />
-                                      ) : (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                          <FileText size={16} className="text-slate-800" />
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                      <p className={`text-xs font-semibold truncate transition-colors ${isActive ? "text-deckly-primary" : "text-slate-300 group-hover:text-deckly-primary"}`}>
-                                        {deck?.title || "Untitled Resource"}
-                                      </p>
-                                      <p className={`text-[10px] font-medium mt-0.5 transition-colors ${isActive ? "text-deckly-primary/60" : "text-slate-600"}`}>
-                                        {deck?.pages?.length || 0} Slides
-                                      </p>
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </section>
-                        ))}
-                      </div>
-                    )}
-
                     {documentsSection && documentsSection.documents.length > 0 && (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 px-1">
@@ -595,9 +529,9 @@ function DataRoomViewer() {
                                       {deck?.pages?.length || 0} Slides
                                     </p>
                                   </div>
-                                  </button>
-                                );
-                              })}
+                                </button>
+                              );
+                            })}
                           </div>
                       </div>
                     )}
