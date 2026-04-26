@@ -44,13 +44,20 @@ export interface DeckWithAnalytics extends Deck {
   total_views: number;
   save_count: number;
   last_viewed_at: string | null;
+  tags?: LibraryTag[];
 }
 
-export interface LibraryTag {
+export interface GlobalTag {
   id: string;
   name: string;
   color: string;
+  deleted_at?: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+  user_id?: string;
 }
+
+export interface LibraryTag extends GlobalTag {}
 
 export interface LibraryFolder {
   id: string;
@@ -73,13 +80,8 @@ export interface DataRoomFolder {
   updated_at: string;
 }
 
-export interface DataRoomTag {
-  id: string;
-  data_room_id: string;
-  name: string;
-  color: string;
-  created_at: string;
-  updated_at: string;
+export interface DataRoomTag extends GlobalTag {
+  data_room_id?: string;
 }
 
 export interface DataRoomFolderTag {

@@ -10,6 +10,7 @@ import { DataRoomDocument, DataRoomTag } from "../../types";
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { TagChip } from "../saved-decks/TagChip";
+import { type DataRoomDocumentSearchResult } from "../../utils/metadataSearchAdapters";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,7 @@ import { cn } from "../../utils/cn";
 
 interface RoomDocumentListProps {
   documents: DataRoomDocument[];
+  documentMatchInfo?: Record<string, DataRoomDocumentSearchResult>;
   onRemove: (deckId: string) => void;
   onReorder: (orderedDeckIds: string[]) => void;
   folderOptions?: { id: string; name: string }[];
@@ -34,6 +36,7 @@ interface RoomDocumentListProps {
 
 export function RoomDocumentList({
   documents,
+  documentMatchInfo = {},
   onRemove,
   onReorder,
   folderOptions = [],
@@ -94,6 +97,7 @@ export function RoomDocumentList({
           const isDragOver = dragOverIndex === index;
           const signedUrl = signedThumbnails[doc.deck_id];
           const currentTagIds = (doc.tags || []).map((tag) => tag.id);
+          const matchedTagNames = documentMatchInfo[doc.id]?.matchedTagNames ?? [];
           const currentFolder =
             doc.folder_id === null
               ? null
@@ -153,6 +157,15 @@ export function RoomDocumentList({
                 <p className="text-[10px] font-medium text-slate-500 mt-0.5 whitespace-nowrap">
                   {deck?.pages?.length || 0} Slides
                 </p>
+                {matchedTagNames.length > 0 && (
+                  <p className="mt-1 text-[11px] text-emerald-400 leading-relaxed">
+                    Matched by tag{matchedTagNames.length > 1 ? "s" : ""}:{" "}
+                    {matchedTagNames.slice(0, 3).join(", ")}
+                    {matchedTagNames.length > 3
+                      ? ` +${matchedTagNames.length - 3} more`
+                      : ""}
+                  </p>
+                )}
                 <div className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider">
                   <span className="text-slate-600">Folder:</span>
                   <span className="text-slate-300 truncate max-w-[140px]">

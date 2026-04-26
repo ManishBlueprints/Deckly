@@ -1,11 +1,11 @@
 import { Plus, Monitor, Lock, Zap } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DataRoomCard } from "../components/dashboard/DataRoomCard";
 import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
-import { useDataRoomsWithMeta } from "../hooks/useDataRooms";
+import { useDataRooms } from "../hooks/useDataRooms";
 import { cn } from "@/lib/utils";
 import { DataRoom, DataRoomDocument } from "../types";
 import { DataRoomTour } from "../components/tours/DataRoomTour";
@@ -13,14 +13,22 @@ import { useQuery } from "@tanstack/react-query";
 import { dataRoomService } from "../services/dataRoomService";
 import { MetadataSearchMenu } from "../components/search/MetadataSearchMenu";
 import { useMetadataSearchState } from "../hooks/useMetadataSearchState";
-import { filterDataRoomOverviewRooms } from "../utils/metadataSearchAdapters";
+import {
+  filterDataRoomOverviewRooms,
+  type DataRoomOverviewSearchResult,
+} from "../utils/metadataSearchAdapters";
 
 function DataRoomsPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const search = useMetadataSearchState("data_room");
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
 
-  const { data: rooms = [], isLoading, isFetching } = useDataRoomsWithMeta();
+  const { data: rooms = [], isLoading, isFetching } = useDataRooms();
+  const shouldLoadRoomDocuments =
+    (search.filter.mode === "name" &&
+      search.filter.query.trim().length > 0) ||
+    selectedTagId !== null;
   const { data: roomDocumentsByRoomId = {} } = useQuery({
     queryKey: ["data-rooms", "search-documents", rooms.map((room: DataRoom) => room.id)],
     queryFn: async () => {
@@ -34,9 +42,53 @@ function DataRoomsPage() {
       return Object.fromEntries(entries) as Record<string, DataRoomDocument[]>;
     },
     enabled:
-      rooms.length > 0 &&
-      search.filter.mode === "name" &&
-      search.filter.query.trim().length > 0,
+      rooms.length > 0 && shouldLoadRoomDocuments,
+    staleTime: 30000,
+  });
+  const { data: roomMetaById = {}, isFetching: isFetchingMeta } = useQuery({
+    queryKey: ["data-rooms", "with-meta", rooms.map((room: DataRoom) => room.id)],
+    queryFn: async () => {
+      if (rooms.length === 0) return {};
+
+      try {
+        const batchAnalytics = await dataRoomService.getBatchDataRoomAnalytics(
+          rooms.map((room: DataRoom) => room.id),
+        );
+
+        return Object.fromEntries(
+          rooms.map((room: DataRoom) => [
+            room.id,
+            {
+              docCount: batchAnalytics.get(room.id)?.docCount ?? 0,
+              visitors: batchAnalytics.get(room.id)?.visitors ?? 0,
+            },
+          ]),
+        ) as Record<string, { docCount: number; visitors: number }>;
+      } catch (error) {
+        console.warn("Batch analytics failed, using individual calls", error);
+        const richRooms = await Promise.all(
+          rooms.map(async (room: DataRoom) => {
+            const [docCount, analytics] = await Promise.all([
+              dataRoomService.getDocumentCount(room.id),
+              dataRoomService.getDataRoomAnalytics(room.id),
+            ]);
+            return [
+              room.id,
+              {
+                docCount,
+                visitors: analytics.totalVisitors,
+              },
+            ] as const;
+          }),
+        );
+
+        return Object.fromEntries(richRooms) as Record<
+          string,
+          { docCount: number; visitors: number }
+        >;
+      }
+    },
+    enabled: rooms.length > 0,
     staleTime: 30000,
   });
 
@@ -47,10 +99,35 @@ function DataRoomsPage() {
   const isAtLimit = !isUnlimited && rooms.length >= maxRooms;
 
   const loading = isLoading && rooms.length === 0;
-  const isRefreshing = isFetching;
+  const isRefreshing = isFetching || isFetchingMeta;
+  const hasActiveSearch = search.isActive || selectedTagId !== null;
+  const availableFilterOptions = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string; color: string }>();
+    Object.values(roomDocumentsByRoomId).flat().forEach((document) => {
+      (document.tags ?? []).forEach((tag) => {
+        if (!seen.has(tag.id)) {
+          seen.set(tag.id, { id: tag.id, name: tag.name, color: tag.color });
+        }
+      });
+    });
+    return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [roomDocumentsByRoomId]);
+
+  useEffect(() => {
+    if (selectedTagId && !availableFilterOptions.some((tag) => tag.id === selectedTagId)) {
+      setSelectedTagId(null);
+    }
+  }, [availableFilterOptions, selectedTagId]);
+
   const filteredRooms = useMemo(
-    () => filterDataRoomOverviewRooms(rooms, roomDocumentsByRoomId, search.filter),
-    [roomDocumentsByRoomId, rooms, search.filter],
+    () =>
+      filterDataRoomOverviewRooms(
+        rooms,
+        roomDocumentsByRoomId,
+        search.filter,
+        selectedTagId,
+      ),
+    [roomDocumentsByRoomId, rooms, search.filter, selectedTagId],
   );
 
   return (
@@ -70,15 +147,22 @@ function DataRoomsPage() {
             searchControl={
               <MetadataSearchMenu
                 filter={search.filter}
-                isActive={search.isActive}
+                isActive={hasActiveSearch}
                 onModeChange={search.setMode}
                 onQueryChange={search.setQuery}
                 onDatePresetChange={search.setDatePreset}
                 onCustomDateRangeChange={search.setCustomDateRange}
-                onClear={search.resetFilter}
+                onClear={() => {
+                  search.resetFilter();
+                  setSelectedTagId(null);
+                }}
                 resultCount={filteredRooms.length}
                 triggerLabel="Search"
                 namePlaceholder="Search rooms or file titles..."
+                filterOptions={availableFilterOptions}
+                selectedFilterId={selectedTagId}
+                onFilterChange={setSelectedTagId}
+                filterEmptyMessage="No tags created"
               />
             }
             onCreate={() => navigate("/rooms/new")}
@@ -95,18 +179,24 @@ function DataRoomsPage() {
           <RoomsLoadingGrid />
         ) : rooms.length === 0 ? (
           <RoomsEmptyState onCreate={() => navigate("/rooms/new")} />
-        ) : search.isActive && filteredRooms.length === 0 ? (
-          <RoomsNoResults onClear={search.resetFilter} />
+        ) : hasActiveSearch && filteredRooms.length === 0 ? (
+          <RoomsNoResults
+            onClear={() => {
+              search.resetFilter();
+              setSelectedTagId(null);
+            }}
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRooms.map(({ room, matchedDocumentTitles }) => (
-              <DataRoomCard
-                key={room.id}
-                room={room}
-                documentCount={room.docCount || 0}
-                totalVisitors={room.visitors || 0}
-                matchedDocumentTitles={matchedDocumentTitles}
-              />
+            {filteredRooms.map(({ room, matchedDocumentTitles, matchedTagNames }: DataRoomOverviewSearchResult) => (
+            <DataRoomCard
+              key={room.id}
+              room={room}
+              documentCount={roomMetaById[room.id]?.docCount ?? room.docCount ?? 0}
+              totalVisitors={roomMetaById[room.id]?.visitors ?? room.visitors ?? 0}
+              matchedDocumentTitles={matchedDocumentTitles}
+              matchedTagNames={matchedTagNames}
+            />
             ))}
           </div>
         )}
@@ -213,7 +303,7 @@ function RoomsNoResults({ onClear }: { onClear: () => void }) {
       </div>
       <h3 className="text-lg font-semibold text-white mb-2">No matching data rooms</h3>
       <p className="text-sm text-slate-400 mb-8 max-w-sm px-6">
-        Try another room name or file title, or clear the current search.
+        Try another room name, file title, or tag, or clear the current search.
       </p>
       <button
         onClick={onClear}
