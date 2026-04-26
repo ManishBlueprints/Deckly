@@ -513,18 +513,35 @@ export const organizerService = {
       };
 
       const deckMap = new Map<string, SavedDeckMeta>();
+      let notesMap: Record<string, string> = {};
 
       if (deckIds.length > 0) {
-        const { data: ownedDecks, error: ownedDecksError } = await supabase
-          .from("decks")
-          .select("id, title, slug, file_type, status, description, user_id")
-          .in("id", deckIds);
+        const [
+          { data: ownedDecks, error: ownedDecksError },
+          { data: notesData, error: notesErr },
+        ] = await Promise.all([
+          supabase
+            .from("decks")
+            .select("id, title, slug, file_type, status, description, user_id")
+            .in("id", deckIds),
+          supabase
+            .from("investor_notes")
+            .select("deck_id, content")
+            .eq("user_id", uid)
+            .in("deck_id", deckIds),
+        ]);
 
         if (ownedDecksError) throw ownedDecksError;
+        if (notesErr) throw notesErr;
 
         (ownedDecks || []).forEach((deck) => {
           deckMap.set(deck.id, deck as SavedDeckMeta);
         });
+
+        notesMap = (notesData || []).reduce((acc, curr) => {
+          acc[curr.deck_id] = curr.content;
+          return acc;
+        }, {} as Record<string, string>);
 
         const unresolvedDeckIds = deckIds.filter((deckId) => !deckMap.has(deckId));
 
@@ -541,22 +558,6 @@ export const organizerService = {
             deckMap.set(deck.id, deck as SavedDeckMeta);
           });
         }
-      }
-
-      let notesMap: Record<string, string> = {};
-      if (deckIds.length > 0) {
-        const { data: notesData, error: notesErr } = await supabase
-          .from("investor_notes")
-          .select("deck_id, content")
-          .eq("user_id", uid)
-          .in("deck_id", deckIds);
-
-        if (notesErr) throw notesErr;
-
-        notesMap = (notesData || []).reduce((acc, curr) => {
-          acc[curr.deck_id] = curr.content;
-          return acc;
-        }, {} as Record<string, string>);
       }
 
       return ((data as unknown as InvestorLibraryEntry[]) || []).map((item) => {

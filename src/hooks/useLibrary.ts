@@ -45,12 +45,7 @@ export function useLibrary(userId: string | undefined) {
   const tags: LibraryTag[] = tagsQ.data ?? [];
   
   const isError = decksQ.isError || foldersQ.isError || tagsQ.isError;
-  const isLoading =
-    (decksQ.isLoading || foldersQ.isLoading || tagsQ.isLoading) &&
-    decks.length === 0 &&
-    folders.length === 0 &&
-    tags.length === 0 &&
-    !isError;
+  const isLoading = decksQ.isLoading && decks.length === 0 && !isError;
 
   const refetch = useCallback(() => {
     if (!userId) return Promise.resolve();

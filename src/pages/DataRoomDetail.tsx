@@ -78,6 +78,7 @@ function DataRoomDetail() {
   }[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [tagModalOpen, setTagModalOpen] = useState(false);
@@ -155,11 +156,11 @@ function DataRoomDetail() {
   const loadAll = useCallback(async () => {
     if (!roomId) return;
     setLoading(true);
+    setAnalyticsLoading(true);
     try {
-      const [roomData, docs, analyticsData] = await Promise.all([
+      const [roomData, docs] = await Promise.all([
         dataRoomService.getDataRoomById(roomId),
         dataRoomService.getDocuments(roomId),
-        dataRoomService.getDataRoomAnalytics(roomId),
       ]);
       if (!roomData) {
         navigate("/rooms");
@@ -167,10 +168,10 @@ function DataRoomDetail() {
       }
       setRoom(roomData);
       setDocuments(docs);
-      setAnalytics(analyticsData);
+      setLoading(false);
 
       setSignalsLoading(true);
-      getRoomVisitorSignals(roomId)
+      void getRoomVisitorSignals(roomId)
         .then(setRoomSignals)
         .catch((err) => {
           console.error("Failed to load visitor signals", err);
@@ -178,7 +179,7 @@ function DataRoomDetail() {
         })
         .finally(() => setSignalsLoading(false));
 
-      analyticsService
+      void analyticsService
         .getDataRoomLocations(roomId)
         .then(setRoomLocations)
         .catch((err: unknown) => {
@@ -186,17 +187,28 @@ function DataRoomDetail() {
           setRoomLocations({ countries: [], cities: [] });
         });
 
-      analyticsService
+      void analyticsService
         .getDataRoomDocumentStats(roomId)
         .then(setRoomDocumentStats)
         .catch((err: unknown) => {
           console.error("Failed to load room document stats", err);
           setRoomDocumentStats([]);
         });
+
+      void dataRoomService
+        .getDataRoomAnalytics(roomId, docs)
+        .then((analyticsData) => {
+          setAnalytics(analyticsData);
+        })
+        .catch((err) => {
+          console.error("Failed to load room analytics", err);
+          setAnalytics({ totalVisitors: 0, perDeck: [] });
+        })
+        .finally(() => setAnalyticsLoading(false));
     } catch (err) {
       console.error("Failed to load room", err);
-    } finally {
       setLoading(false);
+      setAnalyticsLoading(false);
     }
   }, [roomId, navigate]);
 
@@ -395,8 +407,13 @@ function DataRoomDetail() {
       );
 
       try {
-        await folderActions.setDocumentTags(documentId, tagIds);
-        queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
+        const deckId = documents.find((doc) => doc.id === documentId)?.deck_id;
+        if (!deckId) {
+          throw new Error("Document not found.");
+        }
+
+        await deckService.updateDeckTags(deckId, tagIds);
+        void queryClient.invalidateQueries({ queryKey: ["decks", profile?.id] });
       } catch (err) {
         setDocuments(previousDocuments);
         console.error("Failed to update document tags", err);
@@ -405,7 +422,7 @@ function DataRoomDetail() {
         );
       }
     },
-    [documents, folderActions, queryClient, tags],
+    [deckService, documents, profile?.id, queryClient, tags],
   );
 
   const handleReorderDocuments = async (orderedDeckIds: string[]) => {
@@ -518,6 +535,7 @@ function DataRoomDetail() {
             roomDocumentStats={roomDocumentStats}
             signalsLoading={signalsLoading}
             roomSignals={roomSignals}
+            loading={analyticsLoading}
           />
         )}
 

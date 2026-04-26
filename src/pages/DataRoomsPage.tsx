@@ -5,7 +5,7 @@ import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DataRoomCard } from "../components/dashboard/DataRoomCard";
 import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
-import { useDataRoomsWithMeta } from "../hooks/useDataRooms";
+import { useDataRooms } from "../hooks/useDataRooms";
 import { cn } from "@/lib/utils";
 import { DataRoom, DataRoomDocument } from "../types";
 import { DataRoomTour } from "../components/tours/DataRoomTour";
@@ -24,7 +24,7 @@ function DataRoomsPage() {
   const search = useMetadataSearchState("data_room");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
 
-  const { data: rooms = [], isLoading, isFetching } = useDataRoomsWithMeta();
+  const { data: rooms = [], isLoading, isFetching } = useDataRooms();
   const shouldLoadRoomDocuments =
     (search.filter.mode === "name" &&
       search.filter.query.trim().length > 0) ||
@@ -45,6 +45,52 @@ function DataRoomsPage() {
       rooms.length > 0 && shouldLoadRoomDocuments,
     staleTime: 30000,
   });
+  const { data: roomMetaById = {}, isFetching: isFetchingMeta } = useQuery({
+    queryKey: ["data-rooms", "with-meta", rooms.map((room: DataRoom) => room.id)],
+    queryFn: async () => {
+      if (rooms.length === 0) return {};
+
+      try {
+        const batchAnalytics = await dataRoomService.getBatchDataRoomAnalytics(
+          rooms.map((room: DataRoom) => room.id),
+        );
+
+        return Object.fromEntries(
+          rooms.map((room: DataRoom) => [
+            room.id,
+            {
+              docCount: batchAnalytics.get(room.id)?.docCount ?? 0,
+              visitors: batchAnalytics.get(room.id)?.visitors ?? 0,
+            },
+          ]),
+        ) as Record<string, { docCount: number; visitors: number }>;
+      } catch (error) {
+        console.warn("Batch analytics failed, using individual calls", error);
+        const richRooms = await Promise.all(
+          rooms.map(async (room: DataRoom) => {
+            const [docCount, analytics] = await Promise.all([
+              dataRoomService.getDocumentCount(room.id),
+              dataRoomService.getDataRoomAnalytics(room.id),
+            ]);
+            return [
+              room.id,
+              {
+                docCount,
+                visitors: analytics.totalVisitors,
+              },
+            ] as const;
+          }),
+        );
+
+        return Object.fromEntries(richRooms) as Record<
+          string,
+          { docCount: number; visitors: number }
+        >;
+      }
+    },
+    enabled: rooms.length > 0,
+    staleTime: 30000,
+  });
 
   const tier: Tier = (profile?.tier as Tier) || "FREE";
   const tierConfig = TIER_CONFIG[tier];
@@ -53,7 +99,7 @@ function DataRoomsPage() {
   const isAtLimit = !isUnlimited && rooms.length >= maxRooms;
 
   const loading = isLoading && rooms.length === 0;
-  const isRefreshing = isFetching;
+  const isRefreshing = isFetching || isFetchingMeta;
   const hasActiveSearch = search.isActive || selectedTagId !== null;
   const availableFilterOptions = useMemo(() => {
     const seen = new Map<string, { id: string; name: string; color: string }>();
@@ -143,14 +189,14 @@ function DataRoomsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRooms.map(({ room, matchedDocumentTitles, matchedTagNames }: DataRoomOverviewSearchResult) => (
-              <DataRoomCard
-                key={room.id}
-                room={room}
-                documentCount={room.docCount || 0}
-                totalVisitors={room.visitors || 0}
-                matchedDocumentTitles={matchedDocumentTitles}
-                matchedTagNames={matchedTagNames}
-              />
+            <DataRoomCard
+              key={room.id}
+              room={room}
+              documentCount={roomMetaById[room.id]?.docCount ?? room.docCount ?? 0}
+              totalVisitors={roomMetaById[room.id]?.visitors ?? room.visitors ?? 0}
+              matchedDocumentTitles={matchedDocumentTitles}
+              matchedTagNames={matchedTagNames}
+            />
             ))}
           </div>
         )}

@@ -12,6 +12,7 @@ import { useMetadataSearchState } from "../../hooks/useMetadataSearchState";
 import { filterContentLibraryDecks } from "../../utils/metadataSearchAdapters";
 import { ManageTagsModal } from "../saved-decks/ManageTagsModal";
 import { ManageTagsButton } from "../shared/ManageTagsButton";
+import { DeckWithAnalytics, LibraryTag } from "../../types";
 
 export function ContentView() {
   const { session, profile } = useAuth();
@@ -80,20 +81,47 @@ export function ContentView() {
 
   const handleCreateTag = async (name: string, color: string) => {
     const createdTag = await organizerService.createTag(name, color);
-    await queryClient.invalidateQueries({ queryKey: ["library-tags", userId] });
+    if (userId) {
+      queryClient.setQueryData<LibraryTag[]>(["library-tags", userId], (prev) => [
+        ...(prev ?? []),
+        createdTag,
+      ]);
+    }
     return createdTag;
   };
 
   const handleUpdateTag = async (tagId: string, name: string, color: string) => {
     await organizerService.updateTag(tagId, name, color);
-    await queryClient.invalidateQueries({ queryKey: ["library-tags", userId] });
+    if (!userId) return;
+
+    queryClient.setQueryData<LibraryTag[]>(["library-tags", userId], (prev) =>
+      (prev ?? []).map((tag) =>
+        tag.id === tagId ? { ...tag, name, color } : tag,
+      ),
+    );
+    queryClient.setQueryData<DeckWithAnalytics[]>(["decks", userId], (prev) =>
+      (prev ?? []).map((deck) => ({
+        ...deck,
+        tags: (deck.tags ?? []).map((tag) =>
+          tag.id === tagId ? { ...tag, name, color } : tag,
+        ),
+      })),
+    );
   };
 
   const handleDeleteTag = async (tagId: string) => {
     await organizerService.deleteTag(tagId);
-    await queryClient.invalidateQueries({ queryKey: ["library-tags", userId] });
-    await queryClient.invalidateQueries({ queryKey: ["decks", userId] });
-    await queryClient.invalidateQueries({ queryKey: ["saved-data-rooms"] });
+    if (!userId) return;
+
+    queryClient.setQueryData<LibraryTag[]>(["library-tags", userId], (prev) =>
+      (prev ?? []).filter((tag) => tag.id !== tagId),
+    );
+    queryClient.setQueryData<DeckWithAnalytics[]>(["decks", userId], (prev) =>
+      (prev ?? []).map((deck) => ({
+        ...deck,
+        tags: (deck.tags ?? []).filter((tag) => tag.id !== tagId),
+      })),
+    );
   };
 
   const handleUpdateDeckTags = async (deckId: string, tagIds: string[]) => {
@@ -101,18 +129,23 @@ export function ContentView() {
       throw new Error("Not authenticated");
     }
 
-    await deckService.saveToLibrary(deckId);
+    const previousDecks = queryClient.getQueryData<DeckWithAnalytics[]>(["decks", userId]);
+    const selectedTags = tags.filter((tag) => tagIds.includes(tag.id));
 
-    const savedDecks = await organizerService.getSavedDecksOrganized(userId);
-    const savedDeck = savedDecks.find((item) => item.deck_id === deckId);
+    queryClient.setQueryData<DeckWithAnalytics[]>(["decks", userId], (prev) =>
+      (prev ?? []).map((deck) =>
+        deck.id === deckId ? { ...deck, tags: selectedTags } : deck,
+      ),
+    );
 
-    if (!savedDeck) {
-      throw new Error("Unable to load the saved deck row for tagging.");
+    try {
+      await deckService.updateDeckTags(deckId, tagIds);
+    } catch (err) {
+      if (previousDecks) {
+        queryClient.setQueryData(["decks", userId], previousDecks);
+      }
+      throw err;
     }
-
-    await organizerService.updateDeckTags(savedDeck.library_id, tagIds);
-    await queryClient.invalidateQueries({ queryKey: ["decks", userId] });
-    await queryClient.invalidateQueries({ queryKey: ["saved-data-rooms"] });
   };
 
   return (

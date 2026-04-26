@@ -6,6 +6,7 @@ export function useDecks(userId: string | undefined) {
         queryKey: ["decks", userId],
         queryFn: () => deckService.getDecksWithAnalytics(userId!),
         enabled: !!userId,
+        staleTime: 30_000,
     });
 }
 
