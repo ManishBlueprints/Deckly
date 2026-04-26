@@ -337,6 +337,8 @@ function DataRoomDetail() {
 
   const handleDeleteTag = async (tagId: string) => {
     await folderActions.deleteTag(tagId);
+    await loadAll();
+    queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
     toast.success("Tag deleted");
   };
 

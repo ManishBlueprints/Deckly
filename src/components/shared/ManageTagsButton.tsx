@@ -1,4 +1,5 @@
 import { Tag } from "lucide-react";
+import { cn } from "../../utils/cn";
 
 interface ManageTagsButtonProps {
   onClick: () => void;
@@ -14,10 +15,13 @@ export function ManageTagsButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-3 px-6 py-3 bg-surface-low border border-border text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all ${className}`.trim()}
+      className={cn(
+        "inline-flex h-11 w-11 items-center justify-center bg-surface-low border border-border text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all md:w-auto md:px-6 md:gap-3",
+        className,
+      )}
     >
       <Tag size={14} />
-      {label}
+      <span className="hidden md:inline">{label}</span>
     </button>
   );
 }

@@ -244,7 +244,7 @@ const deleteTag = async (tagId: string, userId: string): Promise<void> => {
 const fetchTagsByIds = async (
   tagIds: string[],
   userId?: string,
-  includeDeleted = true,
+  includeDeleted = false,
 ): Promise<LibraryTag[]> => {
   const uniqueIds = Array.from(new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean)));
   if (uniqueIds.length === 0) return [];

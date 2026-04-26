@@ -341,6 +341,10 @@ export function useLibrary(userId: string | undefined) {
             tags: (d.tags ?? []).filter((t) => t.id !== id),
           })),
       );
+      qc.invalidateQueries({ queryKey: KEYS.tags(userId) });
+      qc.invalidateQueries({ queryKey: KEYS.folders(userId) });
+      qc.invalidateQueries({ queryKey: KEYS.decks(userId) });
+      qc.invalidateQueries({ queryKey: ["saved-data-rooms"] });
     },
   });
 

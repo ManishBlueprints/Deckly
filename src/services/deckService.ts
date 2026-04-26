@@ -399,58 +399,93 @@ const deckAnalyticsService = {
 
       const { data: decks, error: decksError } = await supabase
         .from("decks")
-        .select(`
-          *,
-          library_deck_tags (
-            global_tags (*)
-          )
-        `)
+        .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
       if (decksError) throw decksError;
       if (!decks || decks.length === 0) return [];
 
-      type DeckJoinResult = Deck & {
-        library_deck_tags?: { global_tags: LibraryTag }[];
-      };
-
       const deckIds = decks.map((deck) => deck.id);
-      const [
-        { data: stats, error: statsError },
-        { data: pageViews },
-        { data: saves, error: savesError },
-      ] = await Promise.all([
-        supabase.from("deck_stats").select("deck_id, updated_at").in(
-          "deck_id",
-          deckIds,
-        ),
-        supabase.from("deck_page_views").select("deck_id, visitor_id").in(
-          "deck_id",
-          deckIds,
-        ),
-        supabase.from("investor_library").select("deck_id").in(
-          "deck_id",
-          deckIds,
-        ),
-      ]);
+      const { data: tagLinks, error: tagLinksError } = await supabase
+        .from("investor_library")
+        .select(`
+          id,
+          deck_id,
+          library_deck_tags (
+            global_tags (*)
+          )
+        `)
+        .eq("user_id", userId)
+        .in("deck_id", deckIds);
 
-      if (statsError) throw statsError;
-      if (savesError) throw savesError;
+      if (tagLinksError) throw tagLinksError;
+
+      const tagsByDeckId = new Map<string, LibraryTag[]>();
+      (tagLinks || []).forEach((entry) => {
+        const typedEntry = entry as unknown as {
+          id: string;
+          deck_id: string;
+          library_deck_tags?: { global_tags: LibraryTag }[];
+        };
+        const tags = (typedEntry.library_deck_tags || [])
+          .map((link) => link.global_tags)
+          .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null));
+        tagsByDeckId.set(typedEntry.deck_id, tags);
+      });
+
+      let stats: { deck_id: string; updated_at: string | null }[] = [];
+      {
+        const { data, error } = await supabase
+          .from("deck_stats")
+          .select("deck_id, updated_at")
+          .in("deck_id", deckIds);
+        if (error) {
+          console.warn("deck_stats lookup failed while hydrating Content Library", error);
+        } else {
+          stats = (data || []) as { deck_id: string; updated_at: string | null }[];
+        }
+      }
+
+      let pageViews: { deck_id: string; visitor_id: string }[] = [];
+      {
+        const { data, error } = await supabase
+          .from("deck_page_views")
+          .select("deck_id, visitor_id")
+          .in("deck_id", deckIds);
+        if (error) {
+          console.warn("deck_page_views lookup failed while hydrating Content Library", error);
+        } else {
+          pageViews = (data || []) as { deck_id: string; visitor_id: string }[];
+        }
+      }
+
+      let saves: { deck_id: string }[] = [];
+      {
+        const { data, error } = await supabase
+          .from("investor_library")
+          .select("deck_id")
+          .in("deck_id", deckIds);
+        if (error) {
+          console.warn("investor_library lookup failed while hydrating Content Library", error);
+        } else {
+          saves = (data || []) as { deck_id: string }[];
+        }
+      }
 
       const viewsMap: Record<string, Set<string>> = {};
-      (pageViews || []).forEach((pageView: { deck_id: string; visitor_id: string }) => {
+      pageViews.forEach((pageView: { deck_id: string; visitor_id: string }) => {
         if (!viewsMap[pageView.deck_id]) viewsMap[pageView.deck_id] = new Set();
         viewsMap[pageView.deck_id].add(pageView.visitor_id);
       });
 
       const savesMap: Record<string, number> = {};
-      (saves || []).forEach((save: { deck_id: string }) => {
+      saves.forEach((save: { deck_id: string }) => {
         savesMap[save.deck_id] = (savesMap[save.deck_id] || 0) + 1;
       });
 
       const lastActiveMap: Record<string, string | null> = {};
-      (stats || []).forEach((stat) => {
+      stats.forEach((stat) => {
         const deckId = stat.deck_id;
         if (
           !lastActiveMap[deckId] ||
@@ -460,12 +495,12 @@ const deckAnalyticsService = {
         }
       });
 
-      return (decks as DeckJoinResult[]).map((deck) => ({
+      return (decks as Deck[]).map((deck) => ({
         ...deck,
         total_views: viewsMap[deck.id]?.size || 0,
         save_count: savesMap[deck.id] || 0,
         last_viewed_at: lastActiveMap[deck.id] || null,
-        tags: (deck.library_deck_tags || []).map((link) => link.global_tags),
+        tags: tagsByDeckId.get(deck.id) || [],
       })) as DeckWithAnalytics[];
     });
   },

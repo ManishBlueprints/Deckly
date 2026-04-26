@@ -4,7 +4,7 @@ import { LibraryFolder, SavedDeckOrganized } from "../../types";
 import { Filter, Loader2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +35,7 @@ import {
 
 export function SavedDecksView() {
   const { session } = useAuth();
+  const queryClient = useQueryClient();
   const { decks, folders, tags, isLoading, isError, actions } = useLibrary(
     session?.user?.id,
   );
@@ -170,6 +171,16 @@ export function SavedDecksView() {
       return actions.saveNote(deckId, note);
     },
     [actions],
+  );
+
+  const handleDeleteTag = useCallback(
+    async (tagId: string) => {
+      await actions.deleteTag(tagId);
+      await queryClient.invalidateQueries({
+        queryKey: ["saved-data-rooms", session?.user?.id],
+      });
+    },
+    [actions, queryClient, session?.user?.id],
   );
 
   const handleUnsaveRequest = useCallback((deck: SavedDeckOrganized) => {
@@ -465,7 +476,7 @@ export function SavedDecksView() {
         tags={tags}
         onCreate={actions.createTag}
         onUpdate={actions.updateTag}
-        onDelete={actions.deleteTag}
+        onDelete={handleDeleteTag}
       />
 
       <AlertDialog

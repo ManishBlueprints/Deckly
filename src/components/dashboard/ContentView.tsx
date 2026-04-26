@@ -92,6 +92,27 @@ export function ContentView() {
   const handleDeleteTag = async (tagId: string) => {
     await organizerService.deleteTag(tagId);
     await queryClient.invalidateQueries({ queryKey: ["library-tags", userId] });
+    await queryClient.invalidateQueries({ queryKey: ["decks", userId] });
+    await queryClient.invalidateQueries({ queryKey: ["saved-data-rooms"] });
+  };
+
+  const handleUpdateDeckTags = async (deckId: string, tagIds: string[]) => {
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    await deckService.saveToLibrary(deckId);
+
+    const savedDecks = await organizerService.getSavedDecksOrganized(userId);
+    const savedDeck = savedDecks.find((item) => item.deck_id === deckId);
+
+    if (!savedDeck) {
+      throw new Error("Unable to load the saved deck row for tagging.");
+    }
+
+    await organizerService.updateDeckTags(savedDeck.library_id, tagIds);
+    await queryClient.invalidateQueries({ queryKey: ["decks", userId] });
+    await queryClient.invalidateQueries({ queryKey: ["saved-data-rooms"] });
   };
 
   return (
@@ -107,7 +128,7 @@ export function ContentView() {
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           <MetadataSearchMenu
             filter={search.filter}
             isActive={hasActiveSearch}
@@ -160,6 +181,8 @@ export function ContentView() {
         userHandle={profile?.handle || "username"}
         loading={loading}
         onDelete={handleDeleteDeck}
+        availableTags={tags}
+        onUpdateTags={handleUpdateDeckTags}
         emptyMessage={
           hasActiveSearch && !hasSearchResults
             ? "No decks match the current search"

@@ -94,7 +94,7 @@ export function MetadataSearchMenu({
           type="button"
           aria-label={triggerLabel}
           className={cn(
-            "inline-flex h-11 w-[220px] items-center justify-between border border-border bg-surface-low px-4 text-sm font-semibold text-foreground shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition-all hover:border-primary/35 hover:bg-surface-high",
+            "inline-flex h-11 w-full min-w-0 items-center justify-between border border-border bg-surface-low px-4 text-sm font-semibold text-foreground shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition-all hover:border-primary/35 hover:bg-surface-high md:w-[220px]",
             isActive && "border-primary/45 bg-primary/10 text-foreground shadow-[0_14px_34px_rgba(34,197,94,0.10)]",
             className,
           )}
@@ -124,9 +124,9 @@ export function MetadataSearchMenu({
       </PopoverTrigger>
 
       <PopoverContent
-        align="end"
+        align="center"
         sideOffset={10}
-        className="w-[320px] space-y-5 border border-border bg-popover/95 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+        className="w-[calc(100vw-1.5rem)] max-w-[320px] space-y-5 border border-border bg-popover/95 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
