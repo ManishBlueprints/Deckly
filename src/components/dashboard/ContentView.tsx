@@ -130,7 +130,9 @@ export function ContentView() {
     }
 
     const previousDecks = queryClient.getQueryData<DeckWithAnalytics[]>(["decks", userId]);
-    const selectedTags = tags.filter((tag) => tagIds.includes(tag.id));
+    const latestTags =
+      queryClient.getQueryData<LibraryTag[]>(["library-tags", userId]) ?? tags;
+    const selectedTags = latestTags.filter((tag) => tagIds.includes(tag.id));
 
     queryClient.setQueryData<DeckWithAnalytics[]>(["decks", userId], (prev) =>
       (prev ?? []).map((deck) =>
@@ -140,6 +142,7 @@ export function ContentView() {
 
     try {
       await deckService.updateDeckTags(deckId, tagIds);
+      await queryClient.invalidateQueries({ queryKey: ["decks", userId] });
     } catch (err) {
       if (previousDecks) {
         queryClient.setQueryData(["decks", userId], previousDecks);

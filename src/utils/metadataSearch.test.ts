@@ -15,6 +15,7 @@ import {
 } from "./metadataSearchAdapters";
 import {
   createDefaultMetadataSearchFilter,
+  hasActiveMetadataSearch,
   getMetadataDateWindow,
   matchesMetadataDateFilter,
 } from "./metadataSearch";
@@ -172,6 +173,26 @@ describe("metadataSearch", () => {
     expect(results[0].title).toBe("Alpha Deck");
   });
 
+  it("ignores stale query and date constraints in filter mode", () => {
+    const filter: MetadataSearchFilterState = {
+      ...createDefaultMetadataSearchFilter("content_library"),
+      mode: "filter",
+      query: "beta",
+      date: { preset: "last_7_days", startDate: "", endDate: "" },
+    };
+
+    const results = filterContentLibraryDecks(
+      [
+        makeContentDeck({ id: "1", title: "Alpha Deck", created_at: "2026-04-01T00:00:00.000Z" }),
+        makeContentDeck({ id: "2", title: "Beta Deck", created_at: "2026-04-10T00:00:00.000Z" }),
+      ],
+      filter,
+    );
+
+    expect(results).toHaveLength(2);
+    expect(hasActiveMetadataSearch(filter)).toBe(false);
+  });
+
   it("filters data room documents by folder, title, and added_at", () => {
     const filter: MetadataSearchFilterState = {
       ...createDefaultMetadataSearchFilter("data_room"),
@@ -210,6 +231,27 @@ describe("metadataSearch", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0].deck.library_id).toBe("1");
+  });
+
+  it("lets filter mode defer to tag/folder constraints for saved decks", () => {
+    const filter: MetadataSearchFilterState = {
+      ...createDefaultMetadataSearchFilter("saved_decks"),
+      mode: "filter",
+      query: "alpha",
+      date: { preset: "last_7_days", startDate: "", endDate: "" },
+    };
+
+    const results = filterSavedDeckRows(
+      [
+        makeSavedDeck({ library_id: "1", title: "Alpha Saved Deck", folder_id: null }),
+        makeSavedDeck({ library_id: "2", title: "Beta Saved Deck", folder_id: null }),
+      ],
+      filter,
+      "uncategorized",
+      null,
+    );
+
+    expect(results).toHaveLength(2);
   });
 
   it("filters saved rooms by selected folder and saved_at", () => {

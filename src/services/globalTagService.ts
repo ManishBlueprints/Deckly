@@ -51,14 +51,17 @@ const addLegacyNameAlias = async (
   if (error) throw error;
 };
 
-const getTagAliases = async (userId: string): Promise<GlobalTagAliasRow[]> => {
+const getTagById = async (
+  tagId: string,
+): Promise<GlobalTagRow | null> => {
   const { data, error } = await supabase
-    .from("global_tag_aliases")
-    .select("tag_id, alias_type, alias_value")
-    .eq("user_id", userId);
+    .from("global_tags")
+    .select("*")
+    .eq("id", tagId)
+    .maybeSingle();
 
   if (error) throw error;
-  return (data || []) as GlobalTagAliasRow[];
+  return data ? asGlobalTag(data as Record<string, unknown>) : null;
 };
 
 const getAllUserTags = async (
@@ -74,24 +77,32 @@ const getAllUserTags = async (
   return (data || []).map((tag) => asGlobalTag(tag as Record<string, unknown>));
 };
 
-const getTagById = async (
-  tagId: string,
-): Promise<GlobalTagRow | null> => {
+const getAliasByTypeAndValue = async (
+  userId: string,
+  aliasType: GlobalTagAliasRow["alias_type"],
+  aliasValue: string,
+): Promise<GlobalTagAliasRow | null> => {
+  const normalizedValue = aliasValue.trim().toLowerCase();
+  if (!normalizedValue) return null;
+
   const { data, error } = await supabase
-    .from("global_tags")
-    .select("*")
-    .eq("id", tagId)
+    .from("global_tag_aliases")
+    .select("tag_id, alias_type, alias_value")
+    .eq("user_id", userId)
+    .eq("alias_type", aliasType)
+    .eq("alias_value", normalizedValue)
     .maybeSingle();
 
   if (error) throw error;
-  return data ? asGlobalTag(data as Record<string, unknown>) : null;
+  return (data as GlobalTagAliasRow | null) ?? null;
 };
 
 const getTagByName = async (
   userId: string,
   name: string,
 ): Promise<GlobalTagRow | null> => {
-  const normalized = normalizeTagKey(name);
+  const trimmedName = name.trim();
+  const normalized = normalizeTagKey(trimmedName);
   if (!normalized) return null;
 
   const tags = await getAllUserTags(userId);
@@ -102,12 +113,9 @@ const getTagByName = async (
   );
   if (activeMatch) return activeMatch;
 
-  const aliases = await getTagAliases(userId);
-  const alias = aliases.find(
-    (row) =>
-      (row.alias_type === "legacy_name" && row.alias_value === normalized) ||
-      (row.alias_type === "legacy_id" && row.alias_value === name),
-  );
+  const alias =
+    (await getAliasByTypeAndValue(userId, "legacy_name", normalized)) ??
+    (await getAliasByTypeAndValue(userId, "legacy_id", trimmedName));
 
   if (alias) {
     return getTagById(alias.tag_id);

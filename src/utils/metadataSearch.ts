@@ -54,11 +54,14 @@ export function normalizeMetadataSearchFilter(
 export function hasActiveMetadataSearch(
   filter: MetadataSearchFilterState,
 ): boolean {
-  if (filter.mode === "name") {
-    return filter.query.trim().length > 0;
+  switch (filter.mode) {
+    case "name":
+      return filter.query.trim().length > 0;
+    case "date":
+      return getMetadataDateWindow(filter.date) !== null;
+    case "filter":
+      return false;
   }
-
-  return getMetadataDateWindow(filter.date) !== null;
 }
 
 export function matchesMetadataNameQuery(value: string | null | undefined, query: string) {

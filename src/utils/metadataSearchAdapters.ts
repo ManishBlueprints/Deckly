@@ -40,8 +40,11 @@ export function filterContentLibraryDecks(
   return decks.filter((deck) => {
     const matchesTag =
       selectedTagId === null || (deck.tags ?? []).some((tag) => tag.id === selectedTagId);
-    const matchesName = matchesMetadataNameQuery(deck.title, filter.query);
-    const matchesDate = matchesMetadataDateFilter(deck.created_at, filter.date);
+    const matchesName =
+      filter.mode !== "name" || matchesMetadataNameQuery(deck.title, filter.query);
+    const matchesDate =
+      filter.mode !== "date" || matchesMetadataDateFilter(deck.created_at, filter.date);
+
     return matchesTag && matchesName && matchesDate;
   });
 }
@@ -69,13 +72,16 @@ export function filterDataRoomDocuments(
   selectedTagId: string | null = null,
 ) : DataRoomDocumentSearchResult[] {
   return documents.reduce<DataRoomDocumentSearchResult[]>((results, doc) => {
-    const matchedTagNames = collectMatchingTagNames(doc.tags, filter.query);
+    const matchedTagNames =
+      filter.mode === "name" ? collectMatchingTagNames(doc.tags, filter.query) : [];
     const matchesTag =
       selectedTagId === null || (doc.tags ?? []).some((tag) => tag.id === selectedTagId);
     const matchesName =
+      filter.mode !== "name" ||
       matchesMetadataNameQuery(doc.deck?.title, filter.query) ||
       matchedTagNames.length > 0;
-    const matchesDate = matchesMetadataDateFilter(doc.added_at, filter.date);
+    const matchesDate =
+      filter.mode !== "date" || matchesMetadataDateFilter(doc.added_at, filter.date);
     const matchesFolder = activeFolderId
       ? doc.folder_id === activeFolderId
       : !doc.folder_id;
@@ -101,11 +107,14 @@ export function filterSavedDeckRows(
         : deck.folder_id === selectedFolderId;
     const matchesTag =
       selectedTagId === null || deck.tags.some((tag) => tag.id === selectedTagId);
-    const matchedTagNames = collectMatchingTagNames(deck.tags, filter.query);
+    const matchedTagNames =
+      filter.mode === "name" ? collectMatchingTagNames(deck.tags, filter.query) : [];
     const matchesName =
+      filter.mode !== "name" ||
       matchesMetadataNameQuery(deck.title, filter.query) ||
       matchedTagNames.length > 0;
-    const matchesDate = matchesMetadataDateFilter(deck.saved_at, filter.date);
+    const matchesDate =
+      filter.mode !== "date" || matchesMetadataDateFilter(deck.saved_at, filter.date);
 
     if (matchesFolder && matchesTag && matchesName && matchesDate) {
       results.push({ deck, matchedTagNames });
@@ -129,11 +138,14 @@ export function filterSavedRoomRows(
     const matchesFolder = room.folder_id === selectedFolderId;
     const matchesTag =
       selectedTagId === null || room.tags.some((tag) => tag.id === selectedTagId);
-    const matchedTagNames = collectMatchingTagNames(room.tags, filter.query);
+    const matchedTagNames =
+      filter.mode === "name" ? collectMatchingTagNames(room.tags, filter.query) : [];
     const matchesName =
+      filter.mode !== "name" ||
       matchesMetadataNameQuery(room.title, filter.query) ||
       matchedTagNames.length > 0;
-    const matchesDate = matchesMetadataDateFilter(room.saved_at, filter.date);
+    const matchesDate =
+      filter.mode !== "date" || matchesMetadataDateFilter(room.saved_at, filter.date);
 
     if (matchesFolder && matchesTag && matchesName && matchesDate) {
       results.push({ room, matchedTagNames });
@@ -208,17 +220,19 @@ export function filterDataRoomOverviewRooms(
             )
         : [];
 
-    const matchesName =
-      filter.mode === "name"
-        ? matchesMetadataNameQuery(room.name, filter.query) ||
-          matchedDocumentTitles.length > 0 ||
-          matchedTagNames.length > 0
-        : true;
+    const matchesSearch =
+      filter.mode !== "name" ||
+      matchesMetadataNameQuery(room.name, filter.query) ||
+      matchedDocumentTitles.length > 0 ||
+      matchedTagNames.length > 0;
     const matchesTag =
       selectedTagId === null || matchedBySelectedTag.length > 0;
-    const matchesDate = matchesMetadataDateFilter(room.created_at, filter.date);
+    const matchesDate =
+      filter.mode === "date"
+        ? matchesMetadataDateFilter(room.created_at, filter.date)
+        : true;
 
-    if (matchesName && matchesTag && matchesDate) {
+    if (matchesSearch && matchesTag && matchesDate) {
       results.push({ room, matchedDocumentTitles, matchedTagNames });
     }
 
