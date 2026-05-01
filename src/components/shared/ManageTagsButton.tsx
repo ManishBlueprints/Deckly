@@ -14,7 +14,9 @@ export function ManageTagsButton({
 }: ManageTagsButtonProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-label={label}
       className={cn(
         "inline-flex h-11 w-11 items-center justify-center bg-surface-low border border-border text-xs font-bold text-[#bbcbbb]/60 hover:text-white transition-all md:w-auto md:px-6 md:gap-3",
         className,

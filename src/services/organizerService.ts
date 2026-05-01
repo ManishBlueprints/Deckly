@@ -24,6 +24,15 @@ interface InvestorLibraryEntry {
   library_deck_tags: { global_tags: LibraryTag }[];
 }
 
+const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | null => {
+  if (!tag) return null;
+
+  return {
+    ...tag,
+    deleted_at: tag.deleted_at ?? null,
+  };
+};
+
 export const organizerService = {
   // --- FOLDERS ---
 
@@ -74,7 +83,7 @@ export const organizerService = {
         created_at: f.created_at,
         deck_count: f.investor_library?.[0]?.count || 0,
         tags: (f.library_folder_tags || [])
-          .map((ft) => ft.global_tags)
+          .map((ft) => normalizeLibraryTag(ft.global_tags))
           .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null)),
       }));
     });
@@ -585,7 +594,7 @@ export const organizerService = {
           investor_note: notesMap[item.deck_id] || "",
           is_available: !!deckData,
           tags: (item.library_deck_tags || [])
-            .map((dt) => dt.global_tags)
+            .map((dt) => normalizeLibraryTag(dt.global_tags))
             .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null)),
         };
       });

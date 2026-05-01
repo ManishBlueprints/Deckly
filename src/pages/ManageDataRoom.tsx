@@ -26,7 +26,6 @@ import { AccessProtectionSection } from "../components/dashboard/form-sections/A
 import { DangerZoneSection } from "../components/dashboard/form-sections/DangerZoneSection";
 import { DataRoomDocument } from "../types";
 import { dataRoomService } from "../services/dataRoomService";
-import { deckService } from "../services/deckService";
 import { useDataRoomFolders } from "../hooks/useDataRoomFolders";
 import { useAuth } from "../contexts/AuthContext";
 import { DataRoomCreateTour } from "../components/tours/DataRoomCreateTour";
@@ -923,12 +922,10 @@ function ManageDataRoom() {
                 availableTags={isEditMode ? tags : []}
                 onUpdateDocumentTags={
                   isEditMode
-                    ? async (deckId, tagIds) => {
+                    ? async (documentId, tagIds) => {
                         if (!roomId) return;
-                        await deckService.updateDeckTags(deckId, tagIds);
-                        void queryClient.invalidateQueries({
-                          queryKey: ["decks", profile?.id],
-                        });
+                        await folderActions.setDocumentTags(documentId, tagIds);
+                        await refreshDocuments();
                       }
                     : undefined
                 }

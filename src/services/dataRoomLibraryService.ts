@@ -255,7 +255,7 @@ export const dataRoomLibraryService = {
         const tagIds = [...new Set(links.map((link) => link.tag_id))];
 
         if (tagIds.length > 0) {
-          const tags = await globalTagService.fetchTagsByIds(tagIds);
+          const tags = await globalTagService.fetchTagsByIds(tagIds, session.user.id, false);
           const tagsById = new Map<string, LibraryTag>();
           tags.forEach((tag) => {
             tagsById.set(tag.id, tag);

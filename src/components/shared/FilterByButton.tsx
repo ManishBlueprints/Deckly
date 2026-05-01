@@ -16,7 +16,9 @@ export function FilterByButton({
 }: FilterByButtonProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
         "flex items-center gap-3 px-6 py-3 border text-xs font-bold transition-all",
         active

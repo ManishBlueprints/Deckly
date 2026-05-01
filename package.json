@@ -14,6 +14,7 @@
     "preview": "vite preview",
     "invoke": "supabase functions invoke document-processor --payload-file ./payload.json",
     "invoke:direct": ".\\node_modules\\.bin\\supabase functions invoke document-processor --payload-file ./payload.json",
+    "supabase:bootstrap": "node scripts/bootstrap-supabase.mjs",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"

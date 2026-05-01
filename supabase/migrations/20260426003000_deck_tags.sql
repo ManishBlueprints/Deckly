@@ -50,4 +50,9 @@ SELECT DISTINCT
 FROM public.investor_library il
 JOIN public.library_deck_tags ldt
     ON ldt.library_id = il.id
+JOIN public.decks d
+    ON d.id = il.deck_id
+JOIN public.global_tags gt
+    ON gt.id = ldt.tag_id
+   AND gt.user_id = d.user_id
 ON CONFLICT (deck_id, tag_id) DO NOTHING;

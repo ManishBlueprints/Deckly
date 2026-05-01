@@ -25,11 +25,7 @@ function DataRoomsPage() {
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
 
   const { data: rooms = [], isLoading, isFetching } = useDataRooms();
-  const shouldLoadRoomDocuments =
-    (search.filter.mode === "name" &&
-      search.filter.query.trim().length > 0) ||
-    selectedTagId !== null;
-  const { data: roomDocumentsByRoomId = {} } = useQuery({
+  const { data: roomDocumentsByRoomId = {}, isFetching: isFetchingDocuments } = useQuery({
     queryKey: ["data-rooms", "search-documents", rooms.map((room: DataRoom) => room.id)],
     queryFn: async () => {
       const entries = await Promise.all(
@@ -41,8 +37,7 @@ function DataRoomsPage() {
 
       return Object.fromEntries(entries) as Record<string, DataRoomDocument[]>;
     },
-    enabled:
-      rooms.length > 0 && shouldLoadRoomDocuments,
+    enabled: rooms.length > 0,
     staleTime: 30000,
   });
   const { data: roomMetaById = {}, isFetching: isFetchingMeta } = useQuery({
@@ -99,7 +94,7 @@ function DataRoomsPage() {
   const isAtLimit = !isUnlimited && rooms.length >= maxRooms;
 
   const loading = isLoading && rooms.length === 0;
-  const isRefreshing = isFetching || isFetchingMeta;
+  const isRefreshing = isFetching || isFetchingMeta || isFetchingDocuments;
   const hasActiveSearch = search.isActive || selectedTagId !== null;
   const availableFilterOptions = useMemo(() => {
     const seen = new Map<string, { id: string; name: string; color: string }>();

@@ -54,6 +54,7 @@ export function DataRoomTagsModal({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (pendingDeleteTag) return;
         onClose();
       }
     };
@@ -67,7 +68,7 @@ export function DataRoomTagsModal({
     setDeletingId(null);
 
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, pendingDeleteTag]);
 
   const handleSave = async () => {
     const trimmed = name.trim();

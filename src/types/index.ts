@@ -51,7 +51,7 @@ export interface GlobalTag {
   id: string;
   name: string;
   color: string;
-  deleted_at?: string | null;
+  deleted_at: string | null;
   created_at?: string;
   updated_at?: string | null;
   user_id?: string;
