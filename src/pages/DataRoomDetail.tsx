@@ -422,7 +422,7 @@ function DataRoomDetail() {
         );
       }
     },
-    [deckService, documents, profile?.id, queryClient, tags],
+    [documents, profile?.id, queryClient, tags],
   );
 
   const handleReorderDocuments = async (orderedDeckIds: string[]) => {

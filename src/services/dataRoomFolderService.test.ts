@@ -61,6 +61,7 @@ const mocks = vi.hoisted(() => {
       }),
       eq: vi.fn(() => chain),
       in: vi.fn(() => chain),
+      is: vi.fn(() => chain),
       order: vi.fn(() => chain),
       maybeSingle: vi.fn(async () =>
         consumeResponse(`${table}.${mode}.maybeSingle`),
