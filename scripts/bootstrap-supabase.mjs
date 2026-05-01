@@ -38,8 +38,32 @@ function runSupabase(supabaseArgs, options = {}) {
   }
 
   if (result.status !== 0) {
-    throw new Error(`Supabase command failed: ${supabaseArgs.join(" ")}`);
+    throw new Error(
+      `Supabase command failed: ${redactSupabaseArgs(supabaseArgs).join(" ")}`
+    );
   }
+}
+
+function redactSupabaseArgs(values) {
+  const redacted = [];
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+
+    if (value === "--password") {
+      redacted.push("--password", "[REDACTED]");
+      index += 1;
+      continue;
+    }
+
+    if (value.startsWith("--password=")) {
+      redacted.push("--password=[REDACTED]");
+      continue;
+    }
+
+    redacted.push(value);
+  }
+
+  return redacted;
 }
 
 function sqlEscape(value) {
