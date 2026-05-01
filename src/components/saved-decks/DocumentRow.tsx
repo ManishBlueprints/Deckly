@@ -23,6 +23,7 @@ interface DocumentRowProps {
   deck: SavedDeckOrganized;
   folders: LibraryFolder[];
   tags: LibraryTag[];
+  matchedTagNames?: string[];
   onMoveToFolder: (folderId: string | null) => void;
   onUpdateTags: (tagIds: string[]) => void;
   onSaveNote: (note: string) => Promise<void>;
@@ -35,6 +36,7 @@ export const DocumentRow = memo(function DocumentRow({
   deck,
   folders,
   tags,
+  matchedTagNames = [],
   onMoveToFolder,
   onUpdateTags,
   onSaveNote,
@@ -150,6 +152,9 @@ export const DocumentRow = memo(function DocumentRow({
             >
               {deck.title}
             </Link>
+            <span className="text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-1 border border-white/10 text-[#bbcbbb]/40">
+              Saved Deck
+            </span>
           </div>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
@@ -160,6 +165,13 @@ export const DocumentRow = memo(function DocumentRow({
               Interactive Deck
             </span>
           </div>
+          {matchedTagNames.length > 0 && (
+            <p className="mt-2 text-[11px] text-[#54e98a] leading-relaxed">
+              Matched by tag{matchedTagNames.length > 1 ? "s" : ""}:{" "}
+              {matchedTagNames.slice(0, 3).join(", ")}
+              {matchedTagNames.length > 3 ? ` +${matchedTagNames.length - 3} more` : ""}
+            </p>
+          )}
         </div>
 
         {/* Tags */}

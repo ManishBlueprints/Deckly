@@ -1,38 +1,58 @@
 import { useAuth } from "../../contexts/AuthContext";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ContentStatsCard } from "./ContentStatsCard";
 import { DecksTable } from "./DecksTable";
 import { useDecks } from "../../hooks/useDecks";
 import { useUserTotalStats } from "../../hooks/useUserTotalStats";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { deckService } from "../../services/deckService";
+import { organizerService } from "../../services/organizerService";
 import { MetadataSearchMenu } from "../search/MetadataSearchMenu";
 import { useMetadataSearchState } from "../../hooks/useMetadataSearchState";
 import { filterContentLibraryDecks } from "../../utils/metadataSearchAdapters";
+import { ManageTagsModal } from "../saved-decks/ManageTagsModal";
+import { ManageTagsButton } from "../shared/ManageTagsButton";
+import { DeckWithAnalytics, LibraryTag } from "../../types";
 
 export function ContentView() {
   const { session, profile } = useAuth();
   const queryClient = useQueryClient();
+  const userId = session?.user?.id;
 
   const {
     data: decks = [],
     isLoading: decksLoading,
     isFetching: decksFetching,
-  } = useDecks(session?.user?.id);
+  } = useDecks(userId);
   const {
     data: stats,
     isLoading: statsLoading,
     isFetching: statsFetching,
-  } = useUserTotalStats(session?.user?.id);
+  } = useUserTotalStats(userId);
+  const { data: tags = [] } = useQuery({
+    queryKey: ["library-tags", userId],
+    queryFn: () => organizerService.getTags(userId),
+    enabled: !!userId,
+    staleTime: 30_000,
+  });
 
   const loading = (decksLoading || statsLoading) && decks.length === 0;
   const isRefreshing = decksFetching || statsFetching;
   const search = useMetadataSearchState("content_library");
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const hasActiveSearch = search.isActive || selectedTagId !== null;
   const filteredDecks = useMemo(
-    () => filterContentLibraryDecks(decks, search.filter),
-    [decks, search.filter],
+    () => filterContentLibraryDecks(decks, search.filter, selectedTagId),
+    [decks, search.filter, selectedTagId],
   );
   const hasSearchResults = filteredDecks.length > 0;
+  const [isManageTagsModalOpen, setIsManageTagsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (selectedTagId && !tags.some((tag) => tag.id === selectedTagId)) {
+      setSelectedTagId(null);
+    }
+  }, [selectedTagId, tags]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleDeleteDeck = async (deck: any) => {
@@ -59,6 +79,78 @@ export function ContentView() {
     }
   };
 
+  const handleCreateTag = async (name: string, color: string) => {
+    const createdTag = await organizerService.createTag(name, color);
+    if (userId) {
+      queryClient.setQueryData<LibraryTag[]>(["library-tags", userId], (prev) => [
+        ...(prev ?? []),
+        createdTag,
+      ]);
+    }
+    return createdTag;
+  };
+
+  const handleUpdateTag = async (tagId: string, name: string, color: string) => {
+    await organizerService.updateTag(tagId, name, color);
+    if (!userId) return;
+
+    queryClient.setQueryData<LibraryTag[]>(["library-tags", userId], (prev) =>
+      (prev ?? []).map((tag) =>
+        tag.id === tagId ? { ...tag, name, color } : tag,
+      ),
+    );
+    queryClient.setQueryData<DeckWithAnalytics[]>(["decks", userId], (prev) =>
+      (prev ?? []).map((deck) => ({
+        ...deck,
+        tags: (deck.tags ?? []).map((tag) =>
+          tag.id === tagId ? { ...tag, name, color } : tag,
+        ),
+      })),
+    );
+  };
+
+  const handleDeleteTag = async (tagId: string) => {
+    await organizerService.deleteTag(tagId);
+    if (!userId) return;
+
+    queryClient.setQueryData<LibraryTag[]>(["library-tags", userId], (prev) =>
+      (prev ?? []).filter((tag) => tag.id !== tagId),
+    );
+    queryClient.setQueryData<DeckWithAnalytics[]>(["decks", userId], (prev) =>
+      (prev ?? []).map((deck) => ({
+        ...deck,
+        tags: (deck.tags ?? []).filter((tag) => tag.id !== tagId),
+      })),
+    );
+  };
+
+  const handleUpdateDeckTags = async (deckId: string, tagIds: string[]) => {
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const previousDecks = queryClient.getQueryData<DeckWithAnalytics[]>(["decks", userId]);
+    const latestTags =
+      queryClient.getQueryData<LibraryTag[]>(["library-tags", userId]) ?? tags;
+    const selectedTags = latestTags.filter((tag) => tagIds.includes(tag.id));
+
+    queryClient.setQueryData<DeckWithAnalytics[]>(["decks", userId], (prev) =>
+      (prev ?? []).map((deck) =>
+        deck.id === deckId ? { ...deck, tags: selectedTags } : deck,
+      ),
+    );
+
+    try {
+      await deckService.updateDeckTags(deckId, tagIds);
+      await queryClient.invalidateQueries({ queryKey: ["decks", userId] });
+    } catch (err) {
+      if (previousDecks) {
+        queryClient.setQueryData(["decks", userId], previousDecks);
+      }
+      throw err;
+    }
+  };
+
   return (
     <div className="space-y-12 pb-12 animate-in fade-in duration-700 relative">
       {/* Header Section */}
@@ -72,18 +164,35 @@ export function ContentView() {
           </h1>
         </div>
 
-        <MetadataSearchMenu
-          filter={search.filter}
-          isActive={search.isActive}
-          onModeChange={search.setMode}
-          onQueryChange={search.setQuery}
-          onDatePresetChange={search.setDatePreset}
-          onCustomDateRangeChange={search.setCustomDateRange}
-          onClear={search.resetFilter}
-          resultCount={filteredDecks.length}
-          triggerLabel="Search"
-          namePlaceholder="Search deck titles..."
-        />
+        <div className="flex items-center gap-2 md:gap-4">
+          <MetadataSearchMenu
+            filter={search.filter}
+            isActive={hasActiveSearch}
+            onModeChange={search.setMode}
+            onQueryChange={search.setQuery}
+            onDatePresetChange={search.setDatePreset}
+            onCustomDateRangeChange={search.setCustomDateRange}
+            onClear={() => {
+              search.resetFilter();
+              setSelectedTagId(null);
+            }}
+            resultCount={filteredDecks.length}
+            triggerLabel="Search"
+            namePlaceholder="Search deck titles..."
+            filterOptions={tags.map((tag) => ({
+              id: tag.id,
+              name: tag.name,
+              color: tag.color,
+            }))}
+            selectedFilterId={selectedTagId}
+            onFilterChange={setSelectedTagId}
+            filterEmptyMessage="No tags created"
+          />
+          <ManageTagsButton
+            onClick={() => setIsManageTagsModalOpen(true)}
+            label="Edit Tags"
+          />
+        </div>
       </div>
 
       {/* Subtle refresh indicator */}
@@ -108,11 +217,22 @@ export function ContentView() {
         userHandle={profile?.handle || "username"}
         loading={loading}
         onDelete={handleDeleteDeck}
+        availableTags={tags}
+        onUpdateTags={handleUpdateDeckTags}
         emptyMessage={
-          search.isActive && !hasSearchResults
+          hasActiveSearch && !hasSearchResults
             ? "No decks match the current search"
-            : "No decks uploaded yet"
+          : "No decks uploaded yet"
         }
+      />
+
+      <ManageTagsModal
+        isOpen={isManageTagsModalOpen}
+        onClose={() => setIsManageTagsModalOpen(false)}
+        tags={tags}
+        onCreate={handleCreateTag}
+        onUpdate={handleUpdateTag}
+        onDelete={handleDeleteTag}
       />
     </div>
   );

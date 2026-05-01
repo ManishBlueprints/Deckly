@@ -19,8 +19,9 @@ import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
 
 interface SavedRoomRowProps {
   room: SavedDataRoomOrganized;
-  folders: LibraryFolder[];
+  folders: LibraryFolder[]; 
   tags: LibraryTag[];
+  matchedTagNames?: string[];
   onUnsave: () => void;
 }
 
@@ -38,6 +39,7 @@ export const SavedRoomRow = memo(function SavedRoomRow({
   room,
   folders,
   tags,
+  matchedTagNames = [],
   onUnsave,
 }: SavedRoomRowProps) {
   const { session } = useAuth();
@@ -234,7 +236,7 @@ export const SavedRoomRow = memo(function SavedRoomRow({
                   {room.title}
                 </Link>
                 <span className="text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-1 border border-white/10 text-[#bbcbbb]/40">
-                  Room
+                  Saved Room
                 </span>
                 {room.is_deleted && (
                   <span className="text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-1 border border-amber-500/30 text-amber-400">
@@ -260,6 +262,15 @@ export const SavedRoomRow = memo(function SavedRoomRow({
                   </>
                 )}
               </div>
+              {matchedTagNames.length > 0 && (
+                <p className="mt-2 text-[11px] text-[#54e98a] leading-relaxed">
+                  Matched by tag{matchedTagNames.length > 1 ? "s" : ""}:{" "}
+                  {matchedTagNames.slice(0, 3).join(", ")}
+                  {matchedTagNames.length > 3
+                    ? ` +${matchedTagNames.length - 3} more`
+                    : ""}
+                </p>
+              )}
             </div>
           </div>
 

@@ -18,7 +18,8 @@ export function DataRoomContentToolbar({
 }: DataRoomContentToolbarProps) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
         <button
           onClick={onNewDeck}
           className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto"
@@ -49,7 +50,8 @@ export function DataRoomContentToolbar({
         </button>
       </div>
 
-      <div className="flex justify-end">{searchControl}</div>
+        <div className="flex w-full justify-end xl:w-auto">{searchControl}</div>
+      </div>
     </div>
   );
 }

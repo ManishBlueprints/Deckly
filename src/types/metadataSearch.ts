@@ -12,7 +12,7 @@ export type MetadataSearchPageScope =
   (typeof METADATA_SEARCH_PAGE_SCOPES)[number];
 
 /** Metadata-only v1 modes. Inside-document search is intentionally excluded. */
-export const METADATA_SEARCH_MODES = ["name", "date"] as const;
+export const METADATA_SEARCH_MODES = ["name", "date", "filter"] as const;
 
 export type MetadataSearchMode = (typeof METADATA_SEARCH_MODES)[number];
 

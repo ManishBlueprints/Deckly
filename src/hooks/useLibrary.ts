@@ -45,12 +45,7 @@ export function useLibrary(userId: string | undefined) {
   const tags: LibraryTag[] = tagsQ.data ?? [];
   
   const isError = decksQ.isError || foldersQ.isError || tagsQ.isError;
-  const isLoading =
-    (decksQ.isLoading || foldersQ.isLoading || tagsQ.isLoading) &&
-    decks.length === 0 &&
-    folders.length === 0 &&
-    tags.length === 0 &&
-    !isError;
+  const isLoading = decksQ.isLoading && decks.length === 0 && !isError;
 
   const refetch = useCallback(() => {
     if (!userId) return Promise.resolve();
@@ -341,6 +336,10 @@ export function useLibrary(userId: string | undefined) {
             tags: (d.tags ?? []).filter((t) => t.id !== id),
           })),
       );
+      qc.invalidateQueries({ queryKey: KEYS.tags(userId) });
+      qc.invalidateQueries({ queryKey: KEYS.folders(userId) });
+      qc.invalidateQueries({ queryKey: KEYS.decks(userId) });
+      qc.invalidateQueries({ queryKey: ["saved-data-rooms"] });
     },
   });
 

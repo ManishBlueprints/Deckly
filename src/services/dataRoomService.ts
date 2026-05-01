@@ -140,7 +140,15 @@ export const dataRoomService = {
     return withRetry(async () => {
       const { data, error } = await supabase
         .from("data_room_documents")
-        .select("*, deck:decks(*)")
+        .select(`
+          *,
+          deck:decks (
+            *,
+            deck_tags (
+              global_tags (*)
+            )
+          )
+        `)
         .eq("data_room_id", roomId)
         .order("display_order", { ascending: true });
 
@@ -151,46 +159,15 @@ export const dataRoomService = {
         deck: d.deck || undefined,
       })) as DataRoomDocument[];
 
-      if (documents.length > 0) {
-        const documentIds = documents.map((doc) => doc.id);
-        const { data: tagLinksData, error: tagLinksError } = await supabase
-          .from("data_room_document_tags")
-          .select("document_id, tag_id")
-          .in("document_id", documentIds);
-
-        if (tagLinksError) throw tagLinksError;
-
-        const tagLinks = (tagLinksData || []) as { document_id: string; tag_id: string }[];
-        const tagIds = [...new Set(tagLinks.map((link) => link.tag_id))];
-        const tagsById = new Map<string, DataRoomTag>();
-
-        if (tagIds.length > 0) {
-          const { data: tagsData, error: tagsError } = await supabase
-            .from("data_room_tags")
-            .select("*")
-            .in("id", tagIds);
-
-          if (tagsError) throw tagsError;
-
-          (tagsData || []).forEach((tag) => {
-            const typedTag = tag as DataRoomTag;
-            tagsById.set(typedTag.id, typedTag);
-          });
-        }
-
-        const tagsByDocument = new Map<string, DataRoomTag[]>();
-        tagLinks.forEach((link) => {
-          const tag = tagsById.get(link.tag_id);
-          if (!tag) return;
-          const current = tagsByDocument.get(link.document_id) || [];
-          current.push(tag);
-          tagsByDocument.set(link.document_id, current);
-        });
-
-        documents.forEach((doc) => {
-          doc.tags = tagsByDocument.get(doc.id) || [];
-        });
-      }
+      documents.forEach((doc) => {
+        const deck = doc.deck as
+          | (Deck & { deck_tags?: { global_tags: DataRoomTag }[] })
+          | undefined;
+        const tags = (deck?.deck_tags || [])
+          .map((link) => link.global_tags)
+          .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
+        doc.tags = tags;
+      });
 
       // Hydrate signed URLs only when explicitly requested
       if (options?.signUrls) {
@@ -318,12 +295,15 @@ export const dataRoomService = {
 
   // ── ANALYTICS DASHBOARD ───────────────────────────────────────────
 
-  async getDataRoomAnalytics(roomId: string): Promise<{
+  async getDataRoomAnalytics(
+    roomId: string,
+    documents?: DataRoomDocument[],
+  ): Promise<{
     totalVisitors: number;
     perDeck: { deckId: string; title: string; visitors: number }[];
   }> {
     return withRetry(async () => {
-      const docs = await this.getDocuments(roomId, { signUrls: false });
+      const docs = documents ?? await this.getDocuments(roomId, { signUrls: false });
       const deckIds = docs.map((d) => d.deck_id);
 
       if (deckIds.length === 0) {

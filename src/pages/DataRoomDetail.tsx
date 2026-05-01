@@ -28,7 +28,10 @@ import { DataRoomAnalyticsPanel } from "../components/data-room/detail/DataRoomA
 import { DataRoomSettingsPanel } from "../components/data-room/detail/DataRoomSettingsPanel";
 import { MetadataSearchMenu } from "../components/search/MetadataSearchMenu";
 import { useMetadataSearchState } from "../hooks/useMetadataSearchState";
-import { filterDataRoomDocuments } from "../utils/metadataSearchAdapters";
+import {
+  filterDataRoomDocuments,
+  type DataRoomDocumentSearchResult,
+} from "../utils/metadataSearchAdapters";
 import { reorderDataRoomDocuments } from "../utils/dataRoomOrdering";
 import { analyticsService } from "../services/analyticsService";
 import {
@@ -75,6 +78,7 @@ function DataRoomDetail() {
   }[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [folderModalOpen, setFolderModalOpen] = useState(false);
   const [tagModalOpen, setTagModalOpen] = useState(false);
@@ -86,6 +90,7 @@ function DataRoomDetail() {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<DataRoomDetailTab>("content");
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isUpdatingShareState, setIsUpdatingShareState] = useState(false);
@@ -108,9 +113,37 @@ function DataRoomDetail() {
     [folders],
   );
 
-  const visibleDocuments = useMemo(() => {
-    return filterDataRoomDocuments(documents, search.filter, activeFolderId);
-  }, [activeFolderId, documents, search.filter]);
+  const visibleDocumentResults = useMemo(() => {
+    return filterDataRoomDocuments(
+      documents,
+      search.filter,
+      activeFolderId,
+      selectedTagId,
+    );
+  }, [activeFolderId, documents, search.filter, selectedTagId]);
+
+  const visibleDocuments = useMemo(
+    () => visibleDocumentResults.map((result) => result.document),
+    [visibleDocumentResults],
+  );
+
+  const documentMatchInfo = useMemo(
+    () =>
+      visibleDocumentResults.reduce<Record<string, DataRoomDocumentSearchResult>>(
+        (acc, result) => {
+          acc[result.document.id] = result;
+          return acc;
+        },
+        {},
+      ),
+    [visibleDocumentResults],
+  );
+
+  useEffect(() => {
+    if (selectedTagId && !tags.some((tag) => tag.id === selectedTagId)) {
+      setSelectedTagId(null);
+    }
+  }, [selectedTagId, tags]);
 
   const workspaceHandle = profile?.handle;
   const shareUrlLabel = workspaceHandle
@@ -123,11 +156,11 @@ function DataRoomDetail() {
   const loadAll = useCallback(async () => {
     if (!roomId) return;
     setLoading(true);
+    setAnalyticsLoading(true);
     try {
-      const [roomData, docs, analyticsData] = await Promise.all([
+      const [roomData, docs] = await Promise.all([
         dataRoomService.getDataRoomById(roomId),
         dataRoomService.getDocuments(roomId),
-        dataRoomService.getDataRoomAnalytics(roomId),
       ]);
       if (!roomData) {
         navigate("/rooms");
@@ -135,10 +168,10 @@ function DataRoomDetail() {
       }
       setRoom(roomData);
       setDocuments(docs);
-      setAnalytics(analyticsData);
+      setLoading(false);
 
       setSignalsLoading(true);
-      getRoomVisitorSignals(roomId)
+      void getRoomVisitorSignals(roomId)
         .then(setRoomSignals)
         .catch((err) => {
           console.error("Failed to load visitor signals", err);
@@ -146,7 +179,7 @@ function DataRoomDetail() {
         })
         .finally(() => setSignalsLoading(false));
 
-      analyticsService
+      void analyticsService
         .getDataRoomLocations(roomId)
         .then(setRoomLocations)
         .catch((err: unknown) => {
@@ -154,17 +187,28 @@ function DataRoomDetail() {
           setRoomLocations({ countries: [], cities: [] });
         });
 
-      analyticsService
+      void analyticsService
         .getDataRoomDocumentStats(roomId)
         .then(setRoomDocumentStats)
         .catch((err: unknown) => {
           console.error("Failed to load room document stats", err);
           setRoomDocumentStats([]);
         });
+
+      void dataRoomService
+        .getDataRoomAnalytics(roomId, docs)
+        .then((analyticsData) => {
+          setAnalytics(analyticsData);
+        })
+        .catch((err) => {
+          console.error("Failed to load room analytics", err);
+          setAnalytics({ totalVisitors: 0, perDeck: [] });
+        })
+        .finally(() => setAnalyticsLoading(false));
     } catch (err) {
       console.error("Failed to load room", err);
-    } finally {
       setLoading(false);
+      setAnalyticsLoading(false);
     }
   }, [roomId, navigate]);
 
@@ -305,6 +349,8 @@ function DataRoomDetail() {
 
   const handleDeleteTag = async (tagId: string) => {
     await folderActions.deleteTag(tagId);
+    await loadAll();
+    queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
     toast.success("Tag deleted");
   };
 
@@ -361,8 +407,13 @@ function DataRoomDetail() {
       );
 
       try {
-        await folderActions.setDocumentTags(documentId, tagIds);
-        queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
+        const deckId = documents.find((doc) => doc.id === documentId)?.deck_id;
+        if (!deckId) {
+          throw new Error("Document not found.");
+        }
+
+        await deckService.updateDeckTags(deckId, tagIds);
+        void queryClient.invalidateQueries({ queryKey: ["decks", profile?.id] });
       } catch (err) {
         setDocuments(previousDocuments);
         console.error("Failed to update document tags", err);
@@ -371,12 +422,12 @@ function DataRoomDetail() {
         );
       }
     },
-    [documents, folderActions, queryClient, tags],
+    [documents, profile?.id, queryClient, tags],
   );
 
   const handleReorderDocuments = async (orderedDeckIds: string[]) => {
     if (!roomId) return;
-    if (search.isActive) {
+    if (search.isActive || selectedTagId !== null) {
       toast.info("Clear search to reorder documents");
       return;
     }
@@ -459,8 +510,11 @@ function DataRoomDetail() {
             onDeleteFolder={(nextFolder) => setDeletingFolder(nextFolder)}
             onEditTags={() => setTagModalOpen(true)}
             search={search}
+            selectedTagId={selectedTagId}
+            onSelectedTagChange={setSelectedTagId}
             documents={documents}
             visibleDocuments={visibleDocuments}
+            documentMatchInfo={documentMatchInfo}
             onRemoveDocument={handleRemoveDocument}
             onReorderDocuments={handleReorderDocuments}
             tags={tags}
@@ -481,6 +535,7 @@ function DataRoomDetail() {
             roomDocumentStats={roomDocumentStats}
             signalsLoading={signalsLoading}
             roomSignals={roomSignals}
+            loading={analyticsLoading}
           />
         )}
 
@@ -623,8 +678,11 @@ function DataRoomContentSection({
   onDeleteFolder,
   onEditTags,
   search,
+  selectedTagId,
+  onSelectedTagChange,
   documents,
   visibleDocuments,
+  documentMatchInfo,
   onRemoveDocument,
   onReorderDocuments,
   tags,
@@ -646,8 +704,11 @@ function DataRoomContentSection({
   onDeleteFolder: (folder: DataRoomFolderWithTags) => void;
   onEditTags: () => void;
   search: ReturnType<typeof useMetadataSearchState>;
+  selectedTagId: string | null;
+  onSelectedTagChange: (tagId: string | null) => void;
   documents: DataRoomDocument[];
   visibleDocuments: DataRoomDocument[];
+  documentMatchInfo: Record<string, DataRoomDocumentSearchResult>;
   onRemoveDocument: (deckId: string) => Promise<void>;
   onReorderDocuments: (orderedDeckIds: string[]) => Promise<void>;
   tags: DataRoomTag[];
@@ -667,15 +728,26 @@ function DataRoomContentSection({
         searchControl={
           <MetadataSearchMenu
             filter={search.filter}
-            isActive={search.isActive}
+            isActive={search.isActive || selectedTagId !== null}
             onModeChange={search.setMode}
             onQueryChange={search.setQuery}
             onDatePresetChange={search.setDatePreset}
             onCustomDateRangeChange={search.setCustomDateRange}
-            onClear={search.resetFilter}
+            onClear={() => {
+              search.resetFilter();
+              onSelectedTagChange(null);
+            }}
             resultCount={visibleDocuments.length}
             triggerLabel="Search"
             namePlaceholder="Search document titles..."
+            filterOptions={tags.map((tag) => ({
+              id: tag.id,
+              name: tag.name,
+              color: tag.color,
+            }))}
+            selectedFilterId={selectedTagId}
+            onFilterChange={onSelectedTagChange}
+            filterEmptyMessage="No tags created"
           />
         }
       />
@@ -717,7 +789,7 @@ function DataRoomContentSection({
             <p className="text-xs text-slate-500">
               {documents.length === 0
                 ? "Add decks to gate them inside this room."
-                : "Clear your search or date filter to see everything again."}
+                : "Try another title, tag, or clear the current search."}
             </p>
             <button
               onClick={onNewDeck}
@@ -730,6 +802,7 @@ function DataRoomContentSection({
           <div className="p-3 sm:p-4">
             <RoomDocumentList
               documents={visibleDocuments}
+              documentMatchInfo={documentMatchInfo}
               onRemove={onRemoveDocument}
               onReorder={onReorderDocuments}
               folderOptions={folders.map((folder) => ({

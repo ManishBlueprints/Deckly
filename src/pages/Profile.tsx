@@ -429,6 +429,8 @@ function IdentitySection({
           </div>
         </div>
         <input
+          id="profile-logo-upload"
+          name="profile-logo-upload"
           type="file"
           ref={fileInputRef}
           className="hidden"
