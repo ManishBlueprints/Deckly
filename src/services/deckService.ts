@@ -18,6 +18,15 @@ import {
 import { globalTagService } from "./globalTagService";
 import { withRetry } from "../utils/resilience";
 
+const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | null => {
+  if (!tag) return null;
+
+  return {
+    ...tag,
+    deleted_at: tag.deleted_at ?? null,
+  };
+};
+
 const deckCrudService = {
   async getAllDecks(providedUserId?: string): Promise<Deck[]> {
     return withRetry(async () => {
@@ -245,48 +254,13 @@ const deckCrudService = {
         throw new Error("One or more tags were not found.");
       }
 
-      const { data: deckRecord, error: deckError } = await supabase
-        .from("decks")
-        .select("id")
-        .eq("id", deckId)
-        .eq("user_id", userId)
-        .single();
+      const { error } = await supabase.rpc("reconcile_deck_tags", {
+        p_deck_id: deckId,
+        p_user_id: userId,
+        p_tag_ids: nextTagIds,
+      });
 
-      if (deckError || !deckRecord) {
-        throw deckError || new Error("Deck not found.");
-      }
-
-      const { data: currentTags, error: fetchError } = await supabase
-        .from("deck_tags")
-        .select("tag_id")
-        .eq("deck_id", deckId);
-
-      if (fetchError) throw fetchError;
-
-      const currentTagIds = (currentTags || []).map((row) => row.tag_id);
-      const toRemove = currentTagIds.filter((tagId) => !nextTagIds.includes(tagId));
-      const toAdd = nextTagIds.filter((tagId) => !currentTagIds.includes(tagId));
-
-      if (toRemove.length > 0) {
-        const { error: removeError } = await supabase
-          .from("deck_tags")
-          .delete()
-          .eq("deck_id", deckId)
-          .in("tag_id", toRemove);
-        if (removeError) throw removeError;
-      }
-
-      if (toAdd.length > 0) {
-        const { error: addError } = await supabase
-          .from("deck_tags")
-          .insert(
-            toAdd.map((tagId) => ({
-              deck_id: deckId,
-              tag_id: tagId,
-            })),
-          );
-        if (addError) throw addError;
-      }
+      if (error) throw error;
     });
   },
 
@@ -505,7 +479,7 @@ const deckAnalyticsService = {
           deck_tags?: { global_tags: LibraryTag }[];
         };
         const tags = (typedEntry.deck_tags || [])
-          .map((link) => link.global_tags)
+          .map((link) => normalizeLibraryTag(link.global_tags))
           .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null));
         tagsByDeckId.set(typedEntry.id, tags);
       });

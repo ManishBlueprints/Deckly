@@ -41,7 +41,9 @@ export function filterContentLibraryDecks(
     const matchesTag =
       selectedTagId === null || (deck.tags ?? []).some((tag) => tag.id === selectedTagId);
     const matchesName =
-      filter.mode !== "name" || matchesMetadataNameQuery(deck.title, filter.query);
+      filter.mode !== "name" ||
+      matchesMetadataNameQuery(deck.title, filter.query) ||
+      (deck.tags ?? []).some((tag) => matchesMetadataNameQuery(tag.name, filter.query));
     const matchesDate =
       filter.mode !== "date" || matchesMetadataDateFilter(deck.created_at, filter.date);
 

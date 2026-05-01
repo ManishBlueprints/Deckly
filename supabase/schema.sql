@@ -45,7 +45,7 @@ CREATE POLICY "Users can insert their own profile" ON public.profiles
 CREATE OR REPLACE FUNCTION public.update_tutorial_state(p_state JSONB)
 RETURNS VOID
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = public, extensions
 AS $$
 BEGIN
@@ -303,6 +303,69 @@ $$;
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION get_batch_data_room_analytics(UUID[]) TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.reconcile_deck_tags(
+    p_deck_id UUID,
+    p_user_id UUID,
+    p_tag_ids UUID[] DEFAULT '{}'::uuid[]
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_next_tag_ids UUID[];
+    v_owned_tag_count INTEGER;
+BEGIN
+    IF auth.uid() IS NULL THEN
+        RAISE EXCEPTION 'Authentication required';
+    END IF;
+
+    IF auth.uid() <> p_user_id THEN
+        RAISE EXCEPTION 'Permission denied';
+    END IF;
+
+    SELECT ARRAY(
+        SELECT DISTINCT tag_id
+        FROM unnest(COALESCE(p_tag_ids, '{}'::uuid[])) AS tag_id
+        WHERE tag_id IS NOT NULL
+    )
+    INTO v_next_tag_ids;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.decks d
+        WHERE d.id = p_deck_id
+          AND d.user_id = p_user_id
+    ) THEN
+        RAISE EXCEPTION 'Deck not found or access denied';
+    END IF;
+
+    SELECT COUNT(*)::INTEGER
+    INTO v_owned_tag_count
+    FROM public.global_tags gt
+    WHERE gt.id = ANY(COALESCE(v_next_tag_ids, '{}'::uuid[]))
+      AND gt.user_id = p_user_id
+      AND gt.deleted_at IS NULL;
+
+    IF v_owned_tag_count <> COALESCE(array_length(v_next_tag_ids, 1), 0) THEN
+        RAISE EXCEPTION 'One or more tags were not found.';
+    END IF;
+
+    DELETE FROM public.deck_tags
+    WHERE deck_id = p_deck_id
+      AND NOT (tag_id = ANY(COALESCE(v_next_tag_ids, '{}'::uuid[])));
+
+    INSERT INTO public.deck_tags (deck_id, tag_id)
+    SELECT p_deck_id, tag_id
+    FROM unnest(COALESCE(v_next_tag_ids, '{}'::uuid[])) AS tag_id
+    ON CONFLICT (deck_id, tag_id) DO NOTHING;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.reconcile_deck_tags(UUID, UUID, UUID[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.reconcile_deck_tags(UUID, UUID, UUID[]) TO authenticated;
+
 -- Unique index to handle per-room aggregation (treating NULL as Global context)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_deck_stats_unique_room 
 ON public.deck_stats (deck_id, page_number, (COALESCE(data_room_id, '00000000-0000-0000-0000-000000000000'::uuid)));
@@ -393,7 +456,7 @@ FOR SELECT TO anon, authenticated USING (true);
 CREATE OR REPLACE FUNCTION public.get_current_user_tier_limit()
 RETURNS public.tier_limits
 LANGUAGE sql
-SECURITY DEFINER
+SECURITY INVOKER
 STABLE
 SET search_path = public, extensions
 AS $$
@@ -510,10 +573,10 @@ USING (
     (select auth.uid())::text = (string_to_array(name, '/'))[1]
 );
 
+-- Public asset URLs work because the bucket itself is public.
+-- We intentionally do not add a broad SELECT policy here, which would also
+-- allow clients to list all objects in the bucket through the Storage API.
 DROP POLICY IF EXISTS "Anyone can read assets bucket" ON storage.objects;
-CREATE POLICY "Anyone can read assets bucket"
-ON storage.objects FOR SELECT TO anon, authenticated
-USING (bucket_id = 'assets');
 
 
 -- MIGRATIONS (for multi-document support)
@@ -1033,7 +1096,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.count_unique_visitors(p_deck_id UUID)
 RETURNS INTEGER
 LANGUAGE sql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = public, extensions
 AS $$
   SELECT COUNT(DISTINCT visitor_id)::INTEGER
@@ -1045,7 +1108,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.get_deck_locations(p_deck_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = public, extensions
 AS $$
 BEGIN
@@ -1081,8 +1144,8 @@ $$;
 -- Grant permissions for analytics
 REVOKE EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.count_unique_visitors(UUID) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.get_deck_locations(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.count_unique_visitors(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_deck_locations(UUID) TO authenticated;
 
 -- =============================================================================
 -- ADVANCED RATE LIMITING & CAPACITY ENFORCEMENT
@@ -2009,3 +2072,28 @@ GRANT EXECUTE ON FUNCTION public.check_deck_password(TEXT, TEXT) TO anon, authen
 GRANT EXECUTE ON FUNCTION public.get_data_room_payload(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_data_room_password(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) TO anon, authenticated;
+
+-- =============================================================================
+-- SECURITY HARDENING
+-- Explicitly revoke default function execution so only intended roles can call
+-- SECURITY DEFINER helpers through PostgREST RPC endpoints.
+-- =============================================================================
+
+REVOKE EXECUTE ON FUNCTION public.update_tutorial_state(JSONB) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_current_user_tier_limit() FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.count_unique_visitors(UUID) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_deck_locations(UUID) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.is_admin(UUID) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.create_admin_broadcast(UUID[], TEXT, TEXT, JSONB) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.create_admin_broadcast_all(TEXT, TEXT, JSONB) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_total_system_users() FROM PUBLIC, anon;
+
+REVOKE EXECUTE ON FUNCTION public.check_rate_limit(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.record_failed_attempt(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.clear_rate_limit(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.validate_signup_throttle() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.cleanup_expired_notifications() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.notify_on_deck_save() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.notify_signal_threshold() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.notify_on_deck_update() FROM PUBLIC, anon, authenticated;

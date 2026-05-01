@@ -4,6 +4,17 @@ import { DataRoom, DataRoomDocument, DataRoomTag, Deck } from "../types";
 import { withRetry } from "../utils/resilience";
 import { extractStoragePath } from "./deckService.shared";
 
+const normalizeDataRoomTag = (
+  tag: DataRoomTag | null | undefined,
+): DataRoomTag | null => {
+  if (!tag) return null;
+
+  return {
+    ...tag,
+    deleted_at: tag.deleted_at ?? null,
+  };
+};
+
 export const dataRoomService = {
   // ── CRUD ────────────────────────────────────────────────
 
@@ -164,7 +175,7 @@ export const dataRoomService = {
           | (Deck & { deck_tags?: { global_tags: DataRoomTag }[] })
           | undefined;
         const tags = (deck?.deck_tags || [])
-          .map((link) => link.global_tags)
+          .map((link) => normalizeDataRoomTag(link.global_tags))
           .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
         doc.tags = tags;
       });

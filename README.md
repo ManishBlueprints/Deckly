@@ -104,42 +104,74 @@ For more details, see the full [LICENSE](./LICENSE) file.
 - **Docker**: Required for local Supabase development environment.
 - **Supabase CLI**: (Optional) Use `npx supabase` or install globally.
 
-### Setup
+### Canonical Supabase Files
 
-1. **Clone & Install**:
+Deckly keeps the install surface intentionally small:
+
+- [`supabase/schema.sql`](./supabase/schema.sql) is the human-readable canonical snapshot.
+- [`supabase/migrations/`](./supabase/migrations) is the executable history that Supabase replays.
+- [`supabase/seed.sql`](./supabase/seed.sql) stays minimal and non-production.
+- [`supabase/bootstrap/verify.sql`](./supabase/bootstrap/verify.sql) verifies a fresh install.
+- [`scripts/bootstrap-supabase.mjs`](./scripts/bootstrap-supabase.mjs) is the one command entrypoint.
+
+### Fresh Install
+
+1. **Clone and install**
 
    ```bash
    git clone https://github.com/ManishBlueprints/Deckly.git
    cd Deckly
    npm install
-   ```
-
-2. **Configure Environment**:
-
-   ```bash
    cp .env.example .env.local
-   # The default local Supabase values are:
-   # VITE_SUPABASE_URL=http://127.0.0.1:54321
-   # VITE_SUPABASE_PUBLISHABLE_KEY=your_random_key
    ```
 
-3. **Database Setup (Local)**:
+2. **Configure app env**
+
+   Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for your target project.
+   For local development they usually point at:
 
    ```bash
-   npx supabase start
+   VITE_SUPABASE_URL=http://127.0.0.1:54321
+   VITE_SUPABASE_PUBLISHABLE_KEY=your_local_publishable_key
    ```
 
-   This spins up the local infrastructure and applies the hardened initial schema automatically.
+3. **Bootstrap Supabase**
 
-### Launch
+   - Local stack:
 
-#### Local Node.js
+     ```bash
+     npm run supabase:bootstrap -- local
+     ```
+
+   - Fresh linked Supabase project:
+
+     ```bash
+     npx supabase login
+     npm run supabase:bootstrap -- remote --project-ref YOUR_PROJECT_REF
+     ```
+
+     Optional but recommended:
+
+     ```bash
+     SUPABASE_DB_PASSWORD=your_database_password
+     SUPABASE_ADMIN_EMAIL=you@yourcompany.com
+     ```
+
+   The bootstrap script will link the project, push the migrations, seed the database, and run a verification query.
+
+### Local Development
 
 ```bash
 npm run dev
 ```
 
-### Quality checks
+If you want to refresh the local database again later, rerun:
+
+```bash
+npm run supabase:bootstrap -- local
+```
+
+### Quality Checks
 
 ```bash
 npm run type-check
@@ -147,9 +179,7 @@ npm run lint
 npm test
 ```
 
-Vitest is now part of the normal local workflow and should be considered a trusted signal before shipping changes.
-
-#### Docker Development
+### Docker Development
 
 The project includes a pre-configured Docker setup using **Node 20-alpine**.
 
@@ -158,6 +188,18 @@ docker-compose up
 ```
 
 The application will be available at `http://localhost:5173`.
+
+### Open-Source Self-Hosting
+
+If you are replicating Deckly in your own Supabase account:
+
+1. Run `npx supabase login`.
+2. Create a fresh Supabase project.
+3. Bootstrap it with `npm run supabase:bootstrap -- remote --project-ref YOUR_PROJECT_REF`.
+4. Set the required app env vars in `.env.local`.
+5. Start the app with `npm run dev`.
+
+If you want an initial admin email, pass `SUPABASE_ADMIN_EMAIL` during bootstrap or insert your own row into `public.admin_emails` after setup.
 
 ---
 

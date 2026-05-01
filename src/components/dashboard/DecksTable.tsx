@@ -52,6 +52,130 @@ interface DecksTableProps {
   emptyMessage?: string;
 }
 
+function DeckTagMenu({
+  deck,
+  availableTags,
+  onUpdateTags,
+}: {
+  deck: DeckWithAnalytics;
+  availableTags: LibraryTag[];
+  onUpdateTags: (deckId: string, tagIds: string[]) => Promise<void> | void;
+}) {
+  const [tagFilterQuery, setTagFilterQuery] = React.useState("");
+  const [selectedTagIds, setSelectedTagIds] = React.useState<string[]>(
+    () => (deck.tags ?? []).map((tag) => tag.id),
+  );
+
+  React.useEffect(() => {
+    setSelectedTagIds((deck.tags ?? []).map((tag) => tag.id));
+  }, [deck.id, deck.tags]);
+
+  const filteredTags = availableTags.filter((tag) =>
+    tagFilterQuery.trim()
+      ? tag.name.toLowerCase().includes(tagFilterQuery.trim().toLowerCase())
+      : true,
+  );
+
+  const handleTagToggle = (tagId: string, checked: boolean) => {
+    const nextIds = checked
+      ? [...selectedTagIds, tagId]
+      : selectedTagIds.filter((id) => id !== tagId);
+
+    setSelectedTagIds(nextIds);
+    void onUpdateTags(deck.id, nextIds);
+  };
+
+  const handleClearAll = () => {
+    setSelectedTagIds([]);
+    void onUpdateTags(deck.id, []);
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="w-8 h-8 flex items-center justify-center bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-md transition-all active:scale-95"
+          title={selectedTagIds.length > 0 ? `${selectedTagIds.length} tag(s) applied` : "Manage tags"}
+        >
+          <Tag size={14} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-80 p-0 overflow-hidden border-white/10 bg-[#151515] shadow-[0_24px_80px_-20px_rgba(0,0,0,0.85)]"
+        onEscapeKeyDown={() => setTagFilterQuery("")}
+      >
+        <div className="border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bbcbbb]/40">
+                Apply tags
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                {selectedTagIds.length > 0
+                  ? `${selectedTagIds.length} selected`
+                  : "Pick one or more tags"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
+            >
+              Clear all
+            </button>
+          </div>
+
+          <div className="mt-3">
+            <input
+              value={tagFilterQuery}
+              onChange={(e) => setTagFilterQuery(e.target.value)}
+              placeholder="Search tags..."
+              className="w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-white placeholder:text-slate-500 outline-none transition focus:border-emerald-500/30 focus:ring-1 focus:ring-emerald-500/20"
+            />
+          </div>
+        </div>
+
+        <div className="max-h-72 overflow-y-auto p-2 custom-scrollbar">
+          {filteredTags.length === 0 ? (
+            <div className="px-3 py-8 text-center">
+              <p className="text-sm font-medium text-slate-400">
+                No tags found
+              </p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-slate-600">
+                Try a different search
+              </p>
+            </div>
+          ) : (
+            filteredTags.map((tag) => {
+              const isSelected = selectedTagIds.includes(tag.id);
+              return (
+                <DropdownMenuCheckboxItem
+                  key={tag.id}
+                  checked={isSelected}
+                  onCheckedChange={(checked: boolean | "indeterminate") => {
+                    handleTagToggle(tag.id, checked === true);
+                  }}
+                  onSelect={(e) => e.preventDefault()}
+                  className="text-[#bbcbbb]/60 data-[highlighted]:bg-[#1c1b1b] data-[highlighted]:text-white cursor-pointer px-4 py-3 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    <span className="text-sm font-bold">{tag.name}</span>
+                  </div>
+                </DropdownMenuCheckboxItem>
+              );
+            })
+          )}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function DecksTable({
   decks,
   userHandle,
@@ -69,7 +193,6 @@ export function DecksTable({
   const [publishedIds, setPublishedIds] = React.useState<Set<string>>(
     new Set(),
   );
-  const [tagFilterQuery, setTagFilterQuery] = React.useState("");
 
   const handleCopyLink = async (deck: DeckWithAnalytics) => {
     if (!userHandle) {
@@ -120,99 +243,12 @@ export function DecksTable({
   const renderTagMenu = (deck: DeckWithAnalytics) => {
     if (!onUpdateTags || availableTags.length === 0) return null;
 
-    const currentTagIds = (deck.tags ?? []).map((tag) => tag.id);
-    const filteredTags = availableTags.filter((tag) =>
-      tagFilterQuery.trim()
-        ? tag.name.toLowerCase().includes(tagFilterQuery.trim().toLowerCase())
-        : true,
-    );
-
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            className="w-8 h-8 flex items-center justify-center bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-md transition-all active:scale-95"
-            title={currentTagIds.length > 0 ? `${currentTagIds.length} tag(s) applied` : "Manage tags"}
-          >
-            <Tag size={14} />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="w-80 p-0 overflow-hidden border-white/10 bg-[#151515] shadow-[0_24px_80px_-20px_rgba(0,0,0,0.85)]"
-          onEscapeKeyDown={() => setTagFilterQuery("")}
-        >
-          <div className="border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bbcbbb]/40">
-                  Apply tags
-                </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  {currentTagIds.length > 0
-                    ? `${currentTagIds.length} selected`
-                    : "Pick one or more tags"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void onUpdateTags(deck.id, [])}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
-              >
-                Clear all
-              </button>
-            </div>
-
-            <div className="mt-3">
-              <input
-                value={tagFilterQuery}
-                onChange={(e) => setTagFilterQuery(e.target.value)}
-                placeholder="Search tags..."
-                className="w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-white placeholder:text-slate-500 outline-none transition focus:border-emerald-500/30 focus:ring-1 focus:ring-emerald-500/20"
-              />
-            </div>
-          </div>
-
-          <div className="max-h-72 overflow-y-auto p-2 custom-scrollbar">
-            {filteredTags.length === 0 ? (
-              <div className="px-3 py-8 text-center">
-                <p className="text-sm font-medium text-slate-400">
-                  No tags found
-                </p>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-slate-600">
-                  Try a different search
-                </p>
-              </div>
-            ) : (
-              filteredTags.map((tag) => {
-                const isSelected = currentTagIds.includes(tag.id);
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={tag.id}
-                    checked={isSelected}
-                    onCheckedChange={(checked: boolean) => {
-                      const nextIds = checked
-                        ? [...currentTagIds, tag.id]
-                        : currentTagIds.filter((id) => id !== tag.id);
-                      void onUpdateTags(deck.id, nextIds);
-                    }}
-                    onSelect={(e) => e.preventDefault()}
-                    className="text-[#bbcbbb]/60 data-[highlighted]:bg-[#1c1b1b] data-[highlighted]:text-white cursor-pointer px-4 py-3 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      <span className="text-sm font-bold">{tag.name}</span>
-                    </div>
-                  </DropdownMenuCheckboxItem>
-                );
-              })
-            )}
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <DeckTagMenu
+        deck={deck}
+        availableTags={availableTags}
+        onUpdateTags={onUpdateTags}
+      />
     );
   };
 
