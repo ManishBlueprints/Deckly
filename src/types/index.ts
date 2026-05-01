@@ -57,7 +57,7 @@ export interface GlobalTag {
   user_id?: string;
 }
 
-export interface LibraryTag extends GlobalTag {}
+export type LibraryTag = GlobalTag;
 
 export interface LibraryFolder {
   id: string;

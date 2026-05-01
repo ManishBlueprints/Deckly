@@ -608,10 +608,15 @@ function ManageDataRoom() {
                   Room Image
                 </p>
                 <div className="flex items-center gap-3">
-                  <label className="inline-flex items-center justify-center h-9 px-4 bg-surface-container border border-white/10 hover:border-white/20 rounded-md text-sm font-medium text-white cursor-pointer transition-all">
+                  <label
+                    htmlFor="room-icon-upload"
+                    className="inline-flex items-center justify-center h-9 px-4 bg-surface-container border border-white/10 hover:border-white/20 rounded-md text-sm font-medium text-white cursor-pointer transition-all"
+                  >
                     <Upload size={14} className="mr-2 text-deckly-primary" />
                     {iconPreview ? "Modify Image" : "Upload Image"}
                     <input
+                      id="room-icon-upload"
+                      name="room-icon-upload"
                       type="file"
                       accept="image/*"
                       className="hidden"
@@ -626,10 +631,12 @@ function ManageDataRoom() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300">
+              <label htmlFor="room-display-name" className="text-xs font-semibold text-slate-300">
                 Display Name <span className="text-deckly-primary">*</span>
               </label>
               <input
+                id="room-display-name"
+                name="room-display-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -640,7 +647,7 @@ function ManageDataRoom() {
 
             {/* Slug */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300">
+              <label htmlFor="room-internal-url" className="text-xs font-semibold text-slate-300">
                 Internal URL <span className="text-deckly-primary">*</span>
               </label>
               <div className="flex gap-3">
@@ -649,6 +656,8 @@ function ManageDataRoom() {
                     /{profile?.handle}/room/
                   </span>
                   <input
+                    id="room-internal-url"
+                    name="room-internal-url"
                     type="text"
                     value={slug}
                     onChange={(e) => setSlug(normalizeSlug(e.target.value))}
@@ -761,10 +770,12 @@ function ManageDataRoom() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300">
+              <label htmlFor="room-contextual-brief" className="text-xs font-semibold text-slate-300">
                 Contextual Brief
               </label>
               <textarea
+                id="room-contextual-brief"
+                name="room-contextual-brief"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Additional room context..."

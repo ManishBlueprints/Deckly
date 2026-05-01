@@ -115,10 +115,12 @@ export function CreateFolderModal({
                 <div className="space-y-6">
                   {/* Folder Name */}
                   <div className="space-y-2.5">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
+                    <label htmlFor="create-folder-name" className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
                       FOLDER NAME
                     </label>
                     <input
+                      id="create-folder-name"
+                      name="create-folder-name"
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -158,7 +160,7 @@ export function CreateFolderModal({
 
                   {/* Add Tags */}
                   <div className="space-y-3">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
+                    <label htmlFor="create-folder-tags" className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 block ml-1">
                       ADD TAGS
                     </label>
                     <div className="flex flex-wrap gap-2 mb-3">
@@ -198,6 +200,8 @@ export function CreateFolderModal({
 
                     <div className="relative group">
                       <input
+                        id="create-folder-tags"
+                        name="create-folder-tags"
                         type="text"
                         value={tagInput}
                         onChange={(e) => {

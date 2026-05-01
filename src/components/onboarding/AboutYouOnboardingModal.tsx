@@ -188,10 +188,12 @@ export function AboutYouOnboardingModal({
               </div>
 
               <div className="space-y-3">
-                <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                <label htmlFor="onboarding-username" className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                   Username
                 </label>
                 <input
+                  id="onboarding-username"
+                  name="onboarding-username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -205,10 +207,12 @@ export function AboutYouOnboardingModal({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  <label htmlFor="onboarding-role" className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                     Role / Profession
                   </label>
                   <select
+                    id="onboarding-role"
+                    name="onboarding-role"
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                     className="w-full px-4 py-3 bg-surface-lowest border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary transition-all"
@@ -223,10 +227,12 @@ export function AboutYouOnboardingModal({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  <label htmlFor="onboarding-team-size" className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                     Team Size
                   </label>
                   <select
+                    id="onboarding-team-size"
+                    name="onboarding-team-size"
                     value={companySize}
                     onChange={(e) => setCompanySize(e.target.value)}
                     className="w-full px-4 py-3 bg-surface-lowest border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary transition-all"
@@ -241,10 +247,12 @@ export function AboutYouOnboardingModal({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  <label htmlFor="onboarding-primary-use-case" className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                     Primary Use Case
                   </label>
                   <select
+                    id="onboarding-primary-use-case"
+                    name="onboarding-primary-use-case"
                     value={primaryUseCase}
                     onChange={(e) => setPrimaryUseCase(e.target.value)}
                     className="w-full px-4 py-3 bg-surface-lowest border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary transition-all"

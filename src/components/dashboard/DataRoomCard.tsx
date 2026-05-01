@@ -93,9 +93,6 @@ export function DataRoomCard({
             <h3 className="text-base font-semibold text-slate-200 group-hover:text-deckly-primary transition-colors truncate">
               {room.name}
             </h3>
-            <span className="text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-1 border border-white/10 text-[#bbcbbb]/40">
-              Data Room
-            </span>
             {isExpired && (
               <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-[9px] font-bold text-red-500 uppercase tracking-wider animate-pulse">
                 <AlertCircle size={10} />
