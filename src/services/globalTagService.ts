@@ -113,6 +113,13 @@ const getTagByName = async (
   );
   if (activeMatch) return activeMatch;
 
+  const deletedMatch = tags.find(
+    (tag) =>
+      tag.deleted_at !== null &&
+      normalizeTagKey(tag.name) === normalized,
+  );
+  if (deletedMatch) return deletedMatch;
+
   const alias =
     (await getAliasByTypeAndValue(userId, "legacy_name", normalized)) ??
     (await getAliasByTypeAndValue(userId, "legacy_id", trimmedName));
@@ -120,13 +127,6 @@ const getTagByName = async (
   if (alias) {
     return getTagById(alias.tag_id);
   }
-
-  const deletedMatch = tags.find(
-    (tag) =>
-      tag.deleted_at !== null &&
-      normalizeTagKey(tag.name) === normalized,
-  );
-  if (deletedMatch) return deletedMatch;
 
   return null;
 };
