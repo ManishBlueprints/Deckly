@@ -61,10 +61,13 @@ function DeckTagMenu({
   availableTags: LibraryTag[];
   onUpdateTags: (deckId: string, tagIds: string[]) => Promise<void> | void;
 }) {
-  const getDeckTagIds = () => (deck.tags ?? []).map((tag) => tag.id);
+  const deckTagIds = React.useMemo(
+    () => (deck.tags ?? []).map((tag) => tag.id),
+    [deck.tags],
+  );
   const [tagFilterQuery, setTagFilterQuery] = React.useState("");
   const [selectedTagIds, setSelectedTagIds] =
-    React.useState<string[]>(getDeckTagIds);
+    React.useState<string[]>(deckTagIds);
   const selectedTagIdsRef = React.useRef<string[]>(selectedTagIds);
   const updateSeqRef = React.useRef(0);
 
@@ -74,12 +77,12 @@ function DeckTagMenu({
   };
 
   const rollbackSelectedTagIds = () => {
-    setOptimisticSelectedTagIds(getDeckTagIds());
+    setOptimisticSelectedTagIds(deckTagIds);
   };
 
   React.useEffect(() => {
-    setOptimisticSelectedTagIds(getDeckTagIds());
-  }, [deck.id, deck.tags]);
+    setOptimisticSelectedTagIds(deckTagIds);
+  }, [deck.id, deckTagIds]);
 
   const filteredTags = availableTags.filter((tag) =>
     tagFilterQuery.trim()
