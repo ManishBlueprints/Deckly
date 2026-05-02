@@ -928,14 +928,18 @@ function ManageDataRoom() {
                         void (async () => {
                           try {
                             await folderActions.setDocumentTags(documentId, tagIds);
-                          } catch (err) {
-                            console.error("Failed to update document tags", err);
-                            toast.error("Failed to update document tags");
-                          } finally {
+                        } catch (err) {
+                          console.error("Failed to update document tags", err);
+                          toast.error("Failed to update document tags");
+                        } finally {
+                          try {
                             await refreshDocuments();
+                          } catch (err) {
+                            console.error("Failed to refresh documents", err);
                           }
-                        })();
-                      }
+                        }
+                      })();
+                    }
                     : undefined
                 }
               />

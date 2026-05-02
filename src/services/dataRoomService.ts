@@ -1,6 +1,12 @@
 import { supabase } from "./supabase";
 import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
-import { DataRoom, DataRoomDocument, DataRoomTag, Deck } from "../types";
+import {
+  DataRoom,
+  DataRoomDocument,
+  DataRoomDocumentSearchSummary,
+  DataRoomTag,
+  Deck,
+} from "../types";
 import { withRetry } from "../utils/resilience";
 import { extractStoragePath } from "./deckService.shared";
 
@@ -147,6 +153,67 @@ export const dataRoomService = {
 
   // ── DOCUMENT MANAGEMENT ─────────────────────────────────
 
+  async getDocumentSearchSummaries(
+    roomId: string,
+  ): Promise<DataRoomDocumentSearchSummary[]> {
+    return withRetry(async () => {
+      const { data, error } = await supabase
+        .from("data_room_documents")
+        .select(`
+          id,
+          deck:decks (
+            title
+          ),
+          data_room_document_tags (
+            global_tags (
+              id,
+              name,
+              color,
+              deleted_at
+            )
+          )
+        `)
+        .eq("data_room_id", roomId)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+
+      return ((data || []) as Record<string, unknown>[]).map((document) => {
+        const rawDeck = document.deck;
+        const deck =
+          Array.isArray(rawDeck)
+            ? (rawDeck[0] as Record<string, unknown> | undefined)
+            : rawDeck && typeof rawDeck === "object"
+              ? (rawDeck as Record<string, unknown>)
+              : undefined;
+        const rawDocumentTagLinks = Array.isArray(document.data_room_document_tags)
+          ? document.data_room_document_tags
+          : [];
+        const tags = rawDocumentTagLinks
+          .map((link) => {
+            const rawGlobalTags =
+              link && typeof link === "object" && "global_tags" in link
+                ? (link as { global_tags?: unknown }).global_tags
+                : undefined;
+            const globalTag = Array.isArray(rawGlobalTags) ? rawGlobalTags[0] : rawGlobalTags;
+            return globalTag && typeof globalTag === "object"
+              ? normalizeDataRoomTag(globalTag as DataRoomTag)
+              : null;
+          })
+          .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
+
+        return {
+          id: String(document.id),
+          deck:
+            typeof deck?.title === "string"
+              ? { title: deck.title }
+              : undefined,
+          tags,
+        };
+      });
+    });
+  },
+
   async getDocuments(roomId: string, options?: { signUrls?: boolean }): Promise<DataRoomDocument[]> {
     return withRetry(async () => {
       const { data, error } = await supabase
@@ -154,10 +221,10 @@ export const dataRoomService = {
         .select(`
           *,
           deck:decks (
-            *,
-            deck_tags (
-              global_tags (*)
-            )
+            *
+          ),
+          data_room_document_tags (
+            global_tags (*)
           )
         `)
         .eq("data_room_id", roomId)
@@ -171,11 +238,18 @@ export const dataRoomService = {
       })) as DataRoomDocument[];
 
       documents.forEach((doc) => {
-        const deck = doc.deck as
-          | (Deck & { deck_tags?: { global_tags: DataRoomTag }[] })
-          | undefined;
-        const tags = (deck?.deck_tags || [])
-          .map((link) => normalizeDataRoomTag(link.global_tags))
+        const documentTagLinks = (
+          doc as DataRoomDocument & {
+            data_room_document_tags?: { global_tags?: DataRoomTag | DataRoomTag[] | null }[];
+          }
+        ).data_room_document_tags || [];
+        const tags = documentTagLinks
+          .map((link) => {
+            const globalTag = Array.isArray(link.global_tags)
+              ? link.global_tags[0]
+              : link.global_tags;
+            return normalizeDataRoomTag(globalTag);
+          })
           .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
         doc.tags = tags;
       });

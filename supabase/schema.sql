@@ -1396,14 +1396,14 @@ CREATE TABLE IF NOT EXISTS public.library_tags (
 -- Folder tags junction
 CREATE TABLE IF NOT EXISTS public.library_folder_tags (
     folder_id UUID NOT NULL REFERENCES public.library_folders(id) ON DELETE CASCADE,
-    tag_id UUID NOT NULL REFERENCES public.library_tags(id) ON DELETE CASCADE,
+    tag_id UUID NOT NULL REFERENCES public.global_tags(id) ON DELETE CASCADE,
     PRIMARY KEY (folder_id, tag_id)
 );
 
 -- Deck tags junction
 CREATE TABLE IF NOT EXISTS public.library_deck_tags (
     library_id UUID NOT NULL REFERENCES public.investor_library(id) ON DELETE CASCADE,
-    tag_id UUID NOT NULL REFERENCES public.library_tags(id) ON DELETE CASCADE,
+    tag_id UUID NOT NULL REFERENCES public.global_tags(id) ON DELETE CASCADE,
     PRIMARY KEY (library_id, tag_id)
 );
 
@@ -1518,7 +1518,7 @@ CREATE TABLE IF NOT EXISTS public.saved_data_room_notes (
 
 CREATE TABLE IF NOT EXISTS public.library_data_room_tags (
     saved_room_id UUID NOT NULL REFERENCES public.saved_data_rooms(id) ON DELETE CASCADE,
-    tag_id UUID NOT NULL REFERENCES public.library_tags(id) ON DELETE CASCADE,
+    tag_id UUID NOT NULL REFERENCES public.global_tags(id) ON DELETE CASCADE,
     PRIMARY KEY (saved_room_id, tag_id)
 );
 

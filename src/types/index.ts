@@ -94,6 +94,14 @@ export interface DataRoomDocumentTag {
   tag_id: string;
 }
 
+export interface DataRoomDocumentSearchSummary {
+  id: string;
+  deck?: {
+    title?: string;
+  };
+  tags?: DataRoomTag[];
+}
+
 export interface DataRoomFolderWithTags extends DataRoomFolder {
   tags: DataRoomTag[];
 }
