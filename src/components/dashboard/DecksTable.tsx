@@ -61,14 +61,28 @@ function DeckTagMenu({
   availableTags: LibraryTag[];
   onUpdateTags: (deckId: string, tagIds: string[]) => Promise<void> | void;
 }) {
-  const [tagFilterQuery, setTagFilterQuery] = React.useState("");
-  const [selectedTagIds, setSelectedTagIds] = React.useState<string[]>(
+  const deckTagIds = React.useMemo(
     () => (deck.tags ?? []).map((tag) => tag.id),
+    [deck.tags],
   );
+  const [tagFilterQuery, setTagFilterQuery] = React.useState("");
+  const [selectedTagIds, setSelectedTagIds] =
+    React.useState<string[]>(deckTagIds);
+  const selectedTagIdsRef = React.useRef<string[]>(selectedTagIds);
+  const updateSeqRef = React.useRef(0);
+
+  const setOptimisticSelectedTagIds = (nextIds: string[]) => {
+    selectedTagIdsRef.current = nextIds;
+    setSelectedTagIds(nextIds);
+  };
+
+  const rollbackSelectedTagIds = () => {
+    setOptimisticSelectedTagIds(deckTagIds);
+  };
 
   React.useEffect(() => {
-    setSelectedTagIds((deck.tags ?? []).map((tag) => tag.id));
-  }, [deck.id, deck.tags]);
+    setOptimisticSelectedTagIds(deckTagIds);
+  }, [deck.id, deckTagIds]);
 
   const filteredTags = availableTags.filter((tag) =>
     tagFilterQuery.trim()
@@ -76,26 +90,68 @@ function DeckTagMenu({
       : true,
   );
 
-  const handleTagToggle = (tagId: string, checked: boolean) => {
+  const handleTagToggle = async (tagId: string, checked: boolean) => {
+    const currentSelectedTagIds = selectedTagIdsRef.current;
     const nextIds = checked
-      ? [...selectedTagIds, tagId]
-      : selectedTagIds.filter((id) => id !== tagId);
+      ? Array.from(new Set([...currentSelectedTagIds, tagId]))
+      : currentSelectedTagIds.filter((id) => id !== tagId);
+    const requestSeq = updateSeqRef.current + 1;
 
-    setSelectedTagIds(nextIds);
-    void onUpdateTags(deck.id, nextIds);
+    updateSeqRef.current = requestSeq;
+    setOptimisticSelectedTagIds(nextIds);
+
+    try {
+      await onUpdateTags(deck.id, nextIds);
+    } catch (error) {
+      console.error("Failed to update deck tags:", error);
+      if (requestSeq === updateSeqRef.current) {
+        rollbackSelectedTagIds();
+      }
+      toast.error(
+        error instanceof Error
+          ? `Failed to update tags: ${error.message}`
+          : "Failed to update tags. Please try again.",
+      );
+    }
   };
 
-  const handleClearAll = () => {
-    setSelectedTagIds([]);
-    void onUpdateTags(deck.id, []);
+  const handleClearAll = async () => {
+    const requestSeq = updateSeqRef.current + 1;
+
+    updateSeqRef.current = requestSeq;
+    setOptimisticSelectedTagIds([]);
+
+    try {
+      await onUpdateTags(deck.id, []);
+    } catch (error) {
+      console.error("Failed to clear deck tags:", error);
+      if (requestSeq === updateSeqRef.current) {
+        rollbackSelectedTagIds();
+      }
+      toast.error(
+        error instanceof Error
+          ? `Failed to clear tags: ${error.message}`
+          : "Failed to clear tags. Please try again.",
+      );
+    }
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
+          type="button"
+          aria-label={
+            selectedTagIds.length > 0
+              ? `Manage tags for ${deck.title} (${selectedTagIds.length} selected)`
+              : `Manage tags for ${deck.title}`
+          }
           className="w-8 h-8 flex items-center justify-center bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-md transition-all active:scale-95"
-          title={selectedTagIds.length > 0 ? `${selectedTagIds.length} tag(s) applied` : "Manage tags"}
+          title={
+            selectedTagIds.length > 0
+              ? `${selectedTagIds.length} tag(s) applied`
+              : "Manage tags"
+          }
         >
           <Tag size={14} />
         </button>
@@ -128,6 +184,7 @@ function DeckTagMenu({
 
           <div className="mt-3">
             <input
+              aria-label={`Filter tags for ${deck.title}`}
               value={tagFilterQuery}
               onChange={(e) => setTagFilterQuery(e.target.value)}
               placeholder="Search tags..."
@@ -154,7 +211,7 @@ function DeckTagMenu({
                   key={tag.id}
                   checked={isSelected}
                   onCheckedChange={(checked: boolean | "indeterminate") => {
-                    handleTagToggle(tag.id, checked === true);
+                    void handleTagToggle(tag.id, checked === true);
                   }}
                   onSelect={(e) => e.preventDefault()}
                   className="text-[#bbcbbb]/60 data-[highlighted]:bg-[#1c1b1b] data-[highlighted]:text-white cursor-pointer px-4 py-3 transition-colors"

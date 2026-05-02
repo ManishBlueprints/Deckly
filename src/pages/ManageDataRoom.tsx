@@ -922,10 +922,19 @@ function ManageDataRoom() {
                 availableTags={isEditMode ? tags : []}
                 onUpdateDocumentTags={
                   isEditMode
-                    ? async (documentId, tagIds) => {
+                    ? (documentId, tagIds) => {
                         if (!roomId) return;
-                        await folderActions.setDocumentTags(documentId, tagIds);
-                        await refreshDocuments();
+
+                        void (async () => {
+                          try {
+                            await folderActions.setDocumentTags(documentId, tagIds);
+                          } catch (err) {
+                            console.error("Failed to update document tags", err);
+                            toast.error("Failed to update document tags");
+                          } finally {
+                            await refreshDocuments();
+                          }
+                        })();
                       }
                     : undefined
                 }

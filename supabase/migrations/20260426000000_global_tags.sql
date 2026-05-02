@@ -180,11 +180,59 @@ ON CONFLICT (user_id, alias_type, alias_value) DO UPDATE
 SET tag_id = EXCLUDED.tag_id,
     updated_at = EXCLUDED.updated_at;
 
+WITH folder_tag_candidates AS (
+    SELECT
+        folder_tag.ctid,
+        row_number() OVER (
+            PARTITION BY
+                folder_tag.folder_id,
+                COALESCE(room_tag_map.canonical_tag_id, folder_tag.tag_id)
+            ORDER BY
+                CASE
+                    WHEN room_tag_map.canonical_tag_id IS NULL THEN 0
+                    ELSE 1
+                END,
+                folder_tag.tag_id
+        ) AS duplicate_rank
+    FROM public.data_room_folder_tags folder_tag
+    LEFT JOIN room_tag_map
+        ON folder_tag.tag_id = room_tag_map.source_tag_id
+       AND room_tag_map.source_tag_id <> room_tag_map.canonical_tag_id
+)
+DELETE FROM public.data_room_folder_tags folder_tag
+USING folder_tag_candidates
+WHERE folder_tag.ctid = folder_tag_candidates.ctid
+  AND folder_tag_candidates.duplicate_rank > 1;
+
 UPDATE public.data_room_folder_tags folder_tag
 SET tag_id = room_tag_map.canonical_tag_id
 FROM room_tag_map
 WHERE folder_tag.tag_id = room_tag_map.source_tag_id
   AND room_tag_map.source_tag_id <> room_tag_map.canonical_tag_id;
+
+WITH document_tag_candidates AS (
+    SELECT
+        document_tag.ctid,
+        row_number() OVER (
+            PARTITION BY
+                document_tag.document_id,
+                COALESCE(room_tag_map.canonical_tag_id, document_tag.tag_id)
+            ORDER BY
+                CASE
+                    WHEN room_tag_map.canonical_tag_id IS NULL THEN 0
+                    ELSE 1
+                END,
+                document_tag.tag_id
+        ) AS duplicate_rank
+    FROM public.data_room_document_tags document_tag
+    LEFT JOIN room_tag_map
+        ON document_tag.tag_id = room_tag_map.source_tag_id
+       AND room_tag_map.source_tag_id <> room_tag_map.canonical_tag_id
+)
+DELETE FROM public.data_room_document_tags document_tag
+USING document_tag_candidates
+WHERE document_tag.ctid = document_tag_candidates.ctid
+  AND document_tag_candidates.duplicate_rank > 1;
 
 UPDATE public.data_room_document_tags document_tag
 SET tag_id = room_tag_map.canonical_tag_id

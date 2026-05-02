@@ -24,6 +24,14 @@ BEGIN
     RAISE EXCEPTION 'Missing table: public.admin_emails';
   END IF;
 
+  IF to_regclass('public.global_tags') IS NULL THEN
+    RAISE EXCEPTION 'Missing table: public.global_tags';
+  END IF;
+
+  IF to_regclass('public.global_tag_aliases') IS NULL THEN
+    RAISE EXCEPTION 'Missing table: public.global_tag_aliases';
+  END IF;
+
   IF to_regprocedure('public.get_decks_public()') IS NULL THEN
     RAISE EXCEPTION 'Missing function: public.get_decks_public()';
   END IF;
@@ -46,6 +54,86 @@ BEGIN
 
   IF to_regprocedure('public.is_admin(uuid)') IS NULL THEN
     RAISE EXCEPTION 'Missing function: public.is_admin(uuid)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'global_tags'
+      AND policyname = 'Users can read global tags'
+  ) THEN
+    RAISE EXCEPTION 'Missing policy on public.global_tags: Users can read global tags';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'global_tags'
+      AND policyname = 'Users can insert global tags'
+  ) THEN
+    RAISE EXCEPTION 'Missing policy on public.global_tags: Users can insert global tags';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'global_tags'
+      AND policyname = 'Users can update global tags'
+  ) THEN
+    RAISE EXCEPTION 'Missing policy on public.global_tags: Users can update global tags';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'global_tags'
+      AND policyname = 'Users can delete global tags'
+  ) THEN
+    RAISE EXCEPTION 'Missing policy on public.global_tags: Users can delete global tags';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'global_tag_aliases'
+      AND policyname = 'Users can read global tag aliases'
+  ) THEN
+    RAISE EXCEPTION 'Missing policy on public.global_tag_aliases: Users can read global tag aliases';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'global_tag_aliases'
+      AND policyname = 'Users can insert global tag aliases'
+  ) THEN
+    RAISE EXCEPTION 'Missing policy on public.global_tag_aliases: Users can insert global tag aliases';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'global_tag_aliases'
+      AND policyname = 'Users can update global tag aliases'
+  ) THEN
+    RAISE EXCEPTION 'Missing policy on public.global_tag_aliases: Users can update global tag aliases';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'global_tag_aliases'
+      AND policyname = 'Users can delete global tag aliases'
+  ) THEN
+    RAISE EXCEPTION 'Missing policy on public.global_tag_aliases: Users can delete global tag aliases';
   END IF;
 
   IF NOT EXISTS (

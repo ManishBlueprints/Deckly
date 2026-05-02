@@ -103,7 +103,6 @@ function bootstrapRemote() {
 
   runSupabase(linkArgs);
   runSupabase(["db", "push", "--linked", "--include-all", "--yes"]);
-  runSupabase(["seed", "--linked", "--yes"]);
 
   if (adminEmail) {
     const { tempDir, filePath } = writeTempSql(`
