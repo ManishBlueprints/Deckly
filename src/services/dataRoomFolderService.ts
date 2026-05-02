@@ -6,6 +6,7 @@ import {
   DataRoomFolderWithTags,
   DataRoomTag,
 } from "../types";
+import { globalTagService } from "./globalTagService";
 import {
   DEFAULT_FOLDER_COLOR,
   FolderColorKey,
@@ -145,11 +146,11 @@ const asDataRoomFolder = (folder: Record<string, unknown>): DataRoomFolder => ({
 
 const asDataRoomTag = (tag: Record<string, unknown>): DataRoomTag => ({
   id: String(tag.id),
-  data_room_id: String(tag.data_room_id),
   name: String(tag.name),
   color: String(tag.color),
-  created_at: String(tag.created_at),
-  updated_at: String(tag.updated_at),
+  deleted_at: tag.deleted_at ? String(tag.deleted_at) : null,
+  created_at: tag.created_at ? String(tag.created_at) : "",
+  updated_at: tag.updated_at ? String(tag.updated_at) : "",
 });
 
 const asDataRoomFolderWithTags = (
@@ -193,13 +194,6 @@ const toServiceError = (
     );
   }
 
-  if (message.includes("already exists in this room")) {
-    return new DataRoomFolderServiceError(
-      "DUPLICATE_FOLDER_NAME",
-      message,
-    );
-  }
-
   if (message.includes("The folder order does not match the current room folders.")) {
     return new DataRoomFolderServiceError(
       "INVALID_FOLDER_ORDER",
@@ -207,8 +201,23 @@ const toServiceError = (
     );
   }
 
-  if (message.includes("One or more tags were not found in this room.")) {
+  if (message.includes("One or more tags were not found")) {
     return new DataRoomFolderServiceError("TAG_NOT_FOUND", message);
+  }
+
+  if (message.includes("A tag with that name already exists")) {
+    return new DataRoomFolderServiceError("DUPLICATE_TAG_NAME", message);
+  }
+
+  if (message.includes("Tag not found.")) {
+    return new DataRoomFolderServiceError("TAG_NOT_FOUND", message);
+  }
+
+  if (message.includes("folder with that name already exists")) {
+    return new DataRoomFolderServiceError(
+      "DUPLICATE_FOLDER_NAME",
+      message,
+    );
   }
 
   if (message.includes("Unauthorized")) {
@@ -274,16 +283,17 @@ const getFolderTagsByFolderIds = async (
   const tagsById = new Map<string, DataRoomTag>();
 
   if (tagIds.length > 0) {
-    const { data: tagsData, error: tagsError } = await supabase
-      .from("data_room_tags")
-      .select("*")
-      .in("id", tagIds);
+    const tagsData = await globalTagService.fetchTagsByIds(tagIds);
 
-    if (tagsError) throw tagsError;
-
-    (tagsData || []).forEach((tag) => {
-      const parsedTag = asDataRoomTag(tag as Record<string, unknown>);
-      tagsById.set(parsedTag.id, parsedTag);
+    tagsData.forEach((tag) => {
+      tagsById.set(tag.id, {
+        id: tag.id,
+        name: tag.name,
+        color: tag.color,
+        deleted_at: tag.deleted_at,
+        created_at: tag.created_at || "",
+        updated_at: tag.updated_at || "",
+      });
     });
   }
 
@@ -347,34 +357,6 @@ const assertUniqueFolderName = (
   }
 };
 
-const assertUniqueTagName = async (
-  roomId: string,
-  nextName: string,
-  tagIdToIgnore?: string,
-): Promise<void> => {
-  const { data, error } = await supabase
-    .from("data_room_tags")
-    .select("id, name")
-    .eq("data_room_id", roomId);
-
-  if (error) throw error;
-
-  const conflict = (data || []).find((tag) => {
-    const row = tag as { id: string; name: string };
-    return (
-      row.id !== tagIdToIgnore &&
-      row.name.trim().toLowerCase() === nextName.toLowerCase()
-    );
-  });
-
-  if (conflict) {
-    throw new DataRoomFolderServiceError(
-      "DUPLICATE_TAG_NAME",
-      "A tag with that name already exists in this room.",
-    );
-  }
-};
-
 const replaceFolderTags = async (
   folderId: string,
   tagIds: string[],
@@ -398,21 +380,11 @@ const replaceFolderTags = async (
     return [];
   }
 
-  const { data: tagsData, error: tagsError } = await supabase
-    .from("data_room_tags")
-    .select("*")
-    .eq("data_room_id", options.roomId)
-    .in("id", dedupedTagIds);
-
-  if (tagsError) throw tagsError;
-
-  const tagRows = (tagsData || []).map((tag) =>
-    asDataRoomTag(tag as Record<string, unknown>),
-  );
+    const tagRows = await globalTagService.fetchTagsByIds(dedupedTagIds, options.userId, false);
   if (tagRows.length !== dedupedTagIds.length) {
     throw new DataRoomFolderServiceError(
       "TAG_NOT_FOUND",
-      "One or more tags were not found in this room.",
+      "One or more tags were not found.",
     );
   }
 
@@ -483,21 +455,11 @@ const replaceDocumentTags = async (
     return [];
   }
 
-  const { data: tagsData, error: tagsError } = await supabase
-    .from("data_room_tags")
-    .select("*")
-    .eq("data_room_id", options.roomId)
-    .in("id", dedupedTagIds);
-
-  if (tagsError) throw tagsError;
-
-  const tagRows = (tagsData || []).map((tag) =>
-    asDataRoomTag(tag as Record<string, unknown>),
-  );
+  const tagRows = await globalTagService.fetchTagsByIds(dedupedTagIds, options.userId, false);
   if (tagRows.length !== dedupedTagIds.length) {
     throw new DataRoomFolderServiceError(
       "TAG_NOT_FOUND",
-      "One or more tags were not found in this room.",
+      "One or more tags were not found.",
     );
   }
 
@@ -726,10 +688,14 @@ export const dataRoomFolderService = {
 
   async listTags(roomId: string): Promise<DataRoomTag[]> {
     return withRetry(async () => {
+      const userId = await getRequiredSessionUserId();
+      await assertRoomOwnedByUser(roomId, userId);
+
       const { data, error } = await supabase
-        .from("data_room_tags")
+        .from("global_tags")
         .select("*")
-        .eq("data_room_id", roomId)
+        .eq("user_id", userId)
+        .is("deleted_at", null)
         .order("name", { ascending: true });
 
       if (error) throw error;
@@ -747,20 +713,12 @@ export const dataRoomFolderService = {
     const color = resolveFolderColor(input.color);
 
     await assertRoomOwnedByUser(roomId, userId);
-    await assertUniqueTagName(roomId, name);
-
-    const { data, error } = await supabase
-      .from("data_room_tags")
-      .insert({
-        data_room_id: roomId,
-        name,
-        color,
-      })
-      .select()
-      .single();
-
-    if (error || !data) throw error || new Error("Failed to create tag");
-    return asDataRoomTag(data as Record<string, unknown>);
+    try {
+      const tag = await globalTagService.createOrRestoreTag(userId, name, color);
+      return asDataRoomTag(tag as unknown as Record<string, unknown>);
+    } catch (error) {
+      throw toServiceError(error, "INVALID_TAG_NAME", "Failed to create tag.");
+    }
   },
 
   async updateTag(
@@ -770,13 +728,8 @@ export const dataRoomFolderService = {
   ): Promise<DataRoomTag> {
     const userId = await getRequiredSessionUserId(providedUserId);
 
-    const { data: existing, error: fetchError } = await supabase
-      .from("data_room_tags")
-      .select("*")
-      .eq("id", tagId)
-      .maybeSingle();
+    const existing = await globalTagService.getTagById(tagId);
 
-    if (fetchError) throw fetchError;
     if (!existing) {
       throw new DataRoomFolderServiceError(
         "TAG_NOT_FOUND",
@@ -784,38 +737,28 @@ export const dataRoomFolderService = {
       );
     }
 
-    const existingTag = asDataRoomTag(existing as Record<string, unknown>);
-    await assertRoomOwnedByUser(existingTag.data_room_id, userId);
+    if (existing.user_id !== userId) {
+      throw new DataRoomFolderServiceError(
+        "ROOM_ACCESS_DENIED",
+        "You do not have permission to manage this data room.",
+      );
+    }
 
     const name = assertTagName(input.name);
-    const color = input.color ? resolveFolderColor(input.color) : existingTag.color as FolderColorKey;
-    await assertUniqueTagName(existingTag.data_room_id, name, tagId);
-
-    const { data, error } = await supabase
-      .from("data_room_tags")
-      .update({
-        name,
-        color,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", tagId)
-      .select()
-      .single();
-
-    if (error || !data) throw error || new Error("Failed to update tag");
-    return asDataRoomTag(data as Record<string, unknown>);
+    const color = input.color ? resolveFolderColor(input.color) : (existing.color as FolderColorKey);
+    try {
+      const tag = await globalTagService.updateTag(tagId, userId, name, color);
+      return asDataRoomTag(tag as unknown as Record<string, unknown>);
+    } catch (error) {
+      throw toServiceError(error, "INVALID_TAG_NAME", "Failed to update tag.");
+    }
   },
 
   async deleteTag(tagId: string, providedUserId?: string): Promise<void> {
     const userId = await getRequiredSessionUserId(providedUserId);
 
-    const { data: existing, error: fetchError } = await supabase
-      .from("data_room_tags")
-      .select("*")
-      .eq("id", tagId)
-      .maybeSingle();
+    const existing = await globalTagService.getTagById(tagId);
 
-    if (fetchError) throw fetchError;
     if (!existing) {
       throw new DataRoomFolderServiceError(
         "TAG_NOT_FOUND",
@@ -823,15 +766,18 @@ export const dataRoomFolderService = {
       );
     }
 
-    const tag = asDataRoomTag(existing as Record<string, unknown>);
-    await assertRoomOwnedByUser(tag.data_room_id, userId);
+    if (existing.user_id !== userId) {
+      throw new DataRoomFolderServiceError(
+        "ROOM_ACCESS_DENIED",
+        "You do not have permission to manage this data room.",
+      );
+    }
 
-    const { error } = await supabase
-      .from("data_room_tags")
-      .delete()
-      .eq("id", tagId);
-
-    if (error) throw error;
+    try {
+      await globalTagService.deleteTag(tagId, userId);
+    } catch (error) {
+      throw toServiceError(error, "TAG_NOT_FOUND", "Failed to delete tag.");
+    }
   },
 
   async setFolderTags(

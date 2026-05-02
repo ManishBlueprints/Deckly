@@ -3,6 +3,7 @@ import { getDeckSession } from "./deckService.shared";
 import { withRetry } from "../utils/resilience";
 import { DataRoom, LibraryTag, SavedDataRoomOrganized } from "../types";
 import { getRequiredSessionUserId } from "./authSession";
+import { globalTagService } from "./globalTagService";
 
 interface SavedDataRoomRow {
   id: string;
@@ -123,6 +124,11 @@ export const dataRoomLibraryService = {
     const uniqueTagIds = Array.from(
       new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean)),
     );
+
+    const ownedTags = await globalTagService.fetchTagsByIds(uniqueTagIds, session.user.id, false);
+    if (ownedTags.length !== uniqueTagIds.length) {
+      throw new Error("One or more tags were not found.");
+    }
 
     const { error: deleteError } = await supabase
       .from("library_data_room_tags")
@@ -249,17 +255,10 @@ export const dataRoomLibraryService = {
         const tagIds = [...new Set(links.map((link) => link.tag_id))];
 
         if (tagIds.length > 0) {
-          const { data: tagsData, error: tagsError } = await supabase
-            .from("library_tags")
-            .select("*")
-            .in("id", tagIds);
-
-          if (tagsError) throw tagsError;
-
+          const tags = await globalTagService.fetchTagsByIds(tagIds, session.user.id, false);
           const tagsById = new Map<string, LibraryTag>();
-          (tagsData || []).forEach((tag) => {
-            const typedTag = tag as LibraryTag;
-            tagsById.set(typedTag.id, typedTag);
+          tags.forEach((tag) => {
+            tagsById.set(tag.id, tag);
           });
 
           links.forEach((link) => {

@@ -3,6 +3,16 @@ import { X, Loader2, Edit2, Trash2, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LibraryTag } from "../../types";
 import { cn } from "../../utils/cn";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 
 const TAG_COLORS = [
   { id: "green-light", value: "#8affab" },
@@ -39,6 +49,7 @@ export function ManageTagsModal({
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteTag, setPendingDeleteTag] = useState<LibraryTag | null>(null);
 
   const resetForm = useCallback(() => {
     setName("");
@@ -50,6 +61,8 @@ export function ManageTagsModal({
   useEffect(() => {
     if (isOpen) {
       resetForm();
+    } else {
+      setPendingDeleteTag(null);
     }
   }, [isOpen, resetForm]);
 
@@ -239,7 +252,7 @@ export function ManageTagsModal({
                               <Edit2 size={14} />
                             </button>
                             <button
-                              onClick={() => handleDelete(tag.id)}
+                              onClick={() => setPendingDeleteTag(tag)}
                               disabled={deletingId === tag.id}
                               aria-label={`Delete tag ${tag.name}`}
                               className="p-2 text-[#bbcbbb]/30 hover:text-red-400 hover:bg-red-400/10 transition-all disabled:opacity-50"
@@ -259,6 +272,44 @@ export function ManageTagsModal({
               </div>
             </motion.div>
           </div>
+
+          <AlertDialog
+            open={!!pendingDeleteTag}
+            onOpenChange={(open) => {
+              if (!open && deletingId !== pendingDeleteTag?.id) {
+                setPendingDeleteTag(null);
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete tag?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This tag will be removed from all documents, folders, and rooms that use it. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={!!deletingId}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    if (!pendingDeleteTag) return;
+                    void handleDelete(pendingDeleteTag.id).finally(() => {
+                      setPendingDeleteTag(null);
+                    });
+                  }}
+                  disabled={!!deletingId}
+                >
+                  {deletingId === pendingDeleteTag?.id
+                    ? "Deleting..."
+                    : "Delete Tag"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </AnimatePresence>

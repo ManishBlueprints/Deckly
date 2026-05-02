@@ -10,6 +10,7 @@ interface DataRoomCardProps {
   documentCount: number;
   totalVisitors: number;
   matchedDocumentTitles?: string[];
+  matchedTagNames?: string[];
 }
 
 export function DataRoomCard({
@@ -17,6 +18,7 @@ export function DataRoomCard({
   documentCount,
   totalVisitors,
   matchedDocumentTitles = [],
+  matchedTagNames = [],
 }: DataRoomCardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -108,6 +110,13 @@ export function DataRoomCard({
               {matchedDocumentTitles.length === 1
                 ? `Matched file in this data room: ${matchedDocumentTitles[0]}`
                 : `Matched files in this data room: ${matchedDocumentTitles.slice(0, 2).join(", ")}${matchedDocumentTitles.length > 2 ? ` +${matchedDocumentTitles.length - 2} more` : ""}`}
+            </p>
+          )}
+          {matchedTagNames.length > 0 && (
+            <p className="text-[11px] text-emerald-300/90 mt-1.5 leading-relaxed">
+              Matched by tag{matchedTagNames.length > 1 ? "s" : ""}:{" "}
+              {matchedTagNames.slice(0, 3).join(", ")}
+              {matchedTagNames.length > 3 ? ` +${matchedTagNames.length - 3} more` : ""}
             </p>
           )}
           <div className="flex flex-wrap items-center gap-3 mt-4">

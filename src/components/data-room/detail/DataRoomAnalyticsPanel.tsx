@@ -46,6 +46,7 @@ interface DataRoomAnalyticsPanelProps {
   roomDocumentStats: RoomDocumentStat[];
   signalsLoading: boolean;
   roomSignals: VisitorSignal[];
+  loading?: boolean;
 }
 
 type TabKey = "VISITS" | "TIME" | "LOCATION";
@@ -58,6 +59,7 @@ export function DataRoomAnalyticsPanel({
   roomDocumentStats,
   signalsLoading,
   roomSignals,
+  loading = false,
 }: DataRoomAnalyticsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("VISITS");
   const [expandedVisitor, setExpandedVisitor] = useState<string | null>(null);
@@ -85,6 +87,17 @@ export function DataRoomAnalyticsPanel({
       return b.totalViews - a.totalViews || b.totalTimeSeconds - a.totalTimeSeconds;
     });
   }, [activeTab, roomDocumentStats]);
+
+  if (loading) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-16 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-slate-400">
+          <div className="w-5 h-5 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin" />
+          <span className="text-sm font-medium">Loading analytics...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-16 space-y-8 md:space-y-16">

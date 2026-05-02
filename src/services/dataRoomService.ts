@@ -1,8 +1,25 @@
 import { supabase } from "./supabase";
 import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
-import { DataRoom, DataRoomDocument, DataRoomTag, Deck } from "../types";
+import {
+  DataRoom,
+  DataRoomDocument,
+  DataRoomDocumentSearchSummary,
+  DataRoomTag,
+  Deck,
+} from "../types";
 import { withRetry } from "../utils/resilience";
 import { extractStoragePath } from "./deckService.shared";
+
+const normalizeDataRoomTag = (
+  tag: DataRoomTag | null | undefined,
+): DataRoomTag | null => {
+  if (!tag) return null;
+
+  return {
+    ...tag,
+    deleted_at: tag.deleted_at ?? null,
+  };
+};
 
 export const dataRoomService = {
   // ── CRUD ────────────────────────────────────────────────
@@ -136,11 +153,80 @@ export const dataRoomService = {
 
   // ── DOCUMENT MANAGEMENT ─────────────────────────────────
 
+  async getDocumentSearchSummaries(
+    roomId: string,
+  ): Promise<DataRoomDocumentSearchSummary[]> {
+    return withRetry(async () => {
+      const { data, error } = await supabase
+        .from("data_room_documents")
+        .select(`
+          id,
+          deck:decks (
+            title
+          ),
+          data_room_document_tags (
+            global_tags (
+              id,
+              name,
+              color,
+              deleted_at
+            )
+          )
+        `)
+        .eq("data_room_id", roomId)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+
+      return ((data || []) as Record<string, unknown>[]).map((document) => {
+        const rawDeck = document.deck;
+        const deck =
+          Array.isArray(rawDeck)
+            ? (rawDeck[0] as Record<string, unknown> | undefined)
+            : rawDeck && typeof rawDeck === "object"
+              ? (rawDeck as Record<string, unknown>)
+              : undefined;
+        const rawDocumentTagLinks = Array.isArray(document.data_room_document_tags)
+          ? document.data_room_document_tags
+          : [];
+        const tags = rawDocumentTagLinks
+          .map((link) => {
+            const rawGlobalTags =
+              link && typeof link === "object" && "global_tags" in link
+                ? (link as { global_tags?: unknown }).global_tags
+                : undefined;
+            const globalTag = Array.isArray(rawGlobalTags) ? rawGlobalTags[0] : rawGlobalTags;
+            return globalTag && typeof globalTag === "object"
+              ? normalizeDataRoomTag(globalTag as DataRoomTag)
+              : null;
+          })
+          .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
+
+        return {
+          id: String(document.id),
+          deck:
+            typeof deck?.title === "string"
+              ? { title: deck.title }
+              : undefined,
+          tags,
+        };
+      });
+    });
+  },
+
   async getDocuments(roomId: string, options?: { signUrls?: boolean }): Promise<DataRoomDocument[]> {
     return withRetry(async () => {
       const { data, error } = await supabase
         .from("data_room_documents")
-        .select("*, deck:decks(*)")
+        .select(`
+          *,
+          deck:decks (
+            *
+          ),
+          data_room_document_tags (
+            global_tags (*)
+          )
+        `)
         .eq("data_room_id", roomId)
         .order("display_order", { ascending: true });
 
@@ -151,46 +237,22 @@ export const dataRoomService = {
         deck: d.deck || undefined,
       })) as DataRoomDocument[];
 
-      if (documents.length > 0) {
-        const documentIds = documents.map((doc) => doc.id);
-        const { data: tagLinksData, error: tagLinksError } = await supabase
-          .from("data_room_document_tags")
-          .select("document_id, tag_id")
-          .in("document_id", documentIds);
-
-        if (tagLinksError) throw tagLinksError;
-
-        const tagLinks = (tagLinksData || []) as { document_id: string; tag_id: string }[];
-        const tagIds = [...new Set(tagLinks.map((link) => link.tag_id))];
-        const tagsById = new Map<string, DataRoomTag>();
-
-        if (tagIds.length > 0) {
-          const { data: tagsData, error: tagsError } = await supabase
-            .from("data_room_tags")
-            .select("*")
-            .in("id", tagIds);
-
-          if (tagsError) throw tagsError;
-
-          (tagsData || []).forEach((tag) => {
-            const typedTag = tag as DataRoomTag;
-            tagsById.set(typedTag.id, typedTag);
-          });
-        }
-
-        const tagsByDocument = new Map<string, DataRoomTag[]>();
-        tagLinks.forEach((link) => {
-          const tag = tagsById.get(link.tag_id);
-          if (!tag) return;
-          const current = tagsByDocument.get(link.document_id) || [];
-          current.push(tag);
-          tagsByDocument.set(link.document_id, current);
-        });
-
-        documents.forEach((doc) => {
-          doc.tags = tagsByDocument.get(doc.id) || [];
-        });
-      }
+      documents.forEach((doc) => {
+        const documentTagLinks = (
+          doc as DataRoomDocument & {
+            data_room_document_tags?: { global_tags?: DataRoomTag | DataRoomTag[] | null }[];
+          }
+        ).data_room_document_tags || [];
+        const tags = documentTagLinks
+          .map((link) => {
+            const globalTag = Array.isArray(link.global_tags)
+              ? link.global_tags[0]
+              : link.global_tags;
+            return normalizeDataRoomTag(globalTag);
+          })
+          .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
+        doc.tags = tags;
+      });
 
       // Hydrate signed URLs only when explicitly requested
       if (options?.signUrls) {
@@ -318,12 +380,15 @@ export const dataRoomService = {
 
   // ── ANALYTICS DASHBOARD ───────────────────────────────────────────
 
-  async getDataRoomAnalytics(roomId: string): Promise<{
+  async getDataRoomAnalytics(
+    roomId: string,
+    documents?: DataRoomDocument[],
+  ): Promise<{
     totalVisitors: number;
     perDeck: { deckId: string; title: string; visitors: number }[];
   }> {
     return withRetry(async () => {
-      const docs = await this.getDocuments(roomId, { signUrls: false });
+      const docs = documents ?? await this.getDocuments(roomId, { signUrls: false });
       const deckIds = docs.map((d) => d.deck_id);
 
       if (deckIds.length === 0) {

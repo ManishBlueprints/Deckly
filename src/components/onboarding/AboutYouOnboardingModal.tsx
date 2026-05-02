@@ -17,13 +17,7 @@ const ONBOARDING_ROLE_OPTIONS = [
   "Other",
 ];
 
-const ONBOARDING_TEAM_OPTIONS = [
-  "Solo",
-  "2-10",
-  "11-50",
-  "51-200",
-  "200+",
-];
+const ONBOARDING_TEAM_OPTIONS = ["Solo", "2-10", "11-50", "51-200", "200+"];
 
 const ONBOARDING_USE_CASE_OPTIONS = [
   "Fundraising",
@@ -50,9 +44,7 @@ export function AboutYouOnboardingModal({
 
   const initialUsername = useMemo(
     () =>
-      profile?.full_name?.trim() ||
-      session?.user?.email?.split("@")[0] ||
-      "",
+      profile?.full_name?.trim() || session?.user?.email?.split("@")[0] || "",
     [profile?.full_name, session?.user?.email],
   );
 
@@ -178,7 +170,7 @@ export function AboutYouOnboardingModal({
             <div className="p-4 md:p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
               <div className="bg-deckly-primary/10 border border-deckly-primary/20 p-4">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-deckly-primary">
-                  Optional. Helps us tailor analytics and product guidance.
+                  Optional. Helps us tailor the product.
                 </p>
                 <p className="mt-2 text-xs text-slate-400">
                   {needsUsername
@@ -188,16 +180,23 @@ export function AboutYouOnboardingModal({
               </div>
 
               <div className="space-y-3">
-                <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                <label
+                  htmlFor="onboarding-username"
+                  className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+                >
                   Username
                 </label>
                 <input
+                  id="onboarding-username"
+                  name="onboarding-username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className={cn(
                     "w-full px-4 py-3 bg-surface-lowest border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary transition-all",
-                    needsUsername ? "border-deckly-primary/30" : "border-border",
+                    needsUsername
+                      ? "border-deckly-primary/30"
+                      : "border-border",
                   )}
                   placeholder="Enter your display name"
                 />
@@ -205,10 +204,15 @@ export function AboutYouOnboardingModal({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  <label
+                    htmlFor="onboarding-role"
+                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+                  >
                     Role / Profession
                   </label>
                   <select
+                    id="onboarding-role"
+                    name="onboarding-role"
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                     className="w-full px-4 py-3 bg-surface-lowest border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary transition-all"
@@ -223,10 +227,15 @@ export function AboutYouOnboardingModal({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  <label
+                    htmlFor="onboarding-team-size"
+                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+                  >
                     Team Size
                   </label>
                   <select
+                    id="onboarding-team-size"
+                    name="onboarding-team-size"
                     value={companySize}
                     onChange={(e) => setCompanySize(e.target.value)}
                     className="w-full px-4 py-3 bg-surface-lowest border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary transition-all"
@@ -241,10 +250,15 @@ export function AboutYouOnboardingModal({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  <label
+                    htmlFor="onboarding-primary-use-case"
+                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground"
+                  >
                     Primary Use Case
                   </label>
                   <select
+                    id="onboarding-primary-use-case"
+                    name="onboarding-primary-use-case"
                     value={primaryUseCase}
                     onChange={(e) => setPrimaryUseCase(e.target.value)}
                     className="w-full px-4 py-3 bg-surface-lowest border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary transition-all"
