@@ -7,7 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { useDataRooms } from "../hooks/useDataRooms";
 import { cn } from "@/lib/utils";
-import { DataRoom, DataRoomDocument } from "../types";
+import { DataRoom, DataRoomDocumentSearchSummary } from "../types";
 import { DataRoomTour } from "../components/tours/DataRoomTour";
 import { useQuery } from "@tanstack/react-query";
 import { dataRoomService } from "../services/dataRoomService";
@@ -25,17 +25,20 @@ function DataRoomsPage() {
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
 
   const { data: rooms = [], isLoading, isFetching } = useDataRooms();
-  const { data: roomDocumentsByRoomId = {}, isFetching: isFetchingDocuments } = useQuery({
-    queryKey: ["data-rooms", "search-documents", rooms.map((room: DataRoom) => room.id)],
+  const {
+    data: roomDocumentSummariesByRoomId = {},
+    isFetching: isFetchingDocuments,
+  } = useQuery({
+    queryKey: ["data-rooms", "search-document-summaries", rooms.map((room: DataRoom) => room.id)],
     queryFn: async () => {
       const entries = await Promise.all(
         rooms.map(async (room: DataRoom) => {
-          const documents = await dataRoomService.getDocuments(room.id);
+          const documents = await dataRoomService.getDocumentSearchSummaries(room.id);
           return [room.id, documents] as const;
         }),
       );
 
-      return Object.fromEntries(entries) as Record<string, DataRoomDocument[]>;
+      return Object.fromEntries(entries) as Record<string, DataRoomDocumentSearchSummary[]>;
     },
     enabled: rooms.length > 0,
     staleTime: 30000,
@@ -98,7 +101,7 @@ function DataRoomsPage() {
   const hasActiveSearch = search.isActive || selectedTagId !== null;
   const availableFilterOptions = useMemo(() => {
     const seen = new Map<string, { id: string; name: string; color: string }>();
-    Object.values(roomDocumentsByRoomId).flat().forEach((document) => {
+    Object.values(roomDocumentSummariesByRoomId).flat().forEach((document) => {
       (document.tags ?? []).forEach((tag) => {
         if (!seen.has(tag.id)) {
           seen.set(tag.id, { id: tag.id, name: tag.name, color: tag.color });
@@ -106,7 +109,7 @@ function DataRoomsPage() {
       });
     });
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [roomDocumentsByRoomId]);
+  }, [roomDocumentSummariesByRoomId]);
 
   useEffect(() => {
     if (selectedTagId && !availableFilterOptions.some((tag) => tag.id === selectedTagId)) {
@@ -118,11 +121,11 @@ function DataRoomsPage() {
     () =>
       filterDataRoomOverviewRooms(
         rooms,
-        roomDocumentsByRoomId,
+        roomDocumentSummariesByRoomId,
         search.filter,
         selectedTagId,
       ),
-    [roomDocumentsByRoomId, rooms, search.filter, selectedTagId],
+    [roomDocumentSummariesByRoomId, rooms, search.filter, selectedTagId],
   );
 
   return (

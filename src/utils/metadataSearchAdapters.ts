@@ -1,5 +1,6 @@
 import type {
   DataRoomDocument,
+  DataRoomDocumentSearchSummary,
   DataRoom,
   DeckWithAnalytics,
   MetadataSearchFilterState,
@@ -170,7 +171,7 @@ export interface DataRoomOverviewSearchResult {
 
 export function filterDataRoomOverviewRooms(
   rooms: DataRoomOverviewRoom[],
-  documentsByRoomId: Record<string, DataRoomDocument[]>,
+  documentsByRoomId: Record<string, DataRoomDocumentSearchSummary[]>,
   filter: MetadataSearchFilterState,
   selectedTagId: string | null = null,
 ) {

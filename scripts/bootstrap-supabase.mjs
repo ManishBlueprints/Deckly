@@ -8,12 +8,16 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const supabaseBin = process.platform === "win32" ? "npx.cmd" : "npx";
 const args = process.argv.slice(2);
-const mode = (args[0] ?? "remote").toLowerCase();
+const mode =
+  !args[0] || args[0].startsWith("-")
+    ? "remote"
+    : args[0].toLowerCase();
 
 function getFlag(name) {
   const exact = args.findIndex((arg) => arg === name);
   if (exact !== -1) {
-    return args[exact + 1] ?? "";
+    const next = args[exact + 1];
+    return next && !next.startsWith("-") ? next : "";
   }
 
   const prefixed = args.find((arg) => arg.startsWith(`${name}=`));
