@@ -36,7 +36,6 @@ import {
 } from "../ui/alert-dialog";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
@@ -207,23 +206,30 @@ function DeckTagMenu({
             filteredTags.map((tag) => {
               const isSelected = selectedTagIds.includes(tag.id);
               return (
-                <DropdownMenuCheckboxItem
+                <button
                   key={tag.id}
-                  checked={isSelected}
-                  onCheckedChange={(checked: boolean | "indeterminate") => {
-                    void handleTagToggle(tag.id, checked === true);
+                  type="button"
+                  onClick={() => {
+                    void handleTagToggle(tag.id, !isSelected);
                   }}
-                  onSelect={(e) => e.preventDefault()}
-                  className="text-[#bbcbbb]/60 data-[highlighted]:bg-[#1c1b1b] data-[highlighted]:text-white cursor-pointer px-4 py-3 transition-colors"
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-all",
+                    isSelected
+                      ? "border-emerald-500/25 bg-emerald-500/10"
+                      : "border-transparent hover:border-white/10 hover:bg-white/[0.04]",
+                  )}
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: tag.color }}
-                    />
-                    <span className="text-sm font-bold">{tag.name}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <TagChip tag={tag} size="md" className="shrink-0" />
+                      {isSelected && (
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-400">
+                          Applied
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </DropdownMenuCheckboxItem>
+                </button>
               );
             })
           )}

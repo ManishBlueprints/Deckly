@@ -248,6 +248,9 @@ function DataRoomDetail() {
 
   useEffect(() => {
     loadAll();
+    return () => {
+      loadAllRequestIdRef.current += 1;
+    };
   }, [loadAll]);
 
   // Re-sign thumbnails whenever documents change
