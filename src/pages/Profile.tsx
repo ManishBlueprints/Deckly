@@ -442,7 +442,10 @@ function IdentitySection({
       {/* Workspace Name & Slug */}
       <div className="bg-surface-low border border-border p-6 space-y-6">
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+          <label
+            htmlFor="tour-workspace-name"
+            className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3"
+          >
             Workspace Name
           </label>
           <input
@@ -456,7 +459,10 @@ function IdentitySection({
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+          <label
+            htmlFor="tour-workspace-slug"
+            className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3"
+          >
             Public URL Handle
           </label>
           <div className="flex items-center bg-surface-lowest border border-border overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary/30 focus-within:border-deckly-primary transition-all">
