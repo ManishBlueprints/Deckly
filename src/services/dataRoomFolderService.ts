@@ -148,6 +148,7 @@ const asDataRoomTag = (tag: Record<string, unknown>): DataRoomTag => ({
   id: String(tag.id),
   name: String(tag.name),
   color: String(tag.color),
+  deleted_at: tag.deleted_at ? String(tag.deleted_at) : null,
   created_at: tag.created_at ? String(tag.created_at) : "",
   updated_at: tag.updated_at ? String(tag.updated_at) : "",
 });
@@ -289,6 +290,7 @@ const getFolderTagsByFolderIds = async (
         id: tag.id,
         name: tag.name,
         color: tag.color,
+        deleted_at: tag.deleted_at,
         created_at: tag.created_at || "",
         updated_at: tag.updated_at || "",
       });

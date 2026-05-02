@@ -61,6 +61,8 @@ export function ManageTagsModal({
   useEffect(() => {
     if (isOpen) {
       resetForm();
+    } else {
+      setPendingDeleteTag(null);
     }
   }, [isOpen, resetForm]);
 

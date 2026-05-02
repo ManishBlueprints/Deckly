@@ -1,10 +1,9 @@
 -- =============================================================================
 -- LOCAL DEVELOPMENT SEED DATA
--- This file is automatically run by `supabase db reset`.
--- DO NOT include production secrets or real user data here.
+-- This file is automatically run by `supabase db reset` and `supabase seed`.
+-- Keep this file minimal: no demo fixtures, no production secrets.
 -- =============================================================================
 
--- Admin email allowlist (local development only)
-INSERT INTO public.admin_emails (email, added_at)
-VALUES ('test1@deckly.com', NOW())
-ON CONFLICT (email) DO NOTHING;
+-- Intentionally empty by default.
+-- If you want a bootstrap admin allowlist entry, use the bootstrap script with
+-- SUPABASE_ADMIN_EMAIL, or insert your own row manually after setup.

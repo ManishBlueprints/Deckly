@@ -326,7 +326,7 @@ describe("metadataSearch", () => {
         makeSavedDeck({
           library_id: "1",
           title: "Alpha Saved Deck",
-          tags: [{ id: "tag-1", name: "SaaS", color: "#54e98a" }],
+          tags: [{ id: "tag-1", name: "SaaS", color: "#54e98a", deleted_at: null }],
         }),
         makeSavedDeck({ library_id: "2", title: "Beta Saved Deck" }),
       ],
@@ -356,6 +356,7 @@ describe("metadataSearch", () => {
               data_room_id: "room-1",
               name: "Legal",
               color: "#54e98a",
+              deleted_at: null,
               created_at: "2026-04-24T00:00:00.000Z",
               updated_at: "2026-04-24T00:00:00.000Z",
             },

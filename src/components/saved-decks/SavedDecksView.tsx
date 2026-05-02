@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { LibraryFolder, SavedDeckOrganized } from "../../types";
 import { Filter, Loader2 } from "lucide-react";
@@ -85,6 +85,12 @@ export function SavedDecksView() {
       selectedTagId,
     );
   }, [savedRooms, search.filter, selectedFolderId, selectedTagId]);
+
+  useEffect(() => {
+    if (selectedTagId && !tags.some((tag) => tag.id === selectedTagId)) {
+      setSelectedTagId(null);
+    }
+  }, [selectedTagId, tags]);
 
   const roomCountByFolder = useMemo(() => {
     return savedRooms.reduce<Record<string, number>>((acc, room) => {

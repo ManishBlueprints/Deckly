@@ -407,13 +407,8 @@ function DataRoomDetail() {
       );
 
       try {
-        const deckId = documents.find((doc) => doc.id === documentId)?.deck_id;
-        if (!deckId) {
-          throw new Error("Document not found.");
-        }
-
-        await deckService.updateDeckTags(deckId, tagIds);
-        void queryClient.invalidateQueries({ queryKey: ["decks", profile?.id] });
+        await folderActions.setDocumentTags(documentId, tagIds);
+        await loadAll();
       } catch (err) {
         setDocuments(previousDocuments);
         console.error("Failed to update document tags", err);
@@ -422,7 +417,7 @@ function DataRoomDetail() {
         );
       }
     },
-    [documents, profile?.id, queryClient, tags],
+    [documents, folderActions, loadAll, tags],
   );
 
   const handleReorderDocuments = async (orderedDeckIds: string[]) => {
