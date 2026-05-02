@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import { FileText, Loader2 } from "lucide-react";
@@ -98,6 +98,7 @@ function DataRoomDetail() {
 
   const [roomSignals, setRoomSignals] = useState<VisitorSignal[]>([]);
   const [signalsLoading, setSignalsLoading] = useState(true);
+  const loadAllRequestIdRef = useRef(0);
 
   const folderDocumentCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -155,6 +156,8 @@ function DataRoomDetail() {
   // This prevents unnecessary re-fetching when the component re-renders
   const loadAll = useCallback(async () => {
     if (!roomId) return;
+    const requestId = loadAllRequestIdRef.current + 1;
+    loadAllRequestIdRef.current = requestId;
     setLoading(true);
     setAnalyticsLoading(true);
     try {
@@ -162,6 +165,7 @@ function DataRoomDetail() {
         dataRoomService.getDataRoomById(roomId),
         dataRoomService.getDocuments(roomId),
       ]);
+      if (requestId !== loadAllRequestIdRef.current) return;
       if (!roomData) {
         navigate("/rooms");
         return;
@@ -172,25 +176,40 @@ function DataRoomDetail() {
 
       setSignalsLoading(true);
       void getRoomVisitorSignals(roomId)
-        .then(setRoomSignals)
+        .then((signals) => {
+          if (requestId !== loadAllRequestIdRef.current) return;
+          setRoomSignals(signals);
+        })
         .catch((err) => {
+          if (requestId !== loadAllRequestIdRef.current) return;
           console.error("Failed to load visitor signals", err);
           setRoomSignals([]);
         })
-        .finally(() => setSignalsLoading(false));
+        .finally(() => {
+          if (requestId !== loadAllRequestIdRef.current) return;
+          setSignalsLoading(false);
+        });
 
       void analyticsService
         .getDataRoomLocations(roomId)
-        .then(setRoomLocations)
+        .then((locations) => {
+          if (requestId !== loadAllRequestIdRef.current) return;
+          setRoomLocations(locations);
+        })
         .catch((err: unknown) => {
+          if (requestId !== loadAllRequestIdRef.current) return;
           console.error("Failed to load room locations", err);
           setRoomLocations({ countries: [], cities: [] });
         });
 
       void analyticsService
         .getDataRoomDocumentStats(roomId)
-        .then(setRoomDocumentStats)
+        .then((stats) => {
+          if (requestId !== loadAllRequestIdRef.current) return;
+          setRoomDocumentStats(stats);
+        })
         .catch((err: unknown) => {
+          if (requestId !== loadAllRequestIdRef.current) return;
           console.error("Failed to load room document stats", err);
           setRoomDocumentStats([]);
         });
@@ -198,14 +217,20 @@ function DataRoomDetail() {
       void dataRoomService
         .getDataRoomAnalytics(roomId, docs)
         .then((analyticsData) => {
+          if (requestId !== loadAllRequestIdRef.current) return;
           setAnalytics(analyticsData);
         })
         .catch((err) => {
+          if (requestId !== loadAllRequestIdRef.current) return;
           console.error("Failed to load room analytics", err);
           setAnalytics({ totalVisitors: 0, perDeck: [] });
         })
-        .finally(() => setAnalyticsLoading(false));
+        .finally(() => {
+          if (requestId !== loadAllRequestIdRef.current) return;
+          setAnalyticsLoading(false);
+        });
     } catch (err) {
+      if (requestId !== loadAllRequestIdRef.current) return;
       console.error("Failed to load room", err);
       setLoading(false);
       setAnalyticsLoading(false);

@@ -238,9 +238,13 @@ const deckCrudService = {
     return this.updateDeck(deckId, { is_public: false }, providedUserId);
   },
 
-  async updateDeckTags(deckId: string, tagIds: string[]): Promise<void> {
+  async updateDeckTags(
+    deckId: string,
+    tagIds: string[],
+    providedUserId?: string,
+  ): Promise<void> {
     return withRetry(async () => {
-      const userId = await getRequiredDeckUserId();
+      const userId = await getRequiredDeckUserId(providedUserId);
       const nextTagIds = Array.from(
         new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean)),
       );
