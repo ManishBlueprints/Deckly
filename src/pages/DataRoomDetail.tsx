@@ -451,7 +451,13 @@ function DataRoomDetail() {
   const handleReorderDocuments = async (orderedDeckIds: string[]) => {
     if (!roomId) return;
     if (search.isActive || selectedTagId !== null) {
-      toast.info("Clear search to reorder documents");
+      toast.info(
+        search.isActive && selectedTagId !== null
+          ? "Clear search and tag filters to reorder documents"
+          : search.isActive
+            ? "Clear search to reorder documents"
+            : "Clear tag filter to reorder documents",
+      );
       return;
     }
     const nextDocuments = reorderDataRoomDocuments(documents, orderedDeckIds);

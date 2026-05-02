@@ -69,6 +69,8 @@ function DeckTagMenu({
     React.useState<string[]>(deckTagIds);
   const selectedTagIdsRef = React.useRef<string[]>(selectedTagIds);
   const updateSeqRef = React.useRef(0);
+  const pendingUpdatePromiseRef = React.useRef<Promise<void> | null>(null);
+  const queuedTagIdsRef = React.useRef<string[] | null>(null);
 
   const setOptimisticSelectedTagIds = (nextIds: string[]) => {
     selectedTagIdsRef.current = nextIds;
@@ -81,7 +83,53 @@ function DeckTagMenu({
 
   React.useEffect(() => {
     setOptimisticSelectedTagIds(deckTagIds);
+    queuedTagIdsRef.current = null;
   }, [deck.id, deckTagIds]);
+
+  const flushPendingUpdates = React.useCallback(async () => {
+    if (pendingUpdatePromiseRef.current) {
+      return pendingUpdatePromiseRef.current;
+    }
+
+    const runUpdates = async () => {
+      while (queuedTagIdsRef.current) {
+        const nextSnapshot = queuedTagIdsRef.current;
+        queuedTagIdsRef.current = null;
+
+        try {
+          await onUpdateTags(deck.id, nextSnapshot);
+        } catch (error) {
+          if (queuedTagIdsRef.current) {
+            continue;
+          }
+          throw error;
+        }
+      }
+    };
+
+    pendingUpdatePromiseRef.current = runUpdates().finally(() => {
+      pendingUpdatePromiseRef.current = null;
+      if (queuedTagIdsRef.current) {
+        void flushPendingUpdates();
+      }
+    });
+
+    return pendingUpdatePromiseRef.current;
+  }, [deck.id, onUpdateTags]);
+
+  const commitTagSelection = async (requestSeq: number, nextIds: string[]) => {
+    queuedTagIdsRef.current = nextIds;
+
+    try {
+      await flushPendingUpdates();
+    } catch (error) {
+      console.error("Failed to update deck tags:", error);
+      if (requestSeq === updateSeqRef.current) {
+        rollbackSelectedTagIds();
+      }
+      toast.error("Failed to update tags. Please try again.");
+    }
+  };
 
   const filteredTags = availableTags.filter((tag) =>
     tagFilterQuery.trim()
@@ -98,20 +146,7 @@ function DeckTagMenu({
 
     updateSeqRef.current = requestSeq;
     setOptimisticSelectedTagIds(nextIds);
-
-    try {
-      await onUpdateTags(deck.id, nextIds);
-    } catch (error) {
-      console.error("Failed to update deck tags:", error);
-      if (requestSeq === updateSeqRef.current) {
-        rollbackSelectedTagIds();
-      }
-      toast.error(
-        error instanceof Error
-          ? `Failed to update tags: ${error.message}`
-          : "Failed to update tags. Please try again.",
-      );
-    }
+    await commitTagSelection(requestSeq, nextIds);
   };
 
   const handleClearAll = async () => {
@@ -119,20 +154,7 @@ function DeckTagMenu({
 
     updateSeqRef.current = requestSeq;
     setOptimisticSelectedTagIds([]);
-
-    try {
-      await onUpdateTags(deck.id, []);
-    } catch (error) {
-      console.error("Failed to clear deck tags:", error);
-      if (requestSeq === updateSeqRef.current) {
-        rollbackSelectedTagIds();
-      }
-      toast.error(
-        error instanceof Error
-          ? `Failed to clear tags: ${error.message}`
-          : "Failed to clear tags. Please try again.",
-      );
-    }
+    await commitTagSelection(requestSeq, []);
   };
 
   return (
