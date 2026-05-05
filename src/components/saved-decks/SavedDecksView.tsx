@@ -32,6 +32,7 @@ import {
   type SavedDeckSearchResult,
   type SavedRoomSearchResult,
 } from "../../utils/metadataSearchAdapters";
+import { getDeckPath } from "../../utils/url";
 
 export function SavedDecksView() {
   const { session } = useAuth();
@@ -404,6 +405,13 @@ export function SavedDecksView() {
                       folders={folders}
                       tags={tags}
                       matchedTagNames={result.matchedTagNames}
+                      onSummarize={() =>
+                        window.open(
+                          `${getDeckPath(result.deck.user_handle, result.deck.slug)}?ai=summary`,
+                          "_blank",
+                          "noopener,noreferrer",
+                        )
+                      }
                       onMoveToFolder={(folderId) =>
                         handleMoveToFolder(result.deck.library_id, folderId)
                       }

@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Edit2, Folder, Trash2 } from "lucide-react";
+import { Edit2, Folder, Sparkles, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { DataRoomFolderWithTags } from "../../types";
 import { FOLDER_COLORS } from "../../constants/folderColors";
@@ -14,6 +14,7 @@ interface DataRoomFolderCardProps {
   onClick?: () => void;
   onEdit?: (folder: DataRoomFolderWithTags) => void;
   onDelete?: (folder: DataRoomFolderWithTags) => void;
+  onSummarize?: (folder: DataRoomFolderWithTags) => void;
   documentCount?: number;
 }
 
@@ -28,9 +29,11 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
   onClick,
   onEdit,
   onDelete,
+  onSummarize,
   documentCount,
 }: DataRoomFolderCardProps) {
   const folderColor = getColorHex(folder?.color ?? "#64748B");
+  const canSummarize = (documentCount ?? 0) > 0;
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.target !== event.currentTarget) return;
@@ -103,6 +106,19 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
       </div>
 
       <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-10">
+        {onSummarize ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (canSummarize) onSummarize(folder);
+            }}
+            aria-label="Summarize folder"
+            disabled={!canSummarize}
+            className="p-2 rounded-md bg-surface-low hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface-low disabled:hover:text-muted-foreground"
+          >
+            <Sparkles size={14} />
+          </button>
+        ) : null}
         <button
           onClick={(e) => {
             e.stopPropagation();

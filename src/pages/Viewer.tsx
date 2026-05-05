@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   AlertCircle,
@@ -8,16 +9,20 @@ import {
   BookmarkCheck,
   Check,
   MessageSquareText,
+  Sparkles,
 } from "lucide-react";
 import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
 import DeckViewer from "../components/viewer/DeckViewer";
 import AccessGate from "../components/viewer/AccessGate";
 import { AuthModal } from "../components/auth/AuthModal";
 import { NotesSidebar } from "../components/viewer/NotesSidebar";
+import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
+import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { deckService } from "../services/deckService";
 import { analyticsService } from "../services/analyticsService";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { Deck } from "../types";
 import {
   useIsDeckSaved,
@@ -26,6 +31,7 @@ import {
 
 function Viewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { session } = useAuth();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -36,8 +42,10 @@ function Viewer() {
 
   // UI States
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMessage, setAuthModalMessage] = useState<string | undefined>();
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Tracks metadata needed to refresh the signed URL before it expires.
   // Stored in a ref so the refresh effect doesn't re-run on every render.
@@ -72,6 +80,13 @@ function Viewer() {
   // TanStack Queries
   const { data: isSaved = false } = useIsDeckSaved(deck?.id, session?.user?.id);
   const saveToLibraryMutation = useSaveToLibraryMutation(session?.user?.id);
+  const aiSummary = useAiSummaryPanel({
+    onRequireAuth: () => {
+      setAuthModalMessage("Sign in to keep chatting with the AI summary.");
+      setShowAuthModal(true);
+    },
+    isGuest: !session,
+  });
 
   // Initialize viewerEmail from session if available
   useEffect(() => {
@@ -199,6 +214,51 @@ function Viewer() {
     saveToLibraryMutation.mutate({ deckId: deck.id, save: nextSaveState });
   };
 
+  const handleSummarize = useCallback(async () => {
+    if (!deck) return;
+
+    try {
+      const result = await aiSummary.requestSummary({
+        scope_type: "deck",
+        scope_id: deck.id,
+        scope_label: deck.title,
+      });
+
+      if (result.status === "quota_limited") {
+        if (result.usage.quota?.scope === "guest") {
+          setAuthModalMessage(
+            "You’ve used today’s AI summary from this device. Sign in to keep exploring and unlock more summaries.",
+          );
+          setShowAuthModal(true);
+        } else if (result.usage.quota?.nextAction === "upgrade") {
+          setShowUpgradeModal(true);
+        }
+      }
+    } catch (error) {
+      const status = (error as { status?: number } | undefined)?.status;
+      if (status === 401 || status === 403) {
+        setAuthModalMessage("Sign in to keep chatting with the AI summary.");
+        setShowAuthModal(true);
+        return;
+      }
+
+      console.error("Failed to load AI summary", error);
+      toast.error("Failed to load the AI summary. Please try again.");
+    }
+  }, [aiSummary, deck]);
+
+  useEffect(() => {
+    if (!deck || !isUnlocked) return;
+    if (searchParams.get("ai") !== "summary") return;
+
+    void handleSummarize();
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("ai");
+      return next;
+    }, { replace: true });
+  }, [deck, handleSummarize, isUnlocked, searchParams, setSearchParams]);
+
   return (
     <div className="fixed inset-0 bg-[#0d0d0d] flex flex-col items-stretch overflow-hidden">
       <AnimatePresence mode="wait">
@@ -314,6 +374,14 @@ function Viewer() {
                 <MessageSquareText size={16} />
                 <span className="text-xs font-semibold">Notes</span>
               </button>
+
+              <button
+                onClick={() => void handleSummarize()}
+                className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-deckly-primary/20 text-deckly-primary hover:text-white hover:border-deckly-primary/40 transition-all rounded-md active:scale-95"
+              >
+                <Sparkles size={16} />
+                <span className="text-xs font-semibold">Summarize</span>
+              </button>
             </div>
 
             <div className="flex-1 w-full relative min-h-0">
@@ -352,8 +420,42 @@ function Viewer() {
 
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
+        onClose={() => {
+          setShowAuthModal(false);
+          setAuthModalMessage(undefined);
+        }}
+        message={authModalMessage}
         redirectTo={window.location.href}
+      />
+
+      <AiSummarySidebar
+        isOpen={aiSummary.state.isOpen}
+        onClose={aiSummary.close}
+        onRequireAuth={() => {
+          setAuthModalMessage("Sign in to unlock AI follow-up chat.");
+          setShowAuthModal(true);
+        }}
+        title="AI Summary"
+        privacyLabel={isOwner ? "Owner view" : "Investor view"}
+        description="Quick overview plus follow-up chat for this deck."
+        summary={aiSummary.state.summary}
+        isSummaryLoading={aiSummary.state.isSummaryLoading}
+        summaryEmptyMessage="Summary will appear here when available."
+        summaryMeta={aiSummary.state.summaryMeta}
+        summaryNotice={aiSummary.state.summaryNotice}
+        summaryNoticeTone={aiSummary.state.summaryNoticeTone}
+        chatMessages={aiSummary.state.chatMessages}
+        chatInputValue={aiSummary.state.chatInputValue}
+        onChatInputChange={aiSummary.setChatInputValue}
+        onChatSubmit={aiSummary.submitChat}
+        isChatLoading={aiSummary.state.isChatLoading}
+        isChatLocked={aiSummary.state.isChatLocked}
+      />
+
+      <TierUpsellModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureName="AI summaries"
       />
 
       {deck && (

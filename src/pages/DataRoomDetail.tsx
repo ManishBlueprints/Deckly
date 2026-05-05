@@ -9,6 +9,7 @@ import { dataRoomService } from "../services/dataRoomService";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
 import { deckService } from "../services/deckService";
 import { useAuth } from "../contexts/AuthContext";
+import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getRoomVisitorSignals,
@@ -44,6 +45,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
+import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
+import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 
 /* ───────── main page ───────── */
 function DataRoomDetail() {
@@ -94,6 +97,7 @@ function DataRoomDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isUpdatingShareState, setIsUpdatingShareState] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const search = useMetadataSearchState("data_room");
 
   const [roomSignals, setRoomSignals] = useState<VisitorSignal[]>([]);
@@ -245,6 +249,13 @@ function DataRoomDetail() {
     () => roomDocumentStats.reduce((acc, doc) => acc + doc.totalTimeSeconds, 0),
     [roomDocumentStats],
   );
+
+  const aiSummary = useAiSummaryPanel({
+    onRequireAuth: () => {
+      toast.info("Sign in to unlock AI follow-up chat.");
+    },
+    isGuest: false,
+  });
 
   useEffect(() => {
     loadAll();
@@ -486,6 +497,42 @@ function DataRoomDetail() {
     }
   };
 
+  const handleSummarizeRoom = async () => {
+    if (!room) return;
+
+    try {
+      const result = await aiSummary.requestSummary({
+        scope_type: "data_room",
+        scope_id: room.id,
+        scope_label: room.name,
+      });
+
+      if (result.status === "quota_limited" && result.usage.quota?.nextAction === "upgrade") {
+        setShowUpgradeModal(true);
+      }
+    } catch (err) {
+      console.error("Failed to summarize room", err);
+      toast.error("Failed to load the AI summary.");
+    }
+  };
+
+  const handleSummarizeFolder = async (folder: DataRoomFolderWithTags) => {
+    try {
+      const result = await aiSummary.requestSummary({
+        scope_type: "folder",
+        scope_id: folder.id,
+        scope_label: folder.name,
+      });
+
+      if (result.status === "quota_limited" && result.usage.quota?.nextAction === "upgrade") {
+        setShowUpgradeModal(true);
+      }
+    } catch (err) {
+      console.error("Failed to summarize folder", err);
+      toast.error("Failed to load the AI summary.");
+    }
+  };
+
   /* ── loading state ── */
   if (loading) {
     return (
@@ -515,6 +562,8 @@ function DataRoomDetail() {
               "noopener,noreferrer",
             )
           }
+          onSummarize={() => void handleSummarizeRoom()}
+          summarizeDisabled={documents.length === 0}
         />
 
         <DataRoomDetailTabs activeTab={activeTab} onChange={setActiveTab} />
@@ -537,6 +586,7 @@ function DataRoomDetail() {
               setFolderModalOpen(true);
             }}
             onDeleteFolder={(nextFolder) => setDeletingFolder(nextFolder)}
+            onSummarizeFolder={(nextFolder) => void handleSummarizeFolder(nextFolder)}
             onEditTags={() => setTagModalOpen(true)}
             search={search}
             selectedTagId={selectedTagId}
@@ -690,6 +740,35 @@ function DataRoomDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AiSummarySidebar
+        isOpen={aiSummary.state.isOpen}
+        onClose={aiSummary.close}
+        onRequireAuth={() => {
+          toast.info("Sign in to unlock AI follow-up chat.");
+        }}
+        title="AI Summary"
+        privacyLabel="Room owner view"
+        description="Quick overview plus follow-up chat for this room or folder."
+        summary={aiSummary.state.summary}
+        isSummaryLoading={aiSummary.state.isSummaryLoading}
+        summaryEmptyMessage="Summary will appear here when available."
+        summaryMeta={aiSummary.state.summaryMeta}
+        summaryNotice={aiSummary.state.summaryNotice}
+        summaryNoticeTone={aiSummary.state.summaryNoticeTone}
+        chatMessages={aiSummary.state.chatMessages}
+        chatInputValue={aiSummary.state.chatInputValue}
+        onChatInputChange={aiSummary.setChatInputValue}
+        onChatSubmit={aiSummary.submitChat}
+        isChatLoading={aiSummary.state.isChatLoading}
+        isChatLocked={aiSummary.state.isChatLocked}
+      />
+
+      <TierUpsellModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureName="AI summaries"
+      />
     </DashboardLayout>
   );
 }
@@ -705,6 +784,7 @@ function DataRoomContentSection({
   onNewFolder,
   onEditFolder,
   onDeleteFolder,
+  onSummarizeFolder,
   onEditTags,
   search,
   selectedTagId,
@@ -731,6 +811,7 @@ function DataRoomContentSection({
   onNewFolder: () => void;
   onEditFolder: (folder: DataRoomFolderWithTags) => void;
   onDeleteFolder: (folder: DataRoomFolderWithTags) => void;
+  onSummarizeFolder: (folder: DataRoomFolderWithTags) => void;
   onEditTags: () => void;
   search: ReturnType<typeof useMetadataSearchState>;
   selectedTagId: string | null;
@@ -790,6 +871,7 @@ function DataRoomContentSection({
         onCreateFolder={onNewFolder}
         onEditFolder={onEditFolder}
         onDeleteFolder={onDeleteFolder}
+        onSummarizeFolder={onSummarizeFolder}
       />
 
       <div className="rounded-xl md:rounded-2xl border border-white/5 bg-[#111] overflow-hidden">

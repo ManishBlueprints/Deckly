@@ -17,6 +17,7 @@ import {
   Check,
   Loader2,
   Tag,
+  Sparkles,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getDeckShareUrl, getDeckPreviewPath } from "../../utils/url";
@@ -435,6 +436,19 @@ export function DecksTable({
                     <span className="text-xs px-1">Copy</span>
                   )}
                 </button>
+                <button
+                  onClick={() => {
+                    window.open(
+                      `${getDeckPreviewPath(deck.id)}?ai=summary`,
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
+                  }}
+                  className="p-2.5 bg-surface-low border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-none transition-all"
+                  title="Summarize with AI"
+                >
+                  <Sparkles size={16} />
+                </button>
                 <Link
                   to={`/analytics/${deck.id}`}
                   className="p-2.5 bg-surface-low border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-none transition-all"
@@ -625,6 +639,19 @@ export function DecksTable({
                   <TableCell className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       {renderTagMenu(deck)}
+                      <button
+                        onClick={() => {
+                          window.open(
+                            `${getDeckPreviewPath(deck.id)}?ai=summary`,
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
+                        }}
+                        className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-none transition-all"
+                        title="Summarize with AI"
+                      >
+                        <Sparkles size={16} />
+                      </button>
                       <Link
                         to={`/analytics/${deck.id}`}
                         data-tour="analytics-btn"

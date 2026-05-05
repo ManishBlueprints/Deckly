@@ -24,6 +24,7 @@ interface DocumentRowProps {
   folders: LibraryFolder[];
   tags: LibraryTag[];
   matchedTagNames?: string[];
+  onSummarize: () => void;
   onMoveToFolder: (folderId: string | null) => void;
   onUpdateTags: (tagIds: string[]) => void;
   onSaveNote: (note: string) => Promise<void>;
@@ -37,6 +38,7 @@ export const DocumentRow = memo(function DocumentRow({
   folders,
   tags,
   matchedTagNames = [],
+  onSummarize,
   onMoveToFolder,
   onUpdateTags,
   onSaveNote,
@@ -206,6 +208,8 @@ export const DocumentRow = memo(function DocumentRow({
             tags={tags}
             openLabel="Open Deck"
             openAction={() => window.open(`/${deck.user_handle}/${deck.slug}`, "_blank", "noopener,noreferrer")}
+            summarizeLabel="Summarize with AI"
+            onSummarize={onSummarize}
             unsaveLabel="Remove from Saved"
             unsaveDescription={`Are you sure you want to remove "${deck.title}" from your saved decks? You can still access it via the original URL if needed.`}
             onMoveToFolder={onMoveToFolder}

@@ -1,0 +1,110 @@
+import { supabase } from "./supabase";
+import type { AiSummaryInitialResult } from "./aiSummaryInitialOrchestrator";
+import type { AiScopeReference, AiScopeType } from "./aiScopeResolutionBuilder";
+
+export interface AiSummaryChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AiSummaryChatResult {
+  scope_type: AiScopeType;
+  scope_id: string;
+  content_hash: string;
+  messages: AiSummaryChatMessage[];
+  assistant_message: AiSummaryChatMessage | null;
+  summary_text: string | null;
+  session_id: string | null;
+}
+
+export interface AiSummaryRequest extends AiScopeReference {
+  title?: string | null;
+}
+
+export interface AiSummaryChatRequest extends AiScopeReference {
+  content_hash: string;
+  question: string;
+  title?: string | null;
+  summary_text?: string | null;
+}
+
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) return {};
+
+  return {
+    Authorization: `Bearer ${session.access_token}`,
+  };
+};
+
+const parseJson = <T,>(value: unknown): T => value as T;
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error("Missing Supabase environment variables for AI summaries.");
+}
+
+const invokeAiSummaryFunction = async (body: Record<string, unknown>) => {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/ai-summary`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: headers.Authorization ?? `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json().catch(() => null);
+  return { response, data };
+};
+
+export const aiSummaryService = {
+  async summarizeScope(request: AiSummaryRequest): Promise<AiSummaryInitialResult> {
+    const { response, data } = await invokeAiSummaryFunction({
+      action: "summarize",
+      scope_type: request.scope_type,
+      scope_id: request.scope_id,
+      title: request.title ?? null,
+    });
+
+    if (!response.ok && response.status !== 429) {
+      const message = typeof data?.message === "string" ? data.message : "Failed to load AI summary.";
+      const error = new Error(message);
+      (error as Error & { status?: number }).status = response.status;
+      (error as Error & { payload?: unknown }).payload = data;
+      throw error;
+    }
+
+    return parseJson<AiSummaryInitialResult>(data);
+  },
+
+  async sendChatMessage(request: AiSummaryChatRequest): Promise<AiSummaryChatResult> {
+    const { response, data } = await invokeAiSummaryFunction({
+      action: "chat",
+      scope_type: request.scope_type,
+      scope_id: request.scope_id,
+      content_hash: request.content_hash,
+      question: request.question,
+      title: request.title ?? null,
+      summary_text: request.summary_text ?? null,
+    });
+
+    if (!response.ok) {
+      const message = typeof data?.message === "string" ? data.message : "Failed to send AI chat message.";
+      const error = new Error(message);
+      (error as Error & { status?: number }).status = response.status;
+      (error as Error & { payload?: unknown }).payload = data;
+      throw error;
+    }
+
+    return parseJson<AiSummaryChatResult>(data);
+  },
+};
