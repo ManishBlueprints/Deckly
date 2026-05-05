@@ -17,6 +17,8 @@ import {
   AlertCircle,
   Zap,
   CheckCircle2,
+  Mail,
+  Copy,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
@@ -46,6 +48,81 @@ const TIER_ORDER: Record<Tier, number> = {
   PRO: 1,
   PRO_PLUS: 2,
 };
+
+type TierFeatureKey =
+  | "maxDecks"
+  | "days"
+  | "maxDataRooms"
+  | "maxFileSizeMB"
+  | "aiSummariesPerDay"
+  | "supportedFormats"
+  | "allowOffice"
+  | "allowInteractive"
+  | "teamMembers"
+  | "prioritySupport";
+
+const TIER_FEATURES: Array<{
+  key: TierFeatureKey;
+  label: string;
+  format?: (value: number | boolean | string[]) => string;
+}> = [
+  {
+    key: "maxDecks",
+    label: "Decks",
+    format: (value) => formatCount(value as number, "deck"),
+  },
+  {
+    key: "days",
+    label: "Analytics Retention",
+    format: (value) => formatCount(value as number, "day"),
+  },
+  {
+    key: "maxDataRooms",
+    label: "Data Rooms",
+    format: (value) => formatCount(value as number, "room"),
+  },
+  {
+    key: "maxFileSizeMB",
+    label: "Max Upload Size",
+    format: (value) => (value === -1 ? "Unlimited" : `${value} MB`),
+  },
+  {
+    key: "aiSummariesPerDay",
+    label: "AI Summaries/Day",
+    format: (value) => formatCount(value as number, "summary"),
+  },
+  {
+    key: "supportedFormats",
+    label: "File Formats",
+    format: (value) => (value as string[]).join(" / "),
+  },
+  {
+    key: "allowOffice",
+    label: "Office Files",
+    format: (value) => (value ? "Yes" : "No"),
+  },
+  {
+    key: "allowInteractive",
+    label: "Interactive Mode",
+    format: (value) => (value ? "Yes" : "No"),
+  },
+  {
+    key: "teamMembers",
+    label: "Team Members",
+    format: (value) => formatCount(value as number, "member"),
+  },
+  {
+    key: "prioritySupport",
+    label: "Priority Support",
+    format: (value) => (value ? "Yes" : "No"),
+  },
+];
+
+function formatCount(value: number, unit: string) {
+  if (value === -1) return "Unlimited";
+  if (value === 0) return "0";
+  return `${value} ${value === 1 ? unit : `${unit}s`}`;
+}
 
 type ProfileSection = "identity" | "tier" | "collaboration" | "danger";
 
@@ -537,18 +614,38 @@ function IdentitySection({
 /* ── Tier Section ── */
 function TierSection({ currentTier }: { currentTier: Tier }) {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
+  const [upgradeNoticeOpen, setUpgradeNoticeOpen] = useState(false);
+  const { profile, session } = useAuth();
   const tierKeys: Tier[] = ["FREE", "PRO", "PRO_PLUS"];
+  const userName = profile?.full_name?.trim() || profile?.handle || "your username";
+  const userEmail = session?.user?.email || "your email address";
 
-  const features = [
-    { key: "maxDecks" as const, label: "Decks" },
-    { key: "days" as const, label: "Analytics Retention", format: (v: number) => `${v} days` },
-    { key: "maxDataRooms" as const, label: "Data Rooms" },
-    { key: "aiSummariesPerDay" as const, label: "AI Summaries/Day" },
-    { key: "supportedFormats" as const, label: "File Formats" },
-    { key: "teamMembers" as const, label: "Team Members" },
-    { key: "allowInteractive" as const, label: "Interactive Mode" },
-    { key: "prioritySupport" as const, label: "Priority Support" },
-  ];
+  const handleCopy = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error(`Failed to copy ${label.toLowerCase()}`);
+    }
+  };
+
+  useEffect(() => {
+    if (!upgradeNoticeOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setUpgradeNoticeOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [upgradeNoticeOpen]);
 
   const tierIcons = {
     FREE: CheckCircle2,
@@ -563,6 +660,127 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
 
   return (
     <div className="space-y-8">
+      <AnimatePresence>
+        {upgradeNoticeOpen && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setUpgradeNoticeOpen(false)}
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="upgrade-notice-title"
+              className="relative w-full max-w-lg overflow-hidden border border-border bg-surface-lowest shadow-[0_32px_120px_-24px_rgba(0,0,0,0.7)]"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-deckly-primary mb-2">
+                    Alpha Notice
+                  </p>
+                  <h3 id="upgrade-notice-title" className="text-xl font-bold text-white">
+                    Billing is not live yet
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUpgradeNoticeOpen(false)}
+                  className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Close upgrade notice"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="px-6 py-5 space-y-5">
+                <div className="flex items-start gap-3 rounded-none border border-amber-500/20 bg-amber-500/10 p-4">
+                  <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-400" />
+                  <p className="text-sm text-slate-200 leading-relaxed">
+                    This app is in alpha version. To upgrade, please email{" "}
+                    <a
+                      href="mailto:test@deckly.space"
+                      className="font-semibold text-deckly-primary hover:underline"
+                    >
+                      test@deckly.space
+                    </a>{" "}
+                    with your User Name and Email Id.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="border border-border bg-surface-low p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
+                          User Name
+                        </p>
+                        <p className="text-sm font-semibold text-white break-words">
+                          {userName}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopy(userName, "Username")}
+                        className="shrink-0 p-2 text-muted-foreground hover:text-deckly-primary hover:bg-white/5 transition-colors"
+                        aria-label="Copy username"
+                        title="Copy username"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="border border-border bg-surface-low p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
+                          Email Id
+                        </p>
+                        <p className="text-sm font-semibold text-white break-words">
+                          {userEmail}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopy(userEmail, "Email")}
+                        className="shrink-0 p-2 text-muted-foreground hover:text-deckly-primary hover:bg-white/5 transition-colors"
+                        aria-label="Copy email"
+                        title="Copy email"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-border px-6 py-5 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setUpgradeNoticeOpen(false)}
+                  className="px-5 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Close
+                </button>
+                <a
+                  href={`mailto:test@deckly.space?subject=${encodeURIComponent("Deckly upgrade request")}&body=${encodeURIComponent(`Hello Deckly team,\n\nI would like to upgrade my account.\n\nUser Name: ${userName}\nEmail Id: ${userEmail}\n\nThanks.`)}`}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-deckly-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.2em] hover:brightness-110 transition-all"
+                >
+                  <Mail size={14} />
+                  Email Upgrade Request
+                </a>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Billing Toggle - Pill Style */}
       <div className="flex justify-center">
         <div className="flex p-1 bg-surface-low border border-border">
@@ -652,7 +870,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
 
               {/* Features List */}
               <div className="flex-1 space-y-3 mb-8 overflow-hidden">
-                {features.map(({ key, label, format }) => {
+                {TIER_FEATURES.map(({ key, label, format }) => {
                   const val = TIER_CONFIG[tierKey][key];
                   const prevVal = prevTier ? TIER_CONFIG[prevTier][key] : -1;
                   
@@ -673,7 +891,9 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
                           {label}
                         </span>
                         <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5 truncate">
-                          {format ? format(val as never) : (val === -1 ? "Unlimited" : (typeof val === "boolean" ? (val ? "Yes" : "No") : val))}
+                          {format
+                            ? format(val as number | boolean | string[])
+                            : formatTierFeatureValue(val)}
                         </span>
                       </div>
                     </div>
@@ -686,7 +906,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
                 disabled={isCurrent}
                 onClick={() => {
                   if (!isCurrent) {
-                    toast.info(`${tierKey} Checkout Simulation...`);
+                    setUpgradeNoticeOpen(true);
                   }
                 }}
                 className={cn(
@@ -707,28 +927,15 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
         })}
       </div>
 
-      {/* Enterprise / Bottom Section */}
-      <div className="bg-surface-low border border-border p-6 mt-0">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <div className="w-12 h-12 bg-white/5 flex items-center justify-center shrink-0">
-              <Sparkles size={24} className="text-amber-400" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-foreground uppercase tracking-widest mb-1">Enterprise Scale</h4>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider opacity-60">SSO, Custom Analytics, Dedicated Support</p>
-            </div>
-          </div>
-          <a 
-            href="mailto:enterprise@deckly.space" 
-            className="px-8 py-3 bg-white text-slate-950 text-[10px] font-bold uppercase tracking-wider hover:bg-slate-200 transition-all shrink-0"
-          >
-            Contact Sales
-          </a>
-        </div>
-      </div>
     </div>
   );
+}
+
+function formatTierFeatureValue(value: number | boolean | string[]): string {
+  if (Array.isArray(value)) return value.join(" / ");
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (value === -1) return "Unlimited";
+  return `${value}`;
 }
 
 /* ── Collaboration Section ── */
