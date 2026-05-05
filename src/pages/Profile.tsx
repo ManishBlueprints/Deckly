@@ -875,7 +875,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
                   const prevVal = prevTier ? TIER_CONFIG[prevTier][key] : -1;
                   
                   // Only show if it's a new or improved feature compared to the previous tier
-                  const isNewOrImproved = val !== prevVal;
+                  const isNewOrImproved = !areTierFeatureValuesEqual(val, prevVal);
                   if (!isNewOrImproved && tierKey !== "FREE") return null;
 
                   const isIncluded = val !== 0 && val !== false;
@@ -936,6 +936,18 @@ function formatTierFeatureValue(value: number | boolean | string[]): string {
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (value === -1) return "Unlimited";
   return `${value}`;
+}
+
+function areTierFeatureValuesEqual(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((item, index) => item === b[index]);
+  }
+
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  return a === b;
 }
 
 /* ── Collaboration Section ── */
