@@ -61,11 +61,7 @@ export function SavedDecksView() {
     null,
   );
 
-  // Confirm dialog state
-  const [unsaveTarget, setUnsaveTarget] = useState<SavedDeckOrganized | null>(
-    null,
-  );
-  const [isUnsavingInProgress, setIsUnsavingInProgress] = useState(false);
+  const [unsavingDeckId, setUnsavingDeckId] = useState<string | null>(null);
   const [deletingFolder, setDeletingFolder] = useState<LibraryFolder | null>(
     null,
   );
@@ -100,25 +96,6 @@ export function SavedDecksView() {
       return acc;
     }, {});
   }, [savedRooms]);
-
-  // --- Confirm: Unsave deck ---
-  const handleConfirmUnsave = useCallback(async () => {
-    if (!unsaveTarget) return;
-    setIsUnsavingInProgress(true);
-    try {
-      await actions.unsaveDeck(unsaveTarget.deck_id);
-      setUnsaveTarget(null);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Failed to remove deck from library.";
-      console.error("Failed to unsave deck:", err);
-      toast.error(errorMessage);
-    } finally {
-      setIsUnsavingInProgress(false);
-    }
-  }, [unsaveTarget, actions]);
 
   // --- Confirm: Delete folder ---
   const handleConfirmDeleteFolder = useCallback(async () => {
@@ -191,8 +168,21 @@ export function SavedDecksView() {
   );
 
   const handleUnsaveRequest = useCallback((deck: SavedDeckOrganized) => {
-    setUnsaveTarget(deck);
-  }, []);
+    setUnsavingDeckId(deck.library_id);
+    void actions
+      .unsaveDeck(deck.deck_id)
+      .catch((err) => {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Failed to remove deck from library.";
+        console.error("Failed to unsave deck:", err);
+        toast.error(errorMessage);
+      })
+      .finally(() => {
+        setUnsavingDeckId(null);
+      });
+  }, [actions]);
 
   const handleEditFolderRequest = useCallback((f: LibraryFolder) => {
     setEditingFolder(f);
@@ -420,7 +410,7 @@ export function SavedDecksView() {
                       }
                       onSaveNote={(note) => handleSaveNote(result.deck.deck_id, note)}
                       onUnsave={() => handleUnsaveRequest(result.deck)}
-                      isUnsaving={unsaveTarget?.library_id === result.deck.library_id}
+                      isUnsaving={unsavingDeckId === result.deck.library_id}
                     />
                   ))
                 )}
@@ -431,40 +421,6 @@ export function SavedDecksView() {
       </main>
 
       {/* Modals */}
-      <AlertDialog
-        open={!!unsaveTarget}
-        onOpenChange={(open) => {
-          if (!open && !isUnsavingInProgress) {
-            setUnsaveTarget(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Document</AlertDialogTitle>
-            <AlertDialogDescription>
-              Remove "{unsaveTarget?.title}" from your library? Your private
-              notes will be lost.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isUnsavingInProgress}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
-              onClick={(e) => {
-                e.preventDefault();
-                handleConfirmUnsave();
-              }}
-              disabled={isUnsavingInProgress}
-            >
-              {isUnsavingInProgress ? "Removing..." : "Remove Now"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <CreateFolderModal
         isOpen={isCreateFolderModalOpen}
         onClose={() => {

@@ -46,7 +46,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxDecksPerDay: 30,
     maxDecksPerRoom: 50,
     aiSummariesPerDay: 10,
-    supportedFormats: ["PDF", "XLSX", "DOCX", "PPT"],
+    supportedFormats: ["PDF", "XLSX", "DOCX", "PPTX"],
     teamMembers: 0,
     prioritySupport: false,
   },
@@ -68,7 +68,10 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
   },
 };
 
-export const getTierConfig = (isPro: boolean, tierOverride?: Tier): TierConfig => {
+export const getTierConfig = (
+  isPro: boolean,
+  tierOverride?: Tier,
+): TierConfig => {
   if (tierOverride) return TIER_CONFIG[tierOverride];
   return isPro ? TIER_CONFIG.PRO : TIER_CONFIG.FREE;
 };
