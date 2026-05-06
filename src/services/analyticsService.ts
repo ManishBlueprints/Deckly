@@ -13,22 +13,44 @@ type GeoLocation = {
 };
 
 const GEO_CACHE_KEY = "deckly_geo_cache";
+const GEO_CACHE_TTL_MS = 30 * 60 * 1000;
 let geoCache: GeoLocation | null = null;
+let geoCacheExpiresAt: number | null = null;
+
+type StoredGeoLocation = GeoLocation & {
+  cached_at: number;
+};
+
+const clearGeoCacheFromSession = () => {
+  try {
+    sessionStorage.removeItem(GEO_CACHE_KEY);
+  } catch {
+    // Ignore sessionStorage errors.
+  }
+};
 
 const readGeoCacheFromSession = (): GeoLocation | null => {
   try {
     const raw = sessionStorage.getItem(GEO_CACHE_KEY);
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw) as Partial<GeoLocation>;
+    const parsed = JSON.parse(raw) as Partial<StoredGeoLocation>;
     if (
       typeof parsed.country !== "string" ||
       typeof parsed.city !== "string" ||
-      typeof parsed.country_code !== "string"
+      typeof parsed.country_code !== "string" ||
+      typeof parsed.cached_at !== "number"
     ) {
-      sessionStorage.removeItem(GEO_CACHE_KEY);
+      clearGeoCacheFromSession();
       return null;
     }
+
+    if (Date.now() - parsed.cached_at > GEO_CACHE_TTL_MS) {
+      clearGeoCacheFromSession();
+      return null;
+    }
+
+    geoCacheExpiresAt = parsed.cached_at + GEO_CACHE_TTL_MS;
 
     return {
       country: parsed.country,
@@ -42,7 +64,15 @@ const readGeoCacheFromSession = (): GeoLocation | null => {
 
 const writeGeoCacheToSession = (value: GeoLocation) => {
   try {
-    sessionStorage.setItem(GEO_CACHE_KEY, JSON.stringify(value));
+    const cachedAt = Date.now();
+    geoCacheExpiresAt = cachedAt + GEO_CACHE_TTL_MS;
+    sessionStorage.setItem(
+      GEO_CACHE_KEY,
+      JSON.stringify({
+        ...value,
+        cached_at: cachedAt,
+      } satisfies StoredGeoLocation),
+    );
   } catch {
     // Ignore sessionStorage errors and continue with in-memory cache only.
   }
@@ -109,7 +139,12 @@ export const analyticsService = {
 
   // Get geolocation from Vercel Edge headers
   async getGeoLocation(): Promise<GeoLocation> {
-    if (geoCache) return geoCache;
+    if (geoCache && geoCacheExpiresAt && Date.now() < geoCacheExpiresAt) {
+      return geoCache;
+    }
+
+    geoCache = null;
+    geoCacheExpiresAt = null;
 
     const sessionCachedGeo = readGeoCacheFromSession();
     if (sessionCachedGeo) {
@@ -119,7 +154,13 @@ export const analyticsService = {
     
     try {
       // Fetch from our local Vercel API route
-      const response = await fetch("/api/geo");
+      const response = await fetch("/api/geo", {
+        cache: "no-store",
+        headers: {
+          "cache-control": "no-cache",
+          pragma: "no-cache",
+        },
+      });
       if (!response.ok) throw new Error("Geo fetch failed");
       
       const contentType = response.headers.get("content-type");
