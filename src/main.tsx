@@ -1,5 +1,6 @@
 import "./instrument";
 import * as Sentry from "@sentry/react";
+import { isSentryEnabled } from "./instrument";
 
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -24,9 +25,11 @@ const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Failed to find the root element");
 
 ReactDOM.createRoot(rootElement, {
-  onUncaughtError: Sentry.reactErrorHandler(),
-  onCaughtError: Sentry.reactErrorHandler(),
-  onRecoverableError: Sentry.reactErrorHandler(),
+  onUncaughtError: isSentryEnabled ? Sentry.reactErrorHandler() : undefined,
+  onCaughtError: isSentryEnabled ? Sentry.reactErrorHandler() : undefined,
+  onRecoverableError: isSentryEnabled
+    ? Sentry.reactErrorHandler()
+    : undefined,
 }).render(
   <React.StrictMode>
       <QueryClientProvider client={queryClient}>

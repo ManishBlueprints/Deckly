@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { buildTallyEmbedUrl } from "../utils/tally";
 
@@ -6,18 +6,18 @@ const FEEDBACK_URL = import.meta.env.VITE_TALLY_FEEDBACK_URL?.trim();
 const TALLY_EMBED_SCRIPT = "https://tally.so/widgets/embed.js";
 
 function FeedbackPage() {
-  const tallyUrl = useMemo(() => {
-    if (!FEEDBACK_URL) return null;
+  let tallyUrl: string | null = null;
 
+  if (FEEDBACK_URL) {
     try {
-      return buildTallyEmbedUrl(FEEDBACK_URL, {
+      tallyUrl = buildTallyEmbedUrl(FEEDBACK_URL, {
         source: "deckly-app",
         page: "/feedback",
       });
     } catch {
-      return null;
+      tallyUrl = null;
     }
-  }, []);
+  }
 
   useEffect(() => {
     if (!tallyUrl) return;
@@ -76,10 +76,11 @@ function FeedbackPage() {
           <div className="w-full bg-surface-low">
             {tallyUrl ? (
               <iframe
+                src={tallyUrl}
                 data-tally-src={tallyUrl}
                 title="Help and feedback form"
                 loading="lazy"
-                sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts allow-top-navigation-by-user-activation"
+                sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-top-navigation-by-user-activation"
                 allow="fullscreen; clipboard-write"
                 referrerPolicy="no-referrer"
                 width="100%"
