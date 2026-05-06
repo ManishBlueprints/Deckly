@@ -5,6 +5,7 @@ import {
   FileSignature,
   Bookmark,
   MessageSquare,
+  MessageCircleMore,
   LogOut,
   ChevronLeft,
   Settings,
@@ -77,6 +78,7 @@ export function Sidebar() {
       "/content": () => import("../../pages/ContentPage"),
       "/rooms": () => import("../../pages/DataRoomsPage"),
       "/saved-decks": () => import("../../pages/SavedDecks"),
+      "/feedback": () => import("../../pages/Feedback"),
       "/profile": () => import("../../pages/Profile"),
     };
 
@@ -274,6 +276,50 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className={cn("px-3 pb-4 shrink-0")}>
+        <Link
+          to="/feedback"
+          title={isCollapsed ? "Help & Feedback" : undefined}
+          className={cn(
+            "flex items-center gap-3 px-6 py-3 transition-all relative group text-slate-500 hover:text-white hover:bg-[#1c1c1c]",
+            location.pathname === "/feedback" &&
+              "bg-[#3a3939] text-primary border-l-2 border-primary",
+            isCollapsed && "justify-center px-0",
+          )}
+          onMouseEnter={() =>
+            handleMouseEnter({
+              icon: MessageCircleMore,
+              label: "Help & Feedback",
+              href: "/feedback",
+            })
+          }
+        >
+          <div
+            className={cn(
+              location.pathname === "/feedback"
+                ? "text-primary bg-primary/10 p-1 scale-110 flex shrink-0 transition-all"
+                : "text-slate-500 group-hover:text-slate-200 flex shrink-0 transition-all",
+            )}
+          >
+            <MessageCircleMore
+              size={isCollapsed ? 20 : 18}
+              fill="currentColor"
+              className={cn(
+                "transition-all",
+                location.pathname !== "/feedback" &&
+                  "opacity-40 group-hover:opacity-100",
+              )}
+            />
+          </div>
+
+          {!isCollapsed && (
+            <span className="text-sm font-medium tracking-wide truncate flex-1 uppercase">
+              Help & Feedback
+            </span>
+          )}
+        </Link>
+      </div>
 
       {/* ── User Profile Footer ── */}
       <div className={cn("px-6 mt-auto shrink-0")}>
