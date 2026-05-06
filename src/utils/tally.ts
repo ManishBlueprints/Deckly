@@ -3,11 +3,23 @@ export function buildTallyEmbedUrl(
   params: Record<string, string>,
 ): string {
   const url = new URL(baseUrl);
+  const isSharePath = url.pathname.startsWith("/r/");
+  const isEmbedPath = url.pathname.startsWith("/embed/");
 
-  if (url.pathname.startsWith("/r/")) {
+  if (url.protocol !== "https:") {
+    throw new Error("Tally feedback URL must use HTTPS.");
+  }
+
+  if (url.hostname !== "tally.so") {
+    throw new Error("Tally feedback URL must use the tally.so domain.");
+  }
+
+  if (!isSharePath && !isEmbedPath) {
+    throw new Error("Tally feedback URL must use a share or embed path.");
+  }
+
+  if (isSharePath) {
     url.pathname = url.pathname.replace("/r/", "/embed/");
-  } else if (!url.pathname.startsWith("/embed/")) {
-    url.pathname = `/embed${url.pathname.startsWith("/") ? url.pathname : `/${url.pathname}`}`;
   }
 
   url.searchParams.set("alignLeft", "1");

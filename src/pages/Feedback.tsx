@@ -1,43 +1,32 @@
 import { useEffect, useMemo } from "react";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
-import { useAuth } from "../contexts/AuthContext";
 import { buildTallyEmbedUrl } from "../utils/tally";
 
 const FEEDBACK_URL = import.meta.env.VITE_TALLY_FEEDBACK_URL?.trim();
 const TALLY_EMBED_SCRIPT = "https://tally.so/widgets/embed.js";
 
 function FeedbackPage() {
-  const { session, profile, branding } = useAuth();
-
   const tallyUrl = useMemo(() => {
     if (!FEEDBACK_URL) return null;
 
     try {
       return buildTallyEmbedUrl(FEEDBACK_URL, {
-        email: session?.user?.email ?? "",
-        name: profile?.full_name ?? "",
-        user_id: session?.user?.id ?? "",
-        handle: profile?.handle ?? "",
-        workspace: branding?.room_name ?? "",
         source: "deckly-app",
         page: "/feedback",
       });
     } catch {
       return null;
     }
-  }, [
-    branding?.room_name,
-    profile?.full_name,
-    profile?.handle,
-    session?.user?.email,
-    session?.user?.id,
-  ]);
+  }, []);
 
   useEffect(() => {
     if (!tallyUrl) return;
 
     const existingWindow = window as Window & {
       Tally?: { loadEmbeds: () => void };
+    };
+    const handleScriptLoad = () => {
+      existingWindow.Tally?.loadEmbeds();
     };
 
     if (existingWindow.Tally) {
@@ -50,19 +39,21 @@ function FeedbackPage() {
     );
 
     if (existingScript) {
-      existingScript.addEventListener("load", () => {
-        existingWindow.Tally?.loadEmbeds();
-      });
-      return;
+      existingScript.addEventListener("load", handleScriptLoad, { once: true });
+      return () => {
+        existingScript.removeEventListener("load", handleScriptLoad);
+      };
     }
 
     const script = document.createElement("script");
     script.src = TALLY_EMBED_SCRIPT;
     script.async = true;
-    script.onload = () => {
-      existingWindow.Tally?.loadEmbeds();
-    };
+    script.addEventListener("load", handleScriptLoad, { once: true });
     document.body.appendChild(script);
+
+    return () => {
+      script.removeEventListener("load", handleScriptLoad);
+    };
   }, [tallyUrl]);
 
   return (
@@ -75,7 +66,8 @@ function FeedbackPage() {
             </h1>
             <p className="max-w-2xl text-sm leading-relaxed text-slate-400">
               Use this form for problems, feature suggestions, and improvement
-              requests. Your account details are passed through automatically.
+              requests. We&apos;ll use the details you enter in the form when we
+              follow up.
             </p>
           </div>
         </section>
@@ -87,6 +79,9 @@ function FeedbackPage() {
                 data-tally-src={tallyUrl}
                 title="Help and feedback form"
                 loading="lazy"
+                sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts allow-top-navigation-by-user-activation"
+                allow="fullscreen; clipboard-write"
+                referrerPolicy="no-referrer"
                 width="100%"
                 height="100%"
                 frameBorder="0"
