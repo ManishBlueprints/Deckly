@@ -25,6 +25,7 @@ vi.mock("../services/deckLinkService", () => ({
   deckLinkService: {
     listDeckLinks: vi.fn(async () => []),
     createDeckLink: vi.fn(async () => ({ id: "link-1" })),
+    createDefaultDeckLink: vi.fn(async () => ({ id: "link-1" })),
     enableDeckLink: vi.fn(async () => ({ id: "link-1" })),
     disableDeckLink: vi.fn(async () => ({ id: "link-1" })),
   },
@@ -89,6 +90,45 @@ describe("useDeckLinks hooks", () => {
 
     expect(deckLinkService.enableDeckLink).toHaveBeenCalledWith("deck-1", "link-1", "user-1");
     expect(deckLinkService.disableDeckLink).toHaveBeenCalledWith("deck-1", "link-1", "user-1");
-    expect(reactQueryMocks.invalidateQueries).toHaveBeenCalledTimes(6);
+    expect(reactQueryMocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
+      queryKey: deckLinkQueryKeys.list("deck-1"),
+    });
+    expect(reactQueryMocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
+      queryKey: deckLinkQueryKeys.deckDetail("deck-1"),
+    });
+    expect(reactQueryMocks.invalidateQueries).toHaveBeenNthCalledWith(3, {
+      queryKey: deckLinkQueryKeys.deckList("user-1"),
+    });
+    expect(reactQueryMocks.invalidateQueries).toHaveBeenNthCalledWith(4, {
+      queryKey: deckLinkQueryKeys.list("deck-1"),
+    });
+    expect(reactQueryMocks.invalidateQueries).toHaveBeenNthCalledWith(5, {
+      queryKey: deckLinkQueryKeys.deckDetail("deck-1"),
+    });
+    expect(reactQueryMocks.invalidateQueries).toHaveBeenNthCalledWith(6, {
+      queryKey: deckLinkQueryKeys.deckList("user-1"),
+    });
+  });
+
+  it("does not call enable service or invalidate queries without a deck id", async () => {
+    const enableMutation = useEnableDeckLink(undefined, "user-1");
+
+    await expect(enableMutation.mutateAsync("link-1")).rejects.toThrow(
+      "A deck ID is required to enable a deck link.",
+    );
+
+    expect(deckLinkService.enableDeckLink).not.toHaveBeenCalled();
+    expect(reactQueryMocks.invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it("does not call disable service or invalidate queries without a deck id", async () => {
+    const disableMutation = useDisableDeckLink(undefined, "user-1");
+
+    await expect(disableMutation.mutateAsync("link-1")).rejects.toThrow(
+      "A deck ID is required to disable a deck link.",
+    );
+
+    expect(deckLinkService.disableDeckLink).not.toHaveBeenCalled();
+    expect(reactQueryMocks.invalidateQueries).not.toHaveBeenCalled();
   });
 });

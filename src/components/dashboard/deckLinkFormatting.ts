@@ -9,9 +9,18 @@ export function formatLinkCreatedAt(createdAt: string): string {
 export function splitShareUrl(
   shareUrl: string,
 ): { origin: string; pathWithQuery: string } {
-  const url = new URL(shareUrl);
-  return {
-    origin: url.origin,
-    pathWithQuery: `${url.pathname}${url.search}`,
-  };
+  try {
+    const url = new URL(shareUrl);
+    return {
+      origin: url.origin,
+      pathWithQuery: `${url.pathname}${url.search}`,
+    };
+  } catch (err) {
+    // `new URL()` throws a TypeError on invalid input; keep callers safe.
+    if (err instanceof TypeError) {
+      return { origin: "", pathWithQuery: shareUrl || "" };
+    }
+
+    throw err;
+  }
 }

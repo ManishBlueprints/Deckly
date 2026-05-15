@@ -36,6 +36,11 @@ export const getDeckShareUrl = (workspaceSlug: string, slug: string): string => 
   return `${resolveShareOrigin()}${getDeckPath(workspaceSlug, slug)}`;
 };
 
+/**
+ * Deck-link URLs currently share the same path format as deck URLs.
+ * Keep this wrapper so callers can stay link-aware if link-specific behavior
+ * is added later.
+ */
 export const getDeckLinkShareUrl = (
   workspaceSlug: string,
   slugOrAlias: string,

@@ -116,7 +116,10 @@ export function DeckLinkManagerModal({
       const draftPath = linkDrafts[link.id] ?? pathWithQuery;
       await navigator.clipboard.writeText(buildShareUrl(origin, draftPath));
       setCopiedLinkId(link.id);
-      setTimeout(() => setCopiedLinkId(null), 2000);
+      setTimeout(
+        () => setCopiedLinkId((currentLinkId) => (currentLinkId === link.id ? null : currentLinkId)),
+        2000,
+      );
     } catch (copyError) {
       console.error("Failed to copy deck link:", copyError);
       toast.error("Failed to copy link. Please try again.");

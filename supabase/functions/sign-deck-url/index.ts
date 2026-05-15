@@ -32,9 +32,25 @@ Deno.serve(async (req: Request) => {
       image_paths: rawImagePaths,
       room_slug,
     } = await req.json();
+    const deckSlug = typeof slug === "string" ? slug : null;
+    const roomSlug = typeof room_slug === "string" ? room_slug : null;
     const image_paths: string[] = Array.isArray(rawImagePaths)
       ? rawImagePaths.filter((p): p is string => typeof p === "string")
       : [];
+
+    if (slug !== undefined && slug !== null && deckSlug === null) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request: slug must be a string" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (room_slug !== undefined && room_slug !== null && roomSlug === null) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request: room_slug must be a string" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabasePublishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -58,10 +74,10 @@ Deno.serve(async (req: Request) => {
       pages?: Array<{ image_url: string } | string>;
     }
 
-    if (room_slug) {
+    if (roomSlug) {
       // Data room mode
       const { data: rpcData, error: rpcError } = await anonClient.rpc("get_data_room_payload", {
-        p_slug: room_slug,
+        p_slug: roomSlug,
         p_password: password ?? null,
       });
 
@@ -95,11 +111,11 @@ Deno.serve(async (req: Request) => {
           });
         });
       }
-    } else if (slug) {
+    } else if (deckSlug) {
       // Individual deck mode
       const { data: rpcData, error: rpcError } = await anonClient.rpc("get_deck_payload", {
         p_handle: typeof handle === "string" ? handle : null,
-        p_slug_or_alias: slug,
+        p_slug_or_alias: deckSlug,
         p_password: password ?? null,
       });
 

@@ -65,7 +65,12 @@ export async function loadViewerDeck({
 }): Promise<ViewerLoadResult> {
   const data = await getDeckByHandleAndSlug(handle, slug);
   const currentUserId = await getCurrentSessionUserId();
-  const userIsOwner = currentUserId === data.user_id;
+  const userIsOwner =
+    currentUserId !== undefined &&
+    currentUserId !== null &&
+    data.user_id !== undefined &&
+    data.user_id !== null &&
+    currentUserId === data.user_id;
 
   if ((!data.require_email && !data.require_password) || userIsOwner) {
     if (userIsOwner) {
@@ -89,13 +94,7 @@ export async function loadViewerDeck({
         isOwner: false,
         isUnlocked: true,
         analyticsDeck: data,
-        signedUrlMeta: signedUrlMeta
-          ? {
-              ...signedUrlMeta,
-              handle,
-              slug,
-            }
-          : undefined,
+        signedUrlMeta: signedUrlMeta ? { ...signedUrlMeta } : undefined,
       };
     } catch {
       throw new Error("Failed to load document content.");
@@ -130,7 +129,7 @@ export async function unlockViewerDeck({
     resolvedDeck,
     signedUrlMeta: signedUrlMeta
       ? {
-        ...signedUrlMeta,
+          ...signedUrlMeta,
           handle,
           slug,
           password,

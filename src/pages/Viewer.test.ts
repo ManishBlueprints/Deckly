@@ -166,6 +166,30 @@ describe("Viewer public link flows", () => {
     expect(getDeckPayload).toHaveBeenCalledWith("investor-follow-up", "letmein", "founder");
   });
 
+  it("does not treat anonymous viewers as owners when both IDs are missing", async () => {
+    const getDeckByHandleAndSlug = vi.fn().mockResolvedValue({
+      ...baseDeck,
+      user_id: undefined,
+      require_email: true,
+    });
+    const getDeckById = vi.fn();
+    const getDeckPayload = vi.fn();
+
+    const result = await loadViewerDeck({
+      handle: "founder",
+      slug: "seed-round",
+      getDeckByHandleAndSlug,
+      getDeckById,
+      getDeckPayload,
+      getCurrentSessionUserId: async () => undefined,
+    });
+
+    expect(getDeckById).not.toHaveBeenCalled();
+    expect(getDeckPayload).not.toHaveBeenCalled();
+    expect(result.isOwner).toBe(false);
+    expect(result.isUnlocked).toBe(false);
+  });
+
   it("lets owners unlock their own deck route without public-link gating", async () => {
     const getDeckByHandleAndSlug = vi.fn().mockResolvedValue(baseDeck);
     const getDeckById = vi.fn().mockResolvedValue({

@@ -80,17 +80,11 @@ export const deckLinkService = {
 
   async createDeckLink(
     deckId: string,
-    inputOrUserId?: CreateDeckLinkInput | string,
+    input: CreateDeckLinkInput,
     providedUserId?: string,
   ): Promise<DeckLink> {
     return withRetry(async () => {
-      const input =
-        typeof inputOrUserId === "string" || inputOrUserId === undefined
-          ? undefined
-          : inputOrUserId;
-      const resolvedUserId =
-        typeof inputOrUserId === "string" ? inputOrUserId : providedUserId;
-      const ownerMeta = await getDeckOwnerMeta(deckId, resolvedUserId);
+      const ownerMeta = await getDeckOwnerMeta(deckId, providedUserId);
       const existingLinks = await this.listDeckLinks(deckId, ownerMeta.userId);
       const normalizedAlias = input?.linkAlias ? normalizeSlug(input.linkAlias) : null;
       const trimmedName = input?.linkName?.trim();
@@ -117,6 +111,13 @@ export const deckLinkService = {
 
       return hydrateDeckLinks([data as DeckLinkRow], ownerMeta)[0];
     });
+  },
+
+  async createDefaultDeckLink(
+    deckId: string,
+    providedUserId?: string,
+  ): Promise<DeckLink> {
+    return this.createDeckLink(deckId, {}, providedUserId);
   },
 
   async enableDeckLink(
@@ -192,7 +193,7 @@ export const deckLinkService = {
     linkAlias?: string | null,
     providedUserId?: string,
   ): Promise<string> {
-    const ownerMeta = await getDeckOwnerMeta(deckId, providedUserId);
+    const ownerMeta = await withRetry(() => getDeckOwnerMeta(deckId, providedUserId));
 
     return getDeckLinkShareUrl(
       ownerMeta.workspaceSlug,

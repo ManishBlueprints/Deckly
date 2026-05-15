@@ -71,6 +71,7 @@ describe("sign-deck-url revalidation contract", () => {
   it("revalidates with the same handle and slug-or-alias used for payload fetches", () => {
     expect(signDeckUrlSource).toContain("handle");
     expect(signDeckUrlSource).toContain("p_handle: typeof handle === \"string\" ? handle : null");
-    expect(signDeckUrlSource).toContain("p_slug_or_alias: slug");
+    expect(signDeckUrlSource).toContain("const deckSlug = typeof slug === \"string\" ? slug : null;");
+    expect(signDeckUrlSource).toContain("p_slug_or_alias: deckSlug");
   });
 });

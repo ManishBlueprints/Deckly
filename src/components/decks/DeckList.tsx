@@ -631,13 +631,11 @@ function DeckList({
                       </h2>
                       <div className="flex flex-shrink-0 gap-2 items-center ml-auto">
                         <ActionButton
-                          onClick={(e: React.MouseEvent) =>
-                            (() => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setSelectedDeckForLinks(deck);
-                            })()
-                          }
+                          onClick={(e: React.MouseEvent) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedDeckForLinks(deck);
+                          }}
                           title="Manage Links"
                         >
                           <Share2
