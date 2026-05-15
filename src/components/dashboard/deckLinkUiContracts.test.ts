@@ -33,6 +33,7 @@ describe("content multi-link UI contracts", () => {
 
     expect(source).toContain("data-testid={`create-deck-link-${deck.id}`}");
     expect(source).toContain("data-testid={`copy-primary-link-${deck.id}`}");
+    expect(source).toContain("data-testid={`copy-deck-link-${link.id}`}");
     expect(source).toContain('data-testid={`${link.is_enabled ? "disable" : "enable"}-deck-link-${link.id}`}');
     expect(source).toContain("delete-deck-link-${link.id}");
   });

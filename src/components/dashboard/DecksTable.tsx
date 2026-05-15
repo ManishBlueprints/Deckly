@@ -84,6 +84,7 @@ function DeckLinksPanel({
   workspaceSlug: string;
   isOpen: boolean;
 }) {
+  const [copiedLinkId, setCopiedLinkId] = React.useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [draftLinkName, setDraftLinkName] = React.useState("");
   const [draftLinkAlias, setDraftLinkAlias] = React.useState("");
@@ -103,6 +104,24 @@ function DeckLinksPanel({
   const deleteMutation = useDeleteDeckLink(deck.id, deck.user_id);
 
   const primaryLink = React.useMemo(() => getPrimaryDeckLink(links), [links]);
+
+  const handleCopyLink = async (link: DeckLink) => {
+    if (!userCanManageLinks) {
+      toast.error("Set your workspace slug before copying deck links.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(link.share_url);
+      setCopiedLinkId(link.id);
+      setTimeout(() => {
+        setCopiedLinkId((currentId) => (currentId === link.id ? null : currentId));
+      }, 2000);
+    } catch (copyError) {
+      console.error("Failed to copy deck link:", copyError);
+      toast.error("Failed to copy link. Please try again.");
+    }
+  };
 
   const handleCreateLink = async () => {
     const trimmedName = draftLinkName.trim();
@@ -193,14 +212,14 @@ function DeckLinksPanel({
         className="border border-white/10 bg-[#101010] text-white shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)]"
         data-testid={`deck-link-panel-${deck.id}`}
       >
-        <div className="border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent px-5 py-4">
+        <div className="border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-deckly-primary/70">
-                  Link Control
-                </p>
-                <h3 className="mt-2 text-lg font-bold text-white">{deck.title}</h3>
-                <p className="mt-1 text-xs text-slate-400">
+                   Link Control
+                 </p>
+                <h3 className="mt-1.5 text-base font-bold text-white">{deck.title}</h3>
+                <p className="mt-1 text-[11px] text-slate-400">
                   Open, copy, disable, or remove each deck link from one place.
                 </p>
               </div>
@@ -214,7 +233,7 @@ function DeckLinksPanel({
                 setCreateDialogOpen(true);
               }}
               disabled={createMutation.isPending || !userCanManageLinks}
-              className="bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90"
+              className="h-10 rounded-none bg-deckly-primary px-4 text-slate-950 hover:bg-deckly-primary/90"
               data-testid={`create-deck-link-${deck.id}`}
                 title={
                   userCanManageLinks
@@ -243,7 +262,7 @@ function DeckLinksPanel({
           </div>
         )}
 
-        <div className="max-h-[420px] overflow-y-auto p-3 custom-scrollbar">
+        <div className="max-h-[360px] overflow-y-auto p-2.5 custom-scrollbar">
           {error ? (
             <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-4 text-sm text-red-200">
               {error instanceof Error ? error.message : "Failed to load deck links."}
@@ -258,19 +277,20 @@ function DeckLinksPanel({
               ))}
             </div>
           ) : links.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-white/5 bg-white/[0.03] px-6 py-12 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary">
-                <Link2 size={22} />
+              <div className="flex flex-col items-center justify-center rounded-xl border border-white/5 bg-white/[0.03] px-5 py-8 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary">
+                  <Link2 size={18} />
+                </div>
+                <h4 className="mt-3 text-base font-bold text-white">No links yet</h4>
+                <p className="mt-1.5 max-w-sm text-xs text-slate-400">
+                  Create a private link first, then enable it when you are ready to share.
+                </p>
               </div>
-              <h4 className="mt-4 text-lg font-bold text-white">No links yet</h4>
-              <p className="mt-2 max-w-sm text-sm text-slate-400">
-                Create a private link first, then enable it when you are ready to share.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
+            ) : (
+            <div className="space-y-2.5">
               {links.map((link) => {
                 const isPrimary = primaryLink?.id === link.id;
+                const isCopied = copiedLinkId === link.id;
                 const isPending =
                   (enableMutation.isPending && enableMutation.variables === link.id) ||
                   (disableMutation.isPending && disableMutation.variables === link.id) ||
@@ -280,51 +300,66 @@ function DeckLinksPanel({
                 return (
                   <div
                     key={link.id}
-                    className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-4"
+                    className="rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2"
                   >
-                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-base font-semibold text-white">
-                            {link.link_name || getLinkLabel(link, primaryLink?.id)}
+                    <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
+                      <div className="min-w-0 flex items-center gap-2 lg:w-[320px] lg:flex-none">
+                        <span className="truncate text-sm font-semibold text-white">
+                          {link.link_name || getLinkLabel(link, primaryLink?.id)}
+                        </span>
+                        {isPrimary && (
+                          <span className="shrink-0 rounded-full border border-deckly-primary/20 bg-deckly-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-deckly-primary">
+                            Primary
                           </span>
-                          {isPrimary && (
-                            <span className="rounded-full border border-deckly-primary/20 bg-deckly-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-deckly-primary">
-                              Default
-                            </span>
+                        )}
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]",
+                            link.is_enabled
+                              ? "border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary"
+                              : "border-white/10 bg-white/[0.03] text-slate-500",
                           )}
-                          <span
-                            className={cn(
-                              "rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]",
-                              link.is_enabled
-                                ? "border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary"
-                                : "border-white/10 bg-white/[0.03] text-slate-500",
-                            )}
-                          >
-                            {link.is_enabled ? "Active" : "Private"}
-                          </span>
-                        </div>
-
-                        <div className="mt-3 flex min-w-0 items-center border border-white/10 bg-black/20">
-                          <span className="shrink-0 border-r border-white/10 px-3 py-3 text-xs text-slate-500">
-                            {origin}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate px-3 py-3 text-sm text-white">
-                            {pathWithQuery}
-                          </span>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                          <span>Created {formatLinkCreatedAt(link.created_at)}</span>
-                        </div>
+                        >
+                          {link.is_enabled ? "Active" : "Private"}
+                        </span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                      <div className="min-w-0 flex flex-1 items-center border border-white/10 bg-black/20">
+                        <span className="shrink-0 border-r border-white/10 px-3 py-2 text-[11px] text-slate-500">
+                          {origin}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate px-3 py-2 text-[11px] text-white">
+                          {pathWithQuery}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 lg:justify-end lg:flex-nowrap">
+                        <span className="order-2 text-[10px] text-slate-500 lg:order-1">
+                          Created {formatLinkCreatedAt(link.created_at)}
+                        </span>
+
+                        <div className="order-1 flex flex-wrap items-center gap-2 lg:order-2 lg:flex-nowrap">
+                        <Button
+                          type="button"
+                          onClick={() => void handleCopyLink(link)}
+                          disabled={!link.is_enabled || !userCanManageLinks}
+                          className={cn(
+                            "h-9 rounded-none border border-deckly-primary/20 bg-deckly-primary/10 px-3 text-deckly-primary hover:bg-deckly-primary/15",
+                            isCopied && "border-deckly-primary/30 bg-deckly-primary/20",
+                            (!link.is_enabled || !userCanManageLinks) &&
+                              "cursor-not-allowed border-white/10 bg-white/[0.04] text-slate-500 hover:bg-white/[0.04]",
+                          )}
+                          data-testid={`copy-deck-link-${link.id}`}
+                        >
+                          <Copy size={14} />
+                          {isCopied ? "Copied" : "Copy"}
+                        </Button>
+
                         <a
                           href={link.share_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex h-10 w-10 items-center justify-center rounded-none border border-white/10 bg-white/[0.04] text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+                          className="flex h-9 w-9 items-center justify-center rounded-none border border-white/10 bg-white/[0.04] text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
                           aria-label={`Open link for ${deck.title}`}
                         >
                           <ExternalLink size={14} />
@@ -339,7 +374,7 @@ function DeckLinksPanel({
                           }
                           disabled={isPending || !userCanManageLinks}
                           className={cn(
-                            "rounded-none border text-white",
+                            "h-9 rounded-none border px-3 text-white",
                             link.is_enabled
                               ? "border-red-500/40 bg-red-500 text-white hover:bg-red-500/90"
                               : "border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]",
@@ -354,7 +389,7 @@ function DeckLinksPanel({
                           ) : (
                             <Power size={14} />
                           )}
-                          {link.is_enabled ? "Disable" : "Enable"}
+                            {link.is_enabled ? "Disable" : "Enable"}
                         </Button>
 
                         <Button
@@ -362,7 +397,7 @@ function DeckLinksPanel({
                           onClick={() => setDeleteTarget(link)}
                           disabled={isPending || !userCanManageLinks}
                           className={cn(
-                            "rounded-none border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white",
+                            "h-9 rounded-none border border-white/10 bg-white/[0.04] px-3 text-slate-300 hover:bg-white/[0.08] hover:text-white",
                             (isPending || !userCanManageLinks) && "cursor-not-allowed opacity-60",
                           )}
                           data-testid={`delete-deck-link-${link.id}`}
@@ -374,6 +409,7 @@ function DeckLinksPanel({
                           )}
                           Delete
                         </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
