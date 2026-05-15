@@ -55,6 +55,7 @@ import {
   useEnableDeckLink,
 } from "../../hooks/useDeckLinks";
 import { canCopyPrimaryDeckLink, getDeckLinkSummary, getPrimaryDeckLink } from "./deckLinkUi";
+import { formatLinkCreatedAt, splitShareUrl } from "./deckLinkFormatting";
 
 interface DecksTableProps {
   decks: DeckWithAnalytics[];
@@ -64,22 +65,6 @@ interface DecksTableProps {
   availableTags?: LibraryTag[];
   onUpdateTags?: (deckId: string, tagIds: string[]) => Promise<void> | void;
   emptyMessage?: string;
-}
-
-function formatLinkCreatedAt(createdAt: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(createdAt));
-}
-
-function splitShareUrl(shareUrl: string): { origin: string; pathWithQuery: string } {
-  const url = new URL(shareUrl);
-  return {
-    origin: url.origin,
-    pathWithQuery: `${url.pathname}${url.search}`,
-  };
 }
 
 function getLinkLabel(link: DeckLink, primaryLinkId?: string): string {

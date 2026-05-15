@@ -11,6 +11,7 @@ import {
 import { cn } from "../../utils/cn";
 import { normalizeSlug } from "../../utils/slug";
 import { getPrimaryDeckLink } from "./deckLinkUi";
+import { formatLinkCreatedAt, splitShareUrl } from "./deckLinkFormatting";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,22 +30,6 @@ interface DeckLinkManagerModalProps {
   isOpen: boolean;
   initialIntent?: "manage" | "create";
   onClose: () => void;
-}
-
-function formatLinkCreatedAt(createdAt: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(createdAt));
-}
-
-function splitShareUrl(shareUrl: string): { origin: string; pathWithQuery: string } {
-  const url = new URL(shareUrl);
-  return {
-    origin: url.origin,
-    pathWithQuery: `${url.pathname}${url.search}`,
-  };
 }
 
 function buildShareUrl(origin: string, pathWithQuery: string): string {
@@ -139,6 +124,10 @@ export function DeckLinkManagerModal({
   };
 
   const handleCreateLink = useCallback(async () => {
+    if (!deck) {
+      return;
+    }
+
     try {
       await createMutation.mutateAsync({
         linkAlias: generateNextLinkAlias(deck.slug, links),
@@ -151,7 +140,7 @@ export function DeckLinkManagerModal({
           : "Failed to create link. Please try again.",
       );
     }
-  }, [createMutation, deck.slug, links]);
+  }, [createMutation, deck, links]);
 
   useEffect(() => {
     if (!isOpen) {
