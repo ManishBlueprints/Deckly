@@ -300,21 +300,29 @@ const deckCrudService = {
 };
 
 const deckPublicService = {
-  async getDeckByHandleAndSlug(handle: string, slug: string): Promise<Deck> {
+  async getDeckByHandleAndSlug(
+    handle: string,
+    slugOrAlias: string,
+  ): Promise<Deck> {
     const { data, error } = await supabase
-      .rpc("get_decks_public")
-      .select("*")
-      .eq("slug", slug)
-      .eq("user_handle", handle)
+      .rpc("get_decks_public", {
+        p_handle: handle,
+        p_slug_or_alias: slugOrAlias,
+      })
       .single();
 
     if (error) throw error;
     return data as Deck;
   },
 
-  async checkDeckPassword(slug: string, password: string): Promise<boolean> {
+  async checkDeckPassword(
+    handle: string | null,
+    slugOrAlias: string,
+    password: string,
+  ): Promise<boolean> {
     const { data, error } = await supabase.rpc("check_deck_password", {
-      p_slug: slug,
+      p_handle: handle,
+      p_slug_or_alias: slugOrAlias,
       p_password: password,
     });
     if (error) throw error;
@@ -322,11 +330,13 @@ const deckPublicService = {
   },
 
   async getDeckPayload(
-    slug: string,
+    slugOrAlias: string,
     password?: string,
+    handle?: string | null,
   ): Promise<{ file_url: string; signed_url?: string; expires_in?: number; pages: SlidePage[] }> {
     const { data, error } = await supabase.rpc("get_deck_payload", {
-      p_slug: slug,
+      p_handle: handle ?? null,
+      p_slug_or_alias: slugOrAlias,
       p_password: password ?? null,
     });
     if (error) throw error;
@@ -343,7 +353,8 @@ const deckPublicService = {
 
       const { data: fnData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
         body: { 
-          slug, 
+          handle: handle ?? null,
+          slug: slugOrAlias,
           password: password ?? null, 
           storage_path: payload.storage_path,
           image_paths: imagePaths 
@@ -420,9 +431,11 @@ const deckPublicService = {
     slug: string,
   ): Promise<{ handle: string; slug: string } | null> {
     const { data, error } = await supabase
-      .rpc("get_decks_public")
+      .rpc("get_decks_public", {
+        p_handle: null,
+        p_slug_or_alias: slug,
+      })
       .select("user_handle, slug")
-      .eq("slug", slug)
       .maybeSingle();
 
     if (error) throw error;
@@ -447,7 +460,7 @@ const deckAnalyticsService = {
       if (!decks || decks.length === 0) return [];
 
       const deckIds = decks.map((deck) => deck.id);
-      const [tagLinksResult, statsResult, pageViewsResult, savesResult] = await Promise.all([
+      const [tagLinksResult, statsResult, pageViewsResult, savesResult, deckLinksResult] = await Promise.all([
         supabase
           .from("decks")
           .select(`
@@ -469,6 +482,10 @@ const deckAnalyticsService = {
         supabase
           .from("investor_library")
           .select("deck_id")
+          .in("deck_id", deckIds),
+        supabase
+          .from("deck_links")
+          .select("deck_id, is_enabled")
           .in("deck_id", deckIds),
       ]);
 
@@ -509,6 +526,16 @@ const deckAnalyticsService = {
         saves = (savesResult.data || []) as { deck_id: string }[];
       }
 
+      let deckLinks: { deck_id: string; is_enabled: boolean }[] = [];
+      if (deckLinksResult.error) {
+        console.warn("deck_links lookup failed while hydrating Content Library", deckLinksResult.error);
+      } else {
+        deckLinks = (deckLinksResult.data || []) as {
+          deck_id: string;
+          is_enabled: boolean;
+        }[];
+      }
+
       const viewsMap: Record<string, Set<string>> = {};
       pageViews.forEach((pageView: { deck_id: string; visitor_id: string }) => {
         if (!viewsMap[pageView.deck_id]) viewsMap[pageView.deck_id] = new Set();
@@ -531,11 +558,23 @@ const deckAnalyticsService = {
         }
       });
 
+      const totalLinkCountMap: Record<string, number> = {};
+      const activeLinkCountMap: Record<string, number> = {};
+      deckLinks.forEach((link) => {
+        totalLinkCountMap[link.deck_id] = (totalLinkCountMap[link.deck_id] || 0) + 1;
+
+        if (link.is_enabled) {
+          activeLinkCountMap[link.deck_id] = (activeLinkCountMap[link.deck_id] || 0) + 1;
+        }
+      });
+
       return (decks as Deck[]).map((deck) => ({
         ...deck,
+        active_link_count: activeLinkCountMap[deck.id] || 0,
         total_views: viewsMap[deck.id]?.size || 0,
         save_count: savesMap[deck.id] || 0,
         last_viewed_at: lastActiveMap[deck.id] || null,
+        total_link_count: totalLinkCountMap[deck.id] || 0,
         tags: tagsByDeckId.get(deck.id) || [],
       })) as DeckWithAnalytics[];
     });

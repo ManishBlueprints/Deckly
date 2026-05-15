@@ -47,7 +47,6 @@ export function ContentView() {
   );
   const hasSearchResults = filteredDecks.length > 0;
   const [isManageTagsModalOpen, setIsManageTagsModalOpen] = useState(false);
-
   useEffect(() => {
     if (selectedTagId && !tags.some((tag) => tag.id === selectedTagId)) {
       setSelectedTagId(null);
@@ -214,7 +213,7 @@ export function ContentView() {
 
       <DecksTable
         decks={filteredDecks}
-        userHandle={profile?.handle || "username"}
+        workspaceSlug={profile?.handle || ""}
         loading={loading}
         onDelete={handleDeleteDeck}
         availableTags={tags}

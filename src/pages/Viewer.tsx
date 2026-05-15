@@ -16,13 +16,18 @@ import { AuthModal } from "../components/auth/AuthModal";
 import { NotesSidebar } from "../components/viewer/NotesSidebar";
 import { deckService } from "../services/deckService";
 import { analyticsService } from "../services/analyticsService";
-import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { Deck } from "../types";
 import {
   useIsDeckSaved,
   useSaveToLibraryMutation,
 } from "../hooks/useViewerQueries";
+import {
+  loadViewerDeck,
+  refreshViewerSignedUrl,
+  SignedUrlMeta,
+  unlockViewerDeck,
+} from "./viewerPublicAccess";
 
 function Viewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
@@ -41,29 +46,29 @@ function Viewer() {
 
   // Tracks metadata needed to refresh the signed URL before it expires.
   // Stored in a ref so the refresh effect doesn't re-run on every render.
-  const signedUrlMeta = useRef<{ slug: string; password?: string; expiresIn: number } | null>(null);
+  const signedUrlMeta = useRef<SignedUrlMeta | null>(null);
 
   // Automatically refresh the signed URL ~60 s before it expires.
   useEffect(() => {
     if (!isUnlocked || !signedUrlMeta.current) return;
-    const { slug: metaSlug, password: metaPassword, expiresIn } = signedUrlMeta.current;
+    const meta = signedUrlMeta.current;
     // Schedule refresh 60 s before expiry (minimum 5 s to avoid thrashing).
-    const refreshMs = Math.max((expiresIn - 60) * 1000, 5000);
+    const refreshMs = Math.max((meta.expiresIn - 60) * 1000, 5000);
     const timerId = setTimeout(async () => {
       try {
-        const refreshed = await deckService.getDeckPayload(metaSlug, metaPassword);
-        if (refreshed.signed_url) {
-          signedUrlMeta.current = {
-            slug: metaSlug,
-            password: metaPassword,
-            expiresIn: refreshed.expires_in ?? expiresIn,
-          };
+        const refreshed = await refreshViewerSignedUrl({ meta });
+        if (refreshed.signedUrlMeta) {
+          signedUrlMeta.current = refreshed.signedUrlMeta;
+        }
+        const nextFileUrl = refreshed.fileUrl;
+        if (nextFileUrl) {
           setDeck((prev) =>
-            prev ? { ...prev, file_url: refreshed.signed_url! } : prev
+            prev ? { ...prev, file_url: nextFileUrl } : prev
           );
         }
       } catch {
-        // Refresh failed — viewer will see a load error on next page turn; not fatal.
+        setError("The document is no longer available.");
+        setIsUnlocked(false);
       }
     }, refreshMs);
     return () => clearTimeout(timerId);
@@ -86,54 +91,18 @@ function Viewer() {
     if (!slug || !handle) return;
     try {
       if (!silent) setLoading(true);
-      const data = await deckService.getDeckByHandleAndSlug(handle, slug);
-      setDeck(data);
+      setError(null);
+      const result = await loadViewerDeck({ handle, slug });
 
-      // Check if current user is the owner
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-      const userIsOwner = currentSession?.user?.id === data.user_id;
-      setIsOwner(userIsOwner);
+      setDeck(result.deck);
+      setIsOwner(result.isOwner);
+      setIsUnlocked(result.isUnlocked);
+      signedUrlMeta.current = result.signedUrlMeta ?? null;
 
-      // If no protection OR user is the owner, track view immediately and unlock
-      if ((!data.require_email && !data.require_password) || userIsOwner) {
-        if (userIsOwner) {
-          const fullDeck = await deckService.getDeckById(data.id);
-          setDeck(fullDeck);
-        } else {
-          try {
-            const payload = await deckService.getDeckPayload(data.slug);
-            // Prefer the short-lived signed_url if the bucket is private
-            const resolvedPayload = payload.signed_url
-              ? { ...payload, file_url: payload.signed_url, expires_in: payload.expires_in }
-              : payload;
-            if (payload.signed_url && payload.expires_in) {
-              signedUrlMeta.current = { slug: data.slug, expiresIn: payload.expires_in };
-            }
-            setDeck({ ...data, ...resolvedPayload });
-          } catch {
-            throw new Error("Failed to load document content.");
-          }
-        }
-
-        setIsUnlocked(true);
-        if (!userIsOwner) {
-          analyticsService.trackDeckView(data);
-        }
+      if (result.isUnlocked && result.analyticsDeck) {
+        analyticsService.trackDeckView(result.analyticsDeck);
       }
     } catch (err: unknown) {
-      // Try slug-only fallback for namespacing enforcement
-      try {
-        const fallback = await deckService.getDeckBySlugOnly(slug);
-        if (fallback && fallback.handle !== handle) {
-          window.location.replace(`/${fallback.handle}/${fallback.slug}`);
-          return;
-        }
-      } catch {
-        /* ignore */
-      }
-
       setError(err instanceof Error ? err.message : "Failed to load deck.");
       console.error("Error loading deck:", err);
     } finally {
@@ -247,17 +216,20 @@ function Viewer() {
         ) : !isUnlocked ? (
           <AccessGate
             deck={deck}
+            sessionEmail={viewerEmail}
+            onVerifyPassword={(password) =>
+              deckService.checkDeckPassword(handle ?? null, slug ?? deck.slug, password)
+            }
             onAccessGranted={async (email, password) => {
               try {
-                const payload = await deckService.getDeckPayload(deck.slug, password);
-                // Prefer the short-lived signed_url if the bucket is private
-                const resolvedPayload = payload.signed_url
-                  ? { ...payload, file_url: payload.signed_url, expires_in: payload.expires_in }
-                  : payload;
-                if (payload.signed_url && payload.expires_in) {
-                  signedUrlMeta.current = { slug: deck.slug, password, expiresIn: payload.expires_in };
-                }
-                setDeck((prev) => prev ? { ...prev, ...resolvedPayload } : prev);
+                setError(null);
+                const { resolvedDeck, signedUrlMeta: nextSignedUrlMeta } = await unlockViewerDeck({
+                  handle: handle ?? "",
+                  password,
+                  slug: slug ?? deck.slug,
+                });
+                signedUrlMeta.current = nextSignedUrlMeta ?? null;
+                setDeck((prev) => prev ? { ...prev, ...resolvedDeck } : prev);
                 setIsUnlocked(true);
                 if (email) {
                   setViewerEmail(email);

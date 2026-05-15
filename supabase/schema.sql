@@ -86,6 +86,21 @@ CREATE TABLE IF NOT EXISTS public.decks (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.deck_links (
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+    deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
+    link_name TEXT NOT NULL,
+    link_alias TEXT,
+    public_token TEXT NOT NULL DEFAULT encode(gen_random_bytes(16), 'hex'),
+    is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT deck_links_public_token_format_check CHECK (public_token ~ '^[a-f0-9]{32}$'),
+    CONSTRAINT deck_links_link_name_nonempty_check CHECK (length(trim(link_name)) > 0),
+    CONSTRAINT deck_links_link_alias_format_check CHECK (link_alias IS NULL OR link_alias ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$')
+);
+
 -- 2. BRANDING TABLE
 CREATE TABLE IF NOT EXISTS public.branding (
     id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
@@ -125,12 +140,115 @@ CREATE TABLE IF NOT EXISTS public.data_room_documents (
 );
 
 -- Indexes for data rooms
+CREATE INDEX IF NOT EXISTS idx_deck_links_deck_id ON public.deck_links(deck_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deck_links_public_token ON public.deck_links(public_token);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deck_links_one_primary_per_deck
+    ON public.deck_links(deck_id)
+    WHERE is_primary;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_deck_links_deck_alias
+    ON public.deck_links(deck_id, link_alias)
+    WHERE link_alias IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_data_rooms_user ON public.data_rooms(user_id);
 CREATE INDEX IF NOT EXISTS idx_data_room_docs_room ON public.data_room_documents(data_room_id, display_order);
 
 -- Enable RLS
+ALTER TABLE public.deck_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.data_rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.data_room_documents ENABLE ROW LEVEL SECURITY;
+
+-- POLICIES FOR DECK LINKS
+DROP POLICY IF EXISTS "Owners can manage deck links" ON public.deck_links;
+CREATE POLICY "Owners can manage deck links" ON public.deck_links
+    FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.decks d
+            WHERE d.id = deck_id
+              AND d.user_id = (select auth.uid())
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.decks d
+            WHERE d.id = deck_id
+              AND d.user_id = (select auth.uid())
+        )
+    );
+
+CREATE OR REPLACE FUNCTION public.sync_deck_public_compatibility_trigger()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_deck_id UUID := COALESCE(NEW.deck_id, OLD.deck_id);
+    v_has_enabled_primary BOOLEAN;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.deck_links dl
+        WHERE dl.deck_id = v_deck_id
+          AND dl.is_primary = TRUE
+          AND dl.is_enabled = TRUE
+    )
+    INTO v_has_enabled_primary;
+
+    UPDATE public.decks d
+    SET is_public = v_has_enabled_primary,
+        updated_at = NOW()
+    WHERE d.id = v_deck_id
+      AND d.is_public IS DISTINCT FROM v_has_enabled_primary;
+
+    RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_sync_deck_public_compatibility ON public.deck_links;
+CREATE TRIGGER tr_sync_deck_public_compatibility
+    AFTER INSERT OR UPDATE OR DELETE ON public.deck_links
+    FOR EACH ROW EXECUTE FUNCTION public.sync_deck_public_compatibility_trigger();
+
+-- Backfill one enabled primary link for legacy bare-route public decks, then
+-- reconcile decks.is_public so it remains only the enabled-primary mirror.
+UPDATE public.deck_links dl
+SET is_enabled = TRUE,
+    updated_at = NOW()
+FROM public.decks d
+WHERE d.id = dl.deck_id
+  AND d.is_public = TRUE
+  AND dl.is_primary = TRUE
+  AND dl.is_enabled IS DISTINCT FROM TRUE;
+
+INSERT INTO public.deck_links (deck_id, link_name, link_alias, is_enabled, is_primary)
+SELECT d.id, 'Default Link', d.slug, TRUE, TRUE
+FROM public.decks d
+WHERE d.is_public = TRUE
+  AND NOT EXISTS (
+      SELECT 1
+      FROM public.deck_links dl
+      WHERE dl.deck_id = d.id
+        AND dl.is_primary = TRUE
+  );
+
+UPDATE public.decks d
+SET is_public = EXISTS (
+        SELECT 1
+        FROM public.deck_links dl
+        WHERE dl.deck_id = d.id
+          AND dl.is_primary = TRUE
+          AND dl.is_enabled = TRUE
+    ),
+    updated_at = NOW()
+WHERE d.is_public IS DISTINCT FROM EXISTS (
+        SELECT 1
+        FROM public.deck_links dl
+        WHERE dl.deck_id = d.id
+          AND dl.is_primary = TRUE
+          AND dl.is_enabled = TRUE
+    );
 
 -- POLICIES FOR DATA ROOMS
 DROP POLICY IF EXISTS "Users can manage their own data rooms" ON public.data_rooms;
@@ -613,7 +731,10 @@ $$;
 
 -- Public function for decks (excludes sensitive view_password, file_url, and pages payload)
 -- Runs with security definer semantics to bypass the restricted RLS on decks.
-CREATE OR REPLACE FUNCTION public.get_decks_public()
+-- Public access is link-aware: the bare route resolves only through an enabled
+-- primary link, while a tokenized route resolves only through the referenced
+-- enabled link and never falls back to slug-only compatibility.
+CREATE OR REPLACE FUNCTION public.get_decks_public(p_link_token TEXT DEFAULT NULL)
 RETURNS TABLE (
     id uuid, user_id uuid, title text, slug text, description text, status text, 
     file_size bigint, display_order integer, require_email boolean, require_password boolean, 
@@ -628,9 +749,43 @@ SELECT
     p.handle as user_handle
 FROM public.decks d
 JOIN public.profiles p ON d.user_id = p.id
-WHERE d.is_public = TRUE
-  AND d.status <> 'DELETED'
-  AND (d.expires_at IS NULL OR d.expires_at > NOW());
+WHERE d.status <> 'DELETED'
+  AND (d.expires_at IS NULL OR d.expires_at > NOW())
+  AND (
+    (
+      p_link_token IS NULL
+      AND EXISTS (
+        SELECT 1
+        FROM public.deck_links dl
+        WHERE dl.deck_id = d.id
+          AND dl.is_primary = TRUE
+          AND dl.is_enabled = TRUE
+      )
+    )
+    OR
+    (
+      p_link_token IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM public.deck_links dl
+        WHERE dl.deck_id = d.id
+          AND dl.public_token = p_link_token
+          AND dl.is_enabled = TRUE
+      )
+    )
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_decks_public()
+RETURNS TABLE (
+    id uuid, user_id uuid, title text, slug text, description text, status text,
+    file_size bigint, display_order integer, require_email boolean, require_password boolean,
+    expires_at timestamptz, created_at timestamptz, updated_at timestamptz,
+    file_type text, display_mode text, user_handle text
+)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+SELECT *
+FROM public.get_decks_public(NULL);
 $$;
 
 -- Public function for data rooms (excludes sensitive view_password and associated documents)
@@ -669,6 +824,7 @@ GRANT SELECT ON public.data_rooms TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_profiles_public() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_current_user_tier_limit() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_data_rooms_public() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_decks_public(TEXT) TO anon, authenticated;
 
 -- Direct INSERT into deck_page_views is blocked.
 -- All page view writes must go through record_deck_visit (SECURITY DEFINER)
@@ -784,7 +940,11 @@ END;
 $$;
 
 -- Secure password validation function for Decks
-CREATE OR REPLACE FUNCTION public.check_deck_password(p_slug TEXT, p_password TEXT)
+CREATE OR REPLACE FUNCTION public.check_deck_password(
+    p_slug TEXT,
+    p_password TEXT,
+    p_link_token TEXT DEFAULT NULL
+)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER -- runs as owner
@@ -795,9 +955,32 @@ DECLARE
     v_ip TEXT := current_setting('request.headers', true)::json->>'x-forwarded-for';
 BEGIN
     SELECT view_password INTO v_hashed_pw 
-    FROM public.decks 
-    WHERE slug = p_slug 
-      AND (expires_at IS NULL OR expires_at > NOW());
+    FROM public.decks d
+    WHERE d.slug = p_slug 
+      AND (d.expires_at IS NULL OR d.expires_at > NOW())
+      AND (
+        (
+          p_link_token IS NULL
+          AND EXISTS (
+            SELECT 1
+            FROM public.deck_links dl
+            WHERE dl.deck_id = d.id
+              AND dl.is_primary = TRUE
+              AND dl.is_enabled = TRUE
+          )
+        )
+        OR
+        (
+          p_link_token IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM public.deck_links dl
+            WHERE dl.deck_id = d.id
+              AND dl.public_token = p_link_token
+              AND dl.is_enabled = TRUE
+          )
+        )
+      );
 
     IF NOT FOUND THEN
         RETURN FALSE;
@@ -828,6 +1011,15 @@ BEGIN
     PERFORM public.record_failed_attempt(v_ip, p_slug);
     RETURN FALSE;
 END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.check_deck_password(p_slug TEXT, p_password TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+SELECT public.check_deck_password(p_slug, p_password, NULL);
 $$;
 
 -- Secure password validation function for Data Rooms
@@ -881,7 +1073,11 @@ $$;
 -- It returns the storage object path (not a public URL) so the caller can
 -- request a short-lived signed URL via the sign-deck-url Edge Function.
 -- The path alone cannot be used to download the file since the bucket is private.
-CREATE OR REPLACE FUNCTION public.get_deck_payload(p_slug TEXT, p_password TEXT)
+CREATE OR REPLACE FUNCTION public.get_deck_payload(
+    p_slug TEXT,
+    p_password TEXT,
+    p_link_token TEXT DEFAULT NULL
+)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -898,11 +1094,28 @@ BEGIN
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Unauthorized';
     ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_deck.user_id
-          AND NOT v_deck.is_public THEN
+          AND p_link_token IS NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM public.deck_links dl
+            WHERE dl.deck_id = v_deck.id
+              AND dl.is_primary = TRUE
+              AND dl.is_enabled = TRUE
+          ) THEN
+        RAISE EXCEPTION 'Unauthorized';
+    ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_deck.user_id
+          AND p_link_token IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM public.deck_links dl
+            WHERE dl.deck_id = v_deck.id
+              AND dl.public_token = p_link_token
+              AND dl.is_enabled = TRUE
+          ) THEN
         RAISE EXCEPTION 'Unauthorized';
     ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_deck.user_id
           AND v_deck.require_password
-          AND NOT public.check_deck_password(p_slug, p_password) THEN
+          AND NOT public.check_deck_password(p_slug, p_password, p_link_token) THEN
         RAISE EXCEPTION 'Unauthorized';
     END IF;
 
@@ -923,6 +1136,15 @@ BEGIN
         'pages', v_deck.pages
     )::jsonb;
 END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_deck_payload(p_slug TEXT, p_password TEXT)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+SELECT public.get_deck_payload(p_slug, p_password, NULL);
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_data_room_payload(p_slug TEXT, p_password TEXT)
@@ -1287,7 +1509,9 @@ CREATE TRIGGER tr_enforce_data_room_limit
 
 -- GRANT PERMISSIONS
 GRANT EXECUTE ON FUNCTION public.get_deck_payload(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_deck_payload(TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_deck_password(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_deck_password(TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_data_room_payload(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_data_room_password(TEXT, TEXT) TO anon, authenticated;
 
@@ -2129,7 +2353,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.get_total_system_users() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_deck_payload(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_deck_payload(TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_deck_password(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_deck_password(TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_data_room_payload(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_data_room_password(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.record_deck_visit(UUID, INTEGER, NUMERIC, TEXT, TEXT, UUID, TEXT, TEXT, TEXT) TO anon, authenticated;
@@ -2158,3 +2384,328 @@ REVOKE EXECUTE ON FUNCTION public.cleanup_expired_notifications() FROM PUBLIC, a
 REVOKE EXECUTE ON FUNCTION public.notify_on_deck_save() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.notify_signal_threshold() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.notify_on_deck_update() FROM PUBLIC, anon, authenticated;
+
+-- =============================================================================
+-- ALIAS-ONLY DECK LINK IDENTITY OVERRIDES
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.enforce_deck_link_alias_workspace_collision()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_owner_id UUID;
+BEGIN
+    IF NEW.link_alias IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT d.user_id INTO v_owner_id
+    FROM public.decks d
+    WHERE d.id = NEW.deck_id;
+
+    IF EXISTS (
+        SELECT 1
+        FROM public.decks d
+        WHERE d.user_id = v_owner_id
+          AND d.slug = NEW.link_alias
+          AND d.id <> NEW.deck_id
+    ) THEN
+        RAISE EXCEPTION 'Link alias conflicts with another deck slug in this workspace.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM public.deck_links dl
+        JOIN public.decks d ON d.id = dl.deck_id
+        WHERE d.user_id = v_owner_id
+          AND dl.link_alias = NEW.link_alias
+          AND dl.id <> COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid)
+    ) THEN
+        RAISE EXCEPTION 'Link alias conflicts with another link alias in this workspace.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.enforce_deck_slug_workspace_collision()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public, extensions
+AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM public.deck_links dl
+        JOIN public.decks d ON d.id = dl.deck_id
+        WHERE d.user_id = NEW.user_id
+          AND dl.link_alias = NEW.slug
+          AND d.id <> NEW.id
+    ) THEN
+        RAISE EXCEPTION 'Deck slug conflicts with an existing link alias in this workspace.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_enforce_deck_link_alias_workspace_collision ON public.deck_links;
+CREATE TRIGGER tr_enforce_deck_link_alias_workspace_collision
+    BEFORE INSERT OR UPDATE OF link_alias ON public.deck_links
+    FOR EACH ROW EXECUTE FUNCTION public.enforce_deck_link_alias_workspace_collision();
+
+DROP TRIGGER IF EXISTS tr_enforce_deck_slug_workspace_collision ON public.decks;
+CREATE TRIGGER tr_enforce_deck_slug_workspace_collision
+    BEFORE INSERT OR UPDATE OF slug ON public.decks
+    FOR EACH ROW EXECUTE FUNCTION public.enforce_deck_slug_workspace_collision();
+
+CREATE OR REPLACE FUNCTION public.resolve_public_deck_link(
+    p_handle TEXT DEFAULT NULL,
+    p_slug_or_alias TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    deck_id uuid,
+    canonical_slug text,
+    user_handle text,
+    link_id uuid
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+SELECT
+    d.id AS deck_id,
+    d.slug AS canonical_slug,
+    p.handle AS user_handle,
+    dl.id AS link_id
+FROM public.decks d
+JOIN public.profiles p ON p.id = d.user_id
+LEFT JOIN public.deck_links dl ON dl.deck_id = d.id AND dl.is_enabled = TRUE
+WHERE d.status <> 'DELETED'
+  AND (d.expires_at IS NULL OR d.expires_at > NOW())
+  AND (
+    (
+      COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) = d.user_id
+      AND p_handle IS NOT NULL
+      AND p.handle = p_handle
+      AND (
+        (p_slug_or_alias = d.slug AND dl.is_primary = TRUE)
+        OR dl.link_alias = p_slug_or_alias
+      )
+    )
+    OR
+    (
+      COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) = d.user_id
+      AND p_handle IS NULL
+      AND p_slug_or_alias = d.slug
+      AND dl.is_primary = TRUE
+    )
+    OR
+    (
+      COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) = d.user_id
+      AND p_handle IS NULL
+      AND dl.link_alias = p_slug_or_alias
+    )
+    OR
+    (
+      p_handle IS NULL
+      AND p_slug_or_alias = d.slug
+      AND dl.is_primary = TRUE
+    )
+    OR
+    (
+      p_handle IS NOT NULL
+      AND p.handle = p_handle
+      AND (
+        (p_slug_or_alias = d.slug AND dl.is_primary = TRUE)
+        OR dl.link_alias = p_slug_or_alias
+      )
+    )
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_decks_public(
+    p_handle TEXT DEFAULT NULL,
+    p_slug_or_alias TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+    id uuid,
+    user_id uuid,
+    title text,
+    slug text,
+    description text,
+    status text,
+    file_size bigint,
+    display_order integer,
+    require_email boolean,
+    require_password boolean,
+    expires_at timestamptz,
+    created_at timestamptz,
+    updated_at timestamptz,
+    file_type text,
+    display_mode text,
+    user_handle text
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+SELECT
+    d.id,
+    d.user_id,
+    d.title,
+    d.slug,
+    d.description,
+    d.status,
+    d.file_size,
+    d.display_order,
+    d.require_email,
+    d.require_password,
+    d.expires_at,
+    d.created_at,
+    d.updated_at,
+    d.file_type,
+    d.display_mode,
+    resolved.user_handle
+FROM public.resolve_public_deck_link(p_handle, p_slug_or_alias) resolved
+JOIN public.decks d ON d.id = resolved.deck_id;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_decks_public()
+RETURNS TABLE (
+    id uuid,
+    user_id uuid,
+    title text,
+    slug text,
+    description text,
+    status text,
+    file_size bigint,
+    display_order integer,
+    require_email boolean,
+    require_password boolean,
+    expires_at timestamptz,
+    created_at timestamptz,
+    updated_at timestamptz,
+    file_type text,
+    display_mode text,
+    user_handle text
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+SELECT *
+FROM public.get_decks_public(NULL, NULL);
+$$;
+
+CREATE OR REPLACE FUNCTION public.check_deck_password(
+    p_handle TEXT,
+    p_slug_or_alias TEXT,
+    p_password TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_hashed_pw TEXT;
+    v_ip TEXT := current_setting('request.headers', true)::json->>'x-forwarded-for';
+BEGIN
+    SELECT d.view_password INTO v_hashed_pw
+    FROM public.resolve_public_deck_link(p_handle, p_slug_or_alias) resolved
+    JOIN public.decks d ON d.id = resolved.deck_id;
+
+    IF NOT FOUND THEN
+        RETURN FALSE;
+    END IF;
+
+    IF v_hashed_pw IS NULL THEN
+        RETURN TRUE;
+    END IF;
+
+    IF v_ip IS NOT NULL AND trim(v_ip) != '' THEN
+        v_ip := trim(split_part(v_ip, ',', 1));
+    END IF;
+    IF v_ip IS NULL OR trim(v_ip) = '' THEN
+        v_ip := COALESCE(inet_client_addr()::text, 'local');
+    END IF;
+
+    IF NOT public.check_rate_limit(v_ip, p_slug_or_alias) THEN
+        RAISE EXCEPTION 'Too many failed attempts. Please try again later.';
+    END IF;
+
+    IF v_hashed_pw = crypt(p_password, v_hashed_pw) THEN
+        PERFORM public.clear_rate_limit(v_ip, p_slug_or_alias);
+        RETURN TRUE;
+    END IF;
+
+    PERFORM public.record_failed_attempt(v_ip, p_slug_or_alias);
+    RETURN FALSE;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.check_deck_password(p_slug TEXT, p_password TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+SELECT public.check_deck_password(NULL, p_slug, p_password);
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_deck_payload(
+    p_handle TEXT,
+    p_slug_or_alias TEXT,
+    p_password TEXT DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+    v_deck RECORD;
+    v_storage_path TEXT;
+BEGIN
+    SELECT d.* INTO v_deck
+    FROM public.resolve_public_deck_link(p_handle, p_slug_or_alias) resolved
+    JOIN public.decks d ON d.id = resolved.deck_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Unauthorized';
+    ELSIF COALESCE(auth.uid(), '00000000-0000-0000-0000-000000000000'::uuid) <> v_deck.user_id
+          AND v_deck.require_password
+          AND NOT public.check_deck_password(p_handle, p_slug_or_alias, p_password) THEN
+        RAISE EXCEPTION 'Unauthorized';
+    END IF;
+
+    v_storage_path := regexp_replace(
+        v_deck.file_url,
+        '^.*/storage/v1/object/(public|sign|authenticated)/decks/',
+        ''
+    );
+
+    RETURN jsonb_build_object(
+        'storage_path', v_storage_path,
+        'file_url', v_deck.file_url,
+        'pages', v_deck.pages
+    )::jsonb;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_deck_payload(p_slug TEXT, p_password TEXT)
+RETURNS jsonb
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+SELECT public.get_deck_payload(NULL, p_slug, p_password);
+$$;
+
+GRANT EXECUTE ON FUNCTION public.resolve_public_deck_link(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_decks_public(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_deck_password(TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_deck_payload(TEXT, TEXT, TEXT) TO anon, authenticated;

@@ -7,10 +7,10 @@ import { createClient } from "@supabase/supabase-js";
  * Accepts the storage_path returned by get_deck_payload and returns a
  * short-lived signed URL for the private decks bucket.
  *
- * The caller must pass the same slug + password they used with get_deck_payload
- * so this function can re-verify authorization before signing.
+ * The caller must pass the same handle + slug/alias + password they used
+ * with get_deck_payload so this function can re-verify authorization before signing.
  *
- * Request body: { slug: string, password?: string, storage_path: string }
+ * Request body: { handle?: string, slug: string, password?: string, storage_path: string }
  * Response:     { signed_url: string, expires_in: number }
  */
 Deno.serve(async (req: Request) => {
@@ -24,7 +24,14 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { slug, password, storage_path, image_paths: rawImagePaths, room_slug } = await req.json();
+    const {
+      handle,
+      slug,
+      password,
+      storage_path,
+      image_paths: rawImagePaths,
+      room_slug,
+    } = await req.json();
     const image_paths: string[] = Array.isArray(rawImagePaths)
       ? rawImagePaths.filter((p): p is string => typeof p === "string")
       : [];
@@ -91,7 +98,8 @@ Deno.serve(async (req: Request) => {
     } else if (slug) {
       // Individual deck mode
       const { data: rpcData, error: rpcError } = await anonClient.rpc("get_deck_payload", {
-        p_slug: slug,
+        p_handle: typeof handle === "string" ? handle : null,
+        p_slug_or_alias: slug,
         p_password: password ?? null,
       });
 
