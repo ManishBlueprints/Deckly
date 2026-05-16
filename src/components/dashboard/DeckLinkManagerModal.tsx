@@ -36,7 +36,24 @@ function buildShareUrl(origin: string, pathWithQuery: string): string {
   const normalizedPath = pathWithQuery.startsWith("/")
     ? pathWithQuery
     : `/${pathWithQuery}`;
-  return new URL(normalizedPath, origin).toString();
+
+  const fallbackOrigin =
+    origin || (typeof window !== "undefined" ? window.location.origin : "");
+
+  if (!fallbackOrigin) {
+    return normalizedPath;
+  }
+
+  try {
+    return new URL(normalizedPath, fallbackOrigin).toString();
+  } catch (err) {
+    console.warn("Failed to build share URL; falling back to path.", {
+      origin,
+      normalizedPath,
+      err,
+    });
+    return normalizedPath;
+  }
 }
 
 function generateNextLinkAlias(deckSlug: string, links: DeckLink[]): string {

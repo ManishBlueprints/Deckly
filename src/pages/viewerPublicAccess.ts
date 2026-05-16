@@ -3,7 +3,7 @@ import { deckService } from "../services/deckService";
 import { Deck } from "../types";
 
 export type SignedUrlMeta = {
-  handle: string;
+  handle: string | null;
   slug: string;
   password?: string;
   expiresIn: number;
@@ -24,7 +24,7 @@ export type ViewerUnlockResult = {
 
 const resolveSignedPayload = (
   payload: Awaited<ReturnType<typeof deckService.getDeckPayload>>,
-  identity: { handle: string; slug: string },
+  identity: { handle: string | null; slug: string },
 ): ViewerUnlockResult => {
   const resolvedDeck = payload.signed_url
     ? { ...payload, file_url: payload.signed_url, expires_in: payload.expires_in }
@@ -114,7 +114,7 @@ export async function unlockViewerDeck({
   slug,
   getDeckPayload = deckService.getDeckPayload.bind(deckService),
 }: {
-  handle: string;
+  handle: string | null;
   password?: string;
   slug: string;
   getDeckPayload?: typeof deckService.getDeckPayload;

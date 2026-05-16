@@ -178,6 +178,65 @@ describe("deckLinkService", () => {
     expect(link.link_alias).toBe("investor-follow-up");
   });
 
+  it("auto-generates a unique alias when creating a non-primary link without linkAlias", async () => {
+    mocks.queueResponse("decks.select.single", [
+      {
+        data: { id: "deck-1", slug: "seed-round", user_id: "user-1" },
+        error: null,
+      },
+      {
+        data: { id: "deck-1", slug: "seed-round", user_id: "user-1" },
+        error: null,
+      },
+    ]);
+
+    // Existing primary link (alias omitted) means the next link must get a unique alias.
+    mocks.queueResponse("deck_links.select", {
+      data: [
+        {
+          id: "link-1",
+          deck_id: "deck-1",
+          link_name: "Default Link",
+          link_alias: null,
+          public_token: "0123456789abcdef0123456789abcdef",
+          is_enabled: true,
+          is_primary: true,
+          created_at: "2026-05-14T00:00:00.000Z",
+          updated_at: "2026-05-14T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    mocks.queueResponse("deck_links.insert.single", {
+      data: {
+        id: "link-2",
+        deck_id: "deck-1",
+        link_name: "Link 2",
+        link_alias: "seed-round-link2",
+        public_token: "fedcba9876543210fedcba9876543210",
+        is_enabled: false,
+        is_primary: false,
+        created_at: "2026-05-14T00:00:03.000Z",
+        updated_at: "2026-05-14T00:00:03.000Z",
+      },
+      error: null,
+    });
+
+    const link = await deckLinkService.createDeckLink("deck-1", {}, "user-1");
+
+    const insertCall = vi.mocked(mocks.mockSupabase.from).mock.results[3]?.value.insert;
+    expect(insertCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deck_id: "deck-1",
+        is_primary: false,
+        link_alias: "seed-round-link2",
+      }),
+    );
+    expect(link.link_alias).toBe("seed-round-link2");
+    expect(link.share_url).toBe("http://localhost:5173/founder/seed-round-link2");
+  });
+
   it("enables and disables deck links through the owner-scoped update path", async () => {
     mocks.queueResponse("decks.select.single", [
       {

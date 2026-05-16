@@ -83,10 +83,18 @@ export const deckLinkService = {
     input: CreateDeckLinkInput,
     providedUserId?: string,
   ): Promise<DeckLink> {
-    return withRetry(async () => {
+    // Avoid retrying the insert; retries around non-idempotent inserts can create duplicates.
+    const prepared = await withRetry(async () => {
       const ownerMeta = await getDeckOwnerMeta(deckId, providedUserId);
       const existingLinks = await this.listDeckLinks(deckId, ownerMeta.userId);
-      const normalizedAlias = input?.linkAlias ? normalizeSlug(input.linkAlias) : null;
+      const existingAliases = new Set(
+        existingLinks
+          .map((link) => link.link_alias)
+          .filter((alias): alias is string => Boolean(alias)),
+      );
+
+      const hasExplicitAlias = Boolean(input?.linkAlias && input.linkAlias.trim().length > 0);
+      let normalizedAlias = hasExplicitAlias ? normalizeSlug(input.linkAlias!) : null;
       const trimmedName = input?.linkName?.trim();
       const linkName =
         trimmedName && trimmedName.length > 0
@@ -95,22 +103,42 @@ export const deckLinkService = {
             ? "Default Link"
             : `Link ${existingLinks.length + 1}`;
 
-      const { data, error } = await supabase
-        .from("deck_links")
-        .insert({
-          deck_id: ownerMeta.deckId,
-          link_name: linkName,
-          link_alias: normalizedAlias,
-          is_enabled: false,
-          is_primary: existingLinks.length === 0,
-        })
-        .select("id, deck_id, link_name, link_alias, public_token, is_enabled, is_primary, created_at, updated_at")
-        .single();
+      // Primary link can safely omit alias (it resolves to the deck slug).
+      // Non-primary links must have a unique public path to avoid share URL collisions.
+      if (existingLinks.length > 0 && !normalizedAlias) {
+        const baseAlias = normalizeSlug(ownerMeta.slug) || "deck-link";
+        let idx = existingLinks.length + 1;
+        let candidate = `${baseAlias}-link${idx}`;
+        while (existingAliases.has(candidate)) {
+          idx += 1;
+          candidate = `${baseAlias}-link${idx}`;
+        }
+        normalizedAlias = candidate;
+      }
 
-      if (error) throw error;
-
-      return hydrateDeckLinks([data as DeckLinkRow], ownerMeta)[0];
+      return {
+        ownerMeta,
+        linkName,
+        normalizedAlias,
+        isPrimary: existingLinks.length === 0,
+      };
     });
+
+    const { data, error } = await supabase
+      .from("deck_links")
+      .insert({
+        deck_id: prepared.ownerMeta.deckId,
+        link_name: prepared.linkName,
+        link_alias: prepared.normalizedAlias,
+        is_enabled: false,
+        is_primary: prepared.isPrimary,
+      })
+      .select("id, deck_id, link_name, link_alias, public_token, is_enabled, is_primary, created_at, updated_at")
+      .single();
+
+    if (error) throw error;
+
+    return hydrateDeckLinks([data as DeckLinkRow], prepared.ownerMeta)[0];
   },
 
   async createDefaultDeckLink(

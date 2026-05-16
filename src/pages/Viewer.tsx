@@ -224,7 +224,7 @@ function Viewer() {
               try {
                 setError(null);
                 const { resolvedDeck, signedUrlMeta: nextSignedUrlMeta } = await unlockViewerDeck({
-                  handle: handle ?? "",
+                  handle: handle ?? null,
                   password,
                   slug: slug ?? deck.slug,
                 });
