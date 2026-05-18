@@ -23,6 +23,7 @@ import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { Deck } from "../../types";
 import { cn } from "../../lib/utils";
 import { getDeckPreviewPath } from "../../utils/url";
+import { DeckLinkManagerModal } from "../dashboard/DeckLinkManagerModal";
 
 // UI Components
 import { Button } from "../ui/button";
@@ -83,7 +84,7 @@ function DeckDetailPanel({
   onShowAnalytics,
   onUpdate,
 }: DeckDetailPanelProps) {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const userId = session?.user?.id;
   const [editValues, setEditValues] = useState({
     title: "",
@@ -97,10 +98,10 @@ function DeckDetailPanel({
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [summaryStats, setSummaryStats] = useState({ views: 0, avgTime: 0 });
   const [isSaving, setIsSaving] = useState(false);
-  const [isUpdatingShareState, setIsUpdatingShareState] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newFile, setNewFile] = useState<File | null>(null);
+  const [isLinkManagerOpen, setIsLinkManagerOpen] = useState(false);
 
   useEffect(() => {
     if (deck) {
@@ -261,23 +262,6 @@ function DeckDetailPanel({
 
   if (!deck) return null;
 
-  const handleTogglePublicLink = async () => {
-    setIsUpdatingShareState(true);
-    try {
-      const updated = deck.is_public
-        ? await deckService.unpublishDeck(deck.id)
-        : await deckService.publishDeck(deck.id);
-      onUpdate(updated);
-    } catch (err) {
-      alert(
-        "Failed to update link visibility: " +
-          (err instanceof Error ? err.message : String(err)),
-      );
-    } finally {
-      setIsUpdatingShareState(false);
-    }
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
@@ -335,11 +319,10 @@ function DeckDetailPanel({
             <Button
               variant="ghost"
               size="sm"
-              icon={deck.is_public ? EyeOff : Eye}
-              onClick={handleTogglePublicLink}
-              disabled={isUpdatingShareState}
+              icon={Eye}
+              onClick={() => setIsLinkManagerOpen(true)}
             >
-              {deck.is_public ? "Make Private" : "Enable Link"}
+              Manage Links
             </Button>
           </div>
         </header>
@@ -680,6 +663,12 @@ function DeckDetailPanel({
           </Button>
         </div>
       </motion.div>
+      <DeckLinkManagerModal
+        deck={deck}
+        workspaceSlug={profile?.handle}
+        isOpen={isLinkManagerOpen}
+        onClose={() => setIsLinkManagerOpen(false)}
+      />
     </div>
   );
 }

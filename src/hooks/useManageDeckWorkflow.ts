@@ -563,6 +563,38 @@ export function useManageDeckWorkflow({
 
           if (deckError) throw deckError;
 
+          const { error: deckLinkError } = await supabase
+            .from("deck_links")
+            .insert({
+              deck_id: deckRecord.id,
+              link_name: "Default Link",
+              link_alias: slug,
+              is_enabled: true,
+              is_primary: true,
+            });
+
+          if (deckLinkError) {
+            try {
+              await deckService.deleteDeck(
+                deckRecord.id,
+                finalFileUrl || "",
+                slug,
+                userId,
+              );
+            } catch (cleanupErr) {
+              console.error(
+                "Failed to rollback deck after primary link creation failure:",
+                {
+                  deckId: deckRecord.id,
+                  slug,
+                  cleanupErr,
+                },
+              );
+            }
+
+            throw deckLinkError;
+          }
+
           if (returnToRoom && deckRecord) {
             setProgress("Linking to Data Room...");
             await dataRoomService.addDocuments(returnToRoom, [deckRecord.id]);
