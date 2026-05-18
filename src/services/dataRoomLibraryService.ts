@@ -29,7 +29,10 @@ interface SavedDataRoomTagLinkRow {
   tag_id: string;
 }
 
-function buildRoomSnapshot(room: DataRoom, ownerHandle: string): Omit<
+function buildRoomSnapshot(
+  room: DataRoom,
+  ownerHandle: string,
+): Omit<
   SavedDataRoomRow,
   "id" | "user_id" | "folder_id" | "last_viewed_at" | "created_at" | "updated_at"
 > {
@@ -48,7 +51,11 @@ function buildRoomSnapshot(room: DataRoom, ownerHandle: string): Omit<
 }
 
 export const dataRoomLibraryService = {
-  async saveToLibrary(dataRoomId: string, roomSnapshot?: DataRoom): Promise<void> {
+  async saveToLibrary(
+    dataRoomId: string,
+    roomSnapshot?: DataRoom,
+    ownerHandle?: string,
+  ): Promise<void> {
     const session = await getDeckSession();
     if (!session) throw new Error("Not authenticated");
 
@@ -66,17 +73,21 @@ export const dataRoomLibraryService = {
           return data as DataRoom;
         })();
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("handle")
-      .eq("id", room.user_id)
-      .maybeSingle();
+    let resolvedHandle = ownerHandle?.trim() || null;
+    if (!resolvedHandle) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("handle")
+        .eq("id", room.user_id)
+        .maybeSingle();
 
-    if (profileError) throw profileError;
+      if (profileError) throw profileError;
+      resolvedHandle = profile?.handle || null;
+    }
 
     const payload = {
       user_id: session.user.id,
-      ...buildRoomSnapshot(room, profile?.handle || "unknown"),
+      ...buildRoomSnapshot(room, resolvedHandle || "unknown"),
       last_viewed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -204,14 +215,15 @@ export const dataRoomLibraryService = {
         .maybeSingle();
 
       if (profileError) throw profileError;
+      const resolvedHandle = profile?.handle || null;
 
       const { error } = await supabase
         .from("saved_data_rooms")
         .update({
           room_title: room.name,
           room_slug: room.slug,
-          room_handle: profile?.handle || "unknown",
-          room_owner_handle: profile?.handle || "unknown",
+          room_handle: resolvedHandle || "unknown",
+          room_owner_handle: resolvedHandle || "unknown",
           room_owner_id: room.user_id,
           description: room.description || null,
           expires_at: room.expires_at || null,
@@ -241,6 +253,33 @@ export const dataRoomLibraryService = {
 
       const rows = (data || []) as Array<SavedDataRoomRow>;
       const roomIds = rows.map((row) => row.id);
+      const ownerIdsToHydrate = Array.from(
+        new Set(
+          rows
+            .filter(
+              (row) =>
+                row.room_owner_id &&
+                (!row.room_owner_handle || row.room_owner_handle === "unknown"),
+            )
+            .map((row) => row.room_owner_id as string),
+        ),
+      );
+      const ownerHandleById = new Map<string, string>();
+
+      if (ownerIdsToHydrate.length > 0) {
+        const { data: ownerProfiles, error: ownerProfilesError } = await supabase
+          .from("profiles")
+          .select("id, handle")
+          .in("id", ownerIdsToHydrate);
+
+        if (ownerProfilesError) throw ownerProfilesError;
+
+        (ownerProfiles || []).forEach((profile) => {
+          if (profile?.id && profile?.handle) {
+            ownerHandleById.set(profile.id, profile.handle);
+          }
+        });
+      }
 
       const tagMap = new Map<string, LibraryTag[]>();
       if (roomIds.length > 0) {
@@ -272,12 +311,23 @@ export const dataRoomLibraryService = {
       }
 
       return rows.map((row) => ({
+        ...row,
+        room_handle:
+          row.room_handle && row.room_handle !== "unknown"
+            ? row.room_handle
+            : ownerHandleById.get(row.room_owner_id ?? "") ||
+              row.room_owner_handle ||
+              row.room_handle,
+        room_owner_handle:
+          row.room_owner_handle && row.room_owner_handle !== "unknown"
+            ? row.room_owner_handle
+            : ownerHandleById.get(row.room_owner_id ?? "") ||
+              row.room_owner_handle ||
+              row.room_handle,
         library_id: row.id,
         data_room_id: row.data_room_id,
         title: row.room_title,
         slug: row.room_slug,
-        room_handle: row.room_handle,
-        room_owner_handle: row.room_owner_handle,
         room_owner_id: row.room_owner_id ?? row.user_id,
         folder_id: row.folder_id ?? null,
         tags: tagMap.get(row.id) || [],

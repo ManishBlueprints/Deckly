@@ -53,6 +53,7 @@ export const SavedRoomRow = memo(function SavedRoomRow({
 
   const savedDateStr = formatSavedDate(new Date(room.saved_at));
   const currentFolder = folders.find((folder) => folder.id === room.folder_id);
+  const roomHandle = room.room_owner_handle || room.room_handle;
   const { data: initialNote } = useDataRoomNotes(
     room.data_room_id || undefined,
     session?.user?.id,
@@ -209,8 +210,8 @@ export const SavedRoomRow = memo(function SavedRoomRow({
     }
   };
 
-  const savedRoomHref = room.room_handle
-    ? getDataRoomPath(room.room_handle, room.slug)
+  const savedRoomHref = roomHandle
+    ? getDataRoomPath(roomHandle, room.slug)
     : "#";
 
   return (
@@ -229,7 +230,7 @@ export const SavedRoomRow = memo(function SavedRoomRow({
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-3 flex-wrap">
-                <Link
+                  <Link
                   to={savedRoomHref}
                   className="text-lg font-headline font-bold text-[#e5e2e1] hover:text-[#54e98a] transition-colors truncate"
                 >
@@ -247,7 +248,7 @@ export const SavedRoomRow = memo(function SavedRoomRow({
 
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
-                  {room.room_handle}
+                  {roomHandle}
                 </span>
                 <span className="w-1 h-1 bg-[#bbcbbb]/10 rounded-full" />
                 <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
@@ -307,7 +308,7 @@ export const SavedRoomRow = memo(function SavedRoomRow({
             tags={tags}
             openLabel="Open Room"
             openAction={() => {
-              if (room.data_room_id && room.room_handle) {
+              if (room.data_room_id && roomHandle) {
                 window.open(savedRoomHref, "_blank", "noopener,noreferrer");
               }
             }}

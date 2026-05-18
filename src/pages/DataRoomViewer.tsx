@@ -177,11 +177,16 @@ function DataRoomViewer() {
     if (!session || !room) return;
 
     const pendingSaveId = localStorage.getItem("pending_save_data_room_id");
-    if (pendingSaveId === room.id) {
-      localStorage.removeItem("pending_save_data_room_id");
-      if (!isSaved) {
-        void saveToLibraryMutation
-          .mutateAsync({ dataRoomId: room.id, save: true, roomSnapshot: room })
+      if (pendingSaveId === room.id) {
+        localStorage.removeItem("pending_save_data_room_id");
+        if (!isSaved) {
+          void saveToLibraryMutation
+          .mutateAsync({
+            dataRoomId: room.id,
+            save: true,
+            roomSnapshot: room,
+            ownerHandle: handle,
+          })
           .then(() => {
             setShowSuccessToast(true);
             setTimeout(() => setShowSuccessToast(false), 3000);
@@ -255,6 +260,7 @@ function DataRoomViewer() {
         dataRoomId: room.id,
         save: nextSaveState,
         roomSnapshot: room,
+        ownerHandle: handle,
       });
 
       if (nextSaveState) {

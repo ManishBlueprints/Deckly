@@ -20,13 +20,14 @@ import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
 import { useQueryClient } from "@tanstack/react-query";
 import { deckService } from "../../services/deckService";
 import { dataRoomService } from "../../services/dataRoomService";
+import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
 import { organizerService } from "../../services/organizerService";
 
 const NAV_ITEMS = [
   { icon: LayoutGrid, label: "Dashboard", href: "/" },
   { icon: Folder, label: "Content", href: "/content" },
   { icon: DoorOpen, label: "Rooms", href: "/rooms" },
-  { icon: Bookmark, label: "Saved Decks", href: "/saved-decks" },
+  { icon: Bookmark, label: "Saved Library", href: "/saved-library" },
   {
     icon: FileSignature,
     label: "Sign",
@@ -77,7 +78,7 @@ export function Sidebar() {
       "/": () => import("../../pages/Home"),
       "/content": () => import("../../pages/ContentPage"),
       "/rooms": () => import("../../pages/DataRoomsPage"),
-      "/saved-decks": () => import("../../pages/SavedDecks"),
+      "/saved-library": () => import("../../pages/SavedLibrary"),
       "/feedback": () => import("../../pages/Feedback"),
       "/profile": () => import("../../pages/Profile"),
     };
@@ -99,10 +100,15 @@ export function Sidebar() {
         queryFn: () => dataRoomService.getDataRooms(),
         staleTime: 5 * 60 * 1000,
       });
-    } else if (item.href === "/saved-decks" && userId) {
+    } else if (item.href === "/saved-library" && userId) {
       queryClient.prefetchQuery({
         queryKey: ["library-decks", userId],
         queryFn: () => organizerService.getSavedDecksOrganized(userId),
+        staleTime: 5 * 60 * 1000,
+      });
+      queryClient.prefetchQuery({
+        queryKey: ["saved-data-rooms", userId],
+        queryFn: () => dataRoomLibraryService.getSavedRooms(),
         staleTime: 5 * 60 * 1000,
       });
       queryClient.prefetchQuery({

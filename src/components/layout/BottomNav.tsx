@@ -18,7 +18,7 @@ const navItems = [
 
 const rightNavItems = [
   { icon: DoorOpen, label: "Rooms", href: "/rooms" },
-  { icon: Bookmark, label: "Saved", href: "/saved-decks" },
+  { icon: Bookmark, label: "Library", href: "/saved-library" },
 ];
 
 export function BottomNav() {

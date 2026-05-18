@@ -215,7 +215,7 @@ describe("metadataSearch", () => {
 
   it("filters saved decks with folder/tag constraints preserved", () => {
     const filter: MetadataSearchFilterState = {
-      ...createDefaultMetadataSearchFilter("saved_decks"),
+      ...createDefaultMetadataSearchFilter("saved_library"),
       query: "alpha",
     };
 
@@ -235,7 +235,7 @@ describe("metadataSearch", () => {
 
   it("lets filter mode defer to tag/folder constraints for saved decks", () => {
     const filter: MetadataSearchFilterState = {
-      ...createDefaultMetadataSearchFilter("saved_decks"),
+      ...createDefaultMetadataSearchFilter("saved_library"),
       mode: "filter",
       query: "alpha",
       date: { preset: "last_7_days", startDate: "", endDate: "" },
@@ -256,7 +256,7 @@ describe("metadataSearch", () => {
 
   it("filters saved rooms by selected folder and saved_at", () => {
     const filter: MetadataSearchFilterState = {
-      ...createDefaultMetadataSearchFilter("saved_decks"),
+      ...createDefaultMetadataSearchFilter("saved_library"),
       query: "alpha",
       date: { preset: "last_30_days", startDate: "", endDate: "" },
     };
@@ -317,7 +317,7 @@ describe("metadataSearch", () => {
 
   it("matches saved decks by tag names as well as title", () => {
     const filter: MetadataSearchFilterState = {
-      ...createDefaultMetadataSearchFilter("saved_decks"),
+      ...createDefaultMetadataSearchFilter("saved_library"),
       query: "saas",
     };
 

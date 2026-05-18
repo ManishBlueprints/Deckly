@@ -317,21 +317,23 @@ function IdentitySection({
   const profileHydratedRef = useRef(false);
 
   const [roomName, setRoomName] = useState(branding?.room_name || "");
+  const [userName, setUserName] = useState(profile?.full_name || "");
   const [workspaceSlug, setWorkspaceSlug] = useState(profile?.handle || "");
   const [debouncedSlug, setDebouncedSlug] = useState(workspaceSlug);
 
   useEffect(() => {
     if (profileHydratedRef.current) return;
-    if (!branding?.room_name && !profile?.handle) return;
+    if (!branding?.room_name && !profile?.handle && profile?.full_name === undefined) return;
 
     if (branding?.room_name) setRoomName(branding.room_name);
+    if (profile?.full_name !== undefined) setUserName(profile.full_name || "");
     if (profile?.handle) {
       setWorkspaceSlug(profile.handle);
       setDebouncedSlug(profile.handle);
     }
 
     profileHydratedRef.current = true;
-  }, [branding?.room_name, profile?.handle]);
+  }, [branding?.room_name, profile?.handle, profile?.full_name]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSlug(workspaceSlug), 500);
@@ -405,6 +407,16 @@ function IdentitySection({
           room_name: roomName,
         });
         setBranding(updated);
+      }
+
+      const trimmedUserName = userName.trim();
+      if (trimmedUserName !== (profile?.full_name || "")) {
+        if (profile?.id) {
+          const updatedProfile = await userService.updateProfile(profile.id, {
+            full_name: trimmedUserName || null,
+          });
+          queryClient.setQueryData(["profile", profile.id], updatedProfile);
+        }
       }
 
       if (debouncedSlug !== profile?.handle && isSlugAvailable) {
@@ -532,6 +544,23 @@ function IdentitySection({
             onChange={(e) => setRoomName(e.target.value)}
             className="w-full px-4 py-3 bg-surface-lowest border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary transition-all placeholder:text-muted-foreground/30"
             placeholder="e.g. Acme Corp"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="tour-user-name"
+            className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3"
+          >
+            User Name
+          </label>
+          <input
+            id="tour-user-name"
+            type="text"
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+            className="w-full px-4 py-3 bg-surface-lowest border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary transition-all placeholder:text-muted-foreground/30"
+            placeholder="e.g. Manish Kumar"
           />
         </div>
 

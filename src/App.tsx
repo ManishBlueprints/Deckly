@@ -28,6 +28,7 @@ const ManageDataRoom = lazy(() => import("./pages/ManageDataRoom"));
 const DataRoomDetail = lazy(() => import("./pages/DataRoomDetail"));
 const DataRoomViewer = lazy(() => import("./pages/DataRoomViewer"));
 const OwnerDataRoomPreview = lazy(() => import("./pages/OwnerDataRoomPreview"));
+const SavedLibrary = lazy(() => import("./pages/SavedLibrary"));
 const SavedDecks = lazy(() => import("./pages/SavedDecks"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const Feedback = lazy(() => import("./pages/Feedback"));
@@ -275,6 +276,10 @@ const AppContent = () => {
                 />
               )
             }
+          />
+          <Route
+            path="/saved-library"
+            element={requireSession(<SavedLibrary />)}
           />
           <Route
             path="/saved-decks"

@@ -133,12 +133,11 @@ export function filterSavedRoomRows(
   selectedFolderId: string | "uncategorized",
   selectedTagId: string | null = null,
 ) : SavedRoomSearchResult[] {
-  if (selectedFolderId === "uncategorized") {
-    return [];
-  }
-
   return rooms.reduce<SavedRoomSearchResult[]>((results, room) => {
-    const matchesFolder = room.folder_id === selectedFolderId;
+    const matchesFolder =
+      selectedFolderId === "uncategorized"
+        ? room.folder_id === null
+        : room.folder_id === selectedFolderId;
     const matchesTag =
       selectedTagId === null || room.tags.some((tag) => tag.id === selectedTagId);
     const matchedTagNames =

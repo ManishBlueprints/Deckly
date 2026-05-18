@@ -47,14 +47,16 @@ export function MascotSettingsModal({
 
   // Workspace settings
   const [roomName, setRoomName] = useState(branding?.room_name || "");
+  const [userName, setUserName] = useState(userProfile?.full_name || "");
   const [workspaceSlug, setWorkspaceSlug] = useState(userProfile?.handle || "");
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [isSlugAvailable, setIsSlugAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (branding?.room_name) setRoomName(branding.room_name);
+    if (userProfile?.full_name !== undefined) setUserName(userProfile.full_name || "");
     if (userProfile?.handle) setWorkspaceSlug(userProfile.handle);
-  }, [branding?.room_name, userProfile?.handle]);
+  }, [branding?.room_name, userProfile?.full_name, userProfile?.handle]);
 
   // Slug availability check
   useEffect(() => {
@@ -136,7 +138,18 @@ export function MascotSettingsModal({
         onUpdate(updated);
       }
 
-      // 2. Update Slug if changed and available
+      // 2. Update Profile Name if changed
+      const trimmedUserName = userName.trim();
+      if (trimmedUserName !== (userProfile?.full_name || "")) {
+        if (userProfile?.id) {
+          await userService.updateProfile(userProfile.id, {
+            full_name: trimmedUserName || null,
+          });
+          await refreshProfile();
+        }
+      }
+
+      // 3. Update Slug if changed and available
       if (workspaceSlug !== userProfile?.handle && isSlugAvailable) {
         if (userProfile?.id) {
           await userService.updateProfile(userProfile.id, {
@@ -205,10 +218,15 @@ export function MascotSettingsModal({
               {/* Workspace Identity Section */}
               <div className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
+                  <label
+                    htmlFor="workspace-name"
+                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1"
+                  >
                     Workspace Name
                   </label>
                   <input
+                    id="workspace-name"
+                    name="workspace-name"
                     type="text"
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
@@ -218,7 +236,28 @@ export function MascotSettingsModal({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
+                  <label
+                    htmlFor="profile-name"
+                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1"
+                  >
+                    User Name
+                  </label>
+                  <input
+                    id="profile-name"
+                    name="profile-name"
+                    type="text"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#0d0d0d] border border-white/10 rounded-none text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary/50 focus:border-deckly-primary transition-all shadow-inner"
+                    placeholder="e.g. Manish Kumar"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="workspace-slug"
+                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1"
+                  >
                     Workspace Slug (URL)
                   </label>
                   <div className="relative">
@@ -227,6 +266,8 @@ export function MascotSettingsModal({
                         /
                       </span>
                       <input
+                        id="workspace-slug"
+                        name="workspace-slug"
                         type="text"
                         value={workspaceSlug}
                         onChange={(e) =>
