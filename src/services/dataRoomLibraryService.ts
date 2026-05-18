@@ -12,9 +12,9 @@ interface SavedDataRoomRow {
   folder_id: string | null;
   room_title: string;
   room_slug: string;
-  room_handle: string;
+  room_handle: string | null;
   room_owner_id: string | null;
-  room_owner_handle: string;
+  room_owner_handle: string | null;
   description: string | null;
   expires_at: string | null;
   require_email: boolean;
@@ -29,9 +29,14 @@ interface SavedDataRoomTagLinkRow {
   tag_id: string;
 }
 
+function normalizeSavedRoomHandle(handle?: string | null): string | null {
+  const trimmedHandle = handle?.trim();
+  return trimmedHandle && trimmedHandle !== "unknown" ? trimmedHandle : null;
+}
+
 function buildRoomSnapshot(
   room: DataRoom,
-  ownerHandle: string,
+  ownerHandle: string | null,
 ): Omit<
   SavedDataRoomRow,
   "id" | "user_id" | "folder_id" | "last_viewed_at" | "created_at" | "updated_at"
@@ -82,12 +87,12 @@ export const dataRoomLibraryService = {
         .maybeSingle();
 
       if (profileError) throw profileError;
-      resolvedHandle = profile?.handle || null;
+      resolvedHandle = normalizeSavedRoomHandle(profile?.handle);
     }
 
     const payload = {
       user_id: session.user.id,
-      ...buildRoomSnapshot(room, resolvedHandle || "unknown"),
+      ...buildRoomSnapshot(room, normalizeSavedRoomHandle(resolvedHandle)),
       last_viewed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -215,15 +220,15 @@ export const dataRoomLibraryService = {
         .maybeSingle();
 
       if (profileError) throw profileError;
-      const resolvedHandle = profile?.handle || null;
+      const resolvedHandle = normalizeSavedRoomHandle(profile?.handle);
 
       const { error } = await supabase
         .from("saved_data_rooms")
         .update({
           room_title: room.name,
           room_slug: room.slug,
-          room_handle: resolvedHandle || "unknown",
-          room_owner_handle: resolvedHandle || "unknown",
+          room_handle: resolvedHandle,
+          room_owner_handle: resolvedHandle,
           room_owner_id: room.user_id,
           description: room.description || null,
           expires_at: room.expires_at || null,
@@ -313,17 +318,13 @@ export const dataRoomLibraryService = {
       return rows.map((row) => ({
         ...row,
         room_handle:
-          row.room_handle && row.room_handle !== "unknown"
-            ? row.room_handle
-            : ownerHandleById.get(row.room_owner_id ?? "") ||
-              row.room_owner_handle ||
-              row.room_handle,
+          normalizeSavedRoomHandle(row.room_handle) ||
+          normalizeSavedRoomHandle(ownerHandleById.get(row.room_owner_id ?? "")) ||
+          normalizeSavedRoomHandle(row.room_owner_handle),
         room_owner_handle:
-          row.room_owner_handle && row.room_owner_handle !== "unknown"
-            ? row.room_owner_handle
-            : ownerHandleById.get(row.room_owner_id ?? "") ||
-              row.room_owner_handle ||
-              row.room_handle,
+          normalizeSavedRoomHandle(row.room_owner_handle) ||
+          normalizeSavedRoomHandle(ownerHandleById.get(row.room_owner_id ?? "")) ||
+          normalizeSavedRoomHandle(row.room_handle),
         library_id: row.id,
         data_room_id: row.data_room_id,
         title: row.room_title,

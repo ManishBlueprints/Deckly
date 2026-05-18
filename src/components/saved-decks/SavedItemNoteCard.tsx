@@ -50,6 +50,9 @@ export function SavedItemNoteCard({
         <div className="mt-1.5 sm:mt-2">
           {isEditing ? (
             <div>
+              <label htmlFor={noteFieldId} className="sr-only">
+                Note
+              </label>
               <textarea
                 id={noteFieldId}
                 name={noteFieldId}

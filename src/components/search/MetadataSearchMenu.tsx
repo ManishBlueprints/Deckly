@@ -172,7 +172,10 @@ export function MetadataSearchMenu({
 
         {filter.mode === "name" ? (
           <div className="space-y-3">
-            <label className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            <label
+              htmlFor={`${fieldIdPrefix}-query`}
+              className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
+            >
               Search query
             </label>
             <Input
@@ -266,7 +269,10 @@ export function MetadataSearchMenu({
             {filter.date.preset === "custom" ? (
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                  <label
+                    htmlFor={`${fieldIdPrefix}-start-date`}
+                    className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
+                  >
                     Start
                   </label>
                   <Input
@@ -282,7 +288,10 @@ export function MetadataSearchMenu({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                  <label
+                    htmlFor={`${fieldIdPrefix}-end-date`}
+                    className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
+                  >
                     End
                   </label>
                   <Input

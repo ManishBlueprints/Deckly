@@ -155,8 +155,8 @@ export interface SavedDataRoomOrganized {
   last_viewed_at: string | null;
   title: string;
   slug: string;
-  room_handle: string;
-  room_owner_handle: string;
+  room_handle: string | null;
+  room_owner_handle: string | null;
   room_owner_id: string;
   description: string | null;
   investor_note: string | null;
@@ -197,8 +197,8 @@ export interface SavedDataRoomLibraryItem extends SavedLibraryItemBase {
   item_type: "data_room";
   data_room_id: string | null;
   slug: string;
-  room_handle: string;
-  room_owner_handle: string;
+  room_handle: string | null;
+  room_owner_handle: string | null;
   room_owner_id: string;
   is_available: boolean;
   is_deleted: boolean;

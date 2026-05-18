@@ -140,12 +140,13 @@ export function MascotSettingsModal({
 
       // 2. Update Profile Name if changed
       const trimmedUserName = userName.trim();
+      let profileUpdated = false;
       if (trimmedUserName !== (userProfile?.full_name || "")) {
         if (userProfile?.id) {
           await userService.updateProfile(userProfile.id, {
             full_name: trimmedUserName || null,
           });
-          await refreshProfile();
+          profileUpdated = true;
         }
       }
 
@@ -155,8 +156,12 @@ export function MascotSettingsModal({
           await userService.updateProfile(userProfile.id, {
             handle: workspaceSlug,
           });
-          await refreshProfile();
+          profileUpdated = true;
         }
+      }
+
+      if (profileUpdated) {
+        await refreshProfile();
       }
 
       if (setupMode && userProfile?.id) {

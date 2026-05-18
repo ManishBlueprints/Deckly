@@ -130,9 +130,22 @@ export const organizerService = {
 
     if (finalError) throw finalError;
 
-    const createdTags = await globalTagService.fetchTagsByIds(tagIds, userId, false);
+    const uniqueTagIds = Array.from(
+      new Set(tagIds.map((id) => id.trim()).filter(Boolean)),
+    );
+    let createdTags: LibraryTag[] = [];
 
     try {
+      createdTags = await globalTagService.fetchTagsByIds(
+        uniqueTagIds,
+        userId,
+        false,
+      );
+
+      if (createdTags.length !== uniqueTagIds.length) {
+        throw new Error("One or more tags were not found.");
+      }
+
       for (const tagData of createdTags) {
         const { error: linkErr } = await supabase
           .from("library_folder_tags")

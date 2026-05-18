@@ -151,7 +151,10 @@ export function ManageTagsModal({
                 {/* Form to Create/Edit */}
                 <div className="bg-surface-card border border-white/5 p-6 space-y-6">
                   <div className="space-y-2.5">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 ml-1">
+                    <label
+                      htmlFor={tagNameInputId}
+                      className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#bbcbbb]/40 ml-1"
+                    >
                       {editingTagId ? "EDIT TAG" : "NEW TAG NAME"}
                     </label>
                     <input

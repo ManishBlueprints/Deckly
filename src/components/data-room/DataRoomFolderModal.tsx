@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, type CSSProperties } from "react";
 import { Loader2, Plus, X } from "lucide-react";
 import { GlobalTag } from "../../types";
 import {
@@ -206,19 +206,16 @@ export function DataRoomFolderModal({
                       style={{
                         backgroundColor: `${baseColor}15`,
                         borderColor: `${baseColor}30`,
-                      }}
+                        "--tag-color": baseColor,
+                      } as CSSProperties}
                     >
-                      <span
-                        className="text-[9px] font-bold uppercase tracking-wider"
-                        style={{ color: baseColor }}
-                      >
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-[color:var(--tag-color)]">
                         {tag.name}
                       </span>
                       <button
                         type="button"
                         onClick={() => removeTag(tag.id)}
-                        className="opacity-50 hover:opacity-100 hover:text-red-400 transition-all"
-                        style={{ color: baseColor }}
+                        className="text-[color:var(--tag-color)] opacity-50 hover:opacity-100 hover:text-red-400 transition-all"
                       >
                         <X size={10} strokeWidth={3} />
                       </button>

@@ -410,22 +410,19 @@ function IdentitySection({
       }
 
       const trimmedUserName = userName.trim();
+      const updates: { full_name?: string | null; handle?: string } = {};
+
       if (trimmedUserName !== (profile?.full_name || "")) {
-        if (profile?.id) {
-          const updatedProfile = await userService.updateProfile(profile.id, {
-            full_name: trimmedUserName || null,
-          });
-          queryClient.setQueryData(["profile", profile.id], updatedProfile);
-        }
+        updates.full_name = trimmedUserName || null;
       }
 
       if (debouncedSlug !== profile?.handle && isSlugAvailable) {
-        if (profile?.id) {
-          const updatedProfile = await userService.updateProfile(profile.id, {
-            handle: debouncedSlug,
-          });
-          queryClient.setQueryData(["profile", profile.id], updatedProfile);
-        }
+        updates.handle = debouncedSlug;
+      }
+
+      if (profile?.id && Object.keys(updates).length > 0) {
+        const updatedProfile = await userService.updateProfile(profile.id, updates);
+        queryClient.setQueryData(["profile", profile.id], updatedProfile);
       }
 
       if (profile?.id) {

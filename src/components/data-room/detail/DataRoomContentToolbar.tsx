@@ -25,7 +25,7 @@ export function DataRoomContentActionButton({
   const className =
     variant === "primary"
       ? "inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto"
-      : "inline-flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface-low px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground hover:border-border hover:bg-surface-high sm:w-auto";
+      : "inline-flex w-full items-center justify-center gap-2 rounded-md border border-border bg-surface-low px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground hover:bg-surface-high sm:w-auto";
 
   return (
     <button onClick={onClick} className={className}>

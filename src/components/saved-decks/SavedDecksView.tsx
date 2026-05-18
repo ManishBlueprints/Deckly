@@ -97,7 +97,11 @@ export function SavedLibraryView() {
   const { decks, folders, tags, isLoading, isError, actions } = useLibrary(
     session?.user?.id,
   );
-  const { data: savedRooms = [] } = useQuery({
+  const {
+    data: savedRooms = [],
+    isLoading: isSavedRoomsLoading,
+    isError: isSavedRoomsError,
+  } = useQuery({
     queryKey: ["saved-data-rooms", session?.user?.id],
     queryFn: () => dataRoomLibraryService.getSavedRooms(),
     enabled: !!session?.user?.id,
@@ -169,6 +173,15 @@ export function SavedLibraryView() {
       return acc;
     }, {});
   }, [savedRooms]);
+
+  const handleRetryLibraryLoad = useCallback(async () => {
+    await Promise.all([
+      actions.refetch(),
+      queryClient.invalidateQueries({
+        queryKey: ["saved-data-rooms", session?.user?.id],
+      }),
+    ]);
+  }, [actions, queryClient, session?.user?.id]);
 
   // --- Confirm: Delete folder ---
   const handleConfirmDeleteFolder = useCallback(async () => {
@@ -292,7 +305,7 @@ export function SavedLibraryView() {
   }, []);
 
   // --- Loading / error / empty states ---
-  if (isError) {
+  if (isError || isSavedRoomsError) {
     return (
       <div className="flex flex-col items-center justify-center p-20 bg-deckly-background h-full min-h-[calc(100vh-140px)] gap-6">
         <div className="w-16 h-16 bg-red-500/10 flex items-center justify-center text-red-500 rounded-full">
@@ -308,7 +321,9 @@ export function SavedLibraryView() {
           </p>
         </div>
         <button
-          onClick={() => actions.refetch()}
+          onClick={() => {
+            void handleRetryLibraryLoad();
+          }}
           className="px-8 py-3 bg-primary text-black font-bold hover:bg-primary/90 transition-all"
         >
           Retry Connection
@@ -317,7 +332,7 @@ export function SavedLibraryView() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || isSavedRoomsLoading) {
     return (
       <div className="flex items-center justify-center p-20 bg-deckly-background h-full min-h-[calc(100vh-140px)]">
         <Loader2 className="animate-spin text-[#54e98a]" size={32} />
