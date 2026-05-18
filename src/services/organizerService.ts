@@ -545,12 +545,10 @@ export const organizerService = {
 
         if (unresolvedDeckIds.length > 0) {
           const { data: publicDecks, error: publicDecksError } = await supabase
-            .rpc("get_decks_public", {
-              p_handle: null,
-              p_slug_or_alias: null,
+            .rpc("get_library_deck_metadata", {
+              p_deck_ids: unresolvedDeckIds,
             })
-            .select("id, title, slug, file_type, status, description, user_id, user_handle")
-            .in("id", unresolvedDeckIds);
+            .select("id, title, slug, file_type, status, description, user_id, user_handle");
 
           if (publicDecksError) throw publicDecksError;
 
