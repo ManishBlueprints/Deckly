@@ -37,6 +37,8 @@ vi.mock("../contexts/AuthContext", () => ({
 }));
 
 import {
+  getSignedUrlRefreshDelayMs,
+  isSignedUrlExpired,
   loadViewerDeck,
   refreshViewerSignedUrl,
   unlockViewerDeck,
@@ -59,6 +61,7 @@ const baseDeck = {
 
 describe("Viewer public link flows", () => {
   it("threads handle and alias path through the initial public deck load", async () => {
+    const now = 1_700_000_000_000;
     const getDeckByHandleAndSlug = vi.fn().mockResolvedValue(baseDeck);
     const getDeckPayload = vi.fn().mockResolvedValue({
       file_url: "https://example.com/original.pdf",
@@ -72,6 +75,7 @@ describe("Viewer public link flows", () => {
       getDeckByHandleAndSlug,
       getDeckPayload,
       getCurrentSessionUserId: async () => undefined,
+      now: () => now,
     });
 
     expect(getDeckByHandleAndSlug).toHaveBeenCalledWith("founder", "investor-follow-up");
@@ -81,10 +85,12 @@ describe("Viewer public link flows", () => {
       handle: "founder",
       slug: "investor-follow-up",
       expiresIn: 21600,
+      signedAt: now,
     });
   });
 
   it("threads handle and alias path through password unlock", async () => {
+    const now = 1_700_000_123_000;
     const getDeckPayload = vi.fn().mockResolvedValue({
       file_url: "https://example.com/original.pdf",
       signed_url: "https://signed.example.com/unlocked.pdf",
@@ -97,6 +103,7 @@ describe("Viewer public link flows", () => {
       password: "letmein",
       slug: "investor-follow-up",
       getDeckPayload,
+      now: () => now,
     });
 
     expect(getDeckPayload).toHaveBeenCalledWith("investor-follow-up", "letmein", "founder");
@@ -105,10 +112,12 @@ describe("Viewer public link flows", () => {
       slug: "investor-follow-up",
       password: "letmein",
       expiresIn: 21600,
+      signedAt: now,
     });
   });
 
   it("reuses handle and alias path for signed-url refresh revalidation", async () => {
+    const now = 1_700_000_456_000;
     const getDeckPayload = vi.fn().mockResolvedValue({
       file_url: "https://example.com/original.pdf",
       signed_url: "https://signed.example.com/refreshed.pdf",
@@ -122,8 +131,10 @@ describe("Viewer public link flows", () => {
         slug: "investor-follow-up",
         password: "letmein",
         expiresIn: 60,
+        signedAt: now - 60_000,
       },
       getDeckPayload,
+      now: () => now,
     });
 
     expect(getDeckPayload).toHaveBeenCalledWith("investor-follow-up", "letmein", "founder");
@@ -134,8 +145,23 @@ describe("Viewer public link flows", () => {
         slug: "investor-follow-up",
         password: "letmein",
         expiresIn: 120,
+        signedAt: now,
       },
     });
+  });
+
+  it("tracks refresh timing from signedAt instead of treating all refresh failures as expiry", () => {
+    const signedAt = 1_700_000_000_000;
+    const meta = {
+      handle: "founder",
+      slug: "investor-follow-up",
+      expiresIn: 120,
+      signedAt,
+    };
+
+    expect(getSignedUrlRefreshDelayMs(meta, signedAt)).toBe(60_000);
+    expect(isSignedUrlExpired(meta, signedAt + 119_000)).toBe(false);
+    expect(isSignedUrlExpired(meta, signedAt + 120_000)).toBe(true);
   });
 
   it("does not fall back to bare-slug compatibility for invalid or disabled alias routes", async () => {
@@ -158,6 +184,7 @@ describe("Viewer public link flows", () => {
           slug: "investor-follow-up",
           password: "letmein",
           expiresIn: 21600,
+          signedAt: 1_700_000_000_000,
         },
         getDeckPayload,
       }),

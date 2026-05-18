@@ -23,11 +23,16 @@ import {
   useSaveToLibraryMutation,
 } from "../hooks/useViewerQueries";
 import {
+  getSignedUrlRefreshDelayMs,
+  isSignedUrlExpired,
   loadViewerDeck,
   refreshViewerSignedUrl,
   SignedUrlMeta,
   unlockViewerDeck,
 } from "./viewerPublicAccess";
+
+const SIGNED_URL_REFRESH_RETRY_DELAYS_MS = [1000, 2000, 4000] as const;
+const SIGNED_URL_RECOVERY_RETRY_MS = 5000;
 
 function Viewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
@@ -38,6 +43,7 @@ function Viewer() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [refreshWarning, setRefreshWarning] = useState<string | null>(null);
 
   // UI States
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -51,27 +57,76 @@ function Viewer() {
   // Automatically refresh the signed URL ~60 s before it expires.
   useEffect(() => {
     if (!isUnlocked || !signedUrlMeta.current) return;
-    const meta = signedUrlMeta.current;
-    // Schedule refresh 60 s before expiry (minimum 5 s to avoid thrashing).
-    const refreshMs = Math.max((meta.expiresIn - 60) * 1000, 5000);
-    const timerId = setTimeout(async () => {
+    let cancelled = false;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+
+    const failClosedIfExpired = (meta: SignedUrlMeta) => {
+      if (!isSignedUrlExpired(meta)) {
+        return false;
+      }
+
+      setRefreshWarning(null);
+      setError("The document is no longer available.");
+      setIsUnlocked(false);
+      return true;
+    };
+
+    const attemptRefresh = async (meta: SignedUrlMeta, attempt = 0): Promise<void> => {
       try {
         const refreshed = await refreshViewerSignedUrl({ meta });
+        if (cancelled) return;
+
+        setRefreshWarning(null);
         if (refreshed.signedUrlMeta) {
           signedUrlMeta.current = refreshed.signedUrlMeta;
         }
+
         const nextFileUrl = refreshed.fileUrl;
         if (nextFileUrl) {
           setDeck((prev) =>
-            prev ? { ...prev, file_url: nextFileUrl } : prev
+            prev ? { ...prev, file_url: nextFileUrl } : prev,
           );
         }
       } catch {
-        setError("The document is no longer available.");
-        setIsUnlocked(false);
+        if (cancelled) return;
+
+        const currentMeta = signedUrlMeta.current ?? meta;
+        if (failClosedIfExpired(currentMeta)) {
+          return;
+        }
+
+        if (attempt < SIGNED_URL_REFRESH_RETRY_DELAYS_MS.length) {
+          setRefreshWarning("Connection issue refreshing the document. Retrying...");
+          timerId = setTimeout(() => {
+            void attemptRefresh(currentMeta, attempt + 1);
+          }, SIGNED_URL_REFRESH_RETRY_DELAYS_MS[attempt]);
+          return;
+        }
+
+        setRefreshWarning("Connection issue refreshing the document. The current view will stay available until the link expires.");
+        timerId = setTimeout(() => {
+          if (failClosedIfExpired(currentMeta)) {
+            return;
+          }
+          void attemptRefresh(currentMeta, 0);
+        }, SIGNED_URL_RECOVERY_RETRY_MS);
       }
-    }, refreshMs);
-    return () => clearTimeout(timerId);
+    };
+
+    timerId = setTimeout(() => {
+      const currentMeta = signedUrlMeta.current;
+      if (!currentMeta || failClosedIfExpired(currentMeta)) {
+        return;
+      }
+      void attemptRefresh(currentMeta);
+    }, getSignedUrlRefreshDelayMs(signedUrlMeta.current));
+
+    return () => {
+      cancelled = true;
+      if (timerId) {
+        clearTimeout(timerId);
+      }
+    };
   }, [isUnlocked, deck?.file_url]); // re-schedule whenever file_url is replaced by a refresh
 
   // TanStack Queries
@@ -87,19 +142,20 @@ function Viewer() {
     }
   }, [session]);
 
-  const loadDeck = useCallback(async (silent = false) => {
-    if (!slug || !handle) return;
+  const loadDeck = useCallback(async (silent = false, suppressAnalytics = false) => {
+    if (!slug) return;
     try {
       if (!silent) setLoading(true);
       setError(null);
-      const result = await loadViewerDeck({ handle, slug });
+      const result = await loadViewerDeck({ handle: handle ?? null, slug });
 
       setDeck(result.deck);
       setIsOwner(result.isOwner);
       setIsUnlocked(result.isUnlocked);
+      setRefreshWarning(null);
       signedUrlMeta.current = result.signedUrlMeta ?? null;
 
-      if (result.isUnlocked && result.analyticsDeck) {
+      if (!suppressAnalytics && result.isUnlocked && result.analyticsDeck) {
         analyticsService.trackDeckView(result.analyticsDeck);
       }
     } catch (err: unknown) {
@@ -119,7 +175,7 @@ function Viewer() {
     let timeoutId: ReturnType<typeof setTimeout>;
     if (deck?.status === "PENDING" || deck?.status === "CONVERTING") {
       timeoutId = setTimeout(() => {
-        loadDeck(true);
+        loadDeck(true, true);
       }, 5000);
     }
     return () => clearTimeout(timeoutId);
@@ -229,6 +285,7 @@ function Viewer() {
                   slug: slug ?? deck.slug,
                 });
                 signedUrlMeta.current = nextSignedUrlMeta ?? null;
+                setRefreshWarning(null);
                 setDeck((prev) => prev ? { ...prev, ...resolvedDeck } : prev);
                 setIsUnlocked(true);
                 if (email) {
@@ -249,6 +306,11 @@ function Viewer() {
             animate={{ opacity: 1 }}
             className="flex-1 flex flex-col items-stretch relative"
           >
+            {refreshWarning ? (
+              <div className="absolute top-4 right-4 z-[100] max-w-md rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                {refreshWarning}
+              </div>
+            ) : null}
             <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[100] flex flex-wrap items-center gap-2 px-2 md:px-0">
               <Link to="/" className="group">
                 <div className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all">

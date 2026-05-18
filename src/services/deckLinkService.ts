@@ -95,6 +95,9 @@ export const deckLinkService = {
 
       const hasExplicitAlias = Boolean(input?.linkAlias && input.linkAlias.trim().length > 0);
       let normalizedAlias = hasExplicitAlias ? normalizeSlug(input.linkAlias!) : null;
+      if (hasExplicitAlias && !normalizedAlias) {
+        throw new Error("Link alias must contain at least one letter or number.");
+      }
       const trimmedName = input?.linkName?.trim();
       const linkName =
         trimmedName && trimmedName.length > 0

@@ -178,6 +178,34 @@ describe("deckLinkService", () => {
     expect(link.link_alias).toBe("investor-follow-up");
   });
 
+  it("rejects an explicit alias that normalizes to empty", async () => {
+    mocks.queueResponse("decks.select.single", [
+      {
+        data: { id: "deck-1", slug: "seed-round", user_id: "user-1" },
+        error: null,
+      },
+      {
+        data: { id: "deck-1", slug: "seed-round", user_id: "user-1" },
+        error: null,
+      },
+    ]);
+    mocks.queueResponse("deck_links.select", {
+      data: [],
+      error: null,
+    });
+
+    await expect(
+      deckLinkService.createDeckLink(
+        "deck-1",
+        { linkName: "Emoji Alias", linkAlias: "!!!🔥!!!" },
+        "user-1",
+      ),
+    ).rejects.toThrow("Link alias must contain at least one letter or number.");
+
+    const deckLinksChain = vi.mocked(mocks.mockSupabase.from).mock.results[2]?.value;
+    expect(deckLinksChain?.insert).not.toHaveBeenCalled();
+  });
+
   it("auto-generates a unique alias when creating a non-primary link without linkAlias", async () => {
     mocks.queueResponse("decks.select.single", [
       {
