@@ -28,6 +28,9 @@ export const FOLDER_COLOR_KEYS = new Set<FolderColorKey>(
 export const isFolderColorKey = (value: string): value is FolderColorKey =>
   FOLDER_COLOR_KEYS.has(value as FolderColorKey);
 
+export const getFolderColorHex = (value: string): string =>
+  FOLDER_COLORS.find((color) => color.key === value)?.hex ?? value;
+
 export const FOLDER_PICKER_COLORS: readonly FolderColorOption[] = [
   { key: "slate", label: "Gray", hex: "#666666" },
   { key: "emerald", label: "Green", hex: "#54e98a" },
@@ -36,3 +39,17 @@ export const FOLDER_PICKER_COLORS: readonly FolderColorOption[] = [
   { key: "orange", label: "Orange", hex: "#F97316" },
   { key: "rose", label: "Red", hex: "#EF4444" },
 ] as const;
+
+export const resolveFolderColorKey = (
+  value: string | null | undefined,
+): FolderColorKey => {
+  if (value && isFolderColorKey(value)) {
+    return value;
+  }
+
+  const byHex = FOLDER_PICKER_COLORS.find(
+    (color) => color.hex.toLowerCase() === value?.toLowerCase(),
+  );
+
+  return byHex?.key ?? DEFAULT_FOLDER_COLOR;
+};

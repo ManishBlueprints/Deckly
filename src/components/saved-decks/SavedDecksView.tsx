@@ -16,7 +16,6 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { SavedDeckEmptyState } from "./SavedDeckEmptyState";
-import { CreateFolderModal } from "./CreateFolderModal";
 import { FolderCard } from "./FolderCard";
 import { DocumentRow } from "./DocumentRow";
 import { SavedRoomRow } from "./SavedRoomRow";
@@ -32,6 +31,11 @@ import {
   type SavedDeckSearchResult,
   type SavedRoomSearchResult,
 } from "../../utils/metadataSearchAdapters";
+import { DataRoomFolderModal } from "../data-room/DataRoomFolderModal";
+import {
+  resolveFolderColorKey,
+  type FolderColorKey,
+} from "../../constants/folderColors";
 
 export function SavedDecksView() {
   const { session } = useAuth();
@@ -117,17 +121,30 @@ export function SavedDecksView() {
 
   // --- Folder modal handlers ---
   const handleCreateFolder = useCallback(
-    async (name: string, color: string, tagNames: string[]) => {
-      await actions.createFolder(name, color, tagNames);
+    async (input: {
+      name: string;
+      color: FolderColorKey;
+      tagIds: string[];
+    }) => {
+      await actions.createFolder(input.name, input.color, input.tagIds);
       setIsCreateFolderModalOpen(false);
     },
     [actions],
   );
 
   const handleSaveEditFolder = useCallback(
-    async (name: string, color: string, tagNames: string[]) => {
+    async (input: {
+      name: string;
+      color: FolderColorKey;
+      tagIds: string[];
+    }) => {
       if (!editingFolder) return;
-      await actions.updateFolder(editingFolder, name, color, tagNames);
+      await actions.updateFolder(
+        editingFolder,
+        input.name,
+        input.color,
+        input.tagIds,
+      );
       setEditingFolder(null);
       setIsCreateFolderModalOpen(false);
     },
@@ -238,10 +255,10 @@ export function SavedDecksView() {
         <SavedDeckEmptyState
           onCreateFolder={() => setIsCreateFolderModalOpen(true)}
         />
-        <CreateFolderModal
+        <DataRoomFolderModal
           isOpen={isCreateFolderModalOpen}
           onClose={() => setIsCreateFolderModalOpen(false)}
-          onCreate={handleCreateFolder}
+          onSubmit={handleCreateFolder}
           existingTags={tags}
           initialData={null}
         />
@@ -413,20 +430,20 @@ export function SavedDecksView() {
       </main>
 
       {/* Modals */}
-      <CreateFolderModal
+      <DataRoomFolderModal
         isOpen={isCreateFolderModalOpen}
         onClose={() => {
           setIsCreateFolderModalOpen(false);
           setEditingFolder(null);
         }}
-        onCreate={editingFolder ? handleSaveEditFolder : handleCreateFolder}
+        onSubmit={editingFolder ? handleSaveEditFolder : handleCreateFolder}
         existingTags={tags}
         initialData={
           editingFolder
             ? {
                 name: editingFolder.name,
-                color: editingFolder.color,
-                tags: editingFolder.tags.map((t) => t.name),
+                color: resolveFolderColorKey(editingFolder.color),
+                tagIds: editingFolder.tags.map((t) => t.id),
               }
             : null
         }

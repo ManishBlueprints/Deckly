@@ -524,7 +524,8 @@ export const dataRoomService = {
       let query = supabase
         .from("data_rooms")
         .select("id")
-        .eq("slug", slug);
+        .eq("slug", slug)
+        .eq("user_id", userId);
 
       if (excludeId) {
         query = query.neq("id", excludeId);
@@ -538,10 +539,12 @@ export const dataRoomService = {
   },
 
   async checkDataRoomPassword(
+    handle: string,
     slug: string,
     password: string,
   ): Promise<boolean> {
     const { data, error } = await supabase.rpc("check_data_room_password", {
+      p_handle: handle,
       p_slug: slug,
       p_password: password,
     });
@@ -550,10 +553,12 @@ export const dataRoomService = {
   },
 
   async getDataRoomPayload(
+    handle: string,
     slug: string,
     password?: string,
   ): Promise<(Deck & { folder_id?: string | null; folder_name?: string | null })[]> {
     const { data: rawData, error } = await supabase.rpc("get_data_room_payload", {
+      p_handle: handle,
       p_slug: slug,
       p_password: password || null,
     });
@@ -585,6 +590,7 @@ export const dataRoomService = {
       try {
         const { data: fnData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
           body: { 
+            handle,
             room_slug: slug, 
             password: password ?? null, 
             image_paths: allPaths 
@@ -628,17 +634,4 @@ export const dataRoomService = {
     return decks;
   },
 
-  async getDataRoomBySlugOnly(
-    slug: string,
-  ): Promise<{ handle: string; slug: string } | null> {
-    const { data, error } = await supabase
-      .rpc("get_data_rooms_public")
-      .select("user_handle, slug")
-      .eq("slug", slug)
-      .limit(1)
-      .single();
-
-    if (error || !data) return null;
-    return { handle: data.user_handle, slug: data.slug };
-  },
 };

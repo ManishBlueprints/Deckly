@@ -3,6 +3,11 @@ import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
 import { withRetry } from "../utils/resilience";
 import { LibraryFolder, LibraryTag, SavedDeckOrganized } from "../types";
 import { globalTagService } from "./globalTagService";
+import {
+  DEFAULT_FOLDER_COLOR,
+  resolveFolderColorKey,
+  type FolderColorKey,
+} from "../constants/folderColors";
 
 interface FolderJoinResult {
   id: string;
@@ -69,7 +74,7 @@ export const organizerService = {
         return (fallbackData || []).map((f) => ({
           id: f.id,
           name: f.name,
-          color: f.color || "#666666",
+          color: resolveFolderColorKey(f.color),
           created_at: f.created_at,
           deck_count: 0,
           tags: [],
@@ -79,7 +84,7 @@ export const organizerService = {
       return (data as FolderJoinResult[] || []).map((f) => ({
         id: f.id,
         name: f.name,
-        color: f.color || "#666666",
+        color: resolveFolderColorKey(f.color),
         created_at: f.created_at,
         deck_count: f.investor_library?.[0]?.count || 0,
         tags: (f.library_folder_tags || [])
@@ -91,8 +96,8 @@ export const organizerService = {
 
   async createFolder(
     name: string,
-    color?: string,
-    tagNames: string[] = [],
+    color: FolderColorKey = DEFAULT_FOLDER_COLOR,
+    tagIds: string[] = [],
   ): Promise<LibraryFolder> {
     // Note: No withRetry here - this is a multi-step non-idempotent operation.
     // Retrying could create duplicate folders since there's no unique constraint on (user_id, name).
@@ -102,7 +107,7 @@ export const organizerService = {
       .from("library_folders")
       .insert([{
         name,
-        color: color || "#666666",
+        color,
         user_id: userId,
       }])
       .select()
@@ -119,38 +124,28 @@ export const organizerService = {
         .insert([{ name, user_id: userId }])
         .select()
         .single();
-      finalData = fbData ? { ...fbData, color: color || "#666666" } : fbData;
+      finalData = fbData ? { ...fbData, color } : fbData;
       finalError = fbError;
     }
 
     if (finalError) throw finalError;
 
-    const createdTags: LibraryTag[] = [];
+    const createdTags = await globalTagService.fetchTagsByIds(tagIds, userId, false);
 
     try {
-      const canonicalTags = tagNames
-        ? Array.from(new Set(tagNames.map((t) => t.trim().toUpperCase()).filter(Boolean)))
-        : [];
-      for (const tagName of canonicalTags) {
-        const tagData = await globalTagService.createOrRestoreTag(
-          userId,
-          tagName,
-          "#666666",
-        );
-
+      for (const tagData of createdTags) {
         const { error: linkErr } = await supabase
           .from("library_folder_tags")
           .insert([{ folder_id: finalData.id, tag_id: tagData.id }]);
 
         if (linkErr) {
-          console.error(`Failed to link tag ${tagName}:`, {
+          console.error("Failed to link folder tag:", {
             folder_id: finalData.id,
             tag_id: tagData.id,
             error: linkErr,
           });
           throw linkErr;
         }
-        createdTags.push(tagData);
       }
     } catch (err) {
       console.error("Critical failure during folder creation process, rolling back:", err);
@@ -186,8 +181,8 @@ export const organizerService = {
   async updateFolder(
     folderId: string,
     name: string,
-    color?: string,
-    tagNames: string[] = [],
+    color: FolderColorKey = DEFAULT_FOLDER_COLOR,
+    tagIds: string[] = [],
   ): Promise<LibraryFolder> {
     // Note: No withRetry here - this is a multi-step operation with compensating rollback.
     // The caller can handle network errors and retry if needed.
@@ -213,7 +208,7 @@ export const organizerService = {
       .from("library_folders")
       .update({
         name,
-        color: color || "#666666",
+        color,
         updated_at: new Date().toISOString(),
       })
       .eq("id", folderId)
@@ -257,33 +252,27 @@ export const organizerService = {
 
     // 4. Link tags
     try {
-      const canonicalTags = tagNames 
-        ? Array.from(new Set(tagNames.map(t => t.trim().toUpperCase()).filter(Boolean)))
-        : [];
-      if (canonicalTags.length > 0) {
-        for (const tagName of canonicalTags) {
-          const tagData = await globalTagService.createOrRestoreTag(
-            userId,
-            tagName,
-            "#666666",
-          );
+      const resolvedTags = await globalTagService.fetchTagsByIds(tagIds, userId, false);
+      if (resolvedTags.length !== Array.from(new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean))).length) {
+        throw new Error("One or more tags were not found.");
+      }
 
-          if (tagData) {
-            const { error: insertErr } = await supabase
-              .from("library_folder_tags")
-              .insert([{ folder_id: folderId, tag_id: tagData.id }]);
+      if (resolvedTags.length > 0) {
+        for (const tagData of resolvedTags) {
+          const { error: insertErr } = await supabase
+            .from("library_folder_tags")
+            .insert([{ folder_id: folderId, tag_id: tagData.id }]);
 
-            if (insertErr) {
-              console.error(`Failed to link tag ${tagName}:`, {
-                folder_id: folderId,
-                tag_id: tagData.id,
-                error: insertErr,
-              });
-              throw insertErr;
-            }
-
-            createdTags.push(tagData);
+          if (insertErr) {
+            console.error("Failed to link folder tag:", {
+              folder_id: folderId,
+              tag_id: tagData.id,
+              error: insertErr,
+            });
+            throw insertErr;
           }
+
+          createdTags.push(tagData);
         }
       }
     } catch (err) {
@@ -319,7 +308,7 @@ export const organizerService = {
             .from("library_folders")
             .update({
               name: originalName,
-              color: originalColor || "#666666",
+              color: originalColor || DEFAULT_FOLDER_COLOR,
               updated_at: new Date().toISOString(),
             })
             .eq("id", folderId);
@@ -340,7 +329,7 @@ export const organizerService = {
     return {
       id: folderId,
       name,
-      color: color || "#666666",
+      color,
       created_at: updatedFolderData?.created_at || new Date().toISOString(),
       tags: createdTags,
       deck_count: 0, // simplified
@@ -556,7 +545,10 @@ export const organizerService = {
 
         if (unresolvedDeckIds.length > 0) {
           const { data: publicDecks, error: publicDecksError } = await supabase
-            .rpc("get_decks_public")
+            .rpc("get_decks_public", {
+              p_handle: null,
+              p_slug_or_alias: null,
+            })
             .select("id, title, slug, file_type, status, description, user_id, user_handle")
             .in("id", unresolvedDeckIds);
 

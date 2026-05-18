@@ -1,3 +1,5 @@
+import type { FolderColorKey } from "../constants/folderColors";
+
 export * from "./metadataSearch";
 
 export interface PdfLinkHotspot {
@@ -80,7 +82,7 @@ export type LibraryTag = GlobalTag;
 export interface LibraryFolder {
   id: string;
   name: string;
-  color: string;
+  color: FolderColorKey;
   tags: LibraryTag[];
   deck_count: number;
   created_at: string;

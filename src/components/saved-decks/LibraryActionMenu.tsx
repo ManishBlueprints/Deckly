@@ -24,6 +24,7 @@ import {
 } from "../ui/alert-dialog";
 import { LibraryFolder, LibraryTag } from "../../types";
 import { cn } from "../../utils/cn";
+import { getFolderColorHex } from "../../constants/folderColors";
 
 export interface LibraryActionMenuItem {
   title: string;
@@ -126,7 +127,7 @@ export function LibraryActionMenu({
                     <div className="flex items-center gap-3 truncate">
                       <div
                         className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: folder.color }}
+                        style={{ backgroundColor: getFolderColorHex(folder.color) }}
                       />
                       <span className="truncate text-sm font-bold">
                         {folder.name}

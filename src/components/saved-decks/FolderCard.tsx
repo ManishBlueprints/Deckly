@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { LibraryFolder } from "../../types";
 import { cn } from "../../utils/cn";
 import { TagChip } from "./TagChip";
+import { getFolderColorHex } from "../../constants/folderColors";
 
 interface FolderCardProps {
   folder?: LibraryFolder;
@@ -56,6 +57,7 @@ export const FolderCard = memo(function FolderCard({
   }
 
   if (!folder) return null;
+  const folderColor = getFolderColorHex(folder.color);
 
   return (
     <motion.div
@@ -83,8 +85,8 @@ export const FolderCard = memo(function FolderCard({
       <div className="mb-10 transition-transform group-hover:scale-110">
         <Folder
           className="w-8 h-8"
-          style={{ color: folder.color }}
-          fill={folder.color}
+          style={{ color: folderColor }}
+          fill={folderColor}
         />
       </div>
 

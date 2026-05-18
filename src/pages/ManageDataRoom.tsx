@@ -446,7 +446,7 @@ function ManageDataRoom() {
       const e = err as { message?: string; code?: string };
       
       // Handle unique constraint violation for slug
-      if (e?.code === '23505' || e?.message?.includes('unique constraint "data_rooms_slug_key"')) {
+      if (e?.code === '23505' || e?.message?.includes('unique constraint "data_rooms_user_id_slug_key"')) {
         toast.error("This URL slug is already taken. Please choose another.");
       } else {
         toast.error(e?.message || "Failed to save data room");
