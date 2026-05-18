@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, FolderInput, Loader2, Plus } from "lucide-react";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DocumentPicker } from "../components/dashboard/DocumentPicker";
 import { DataRoom, DataRoomDocument } from "../types";
@@ -23,6 +23,7 @@ import { DataRoomFolderWithTags, DataRoomTag } from "../types";
 import { DataRoomDetailHeader } from "../components/data-room/detail/DataRoomDetailHeader";
 import { DataRoomDetailTabs, DataRoomDetailTab } from "../components/data-room/detail/DataRoomDetailTabs";
 import { DataRoomContentToolbar } from "../components/data-room/detail/DataRoomContentToolbar";
+import { DataRoomContentActionButton } from "../components/data-room/detail/DataRoomContentToolbar";
 import { DataRoomFolderStrip } from "../components/data-room/detail/DataRoomFolderStrip";
 import { DataRoomAnalyticsPanel } from "../components/data-room/detail/DataRoomAnalyticsPanel";
 import { DataRoomSettingsPanel } from "../components/data-room/detail/DataRoomSettingsPanel";
@@ -820,12 +821,23 @@ function DataRoomContentSection({
                 ? "Add decks to gate them inside this room."
                 : "Try another title, tag, or clear the current search."}
             </p>
-            <button
-              onClick={onNewDeck}
-              className="mt-2 rounded-xl bg-[#54e98a] px-5 py-3 text-sm font-bold text-[#003919] transition-all hover:opacity-90"
-            >
-              New Deck
-            </button>
+            {documents.length === 0 ? (
+              <div className="mt-3 flex w-full max-w-sm flex-col gap-3 sm:flex-row sm:justify-center">
+                <DataRoomContentActionButton
+                  onClick={onNewDeck}
+                  icon={<Plus size={16} />}
+                  variant="primary"
+                >
+                  New Deck
+                </DataRoomContentActionButton>
+                <DataRoomContentActionButton
+                  onClick={onAddExisting}
+                  icon={<FolderInput size={16} />}
+                >
+                  Add Existing
+                </DataRoomContentActionButton>
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="p-3 sm:p-4">

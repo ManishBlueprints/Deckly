@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { X, Loader2, Edit2, Trash2, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LibraryTag } from "../../types";
@@ -50,6 +50,7 @@ export function ManageTagsModal({
   const [isLoading, setIsLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDeleteTag, setPendingDeleteTag] = useState<LibraryTag | null>(null);
+  const tagNameInputId = useId();
 
   const resetForm = useCallback(() => {
     setName("");
@@ -154,6 +155,8 @@ export function ManageTagsModal({
                       {editingTagId ? "EDIT TAG" : "NEW TAG NAME"}
                     </label>
                     <input
+                      id={tagNameInputId}
+                      name={tagNameInputId}
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}

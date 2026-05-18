@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   Filter,
@@ -73,6 +73,7 @@ export function MetadataSearchMenu({
   );
   const [open, setOpen] = useState(false);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const fieldIdPrefix = useId();
 
   useEffect(() => {
     if (!open || (filter.mode !== "name" && filter.mode !== "filter")) return;
@@ -176,6 +177,8 @@ export function MetadataSearchMenu({
             </label>
             <Input
               ref={nameInputRef}
+              id={`${fieldIdPrefix}-query`}
+              name={`${fieldIdPrefix}-query`}
               value={filter.query}
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder={namePlaceholder}
@@ -267,6 +270,8 @@ export function MetadataSearchMenu({
                     Start
                   </label>
                   <Input
+                    id={`${fieldIdPrefix}-start-date`}
+                    name={`${fieldIdPrefix}-start-date`}
                     type="date"
                     value={filter.date.startDate}
                     onChange={(event) =>
@@ -281,6 +286,8 @@ export function MetadataSearchMenu({
                     End
                   </label>
                   <Input
+                    id={`${fieldIdPrefix}-end-date`}
+                    name={`${fieldIdPrefix}-end-date`}
                     type="date"
                     value={filter.date.endDate}
                     onChange={(event) =>

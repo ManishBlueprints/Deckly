@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { useId, type RefObject } from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "../../utils/cn";
 
@@ -31,6 +31,8 @@ export function SavedItemNoteCard({
   placeholder = "Add a note...",
   className,
 }: SavedItemNoteCardProps) {
+  const noteFieldId = useId();
+
   return (
     <div className={cn("w-full xl:w-[420px] xl:flex-none xl:mx-auto", className)}>
       <div className="rounded-xl border border-[#e6d8b0]/12 bg-[#11100d]/20 px-2.5 py-2.5 sm:px-3 sm:py-3">
@@ -49,6 +51,8 @@ export function SavedItemNoteCard({
           {isEditing ? (
             <div>
               <textarea
+                id={noteFieldId}
+                name={noteFieldId}
                 ref={textareaRef}
                 value={note}
                 onChange={(event) => onNoteChange(event.target.value)}
