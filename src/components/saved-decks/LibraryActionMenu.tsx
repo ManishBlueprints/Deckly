@@ -24,6 +24,7 @@ import {
 } from "../ui/alert-dialog";
 import { LibraryFolder, LibraryTag } from "../../types";
 import { cn } from "../../utils/cn";
+import { getFolderColorHex } from "../../constants/folderColors";
 
 export interface LibraryActionMenuItem {
   title: string;
@@ -40,7 +41,7 @@ interface LibraryActionMenuProps {
   unsaveLabel: string;
   unsaveDescription: string;
   onMoveToFolder: (folderId: string | null) => void;
-  onUpdateTags: (tagIds: string[]) => void;
+  onUpdateTags?: (tagIds: string[]) => void;
   onUnsave: () => void;
 }
 
@@ -126,7 +127,7 @@ export function LibraryActionMenu({
                     <div className="flex items-center gap-3 truncate">
                       <div
                         className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: folder.color }}
+                        style={{ backgroundColor: getFolderColorHex(folder.color) }}
                       />
                       <span className="truncate text-sm font-bold">
                         {folder.name}
@@ -148,48 +149,52 @@ export function LibraryActionMenu({
             </DropdownMenuPortal>
           </DropdownMenuSub>
 
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-[#e5e2e1] data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] data-[state=open]:bg-[#54e98a]/10 cursor-pointer px-4 py-3 transition-colors flex items-center gap-3">
-              <span className="material-symbols-outlined text-lg opacity-40">
-                sell
-              </span>
-              <span className="font-bold text-sm">Add Tags</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuSubContent className="bg-[#0e0e0e] border-[#1c1b1b] min-w-[200px] p-2 shadow-2xl font-headline">
-                {tags.map((tag) => {
-                  const isSelected = item.tags.some((t) => t.id === tag.id);
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={tag.id}
-                      checked={isSelected}
-                      onCheckedChange={(checked: boolean) => {
-                        const newTagIds = checked
-                          ? [...item.tags.map((t) => t.id), tag.id]
-                          : item.tags.filter((t) => t.id !== tag.id).map((t) => t.id);
-                        onUpdateTags(newTagIds);
-                      }}
-                      onSelect={(e: Event) => e.preventDefault()}
-                      className="text-[#bbcbbb]/60 data-[highlighted]:bg-[#1c1b1b] data-[highlighted]:text-white cursor-pointer px-4 py-3 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                        <span className="text-sm font-bold">{tag.name}</span>
-                      </div>
-                    </DropdownMenuCheckboxItem>
-                  );
-                })}
-                {tags.length === 0 && (
-                  <div className="px-4 py-3 text-xs text-[#bbcbbb]/20 italic font-medium">
-                    No tags created
-                  </div>
-                )}
-              </DropdownMenuSubContent>
-            </DropdownMenuPortal>
-          </DropdownMenuSub>
+          {onUpdateTags && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-[#e5e2e1] data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] data-[state=open]:bg-[#54e98a]/10 cursor-pointer px-4 py-3 transition-colors flex items-center gap-3">
+                <span className="material-symbols-outlined text-lg opacity-40">
+                  sell
+                </span>
+                <span className="font-bold text-sm">Add Tags</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent className="bg-[#0e0e0e] border-[#1c1b1b] min-w-[200px] p-2 shadow-2xl font-headline">
+                  {tags.map((tag) => {
+                    const isSelected = item.tags.some((t) => t.id === tag.id);
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={tag.id}
+                        checked={isSelected}
+                        onCheckedChange={(checked: boolean) => {
+                          const newTagIds = checked
+                            ? Array.from(
+                                new Set([...item.tags.map((t) => t.id), tag.id]),
+                              )
+                            : item.tags.filter((t) => t.id !== tag.id).map((t) => t.id);
+                          onUpdateTags(newTagIds);
+                        }}
+                        onSelect={(e: Event) => e.preventDefault()}
+                        className="text-[#bbcbbb]/60 data-[highlighted]:bg-[#1c1b1b] data-[highlighted]:text-white cursor-pointer px-4 py-3 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          <span className="text-sm font-bold">{tag.name}</span>
+                        </div>
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+                  {tags.length === 0 && (
+                    <div className="px-4 py-3 text-xs text-[#bbcbbb]/20 italic font-medium">
+                      No tags created
+                    </div>
+                  )}
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+          )}
 
           <DropdownMenuSeparator className="bg-[#1c1b1b] my-2" />
 

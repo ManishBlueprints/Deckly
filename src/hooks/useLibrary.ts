@@ -4,6 +4,7 @@ import { deckService } from "../services/deckService";
 import { organizerService } from "../services/organizerService";
 import { noteService } from "../services/noteService";
 import { LibraryFolder, LibraryTag, SavedDeckOrganized } from "../types";
+import type { FolderColorKey } from "../constants/folderColors";
 
 // Query keys
 const KEYS = {
@@ -171,12 +172,12 @@ export function useLibrary(userId: string | undefined) {
   // ---- Folder mutations ----
   const createFolderMutation = useMutation({
     mutationFn: (
-      { name, color, tagNames }: {
+      { name, color, tagIds }: {
         name: string;
-        color: string;
-        tagNames: string[];
+        color: FolderColorKey;
+        tagIds: string[];
       },
-    ) => organizerService.createFolder(name, color, tagNames),
+    ) => organizerService.createFolder(name, color, tagIds),
     onSuccess: (newFolder) => {
       if (!userId) return;
       qc.setQueryData<LibraryFolder[]>(KEYS.folders(userId), (prev) => [
@@ -193,13 +194,13 @@ export function useLibrary(userId: string | undefined) {
       folder,
       name,
       color,
-      tagNames,
+      tagIds,
     }: {
       folder: LibraryFolder;
       name: string;
-      color: string;
-      tagNames: string[];
-    }) => organizerService.updateFolder(folder.id, name, color, tagNames),
+      color: FolderColorKey;
+      tagIds: string[];
+    }) => organizerService.updateFolder(folder.id, name, color, tagIds),
     onSuccess: (updated, { folder }) => {
       if (!userId) return;
       qc.setQueryData<LibraryFolder[]>(
@@ -309,6 +310,7 @@ export function useLibrary(userId: string | undefined) {
       qc.invalidateQueries({ queryKey: KEYS.tags(userId) });
       qc.invalidateQueries({ queryKey: KEYS.folders(userId) });
       qc.invalidateQueries({ queryKey: KEYS.decks(userId) });
+      qc.invalidateQueries({ queryKey: ["saved-data-rooms", userId] });
     },
   });
 
@@ -353,14 +355,14 @@ export function useLibrary(userId: string | undefined) {
       updateTagsMutation.mutateAsync({ libraryId, tagIds }),
     saveNote: (deckId: string, content: string) =>
       saveNoteMutation.mutateAsync({ deckId, content }),
-    createFolder: (name: string, color: string, tagNames: string[]) =>
-      createFolderMutation.mutateAsync({ name, color, tagNames }),
+    createFolder: (name: string, color: FolderColorKey, tagIds: string[]) =>
+      createFolderMutation.mutateAsync({ name, color, tagIds }),
     updateFolder: (
       folder: LibraryFolder,
       name: string,
-      color: string,
-      tagNames: string[],
-    ) => updateFolderMutation.mutateAsync({ folder, name, color, tagNames }),
+      color: FolderColorKey,
+      tagIds: string[],
+    ) => updateFolderMutation.mutateAsync({ folder, name, color, tagIds }),
     deleteFolder: (folder: LibraryFolder) =>
       deleteFolderMutation.mutateAsync(folder),
     createTag: (name: string, color: string) =>

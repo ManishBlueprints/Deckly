@@ -103,7 +103,7 @@ export function NotesSidebar({
                       </span>
                     </div>
                     <p className="mt-1 text-[9px] leading-relaxed text-slate-500">
-                      Save Deck to see notes related to this deck
+                      Writing a note saves this deck to your library automatically
                     </p>
                   </div>
                 </div>

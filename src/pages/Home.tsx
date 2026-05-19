@@ -9,6 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { dataRoomService } from "../services/dataRoomService";
 import { analyticsService } from "../services/analyticsService";
 import { organizerService } from "../services/organizerService";
+import { dataRoomLibraryService } from "../services/dataRoomLibraryService";
 
 const DEFAULT_STALE_TIME = 30000;
 
@@ -50,10 +51,16 @@ function Home() {
           staleTime: DEFAULT_STALE_TIME,
         });
 
-        // Saved Decks List (Complete Collection)
+        // Saved Library List (Complete Collection)
         queryClient.prefetchQuery({
           queryKey: ["library-decks", userId],
           queryFn: () => organizerService.getSavedDecksOrganized(userId),
+          staleTime: DEFAULT_STALE_TIME,
+        });
+
+        queryClient.prefetchQuery({
+          queryKey: ["saved-data-rooms", userId],
+          queryFn: () => dataRoomLibraryService.getSavedRooms(),
           staleTime: DEFAULT_STALE_TIME,
         });
 
@@ -73,7 +80,7 @@ function Home() {
         const preloadPages = [
           () => import("./DataRoomsPage"),
           () => import("./ContentPage"),
-          () => import("./SavedDecks"),
+          () => import("./SavedLibrary"),
           () => import("./Profile"),
           () => import("./Viewer"),
         ];

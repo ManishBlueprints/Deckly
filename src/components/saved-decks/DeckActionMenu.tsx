@@ -23,6 +23,7 @@ import {
 } from "../ui/alert-dialog";
 import { LibraryFolder, LibraryTag, SavedDeckOrganized } from "../../types";
 import { cn } from "../../utils/cn";
+import { getFolderColorHex } from "../../constants/folderColors";
 import { useState } from "react";
 
 interface DeckActionMenuProps {
@@ -99,7 +100,7 @@ export function DeckActionMenu({
                     <div className="flex items-center gap-3 truncate">
                       <div
                         className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: folder.color }}
+                        style={{ backgroundColor: getFolderColorHex(folder.color) }}
                       />
                       <span className="truncate text-sm font-bold">
                         {folder.name}

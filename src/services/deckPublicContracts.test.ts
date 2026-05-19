@@ -27,6 +27,10 @@ const aliasOnlyMigrationSql = readFileSync(
   path.resolve(__dirname, "../../supabase/migrations/20260515140000_restore_alias_only_deck_links.sql"),
   "utf8",
 );
+const libraryMetadataMigrationSql = readFileSync(
+  path.resolve(__dirname, "../../supabase/migrations/20260518133000_add_library_deck_metadata_rpc.sql"),
+  "utf8",
+);
 const signDeckUrlSource = readFileSync(
   path.resolve(__dirname, "../../supabase/functions/sign-deck-url/index.ts"),
   "utf8",
@@ -73,5 +77,16 @@ describe("sign-deck-url revalidation contract", () => {
     expect(signDeckUrlSource).toContain("p_handle: typeof handle === \"string\" ? handle : null");
     expect(signDeckUrlSource).toContain("const deckSlug = typeof slug === \"string\" ? slug : null;");
     expect(signDeckUrlSource).toContain("p_slug_or_alias: deckSlug");
+  });
+});
+
+describe("saved deck metadata contract", () => {
+  it("exposes deck-id-based saved library hydration for owners and canonical public decks", () => {
+    expect(libraryMetadataMigrationSql).toContain("CREATE OR REPLACE FUNCTION public.get_library_deck_metadata(");
+    expect(libraryMetadataMigrationSql).toContain("p_deck_ids UUID[]");
+    expect(libraryMetadataMigrationSql).toContain("COALESCE(auth.uid()");
+    expect(libraryMetadataMigrationSql).toContain("dl.is_primary = TRUE");
+    expect(libraryMetadataMigrationSql).toContain("dl.is_enabled = TRUE");
+    expect(libraryMetadataMigrationSql).toContain("GRANT EXECUTE ON FUNCTION public.get_library_deck_metadata(UUID[]) TO authenticated;");
   });
 });

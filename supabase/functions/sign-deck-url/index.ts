@@ -77,6 +77,7 @@ Deno.serve(async (req: Request) => {
     if (roomSlug) {
       // Data room mode
       const { data: rpcData, error: rpcError } = await anonClient.rpc("get_data_room_payload", {
+        p_handle: typeof handle === "string" ? handle : null,
         p_slug: roomSlug,
         p_password: password ?? null,
       });

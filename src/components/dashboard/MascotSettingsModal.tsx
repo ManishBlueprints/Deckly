@@ -47,14 +47,35 @@ export function MascotSettingsModal({
 
   // Workspace settings
   const [roomName, setRoomName] = useState(branding?.room_name || "");
+  const [userName, setUserName] = useState(userProfile?.full_name || "");
   const [workspaceSlug, setWorkspaceSlug] = useState(userProfile?.handle || "");
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [isSlugAvailable, setIsSlugAvailable] = useState<boolean | null>(null);
 
+  const getWorkspaceSaveErrorMessage = (err: unknown): string => {
+    const maybeError = err as {
+      code?: string;
+      message?: string;
+      details?: string;
+    } | null;
+
+    if (maybeError?.code === "23505") {
+      return "This workspace slug is already taken.";
+    }
+
+    if (maybeError?.message) {
+      return maybeError.message;
+    }
+
+    return "Failed to save workspace settings.";
+  };
+
   useEffect(() => {
     if (branding?.room_name) setRoomName(branding.room_name);
+    if (userProfile?.full_name !== undefined)
+      setUserName(userProfile.full_name || "");
     if (userProfile?.handle) setWorkspaceSlug(userProfile.handle);
-  }, [branding?.room_name, userProfile?.handle]);
+  }, [branding?.room_name, userProfile?.full_name, userProfile?.handle]);
 
   // Slug availability check
   useEffect(() => {
@@ -136,14 +157,30 @@ export function MascotSettingsModal({
         onUpdate(updated);
       }
 
-      // 2. Update Slug if changed and available
+      // 2. Update Profile Name if changed
+      const trimmedUserName = userName.trim();
+      let profileUpdated = false;
+      if (trimmedUserName !== (userProfile?.full_name || "")) {
+        if (userProfile?.id) {
+          await userService.updateProfile(userProfile.id, {
+            full_name: trimmedUserName || null,
+          });
+          profileUpdated = true;
+        }
+      }
+
+      // 3. Update Slug if changed and available
       if (workspaceSlug !== userProfile?.handle && isSlugAvailable) {
         if (userProfile?.id) {
           await userService.updateProfile(userProfile.id, {
             handle: workspaceSlug,
           });
-          await refreshProfile();
+          profileUpdated = true;
         }
+      }
+
+      if (profileUpdated) {
+        await refreshProfile();
       }
 
       if (setupMode && userProfile?.id) {
@@ -156,8 +193,7 @@ export function MascotSettingsModal({
         onClose();
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message || "Failed to save workspace settings.");
+      setError(getWorkspaceSaveErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -205,44 +241,72 @@ export function MascotSettingsModal({
               {/* Workspace Identity Section */}
               <div className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
+                  <label
+                    htmlFor="workspace-name"
+                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1"
+                  >
                     Workspace Name
                   </label>
                   <input
+                    id="workspace-name"
+                    name="workspace-name"
                     type="text"
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
-                    className="w-full px-4 py-3 bg-[#0d0d0d] border border-white/10 rounded-none text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary/50 focus:border-deckly-primary transition-all shadow-inner"
+                    className="w-full px-4 py-3 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary transition-all shadow-inner"
                     placeholder="e.g. Acme Corp"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1">
+                  <label
+                    htmlFor="profile-name"
+                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1"
+                  >
+                    User Name
+                  </label>
+                  <input
+                    id="profile-name"
+                    name="profile-name"
+                    type="text"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary transition-all shadow-inner"
+                    placeholder="e.g. Your Name"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="workspace-slug"
+                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1"
+                  >
                     Workspace Slug (URL)
                   </label>
                   <div className="relative">
-                    <div className="flex items-center bg-[#0d0d0d] border border-white/10 rounded-none overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary/50 focus-within:border-deckly-primary transition-all shadow-inner">
-                      <span className="pl-4 pr-1 text-xs text-slate-600 select-none">
+                    <div className="flex items-center bg-background border border-border rounded-none overflow-hidden focus-within:ring-1 focus-within:ring-primary/40 focus-within:border-primary transition-all shadow-inner">
+                      <span className="pl-4 pr-1 text-xs text-muted-foreground select-none">
                         /
                       </span>
                       <input
+                        id="workspace-slug"
+                        name="workspace-slug"
                         type="text"
                         value={workspaceSlug}
                         onChange={(e) =>
                           setWorkspaceSlug(normalizeSlug(e.target.value))
                         }
-                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-600"
+                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-foreground focus:outline-none placeholder:text-muted-foreground"
                         placeholder="workspace-slug"
                       />
                       <div className="pr-4">
                         {isCheckingSlug ? (
                           <Loader2
                             size={14}
-                            className="text-slate-600 animate-spin"
+                            className="text-muted-foreground animate-spin"
                           />
                         ) : isSlugAvailable === true ? (
-                          <Check size={14} className="text-emerald-500" />
+                          <Check size={14} className="text-primary" />
                         ) : isSlugAvailable === false ? (
                           <X size={14} className="text-red-500" />
                         ) : null}
@@ -250,8 +314,7 @@ export function MascotSettingsModal({
                     </div>
                   </div>
 
-                  {!setupMode &&
-                    workspaceSlug !== userProfile?.handle &&
+                  {workspaceSlug !== userProfile?.handle &&
                     isSlugAvailable === false && (
                       <motion.div
                         initial={{ opacity: 0, y: -5 }}
@@ -260,13 +323,12 @@ export function MascotSettingsModal({
                       >
                         <AlertCircle size={14} />
                         <span className="text-[10px] font-bold uppercase tracking-wider">
-                          Handle already taken
+                          Workspace slug already taken
                         </span>
                       </motion.div>
                     )}
 
-                  {!setupMode &&
-                    workspaceSlug !== userProfile?.handle &&
+                  {workspaceSlug !== userProfile?.handle &&
                     workspaceSlug.length > 0 &&
                     workspaceSlug.length < 3 && (
                       <motion.div
@@ -323,10 +385,10 @@ export function MascotSettingsModal({
                     />
 
                     {uploading && (
-                      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
                         <Loader2
                           size={24}
-                          className="text-deckly-primary animate-spin"
+                          className="text-primary animate-spin"
                         />
                       </div>
                     )}
@@ -335,7 +397,7 @@ export function MascotSettingsModal({
                   {!uploading && (
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="absolute -bottom-2 -right-2 w-9 h-9 bg-deckly-primary text-slate-950 rounded-none flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all border-4 border-surface-card"
+                      className="absolute -bottom-2 -right-2 w-9 h-9 bg-primary text-black rounded-none flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all border-4 border-surface-card"
                       title="Upload New"
                     >
                       <Camera size={16} />
@@ -347,7 +409,7 @@ export function MascotSettingsModal({
                   <div className="bg-surface-low rounded-none p-4 border border-white/5 flex gap-3">
                     <Info
                       size={16}
-                      className="text-deckly-primary shrink-0 mt-0.5"
+                      className="text-primary shrink-0 mt-0.5"
                     />
                     <p className="text-[10px] text-slate-400 leading-relaxed font-bold uppercase tracking-widest">
                       Your brand mascot appears in the sidebar. PNGs work best.
@@ -363,7 +425,7 @@ export function MascotSettingsModal({
                         (workspaceSlug !== userProfile?.handle &&
                           !isSlugAvailable)
                       }
-                      className="w-full py-3.5 bg-deckly-primary text-slate-950 font-bold uppercase tracking-[0.2em] text-[10px] rounded-none hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                      className="w-full py-3.5 bg-primary text-black font-bold uppercase tracking-[0.2em] text-[10px] rounded-none hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
                     >
                       {saving ? (
                         <Loader2 size={16} className="animate-spin" />
@@ -405,7 +467,9 @@ export function MascotSettingsModal({
                               window.location.reload();
                             } catch (err: unknown) {
                               const message =
-                                err instanceof Error ? err.message : String(err);
+                                err instanceof Error
+                                  ? err.message
+                                  : String(err);
                               setError(message || "Failed to reset tutorials.");
                             }
                           }}
