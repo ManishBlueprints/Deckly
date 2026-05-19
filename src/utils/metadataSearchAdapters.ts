@@ -138,14 +138,11 @@ export function filterSavedRoomRows(
       selectedFolderId === "uncategorized"
         ? room.folder_id === null
         : room.folder_id === selectedFolderId;
-    const matchesTag =
-      selectedTagId === null || room.tags.some((tag) => tag.id === selectedTagId);
-    const matchedTagNames =
-      filter.mode === "name" ? collectMatchingTagNames(room.tags, filter.query) : [];
+    const matchesTag = selectedTagId === null;
+    const matchedTagNames: string[] = [];
     const matchesName =
       filter.mode !== "name" ||
-      matchesMetadataNameQuery(room.title, filter.query) ||
-      matchedTagNames.length > 0;
+      matchesMetadataNameQuery(room.title, filter.query);
     const matchesDate =
       filter.mode !== "date" || matchesMetadataDateFilter(room.saved_at, filter.date);
 

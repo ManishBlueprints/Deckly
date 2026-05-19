@@ -38,6 +38,12 @@ const extractCanonicalDeckTags = (
     .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
 };
 
+const DECK_TAG_SELECT = `
+  deck_tags (
+    global_tags (*)
+  )
+`;
+
 export const dataRoomService = {
   // ── CRUD ────────────────────────────────────────────────
 
@@ -180,14 +186,7 @@ export const dataRoomService = {
           id,
           deck:decks (
             title,
-            deck_tags (
-              global_tags (
-                id,
-                name,
-                color,
-                deleted_at
-              )
-            )
+            ${DECK_TAG_SELECT}
           )
         `)
         .eq("data_room_id", roomId)
@@ -229,9 +228,7 @@ export const dataRoomService = {
           *,
           deck:decks (
             *,
-            deck_tags (
-              global_tags (*)
-            )
+            ${DECK_TAG_SELECT}
           )
         `)
         .eq("data_room_id", roomId)

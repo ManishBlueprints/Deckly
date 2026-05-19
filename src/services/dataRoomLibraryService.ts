@@ -1,7 +1,7 @@
 import { supabase } from "./supabase";
 import { getDeckSession } from "./deckService.shared";
 import { withRetry } from "../utils/resilience";
-import { DataRoom, LibraryTag, SavedDataRoomOrganized } from "../types";
+import { DataRoom, SavedDataRoomOrganized } from "../types";
 import { getRequiredSessionUserId } from "./authSession";
 
 interface SavedDataRoomRow {
@@ -26,17 +26,6 @@ interface SavedDataRoomRow {
 function normalizeSavedRoomHandle(handle?: string | null): string | null {
   const trimmedHandle = handle?.trim();
   return trimmedHandle && trimmedHandle !== "unknown" ? trimmedHandle : null;
-}
-
-function normalizeSavedRoomTag(
-  tag: LibraryTag | null | undefined,
-): LibraryTag | null {
-  if (!tag) return null;
-
-  return {
-    ...tag,
-    deleted_at: tag.deleted_at ?? null,
-  };
 }
 
 function buildRoomSnapshot(
@@ -228,7 +217,6 @@ export const dataRoomLibraryService = {
       if (error) throw error;
 
       const rows = (data || []) as Array<SavedDataRoomRow>;
-      const roomIds = rows.map((row) => row.id);
       const ownerIdsToHydrate = Array.from(
         new Set(
           rows
@@ -257,31 +245,6 @@ export const dataRoomLibraryService = {
         });
       }
 
-      const tagMap = new Map<string, LibraryTag[]>();
-      if (roomIds.length > 0) {
-        const { data: roomTagRows, error: roomTagRowsError } = await supabase
-          .rpc("get_saved_room_library_tags", {
-            p_saved_room_ids: roomIds,
-          })
-          .select("saved_room_id, tags");
-
-        if (roomTagRowsError) throw roomTagRowsError;
-
-        (
-          (Array.isArray(roomTagRows) ? roomTagRows : []) as {
-            saved_room_id: string;
-            tags: LibraryTag[] | null;
-          }[]
-        ).forEach((row) => {
-          tagMap.set(
-            row.saved_room_id,
-            (row.tags || [])
-              .map((tag) => normalizeSavedRoomTag(tag))
-              .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null)),
-          );
-        });
-      }
-
       return rows.map((row) => ({
         ...row,
         room_handle:
@@ -298,7 +261,7 @@ export const dataRoomLibraryService = {
         slug: row.room_slug,
         room_owner_id: row.room_owner_id ?? row.user_id,
         folder_id: row.folder_id ?? null,
-        tags: tagMap.get(row.id) || [],
+        tags: [],
         saved_at: row.created_at || row.updated_at,
         last_viewed_at: row.last_viewed_at,
         investor_note: null,

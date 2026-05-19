@@ -54,7 +54,8 @@ export function MascotSettingsModal({
 
   useEffect(() => {
     if (branding?.room_name) setRoomName(branding.room_name);
-    if (userProfile?.full_name !== undefined) setUserName(userProfile.full_name || "");
+    if (userProfile?.full_name !== undefined)
+      setUserName(userProfile.full_name || "");
     if (userProfile?.handle) setWorkspaceSlug(userProfile.handle);
   }, [branding?.room_name, userProfile?.full_name, userProfile?.handle]);
 
@@ -254,7 +255,7 @@ export function MascotSettingsModal({
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
                     className="w-full px-4 py-3 bg-[#0d0d0d] border border-white/10 rounded-none text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary/50 focus:border-deckly-primary transition-all shadow-inner"
-                    placeholder="e.g. Manish Kumar"
+                    placeholder="e.g. Your Name"
                   />
                 </div>
 
@@ -451,7 +452,9 @@ export function MascotSettingsModal({
                               window.location.reload();
                             } catch (err: unknown) {
                               const message =
-                                err instanceof Error ? err.message : String(err);
+                                err instanceof Error
+                                  ? err.message
+                                  : String(err);
                               setError(message || "Failed to reset tutorials.");
                             }
                           }}

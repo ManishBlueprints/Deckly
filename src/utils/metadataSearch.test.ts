@@ -275,6 +275,20 @@ describe("metadataSearch", () => {
     expect(results[0].room.library_id).toBe("1");
   });
 
+  it("does not match saved rooms when a tag filter is active", () => {
+    const filter: MetadataSearchFilterState =
+      createDefaultMetadataSearchFilter("saved_library");
+
+    const results = filterSavedRoomRows(
+      [makeSavedRoom({ library_id: "1", title: "Alpha Room" })],
+      filter,
+      "uncategorized",
+      "tag-1",
+    );
+
+    expect(results).toHaveLength(0);
+  });
+
   it("matches data rooms by room name on the overview page", () => {
     const filter: MetadataSearchFilterState = {
       ...createDefaultMetadataSearchFilter("data_room"),
