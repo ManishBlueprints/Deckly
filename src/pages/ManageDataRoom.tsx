@@ -26,6 +26,7 @@ import { AccessProtectionSection } from "../components/dashboard/form-sections/A
 import { DangerZoneSection } from "../components/dashboard/form-sections/DangerZoneSection";
 import { DataRoomDocument } from "../types";
 import { dataRoomService } from "../services/dataRoomService";
+import { deckService } from "../services/deckService";
 import { useDataRoomFolders } from "../hooks/useDataRoomFolders";
 import { useAuth } from "../contexts/AuthContext";
 import { DataRoomCreateTour } from "../components/tours/DataRoomCreateTour";
@@ -231,7 +232,9 @@ function ManageDataRoom() {
           console.error("Failed to add documents", err);
         }
       } else {
-        // In create mode, just track deck IDs locally (documents will be added after creation)
+        // In create mode, keep the selected deck payload locally so the list can render titles/thumbnails.
+        const availableDecks = await deckService.getAllDecks();
+        const deckMap = new Map(availableDecks.map((deck) => [deck.id, deck]));
         const fakeDocs = deckIds.map((id, i) => ({
           id: `temp-${id}`,
           data_room_id: "",
@@ -239,6 +242,8 @@ function ManageDataRoom() {
           folder_id: null,
           display_order: documents.length + i,
           added_at: new Date().toISOString(),
+          deck: deckMap.get(id),
+          tags: [],
         })) as DataRoomDocument[];
         setDocuments((prev) => [...prev, ...fakeDocs]);
       }
