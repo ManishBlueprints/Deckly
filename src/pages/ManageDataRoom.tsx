@@ -233,11 +233,14 @@ function ManageDataRoom() {
         }
       } else {
         // In create mode, keep the selected deck payload locally so the list can render titles/thumbnails.
-        let availableDecks: Awaited<ReturnType<typeof deckService.getAllDecks>> = [];
+        let availableDecks: Awaited<ReturnType<typeof deckService.getDecksByIds>> = [];
         try {
-          availableDecks = await deckService.getAllDecks();
+          availableDecks = await deckService.getDecksByIds(deckIds);
         } catch (err) {
-          console.error("Failed to hydrate create-mode documents via deckService.getAllDecks", err);
+          console.error(
+            "Failed to hydrate create-mode documents via deckService.getDecksByIds",
+            err,
+          );
           toast.error("Failed to load full asset details. Documents were added without previews.");
           availableDecks = [];
         }

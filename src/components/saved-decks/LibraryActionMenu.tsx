@@ -167,7 +167,9 @@ export function LibraryActionMenu({
                         checked={isSelected}
                         onCheckedChange={(checked: boolean) => {
                           const newTagIds = checked
-                            ? [...item.tags.map((t) => t.id), tag.id]
+                            ? Array.from(
+                                new Set([...item.tags.map((t) => t.id), tag.id]),
+                              )
                             : item.tags.filter((t) => t.id !== tag.id).map((t) => t.id);
                           onUpdateTags(newTagIds);
                         }}

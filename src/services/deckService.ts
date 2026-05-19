@@ -44,6 +44,27 @@ const deckCrudService = {
     });
   },
 
+  async getDecksByIds(
+    deckIds: string[],
+    providedUserId?: string,
+  ): Promise<Deck[]> {
+    return withRetry(async () => {
+      const userId = providedUserId || (await getDeckSession())?.user.id;
+      if (!userId || deckIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from("decks")
+        .select(
+          "id, title, slug, file_url, status, user_id, display_order, pages, created_at, updated_at, description, file_type, display_mode, expires_at",
+        )
+        .eq("user_id", userId)
+        .in("id", deckIds);
+
+      if (error) throw error;
+      return data as Deck[];
+    });
+  },
+
   async getDeckById(id: string, providedUserId?: string): Promise<Deck> {
     const userId = await getRequiredDeckUserId(providedUserId);
 
