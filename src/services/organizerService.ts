@@ -28,10 +28,6 @@ interface InvestorLibraryEntry {
   last_viewed_at: string | null;
 }
 
-type DeckTagLinkRow = {
-  global_tags: LibraryTag | LibraryTag[] | null;
-};
-
 type SavedDeckMeta = {
   id: string;
   title: string;
@@ -58,19 +54,6 @@ const normalizeTagCollection = (
 ): LibraryTag[] => {
   return (rawTags || [])
     .map((tag) => normalizeLibraryTag(tag))
-    .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null));
-};
-
-const extractDeckTags = (
-  rawLinks: DeckTagLinkRow[] | null | undefined,
-): LibraryTag[] => {
-  return (rawLinks || [])
-    .map((link) => {
-      const rawGlobalTag = Array.isArray(link.global_tags)
-        ? link.global_tags[0]
-        : link.global_tags;
-      return normalizeLibraryTag(rawGlobalTag);
-    })
     .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null));
 };
 
@@ -353,13 +336,22 @@ export const organizerService = {
 
         // Restore folder row to original state
         if (originalName !== undefined) {
+          const rollbackPayload: {
+            name: string;
+            updated_at: string;
+            color?: string;
+          } = {
+            name: originalName,
+            updated_at: new Date().toISOString(),
+          };
+
+          if (originalColor !== undefined) {
+            rollbackPayload.color = originalColor || DEFAULT_FOLDER_COLOR;
+          }
+
           await supabase
             .from("library_folders")
-            .update({
-              name: originalName,
-              color: originalColor || DEFAULT_FOLDER_COLOR,
-              updated_at: new Date().toISOString(),
-            })
+            .update(rollbackPayload)
             .eq("id", folderId);
         }
       } catch (rollbackErr) {
@@ -521,23 +513,14 @@ export const organizerService = {
 
       if (deckIds.length > 0) {
         const [
-          { data: ownedDecks, error: ownedDecksError },
-          { data: ownedDeckTags, error: ownedDeckTagsError },
+          { data: libraryDecks, error: libraryDecksError },
           { data: notesData, error: notesErr },
         ] = await Promise.all([
           supabase
-            .from("decks")
-            .select("id, title, slug, file_type, status, description, user_id")
-            .in("id", deckIds),
-          supabase
-            .from("decks")
-            .select(`
-              id,
-              deck_tags (
-                global_tags (*)
-              )
-            `)
-            .in("id", deckIds),
+            .rpc("get_library_deck_metadata", {
+              p_deck_ids: deckIds,
+            })
+            .select("id, title, slug, file_type, status, description, user_id, user_handle, tags"),
           supabase
             .from("investor_notes")
             .select("deck_id, content")
@@ -545,16 +528,13 @@ export const organizerService = {
             .in("deck_id", deckIds),
         ]);
 
-        if (ownedDecksError) throw ownedDecksError;
-        if (ownedDeckTagsError) throw ownedDeckTagsError;
+        if (libraryDecksError) throw libraryDecksError;
         if (notesErr) throw notesErr;
 
-        (ownedDecks || []).forEach((deck) => {
-          deckMap.set(deck.id, deck as SavedDeckMeta);
-        });
-        ((ownedDeckTags || []) as { id: string; deck_tags?: DeckTagLinkRow[] }[]).forEach(
+        ((Array.isArray(libraryDecks) ? libraryDecks : []) as SavedDeckMeta[]).forEach(
           (deck) => {
-            deckTagsMap.set(deck.id, extractDeckTags(deck.deck_tags));
+            deckMap.set(deck.id, deck as SavedDeckMeta);
+            deckTagsMap.set(deck.id, normalizeTagCollection(deck.tags));
           },
         );
 
@@ -562,24 +542,6 @@ export const organizerService = {
           acc[curr.deck_id] = curr.content;
           return acc;
         }, {} as Record<string, string>);
-
-        const unresolvedDeckIds = deckIds.filter((deckId) => !deckMap.has(deckId));
-
-        if (unresolvedDeckIds.length > 0) {
-          const { data: publicDecks, error: publicDecksError } = await supabase
-            .rpc("get_library_deck_metadata", {
-              p_deck_ids: unresolvedDeckIds,
-            })
-            .select("id, title, slug, file_type, status, description, user_id, user_handle, tags");
-
-          if (publicDecksError) throw publicDecksError;
-
-          ((Array.isArray(publicDecks) ? publicDecks : []) as SavedDeckMeta[])
-            .forEach((deck: SavedDeckMeta) => {
-            deckMap.set(deck.id, deck as SavedDeckMeta);
-            deckTagsMap.set(deck.id, normalizeTagCollection(deck.tags));
-          });
-        }
       }
 
       return ((data as unknown as InvestorLibraryEntry[]) || []).map((item) => {

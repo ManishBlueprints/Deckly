@@ -280,7 +280,7 @@ describe("metadataSearch", () => {
       createDefaultMetadataSearchFilter("saved_library");
 
     const results = filterSavedRoomRows(
-      [makeSavedRoom({ library_id: "1", title: "Alpha Room" })],
+      [makeSavedRoom({ library_id: "1", title: "Alpha Room", folder_id: "uncategorized" })],
       filter,
       "uncategorized",
       "tag-1",

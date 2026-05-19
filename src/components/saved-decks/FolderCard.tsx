@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Folder, Edit2, Tag, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { LibraryFolder, LibraryTag } from "../../types";
@@ -35,6 +35,12 @@ export const FolderCard = memo(function FolderCard({
   documentCount,
 }: FolderCardProps) {
   const [tagFilterQuery, setTagFilterQuery] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setSelectedTagIds(folder?.tags.map((tag) => tag.id) ?? []);
+  }, [folder]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "Enter" || e.key === " ") {
@@ -68,7 +74,6 @@ export const FolderCard = memo(function FolderCard({
 
   if (!folder) return null;
   const folderColor = getFolderColorHex(folder.color);
-  const currentTagIds = folder.tags.map((tag) => tag.id);
   const filteredTags = availableTags.filter((tag) =>
     tagFilterQuery.trim()
       ? tag.name.toLowerCase().includes(tagFilterQuery.trim().toLowerCase())
@@ -132,14 +137,20 @@ export const FolderCard = memo(function FolderCard({
                       Apply tags
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
-                      {currentTagIds.length > 0
-                        ? `${currentTagIds.length} selected`
+                      {selectedTagIds.length > 0
+                        ? `${selectedTagIds.length} selected`
                         : "Pick one or more tags"}
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => void onUpdateTags(folder, [])}
+                    onClick={() => {
+                      const previousTagIds = selectedTagIds;
+                      setSelectedTagIds([]);
+                      void Promise.resolve(onUpdateTags(folder, [])).catch(() => {
+                        setSelectedTagIds(previousTagIds);
+                      });
+                    }}
                     className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
                   >
                     Clear all
@@ -168,16 +179,23 @@ export const FolderCard = memo(function FolderCard({
                   </div>
                 ) : (
                   filteredTags.map((tag) => {
-                    const isSelected = currentTagIds.includes(tag.id);
+                    const isSelected = selectedTagIds.includes(tag.id);
                     return (
                       <button
                         key={tag.id}
                         type="button"
                         onClick={() => {
-                          const nextIds = isSelected
-                            ? currentTagIds.filter((id) => id !== tag.id)
-                            : [...currentTagIds, tag.id];
-                          void onUpdateTags(folder, nextIds);
+                          setSelectedTagIds((prev) => {
+                            const nextIds = prev.includes(tag.id)
+                              ? prev.filter((id) => id !== tag.id)
+                              : [...prev, tag.id];
+
+                            void Promise.resolve(onUpdateTags(folder, nextIds)).catch(() => {
+                              setSelectedTagIds(prev);
+                            });
+
+                            return nextIds;
+                          });
                         }}
                         className={cn(
                           "flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-all",

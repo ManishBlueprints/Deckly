@@ -21,28 +21,35 @@ const normalizeDataRoomTag = (
   };
 };
 
-type RawDeckTagLink = {
-  global_tags?: DataRoomTag | DataRoomTag[] | null;
-};
-
-const extractCanonicalDeckTags = (
-  rawLinks: RawDeckTagLink[] | null | undefined,
-): DataRoomTag[] => {
-  return (rawLinks || [])
-    .map((link) => {
-      const rawGlobalTag = Array.isArray(link.global_tags)
-        ? link.global_tags[0]
-        : link.global_tags;
-      return normalizeDataRoomTag(rawGlobalTag);
-    })
+const normalizeDataRoomTagCollection = (
+  rawTags: Array<DataRoomTag | null | undefined> | null | undefined,
+): DataRoomTag[] =>
+  (rawTags || [])
+    .map((tag) => normalizeDataRoomTag(tag))
     .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
-};
 
-const DECK_TAG_SELECT = `
-  deck_tags (
-    global_tags (*)
-  )
-`;
+const getUserScopedDeckTags = async (
+  deckIds: string[],
+): Promise<Map<string, DataRoomTag[]>> => {
+  if (deckIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .rpc("get_library_deck_metadata", {
+      p_deck_ids: deckIds,
+    })
+    .select("id, tags");
+
+  if (error) throw error;
+
+  const tagMap = new Map<string, DataRoomTag[]>();
+  ((Array.isArray(data) ? data : []) as { id: string; tags?: DataRoomTag[] | null }[]).forEach(
+    (deck) => {
+      tagMap.set(deck.id, normalizeDataRoomTagCollection(deck.tags));
+    },
+  );
+
+  return tagMap;
+};
 
 export const dataRoomService = {
   // ── CRUD ────────────────────────────────────────────────
@@ -184,15 +191,27 @@ export const dataRoomService = {
         .from("data_room_documents")
         .select(`
           id,
-          deck:decks (
-            title,
-            ${DECK_TAG_SELECT}
-          )
+          deck:decks ( id, title )
         `)
         .eq("data_room_id", roomId)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
+
+      const deckIds = ((data || []) as Record<string, unknown>[])
+        .map((document) => {
+          const rawDeck = document.deck;
+          const deck =
+            Array.isArray(rawDeck)
+              ? (rawDeck[0] as Record<string, unknown> | undefined)
+              : rawDeck && typeof rawDeck === "object"
+                ? (rawDeck as Record<string, unknown>)
+                : undefined;
+          return typeof deck?.id === "string" ? deck.id : null;
+        })
+        .filter((deckId): deckId is string => Boolean(deckId));
+
+      const deckTagsMap = await getUserScopedDeckTags(deckIds);
 
       return ((data || []) as Record<string, unknown>[]).map((document) => {
         const rawDeck = document.deck;
@@ -202,11 +221,8 @@ export const dataRoomService = {
             : rawDeck && typeof rawDeck === "object"
               ? (rawDeck as Record<string, unknown>)
               : undefined;
-        const rawDeckTags =
-          deck && Array.isArray(deck.deck_tags)
-            ? (deck.deck_tags as RawDeckTagLink[])
-            : [];
-        const tags = extractCanonicalDeckTags(rawDeckTags);
+        const deckId = typeof deck?.id === "string" ? deck.id : "";
+        const tags = deckTagsMap.get(deckId) || [];
 
         return {
           id: String(document.id),
@@ -226,31 +242,28 @@ export const dataRoomService = {
         .from("data_room_documents")
         .select(`
           *,
-          deck:decks (
-            *,
-            ${DECK_TAG_SELECT}
-          )
+          deck:decks ( * )
         `)
         .eq("data_room_id", roomId)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
 
+      const deckIds = ((data || []) as DataRoomDocument[])
+        .map((document) => document.deck_id)
+        .filter(Boolean);
+      const deckTagsMap = await getUserScopedDeckTags(deckIds);
+
       const documents = (data || []).map((d) => {
         const rawDeck =
           d && typeof d === "object" && "deck" in d
-            ? (d as { deck?: (Deck & { deck_tags?: RawDeckTagLink[] }) | null }).deck
+            ? (d as { deck?: Deck | null }).deck
             : null;
 
         return {
           ...(d as DataRoomDocument),
-          deck: rawDeck
-            ? ({
-                ...rawDeck,
-                deck_tags: undefined,
-              } as Deck)
-            : undefined,
-          tags: extractCanonicalDeckTags(rawDeck?.deck_tags),
+          deck: rawDeck ? ({ ...rawDeck } as Deck) : undefined,
+          tags: deckTagsMap.get((d as DataRoomDocument).deck_id) || [],
         };
       }) as DataRoomDocument[];
 

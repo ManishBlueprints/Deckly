@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Edit2, Folder, Tag, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { DataRoomFolderWithTags, DataRoomTag } from "../../types";
@@ -40,7 +40,12 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
   documentCount,
 }: DataRoomFolderCardProps) {
   const [tagFilterQuery, setTagFilterQuery] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const folderColor = getColorHex(folder?.color ?? "#64748B");
+
+  useEffect(() => {
+    setSelectedTagIds(folder?.tags.map((tag) => tag.id) ?? []);
+  }, [folder]);
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.target !== event.currentTarget) return;
@@ -81,7 +86,6 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
   }
 
   if (!folder) return null;
-  const currentTagIds = folder.tags.map((tag) => tag.id);
   const filteredTags = availableTags.filter((tag) =>
     tagFilterQuery.trim()
       ? tag.name.toLowerCase().includes(tagFilterQuery.trim().toLowerCase())
@@ -144,14 +148,20 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
                       Apply tags
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
-                      {currentTagIds.length > 0
-                        ? `${currentTagIds.length} selected`
+                      {selectedTagIds.length > 0
+                        ? `${selectedTagIds.length} selected`
                         : "Pick one or more tags"}
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => void onUpdateTags(folder, [])}
+                    onClick={() => {
+                      const previousTagIds = selectedTagIds;
+                      setSelectedTagIds([]);
+                      void Promise.resolve(onUpdateTags(folder, [])).catch(() => {
+                        setSelectedTagIds(previousTagIds);
+                      });
+                    }}
                     className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
                   >
                     Clear all
@@ -180,16 +190,23 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
                   </div>
                 ) : (
                   filteredTags.map((tag) => {
-                    const isSelected = currentTagIds.includes(tag.id);
+                    const isSelected = selectedTagIds.includes(tag.id);
                     return (
                       <button
                         key={tag.id}
                         type="button"
                         onClick={() => {
-                          const nextIds = isSelected
-                            ? currentTagIds.filter((id) => id !== tag.id)
-                            : [...currentTagIds, tag.id];
-                          void onUpdateTags(folder, nextIds);
+                          setSelectedTagIds((prev) => {
+                            const nextIds = prev.includes(tag.id)
+                              ? prev.filter((id) => id !== tag.id)
+                              : [...prev, tag.id];
+
+                            void Promise.resolve(onUpdateTags(folder, nextIds)).catch(() => {
+                              setSelectedTagIds(prev);
+                            });
+
+                            return nextIds;
+                          });
                         }}
                         className={cn(
                           "flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-all",

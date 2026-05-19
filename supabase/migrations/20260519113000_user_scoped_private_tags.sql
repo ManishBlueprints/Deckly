@@ -229,6 +229,7 @@ WHERE d.id = ANY(COALESCE(p_deck_ids, ARRAY[]::uuid[]))
   );
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.get_library_deck_metadata(UUID[]) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_library_deck_metadata(UUID[]) TO authenticated;
 
 DROP FUNCTION IF EXISTS public.get_saved_room_library_tags(UUID[]);
