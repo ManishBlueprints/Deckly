@@ -305,7 +305,7 @@ export function SavedLibraryView() {
   }, []);
 
   // --- Loading / error / empty states ---
-  if (isError || isSavedRoomsError) {
+  if (isError) {
     return (
       <div className="flex flex-col items-center justify-center p-20 bg-deckly-background h-full min-h-[calc(100vh-140px)] gap-6">
         <div className="w-16 h-16 bg-red-500/10 flex items-center justify-center text-red-500 rounded-full">
@@ -332,7 +332,7 @@ export function SavedLibraryView() {
     );
   }
 
-  if (isLoading || isSavedRoomsLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-20 bg-deckly-background h-full min-h-[calc(100vh-140px)]">
         <Loader2 className="animate-spin text-[#54e98a]" size={32} />
@@ -473,6 +473,28 @@ export function SavedLibraryView() {
               ))}
             </div>
           </div>
+
+          {(isSavedRoomsLoading || isSavedRoomsError) && (
+            <div className="flex items-start gap-3 border border-white/5 bg-surface-low px-4 py-3">
+              {isSavedRoomsLoading ? (
+                <Loader2 className="mt-0.5 animate-spin text-[#54e98a]" size={18} />
+              ) : (
+                <Filter className="mt-0.5 text-red-500" size={18} />
+              )}
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-white">
+                  {isSavedRoomsLoading
+                    ? "Loading saved rooms"
+                    : "Saved rooms unavailable"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isSavedRoomsLoading
+                    ? "Decks, folders, and the view toggle remain available while room data finishes loading."
+                    : "Decks, folders, and the view toggle remain available while room data is unavailable."}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Saved Rooms */}
           {visibleSavedRooms.length > 0 && (
