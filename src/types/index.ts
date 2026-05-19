@@ -129,6 +129,7 @@ export interface DataRoomFolderWithTags extends DataRoomFolder {
 export interface SavedDeckOrganized {
   library_id: string;
   deck_id: string;
+  user_id: string;
   folder_id: string | null;
   tags: LibraryTag[];
   saved_at: string;

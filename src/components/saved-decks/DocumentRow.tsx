@@ -8,6 +8,7 @@ import { LibraryActionMenu } from "./LibraryActionMenu";
 import { SavedItemNoteCard } from "./SavedItemNoteCard";
 import { toast } from "sonner";
 import { cn } from "../../utils/cn";
+import { useAuth } from "../../contexts/AuthContext";
 
 function formatSavedDate(date: Date): string {
   return date
@@ -45,6 +46,8 @@ export const DocumentRow = memo(function DocumentRow({
 }: DocumentRowProps) {
   const savedDate = new Date(deck.saved_at);
   const savedDateStr = formatSavedDate(savedDate);
+  const { session } = useAuth();
+  const canManageTags = !!session?.user?.id && session.user.id === deck.user_id;
 
   const [note, setNote] = useState(deck.investor_note || "");
   const [isEditingNote, setIsEditingNote] = useState(false);
@@ -209,7 +212,7 @@ export const DocumentRow = memo(function DocumentRow({
             unsaveLabel="Remove from Saved"
             unsaveDescription={`Are you sure you want to remove "${deck.title}" from your saved decks? You can still access it via the original URL if needed.`}
             onMoveToFolder={onMoveToFolder}
-            onUpdateTags={onUpdateTags}
+            onUpdateTags={canManageTags ? onUpdateTags : undefined}
             onUnsave={onUnsave}
           />
         </div>

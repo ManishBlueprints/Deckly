@@ -119,23 +119,6 @@ export const SavedRoomRow = memo(function SavedRoomRow({
     },
   });
 
-  const updateTagsMutation = useMutation({
-    mutationFn: async (tagIds: string[]) => {
-      if (!room.library_id) return;
-      await dataRoomLibraryService.updateRoomTags(room.library_id, tagIds);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["saved-data-rooms", session?.user?.id],
-      });
-    },
-    onError: (err) => {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update room tags.",
-      );
-    },
-  });
-
   useEffect(() => {
     if (initialNote !== undefined) {
       setNote(initialNote);
@@ -324,7 +307,6 @@ export const SavedRoomRow = memo(function SavedRoomRow({
             unsaveLabel="Remove from Saved"
             unsaveDescription={`Are you sure you want to remove "${room.title}" from your saved rooms? Your private note will stay saved for later.`}
             onMoveToFolder={(folderId) => moveFolderMutation.mutate(folderId)}
-            onUpdateTags={(tagIds) => updateTagsMutation.mutate(tagIds)}
             onUnsave={() => unsaveMutation.mutate()}
           />
         </div>

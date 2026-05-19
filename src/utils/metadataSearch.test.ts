@@ -65,6 +65,7 @@ function makeSavedDeck(overrides: Partial<SavedDeckOrganized>): SavedDeckOrganiz
   return {
     library_id: "library-1",
     deck_id: "deck-1",
+    user_id: "user-1",
     folder_id: null,
     tags: [],
     saved_at: "2026-04-25T00:00:00.000Z",

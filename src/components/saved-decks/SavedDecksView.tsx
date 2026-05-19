@@ -234,6 +234,18 @@ export function SavedLibraryView() {
     [editingFolder, actions],
   );
 
+  const handleUpdateFolderTags = useCallback(
+    async (folder: LibraryFolder, tagIds: string[]) => {
+      await actions.updateFolder(
+        folder,
+        folder.name,
+        resolveFolderColorKey(folder.color),
+        tagIds,
+      );
+    },
+    [actions],
+  );
+
   // --- Shared stable handlers for rows ---
   const handleMoveToFolder = useCallback(
     (deckLibraryId: string, folderId: string | null) => {
@@ -464,6 +476,8 @@ export function SavedLibraryView() {
                 <FolderCard
                   key={folder.id}
                   folder={folder}
+                  availableTags={tags}
+                  onUpdateTags={handleUpdateFolderTags}
                   isActive={selectedFolderId === folder.id}
                   documentCount={folder.deck_count + (roomCountByFolder[folder.id] || 0)}
                   onClick={() => handleFolderClick(folder.id)}

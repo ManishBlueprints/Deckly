@@ -21,6 +21,23 @@ const normalizeDataRoomTag = (
   };
 };
 
+type RawDeckTagLink = {
+  global_tags?: DataRoomTag | DataRoomTag[] | null;
+};
+
+const extractCanonicalDeckTags = (
+  rawLinks: RawDeckTagLink[] | null | undefined,
+): DataRoomTag[] => {
+  return (rawLinks || [])
+    .map((link) => {
+      const rawGlobalTag = Array.isArray(link.global_tags)
+        ? link.global_tags[0]
+        : link.global_tags;
+      return normalizeDataRoomTag(rawGlobalTag);
+    })
+    .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
+};
+
 export const dataRoomService = {
   // ── CRUD ────────────────────────────────────────────────
 
@@ -162,14 +179,14 @@ export const dataRoomService = {
         .select(`
           id,
           deck:decks (
-            title
-          ),
-          data_room_document_tags (
-            global_tags (
-              id,
-              name,
-              color,
-              deleted_at
+            title,
+            deck_tags (
+              global_tags (
+                id,
+                name,
+                color,
+                deleted_at
+              )
             )
           )
         `)
@@ -186,21 +203,11 @@ export const dataRoomService = {
             : rawDeck && typeof rawDeck === "object"
               ? (rawDeck as Record<string, unknown>)
               : undefined;
-        const rawDocumentTagLinks = Array.isArray(document.data_room_document_tags)
-          ? document.data_room_document_tags
-          : [];
-        const tags = rawDocumentTagLinks
-          .map((link) => {
-            const rawGlobalTags =
-              link && typeof link === "object" && "global_tags" in link
-                ? (link as { global_tags?: unknown }).global_tags
-                : undefined;
-            const globalTag = Array.isArray(rawGlobalTags) ? rawGlobalTags[0] : rawGlobalTags;
-            return globalTag && typeof globalTag === "object"
-              ? normalizeDataRoomTag(globalTag as DataRoomTag)
-              : null;
-          })
-          .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
+        const rawDeckTags =
+          deck && Array.isArray(deck.deck_tags)
+            ? (deck.deck_tags as RawDeckTagLink[])
+            : [];
+        const tags = extractCanonicalDeckTags(rawDeckTags);
 
         return {
           id: String(document.id),
@@ -221,10 +228,10 @@ export const dataRoomService = {
         .select(`
           *,
           deck:decks (
-            *
-          ),
-          data_room_document_tags (
-            global_tags (*)
+            *,
+            deck_tags (
+              global_tags (*)
+            )
           )
         `)
         .eq("data_room_id", roomId)
@@ -232,27 +239,23 @@ export const dataRoomService = {
 
       if (error) throw error;
 
-      const documents = (data || []).map((d: DataRoomDocument & { deck?: Deck | null }) => ({
-        ...d,
-        deck: d.deck || undefined,
-      })) as DataRoomDocument[];
+      const documents = (data || []).map((d) => {
+        const rawDeck =
+          d && typeof d === "object" && "deck" in d
+            ? (d as { deck?: (Deck & { deck_tags?: RawDeckTagLink[] }) | null }).deck
+            : null;
 
-      documents.forEach((doc) => {
-        const documentTagLinks = (
-          doc as DataRoomDocument & {
-            data_room_document_tags?: { global_tags?: DataRoomTag | DataRoomTag[] | null }[];
-          }
-        ).data_room_document_tags || [];
-        const tags = documentTagLinks
-          .map((link) => {
-            const globalTag = Array.isArray(link.global_tags)
-              ? link.global_tags[0]
-              : link.global_tags;
-            return normalizeDataRoomTag(globalTag);
-          })
-          .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
-        doc.tags = tags;
-      });
+        return {
+          ...(d as DataRoomDocument),
+          deck: rawDeck
+            ? ({
+                ...rawDeck,
+                deck_tags: undefined,
+              } as Deck)
+            : undefined,
+          tags: extractCanonicalDeckTags(rawDeck?.deck_tags),
+        };
+      }) as DataRoomDocument[];
 
       // Hydrate signed URLs only when explicitly requested
       if (options?.signUrls) {

@@ -26,8 +26,23 @@ interface InvestorLibraryEntry {
   folder_id: string | null;
   created_at: string;
   last_viewed_at: string | null;
-  library_deck_tags: { global_tags: LibraryTag }[];
 }
+
+type DeckTagLinkRow = {
+  global_tags: LibraryTag | LibraryTag[] | null;
+};
+
+type SavedDeckMeta = {
+  id: string;
+  title: string;
+  slug: string;
+  file_type?: string;
+  status?: string;
+  description?: string | null;
+  user_id: string;
+  user_handle?: string | null;
+  tags?: LibraryTag[] | null;
+};
 
 const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | null => {
   if (!tag) return null;
@@ -36,6 +51,27 @@ const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | n
     ...tag,
     deleted_at: tag.deleted_at ?? null,
   };
+};
+
+const normalizeTagCollection = (
+  rawTags: Array<LibraryTag | null | undefined> | null | undefined,
+): LibraryTag[] => {
+  return (rawTags || [])
+    .map((tag) => normalizeLibraryTag(tag))
+    .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null));
+};
+
+const extractDeckTags = (
+  rawLinks: DeckTagLinkRow[] | null | undefined,
+): LibraryTag[] => {
+  return (rawLinks || [])
+    .map((link) => {
+      const rawGlobalTag = Array.isArray(link.global_tags)
+        ? link.global_tags[0]
+        : link.global_tags;
+      return normalizeLibraryTag(rawGlobalTag);
+    })
+    .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null));
 };
 
 export const organizerService = {
@@ -430,55 +466,25 @@ export const organizerService = {
         throw new Error("One or more tags were not found.");
       }
 
-      // 1. Get current tags
-      const { data: currentTags, error: fetchError } = await supabase
-        .from("library_deck_tags")
-        .select("tag_id")
-        .eq("library_id", libraryId);
+      const { data: libraryItem, error: libraryItemError } = await supabase
+        .from("investor_library")
+        .select("deck_id")
+        .eq("id", libraryId)
+        .eq("user_id", uid)
+        .maybeSingle();
 
-      if (fetchError) throw fetchError;
-
-      const currentTagIds = (currentTags || []).map((t) => t.tag_id);
-
-      const toAdd = ownedTagIds.filter((id) => !currentTagIds.includes(id));
-      const toRemove = currentTagIds.filter((id) => !ownedTagIds.includes(id));
-
-      // 2. Remove tags
-      if (toRemove.length > 0) {
-        const { error: removeError } = await supabase
-          .from("library_deck_tags")
-          .delete()
-          .eq("library_id", libraryId)
-          .in("tag_id", toRemove);
-        if (removeError) throw removeError;
+      if (libraryItemError) throw libraryItemError;
+      if (!libraryItem?.deck_id) {
+        throw new Error("Saved deck not found.");
       }
 
-      // 3. Add tags
-      if (toAdd.length > 0) {
-        const { error: addError } = await supabase
-          .from("library_deck_tags")
-          .insert(
-            toAdd.map((tagId) => ({ library_id: libraryId, tag_id: tagId })),
-          );
-        if (addError) {
-          // Rollback: re-add removed tags
-          if (toRemove.length > 0) {
-            const { error: rollbackErr } = await supabase
-              .from("library_deck_tags")
-              .insert(
-                toRemove.map((tagId) => ({
-                  library_id: libraryId,
-                  tag_id: tagId,
-                })),
-              );
-              
-            if (rollbackErr) {
-              console.error("CRITICAL: Failed to rollback tag removal in updateDeckTags", { libraryId, toRemove, rollbackErr });
-            }
-          }
-          throw addError;
-        }
-      }
+      const { error } = await supabase.rpc("reconcile_deck_tags", {
+        p_deck_id: libraryItem.deck_id,
+        p_user_id: uid,
+        p_tag_ids: ownedTagIds,
+      });
+
+      if (error) throw error;
     });
   },
 
@@ -498,10 +504,7 @@ export const organizerService = {
           deck_id,
           folder_id,
           created_at,
-          last_viewed_at,
-          library_deck_tags (
-            global_tags (*)
-          )
+          last_viewed_at
         `)
         .eq("user_id", uid)
         .order("created_at", { ascending: false });
@@ -512,28 +515,28 @@ export const organizerService = {
         item.deck_id
       );
 
-      type SavedDeckMeta = {
-        id: string;
-        title: string;
-        slug: string;
-        file_type?: string;
-        status?: string;
-        description?: string | null;
-        user_id: string;
-        user_handle?: string | null;
-      };
-
       const deckMap = new Map<string, SavedDeckMeta>();
+      const deckTagsMap = new Map<string, LibraryTag[]>();
       let notesMap: Record<string, string> = {};
 
       if (deckIds.length > 0) {
         const [
           { data: ownedDecks, error: ownedDecksError },
+          { data: ownedDeckTags, error: ownedDeckTagsError },
           { data: notesData, error: notesErr },
         ] = await Promise.all([
           supabase
             .from("decks")
             .select("id, title, slug, file_type, status, description, user_id")
+            .in("id", deckIds),
+          supabase
+            .from("decks")
+            .select(`
+              id,
+              deck_tags (
+                global_tags (*)
+              )
+            `)
             .in("id", deckIds),
           supabase
             .from("investor_notes")
@@ -543,11 +546,17 @@ export const organizerService = {
         ]);
 
         if (ownedDecksError) throw ownedDecksError;
+        if (ownedDeckTagsError) throw ownedDeckTagsError;
         if (notesErr) throw notesErr;
 
         (ownedDecks || []).forEach((deck) => {
           deckMap.set(deck.id, deck as SavedDeckMeta);
         });
+        ((ownedDeckTags || []) as { id: string; deck_tags?: DeckTagLinkRow[] }[]).forEach(
+          (deck) => {
+            deckTagsMap.set(deck.id, extractDeckTags(deck.deck_tags));
+          },
+        );
 
         notesMap = (notesData || []).reduce((acc, curr) => {
           acc[curr.deck_id] = curr.content;
@@ -561,13 +570,14 @@ export const organizerService = {
             .rpc("get_library_deck_metadata", {
               p_deck_ids: unresolvedDeckIds,
             })
-            .select("id, title, slug, file_type, status, description, user_id, user_handle");
+            .select("id, title, slug, file_type, status, description, user_id, user_handle, tags");
 
           if (publicDecksError) throw publicDecksError;
 
           ((Array.isArray(publicDecks) ? publicDecks : []) as SavedDeckMeta[])
             .forEach((deck: SavedDeckMeta) => {
             deckMap.set(deck.id, deck as SavedDeckMeta);
+            deckTagsMap.set(deck.id, normalizeTagCollection(deck.tags));
           });
         }
       }
@@ -584,6 +594,7 @@ export const organizerService = {
         return {
           library_id: item.id,
           deck_id: item.deck_id,
+          user_id: deckData?.user_id || "",
           folder_id: item.folder_id,
           saved_at: item.created_at,
           last_viewed_at: item.last_viewed_at,
@@ -596,9 +607,7 @@ export const organizerService = {
           description: deckData?.description || null,
           investor_note: notesMap[item.deck_id] || "",
           is_available: !!deckData,
-          tags: (item.library_deck_tags || [])
-            .map((dt) => normalizeLibraryTag(dt.global_tags))
-            .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null)),
+          tags: deckTagsMap.get(item.deck_id) || [],
         };
       });
     });

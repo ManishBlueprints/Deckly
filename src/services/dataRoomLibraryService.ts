@@ -3,7 +3,6 @@ import { getDeckSession } from "./deckService.shared";
 import { withRetry } from "../utils/resilience";
 import { DataRoom, LibraryTag, SavedDataRoomOrganized } from "../types";
 import { getRequiredSessionUserId } from "./authSession";
-import { globalTagService } from "./globalTagService";
 
 interface SavedDataRoomRow {
   id: string;
@@ -24,14 +23,20 @@ interface SavedDataRoomRow {
   updated_at: string;
 }
 
-interface SavedDataRoomTagLinkRow {
-  saved_room_id: string;
-  tag_id: string;
-}
-
 function normalizeSavedRoomHandle(handle?: string | null): string | null {
   const trimmedHandle = handle?.trim();
   return trimmedHandle && trimmedHandle !== "unknown" ? trimmedHandle : null;
+}
+
+function normalizeSavedRoomTag(
+  tag: LibraryTag | null | undefined,
+): LibraryTag | null {
+  if (!tag) return null;
+
+  return {
+    ...tag,
+    deleted_at: tag.deleted_at ?? null,
+  };
 }
 
 function buildRoomSnapshot(
@@ -131,40 +136,6 @@ export const dataRoomLibraryService = {
       .eq("user_id", session.user.id);
 
     if (error) throw error;
-  },
-
-  async updateRoomTags(savedRoomId: string, tagIds: string[]): Promise<void> {
-    const session = await getDeckSession();
-    if (!session) throw new Error("Not authenticated");
-
-    const uniqueTagIds = Array.from(
-      new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean)),
-    );
-
-    const ownedTags = await globalTagService.fetchTagsByIds(uniqueTagIds, session.user.id, false);
-    if (ownedTags.length !== uniqueTagIds.length) {
-      throw new Error("One or more tags were not found.");
-    }
-
-    const { error: deleteError } = await supabase
-      .from("library_data_room_tags")
-      .delete()
-      .eq("saved_room_id", savedRoomId);
-
-    if (deleteError) throw deleteError;
-
-    if (uniqueTagIds.length === 0) return;
-
-    const rows = uniqueTagIds.map((tagId) => ({
-      saved_room_id: savedRoomId,
-      tag_id: tagId,
-    }));
-
-    const { error: insertError } = await supabase
-      .from("library_data_room_tags")
-      .insert(rows);
-
-    if (insertError) throw insertError;
   },
 
   async isDataRoomSaved(dataRoomId: string): Promise<boolean> {
@@ -288,31 +259,27 @@ export const dataRoomLibraryService = {
 
       const tagMap = new Map<string, LibraryTag[]>();
       if (roomIds.length > 0) {
-        const { data: tagLinks, error: tagLinksError } = await supabase
-          .from("library_data_room_tags")
-          .select("saved_room_id, tag_id")
-          .in("saved_room_id", roomIds);
+        const { data: roomTagRows, error: roomTagRowsError } = await supabase
+          .rpc("get_saved_room_library_tags", {
+            p_saved_room_ids: roomIds,
+          })
+          .select("saved_room_id, tags");
 
-        if (tagLinksError) throw tagLinksError;
+        if (roomTagRowsError) throw roomTagRowsError;
 
-        const links = (tagLinks || []) as SavedDataRoomTagLinkRow[];
-        const tagIds = [...new Set(links.map((link) => link.tag_id))];
-
-        if (tagIds.length > 0) {
-          const tags = await globalTagService.fetchTagsByIds(tagIds, session.user.id, false);
-          const tagsById = new Map<string, LibraryTag>();
-          tags.forEach((tag) => {
-            tagsById.set(tag.id, tag);
-          });
-
-          links.forEach((link) => {
-            const tag = tagsById.get(link.tag_id);
-            if (!tag) return;
-            const current = tagMap.get(link.saved_room_id) || [];
-            current.push(tag);
-            tagMap.set(link.saved_room_id, current);
-          });
-        }
+        (
+          (Array.isArray(roomTagRows) ? roomTagRows : []) as {
+            saved_room_id: string;
+            tags: LibraryTag[] | null;
+          }[]
+        ).forEach((row) => {
+          tagMap.set(
+            row.saved_room_id,
+            (row.tags || [])
+              .map((tag) => normalizeSavedRoomTag(tag))
+              .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null)),
+          );
+        });
       }
 
       return rows.map((row) => ({

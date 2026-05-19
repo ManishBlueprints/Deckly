@@ -853,6 +853,15 @@ function ManageDataRoom() {
                     <DataRoomFolderCard
                       key={folder.id}
                       folder={folder}
+                      availableTags={tags}
+                      onUpdateTags={async (next, tagIds) => {
+                        await folderActions.updateFolder(
+                          next.id,
+                          next.name,
+                          next.color,
+                          tagIds,
+                        );
+                      }}
                       isActive={false}
                       documentCount={folderDocumentCounts.get(folder.id) || 0}
                       onEdit={(next) => {

@@ -310,6 +310,7 @@ export function useLibrary(userId: string | undefined) {
       qc.invalidateQueries({ queryKey: KEYS.tags(userId) });
       qc.invalidateQueries({ queryKey: KEYS.folders(userId) });
       qc.invalidateQueries({ queryKey: KEYS.decks(userId) });
+      qc.invalidateQueries({ queryKey: ["saved-data-rooms", userId] });
     },
   });
 

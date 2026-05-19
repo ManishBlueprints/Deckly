@@ -1,26 +1,30 @@
 import { FolderOpen } from "lucide-react";
 import { DataRoomFolderCard } from "../DataRoomFolderCard";
-import { DataRoomFolderWithTags } from "../../../types";
+import { DataRoomFolderWithTags, DataRoomTag } from "../../../types";
 
 interface DataRoomFolderStripProps {
   folders: DataRoomFolderWithTags[];
+  tags: DataRoomTag[];
   folderDocumentCounts: Map<string, number>;
   loading: boolean;
   onCreateFolder: () => void;
   activeFolderId: string | null;
   onSelectFolder: (folderId: string | null) => void;
   onEditFolder: (folder: DataRoomFolderWithTags) => void;
+  onUpdateFolderTags: (folder: DataRoomFolderWithTags, tagIds: string[]) => Promise<void> | void;
   onDeleteFolder: (folder: DataRoomFolderWithTags) => void;
 }
 
 export function DataRoomFolderStrip({
   folders,
+  tags,
   folderDocumentCounts,
   loading,
   onCreateFolder,
   activeFolderId,
   onSelectFolder,
   onEditFolder,
+  onUpdateFolderTags,
   onDeleteFolder,
 }: DataRoomFolderStripProps) {
   return (
@@ -42,6 +46,8 @@ export function DataRoomFolderStrip({
             <DataRoomFolderCard
               key={folder.id}
               folder={folder}
+              availableTags={tags}
+              onUpdateTags={onUpdateFolderTags}
               documentCount={folderDocumentCounts.get(folder.id) || 0}
               isActive={activeFolderId === folder.id}
               compact
