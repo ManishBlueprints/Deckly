@@ -52,6 +52,24 @@ export function MascotSettingsModal({
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [isSlugAvailable, setIsSlugAvailable] = useState<boolean | null>(null);
 
+  const getWorkspaceSaveErrorMessage = (err: unknown): string => {
+    const maybeError = err as {
+      code?: string;
+      message?: string;
+      details?: string;
+    } | null;
+
+    if (maybeError?.code === "23505") {
+      return "This workspace slug is already taken.";
+    }
+
+    if (maybeError?.message) {
+      return maybeError.message;
+    }
+
+    return "Failed to save workspace settings.";
+  };
+
   useEffect(() => {
     if (branding?.room_name) setRoomName(branding.room_name);
     if (userProfile?.full_name !== undefined)
@@ -175,8 +193,7 @@ export function MascotSettingsModal({
         onClose();
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message || "Failed to save workspace settings.");
+      setError(getWorkspaceSaveErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -297,8 +314,7 @@ export function MascotSettingsModal({
                     </div>
                   </div>
 
-                  {!setupMode &&
-                    workspaceSlug !== userProfile?.handle &&
+                  {workspaceSlug !== userProfile?.handle &&
                     isSlugAvailable === false && (
                       <motion.div
                         initial={{ opacity: 0, y: -5 }}
@@ -307,13 +323,12 @@ export function MascotSettingsModal({
                       >
                         <AlertCircle size={14} />
                         <span className="text-[10px] font-bold uppercase tracking-wider">
-                          Handle already taken
+                          Workspace slug already taken
                         </span>
                       </motion.div>
                     )}
 
-                  {!setupMode &&
-                    workspaceSlug !== userProfile?.handle &&
+                  {workspaceSlug !== userProfile?.handle &&
                     workspaceSlug.length > 0 &&
                     workspaceSlug.length < 3 && (
                       <motion.div
