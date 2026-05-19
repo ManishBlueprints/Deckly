@@ -253,7 +253,7 @@ export function MascotSettingsModal({
                     type="text"
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
-                    className="w-full px-4 py-3 bg-[#0d0d0d] border border-white/10 rounded-none text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary/50 focus:border-deckly-primary transition-all shadow-inner"
+                    className="w-full px-4 py-3 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary transition-all shadow-inner"
                     placeholder="e.g. Acme Corp"
                   />
                 </div>
@@ -271,7 +271,7 @@ export function MascotSettingsModal({
                     type="text"
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
-                    className="w-full px-4 py-3 bg-[#0d0d0d] border border-white/10 rounded-none text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary/50 focus:border-deckly-primary transition-all shadow-inner"
+                    className="w-full px-4 py-3 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary transition-all shadow-inner"
                     placeholder="e.g. Your Name"
                   />
                 </div>
@@ -284,8 +284,8 @@ export function MascotSettingsModal({
                     Workspace Slug (URL)
                   </label>
                   <div className="relative">
-                    <div className="flex items-center bg-[#0d0d0d] border border-white/10 rounded-none overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary/50 focus-within:border-deckly-primary transition-all shadow-inner">
-                      <span className="pl-4 pr-1 text-xs text-slate-600 select-none">
+                    <div className="flex items-center bg-background border border-border rounded-none overflow-hidden focus-within:ring-1 focus-within:ring-primary/40 focus-within:border-primary transition-all shadow-inner">
+                      <span className="pl-4 pr-1 text-xs text-muted-foreground select-none">
                         /
                       </span>
                       <input
@@ -296,17 +296,17 @@ export function MascotSettingsModal({
                         onChange={(e) =>
                           setWorkspaceSlug(normalizeSlug(e.target.value))
                         }
-                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-600"
+                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-foreground focus:outline-none placeholder:text-muted-foreground"
                         placeholder="workspace-slug"
                       />
                       <div className="pr-4">
                         {isCheckingSlug ? (
                           <Loader2
                             size={14}
-                            className="text-slate-600 animate-spin"
+                            className="text-muted-foreground animate-spin"
                           />
                         ) : isSlugAvailable === true ? (
-                          <Check size={14} className="text-emerald-500" />
+                          <Check size={14} className="text-primary" />
                         ) : isSlugAvailable === false ? (
                           <X size={14} className="text-red-500" />
                         ) : null}
@@ -385,10 +385,10 @@ export function MascotSettingsModal({
                     />
 
                     {uploading && (
-                      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
                         <Loader2
                           size={24}
-                          className="text-deckly-primary animate-spin"
+                          className="text-primary animate-spin"
                         />
                       </div>
                     )}
@@ -397,7 +397,7 @@ export function MascotSettingsModal({
                   {!uploading && (
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="absolute -bottom-2 -right-2 w-9 h-9 bg-deckly-primary text-slate-950 rounded-none flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all border-4 border-surface-card"
+                      className="absolute -bottom-2 -right-2 w-9 h-9 bg-primary text-black rounded-none flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all border-4 border-surface-card"
                       title="Upload New"
                     >
                       <Camera size={16} />
@@ -409,7 +409,7 @@ export function MascotSettingsModal({
                   <div className="bg-surface-low rounded-none p-4 border border-white/5 flex gap-3">
                     <Info
                       size={16}
-                      className="text-deckly-primary shrink-0 mt-0.5"
+                      className="text-primary shrink-0 mt-0.5"
                     />
                     <p className="text-[10px] text-slate-400 leading-relaxed font-bold uppercase tracking-widest">
                       Your brand mascot appears in the sidebar. PNGs work best.
@@ -425,7 +425,7 @@ export function MascotSettingsModal({
                         (workspaceSlug !== userProfile?.handle &&
                           !isSlugAvailable)
                       }
-                      className="w-full py-3.5 bg-deckly-primary text-slate-950 font-bold uppercase tracking-[0.2em] text-[10px] rounded-none hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                      className="w-full py-3.5 bg-primary text-black font-bold uppercase tracking-[0.2em] text-[10px] rounded-none hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
                     >
                       {saving ? (
                         <Loader2 size={16} className="animate-spin" />

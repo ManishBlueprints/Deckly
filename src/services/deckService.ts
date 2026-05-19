@@ -27,6 +27,54 @@ const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | n
   };
 };
 
+const hydrateSignedDeckUrls = async (decks: Deck[]): Promise<Deck[]> => {
+  const pathsToSign = new Set<string>();
+
+  decks.forEach((deck) => {
+    const mainPath = extractStoragePath(deck.file_url, "decks");
+    if (mainPath) pathsToSign.add(mainPath);
+
+    deck.pages?.forEach((page) => {
+      const imagePath = extractStoragePath(page.image_url, "decks");
+      if (imagePath) pathsToSign.add(imagePath);
+    });
+  });
+
+  if (pathsToSign.size === 0) {
+    return decks;
+  }
+
+  const { data: signedData, error: signError } = await supabase.storage
+    .from("decks")
+    .createSignedUrls(Array.from(pathsToSign), 3600);
+
+  if (signError || !signedData) {
+    return decks;
+  }
+
+  const signedUrlMap = new Map<string, string>();
+  signedData.forEach((item) => {
+    if (item.path && item.signedUrl) {
+      signedUrlMap.set(item.path, item.signedUrl);
+    }
+  });
+
+  return decks.map((deck) => {
+    const mainPath = extractStoragePath(deck.file_url, "decks");
+    const signedFileUrl = mainPath ? signedUrlMap.get(mainPath) : null;
+
+    return {
+      ...deck,
+      file_url: signedFileUrl ?? deck.file_url,
+      pages: deck.pages?.map((page) => {
+        const imagePath = extractStoragePath(page.image_url, "decks");
+        const signedImageUrl = imagePath ? signedUrlMap.get(imagePath) : null;
+        return signedImageUrl ? { ...page, image_url: signedImageUrl } : page;
+      }) ?? [],
+    };
+  });
+};
+
 const deckCrudService = {
   async getAllDecks(providedUserId?: string): Promise<Deck[]> {
     return withRetry(async () => {
@@ -54,14 +102,12 @@ const deckCrudService = {
 
       const { data, error } = await supabase
         .from("decks")
-        .select(
-          "id, title, slug, file_url, status, user_id, display_order, pages, created_at, updated_at, description, file_type, display_mode, expires_at",
-        )
+        .select("*")
         .eq("user_id", userId)
         .in("id", deckIds);
 
       if (error) throw error;
-      return data as Deck[];
+      return hydrateSignedDeckUrls(data as Deck[]);
     });
   },
 
@@ -76,47 +122,7 @@ const deckCrudService = {
       .single();
 
     if (error) throw error;
-    const deck = data as Deck;
-
-    // Because the decks bucket is PRIVATE, public URLs stored in the DB will 403.
-    // If the owner is viewing their own deck, getDeckById is called instead of getDeckPayload.
-    // We must use their authenticated session to hydrate the signed URLs via the Storage API.
-    const pathsToSign: string[] = [];
-    
-    const mainPath = extractStoragePath(deck.file_url, "decks");
-    if (mainPath) pathsToSign.push(mainPath);
-
-    const imagePaths = (deck.pages || [])
-      .map(p => extractStoragePath(p.image_url, "decks"))
-      .filter((p): p is string => !!p);
-    
-    pathsToSign.push(...imagePaths);
-
-    if (pathsToSign.length > 0) {
-      const { data: signedData, error: signError } = await supabase.storage
-        .from("decks")
-        .createSignedUrls(pathsToSign, 3600);
-      
-      if (!signError && signedData) {
-        const signedUrlMap = new Map<string, string>();
-        signedData.forEach(d => {
-          if (d.path && d.signedUrl) signedUrlMap.set(d.path, d.signedUrl);
-        });
-
-        if (mainPath && signedUrlMap.has(mainPath)) {
-          deck.file_url = signedUrlMap.get(mainPath)!;
-        }
-
-        if (deck.pages) {
-          deck.pages = deck.pages.map(page => {
-            const pPath = extractStoragePath(page.image_url, "decks");
-            const sUrl = pPath ? signedUrlMap.get(pPath) : null;
-            return sUrl ? { ...page, image_url: sUrl } : page;
-          });
-        }
-      }
-    }
-
+    const [deck] = await hydrateSignedDeckUrls([data as Deck]);
     return deck;
   },
 
