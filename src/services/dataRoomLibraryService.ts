@@ -1,9 +1,8 @@
 import { supabase } from "./supabase";
 import { getDeckSession } from "./deckService.shared";
 import { withRetry } from "../utils/resilience";
-import { DataRoom, LibraryTag, SavedDataRoomOrganized } from "../types";
+import { DataRoom, SavedDataRoomOrganized } from "../types";
 import { getRequiredSessionUserId } from "./authSession";
-import { globalTagService } from "./globalTagService";
 
 interface SavedDataRoomRow {
   id: string;
@@ -12,9 +11,9 @@ interface SavedDataRoomRow {
   folder_id: string | null;
   room_title: string;
   room_slug: string;
-  room_handle: string;
+  room_handle: string | null;
   room_owner_id: string | null;
-  room_owner_handle: string;
+  room_owner_handle: string | null;
   description: string | null;
   expires_at: string | null;
   require_email: boolean;
@@ -24,12 +23,15 @@ interface SavedDataRoomRow {
   updated_at: string;
 }
 
-interface SavedDataRoomTagLinkRow {
-  saved_room_id: string;
-  tag_id: string;
+function normalizeSavedRoomHandle(handle?: string | null): string | null {
+  const trimmedHandle = handle?.trim();
+  return trimmedHandle && trimmedHandle !== "unknown" ? trimmedHandle : null;
 }
 
-function buildRoomSnapshot(room: DataRoom, ownerHandle: string): Omit<
+function buildRoomSnapshot(
+  room: DataRoom,
+  ownerHandle: string | null,
+): Omit<
   SavedDataRoomRow,
   "id" | "user_id" | "folder_id" | "last_viewed_at" | "created_at" | "updated_at"
 > {
@@ -48,7 +50,11 @@ function buildRoomSnapshot(room: DataRoom, ownerHandle: string): Omit<
 }
 
 export const dataRoomLibraryService = {
-  async saveToLibrary(dataRoomId: string, roomSnapshot?: DataRoom): Promise<void> {
+  async saveToLibrary(
+    dataRoomId: string,
+    roomSnapshot?: DataRoom,
+    ownerHandle?: string,
+  ): Promise<void> {
     const session = await getDeckSession();
     if (!session) throw new Error("Not authenticated");
 
@@ -66,17 +72,21 @@ export const dataRoomLibraryService = {
           return data as DataRoom;
         })();
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("handle")
-      .eq("id", room.user_id)
-      .maybeSingle();
+    let resolvedHandle = ownerHandle?.trim() || null;
+    if (!resolvedHandle) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("handle")
+        .eq("id", room.user_id)
+        .maybeSingle();
 
-    if (profileError) throw profileError;
+      if (profileError) throw profileError;
+      resolvedHandle = normalizeSavedRoomHandle(profile?.handle);
+    }
 
     const payload = {
       user_id: session.user.id,
-      ...buildRoomSnapshot(room, profile?.handle || "unknown"),
+      ...buildRoomSnapshot(room, normalizeSavedRoomHandle(resolvedHandle)),
       last_viewed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -115,40 +125,6 @@ export const dataRoomLibraryService = {
       .eq("user_id", session.user.id);
 
     if (error) throw error;
-  },
-
-  async updateRoomTags(savedRoomId: string, tagIds: string[]): Promise<void> {
-    const session = await getDeckSession();
-    if (!session) throw new Error("Not authenticated");
-
-    const uniqueTagIds = Array.from(
-      new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean)),
-    );
-
-    const ownedTags = await globalTagService.fetchTagsByIds(uniqueTagIds, session.user.id, false);
-    if (ownedTags.length !== uniqueTagIds.length) {
-      throw new Error("One or more tags were not found.");
-    }
-
-    const { error: deleteError } = await supabase
-      .from("library_data_room_tags")
-      .delete()
-      .eq("saved_room_id", savedRoomId);
-
-    if (deleteError) throw deleteError;
-
-    if (uniqueTagIds.length === 0) return;
-
-    const rows = uniqueTagIds.map((tagId) => ({
-      saved_room_id: savedRoomId,
-      tag_id: tagId,
-    }));
-
-    const { error: insertError } = await supabase
-      .from("library_data_room_tags")
-      .insert(rows);
-
-    if (insertError) throw insertError;
   },
 
   async isDataRoomSaved(dataRoomId: string): Promise<boolean> {
@@ -204,14 +180,15 @@ export const dataRoomLibraryService = {
         .maybeSingle();
 
       if (profileError) throw profileError;
+      const resolvedHandle = normalizeSavedRoomHandle(profile?.handle);
 
       const { error } = await supabase
         .from("saved_data_rooms")
         .update({
           room_title: room.name,
           room_slug: room.slug,
-          room_handle: profile?.handle || "unknown",
-          room_owner_handle: profile?.handle || "unknown",
+          room_handle: resolvedHandle,
+          room_owner_handle: resolvedHandle,
           room_owner_id: room.user_id,
           description: room.description || null,
           expires_at: room.expires_at || null,
@@ -240,47 +217,51 @@ export const dataRoomLibraryService = {
       if (error) throw error;
 
       const rows = (data || []) as Array<SavedDataRoomRow>;
-      const roomIds = rows.map((row) => row.id);
+      const ownerIdsToHydrate = Array.from(
+        new Set(
+          rows
+            .filter(
+              (row) =>
+                row.room_owner_id &&
+                (!row.room_owner_handle || row.room_owner_handle === "unknown"),
+            )
+            .map((row) => row.room_owner_id as string),
+        ),
+      );
+      const ownerHandleById = new Map<string, string>();
 
-      const tagMap = new Map<string, LibraryTag[]>();
-      if (roomIds.length > 0) {
-        const { data: tagLinks, error: tagLinksError } = await supabase
-          .from("library_data_room_tags")
-          .select("saved_room_id, tag_id")
-          .in("saved_room_id", roomIds);
+      if (ownerIdsToHydrate.length > 0) {
+        const { data: ownerProfiles, error: ownerProfilesError } = await supabase
+          .from("profiles")
+          .select("id, handle")
+          .in("id", ownerIdsToHydrate);
 
-        if (tagLinksError) throw tagLinksError;
+        if (ownerProfilesError) throw ownerProfilesError;
 
-        const links = (tagLinks || []) as SavedDataRoomTagLinkRow[];
-        const tagIds = [...new Set(links.map((link) => link.tag_id))];
-
-        if (tagIds.length > 0) {
-          const tags = await globalTagService.fetchTagsByIds(tagIds, session.user.id, false);
-          const tagsById = new Map<string, LibraryTag>();
-          tags.forEach((tag) => {
-            tagsById.set(tag.id, tag);
-          });
-
-          links.forEach((link) => {
-            const tag = tagsById.get(link.tag_id);
-            if (!tag) return;
-            const current = tagMap.get(link.saved_room_id) || [];
-            current.push(tag);
-            tagMap.set(link.saved_room_id, current);
-          });
-        }
+        (ownerProfiles || []).forEach((profile) => {
+          if (profile?.id && profile?.handle) {
+            ownerHandleById.set(profile.id, profile.handle);
+          }
+        });
       }
 
       return rows.map((row) => ({
+        ...row,
+        room_handle:
+          normalizeSavedRoomHandle(row.room_handle) ||
+          normalizeSavedRoomHandle(ownerHandleById.get(row.room_owner_id ?? "")) ||
+          normalizeSavedRoomHandle(row.room_owner_handle),
+        room_owner_handle:
+          normalizeSavedRoomHandle(row.room_owner_handle) ||
+          normalizeSavedRoomHandle(ownerHandleById.get(row.room_owner_id ?? "")) ||
+          normalizeSavedRoomHandle(row.room_handle),
         library_id: row.id,
         data_room_id: row.data_room_id,
         title: row.room_title,
         slug: row.room_slug,
-        room_handle: row.room_handle,
-        room_owner_handle: row.room_owner_handle,
         room_owner_id: row.room_owner_id ?? row.user_id,
         folder_id: row.folder_id ?? null,
-        tags: tagMap.get(row.id) || [],
+        tags: [],
         saved_at: row.created_at || row.updated_at,
         last_viewed_at: row.last_viewed_at,
         investor_note: null,

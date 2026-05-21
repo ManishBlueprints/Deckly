@@ -370,4 +370,55 @@ describe("dataRoomFolderService", () => {
       ),
     ).rejects.toMatchObject({ code: "MAX_TAGS_PER_FOLDER" });
   });
+
+  it("reconciles room document tags against the linked deck", async () => {
+    mocks.queueResponse("data_room_documents.select.maybeSingle", [
+      {
+        data: { id: "doc-1", data_room_id: "room-1", deck_id: "deck-1" },
+        error: null,
+      },
+      {
+        data: { id: "doc-1", data_room_id: "room-1", deck_id: "deck-1" },
+        error: null,
+      },
+    ]);
+    mocks.queueResponse("data_rooms.select.single", {
+      data: { id: "room-1", user_id: "user-1" },
+      error: null,
+    });
+    mocks.queueResponse("global_tags.select", {
+      data: [
+        {
+          id: "tag-1",
+          name: "Legal",
+          color: "emerald",
+          user_id: "user-1",
+          created_at: "2026-04-25T00:00:00.000Z",
+          updated_at: "2026-04-25T00:00:00.000Z",
+          deleted_at: null,
+        },
+      ],
+      error: null,
+    });
+    mocks.queueResponse("rpc.reconcile_deck_tags", {
+      data: null,
+      error: null,
+    });
+
+    const tags = await dataRoomFolderService.setDocumentTags(
+      "doc-1",
+      ["tag-1"],
+      "user-1",
+    );
+
+    expect(tags).toHaveLength(1);
+    expect(mocks.mockSupabase.rpc).toHaveBeenCalledWith(
+      "reconcile_deck_tags",
+      {
+        p_deck_id: "deck-1",
+        p_user_id: "user-1",
+        p_tag_ids: ["tag-1"],
+      },
+    );
+  });
 });

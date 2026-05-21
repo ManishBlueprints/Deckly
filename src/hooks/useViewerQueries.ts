@@ -97,19 +97,27 @@ export function useSaveNoteMutation(userId: string | undefined) {
             if (!userId) {
                 return Promise.reject(new Error("User must be authenticated to save notes"));
             }
-            return noteService.saveNote(deckId, content);
+            return deckService.saveToLibrary(deckId).then(() =>
+                noteService.saveNote(deckId, content)
+            );
         },
         onMutate: async ({ deckId, content }) => {
             if (!userId) return {};
 
-            const queryKey = viewerQueryKeys.investorNotes(deckId, userId);
+            const noteQueryKey = viewerQueryKeys.investorNotes(deckId, userId);
+            const savedQueryKey = viewerQueryKeys.deckSaved(deckId, userId);
 
             await queryClient.cancelQueries({
-                queryKey,
+                queryKey: noteQueryKey,
             });
-            const previousNote = queryClient.getQueryData(queryKey);
-            queryClient.setQueryData(queryKey, content);
-            return { previousNote, savedUserId: userId };
+            await queryClient.cancelQueries({
+                queryKey: savedQueryKey,
+            });
+            const previousNote = queryClient.getQueryData(noteQueryKey);
+            const previousSaved = queryClient.getQueryData(savedQueryKey);
+            queryClient.setQueryData(noteQueryKey, content);
+            queryClient.setQueryData(savedQueryKey, true);
+            return { previousNote, previousSaved, savedUserId: userId };
         },
         onError: (_err, { deckId }, context) => {
             if (context?.savedUserId && context.previousNote !== undefined) {
@@ -118,11 +126,26 @@ export function useSaveNoteMutation(userId: string | undefined) {
                     context.previousNote,
                 );
             }
+            if (context?.savedUserId && context.previousSaved !== undefined) {
+                queryClient.setQueryData(
+                    viewerQueryKeys.deckSaved(deckId, context.savedUserId),
+                    context.previousSaved,
+                );
+            }
         },
         onSettled: (_data, _err, { deckId }, context) => {
             if (context?.savedUserId) {
                 queryClient.invalidateQueries({
                     queryKey: viewerQueryKeys.investorNotes(deckId, context.savedUserId),
+                });
+                queryClient.invalidateQueries({
+                    queryKey: viewerQueryKeys.deckSaved(deckId, context.savedUserId),
+                });
+                queryClient.invalidateQueries({
+                    queryKey: ["library-decks", context.savedUserId],
+                });
+                queryClient.invalidateQueries({
+                    queryKey: ["user-total-stats", context.savedUserId],
                 });
             }
         },

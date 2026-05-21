@@ -31,7 +31,10 @@ export default async function handler(req: Request) {
       status: 200,
       headers: {
         'content-type': 'application/json',
-        'cache-control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        // Geo is request-specific and should never be cached across viewers.
+        'cache-control': 'private, no-store, max-age=0, must-revalidate',
+        pragma: 'no-cache',
+        expires: '0',
         'vary': 'x-vercel-ip-country, x-vercel-ip-city',
       },
     }

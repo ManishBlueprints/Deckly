@@ -40,16 +40,18 @@ export function useSaveDataRoomToLibraryMutation(userId: string | undefined) {
       dataRoomId,
       save,
       roomSnapshot,
+      ownerHandle,
     }: {
       dataRoomId: string;
       save: boolean;
       roomSnapshot?: DataRoom;
+      ownerHandle?: string;
     }) => {
       if (!userId) {
         return Promise.reject(new Error("User must be authenticated to save rooms"));
       }
       return save
-        ? dataRoomLibraryService.saveToLibrary(dataRoomId, roomSnapshot)
+        ? dataRoomLibraryService.saveToLibrary(dataRoomId, roomSnapshot, ownerHandle)
         : dataRoomLibraryService.removeFromLibrary(dataRoomId);
     },
     onMutate: async ({ dataRoomId, save }) => {

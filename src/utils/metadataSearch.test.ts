@@ -65,6 +65,7 @@ function makeSavedDeck(overrides: Partial<SavedDeckOrganized>): SavedDeckOrganiz
   return {
     library_id: "library-1",
     deck_id: "deck-1",
+    user_id: "user-1",
     folder_id: null,
     tags: [],
     saved_at: "2026-04-25T00:00:00.000Z",
@@ -215,7 +216,7 @@ describe("metadataSearch", () => {
 
   it("filters saved decks with folder/tag constraints preserved", () => {
     const filter: MetadataSearchFilterState = {
-      ...createDefaultMetadataSearchFilter("saved_decks"),
+      ...createDefaultMetadataSearchFilter("saved_library"),
       query: "alpha",
     };
 
@@ -235,7 +236,7 @@ describe("metadataSearch", () => {
 
   it("lets filter mode defer to tag/folder constraints for saved decks", () => {
     const filter: MetadataSearchFilterState = {
-      ...createDefaultMetadataSearchFilter("saved_decks"),
+      ...createDefaultMetadataSearchFilter("saved_library"),
       mode: "filter",
       query: "alpha",
       date: { preset: "last_7_days", startDate: "", endDate: "" },
@@ -256,7 +257,7 @@ describe("metadataSearch", () => {
 
   it("filters saved rooms by selected folder and saved_at", () => {
     const filter: MetadataSearchFilterState = {
-      ...createDefaultMetadataSearchFilter("saved_decks"),
+      ...createDefaultMetadataSearchFilter("saved_library"),
       query: "alpha",
       date: { preset: "last_30_days", startDate: "", endDate: "" },
     };
@@ -272,6 +273,20 @@ describe("metadataSearch", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0].room.library_id).toBe("1");
+  });
+
+  it("does not match saved rooms when a tag filter is active", () => {
+    const filter: MetadataSearchFilterState =
+      createDefaultMetadataSearchFilter("saved_library");
+
+    const results = filterSavedRoomRows(
+      [makeSavedRoom({ library_id: "1", title: "Alpha Room", folder_id: "uncategorized" })],
+      filter,
+      "uncategorized",
+      "tag-1",
+    );
+
+    expect(results).toHaveLength(0);
   });
 
   it("matches data rooms by room name on the overview page", () => {
@@ -317,7 +332,7 @@ describe("metadataSearch", () => {
 
   it("matches saved decks by tag names as well as title", () => {
     const filter: MetadataSearchFilterState = {
-      ...createDefaultMetadataSearchFilter("saved_decks"),
+      ...createDefaultMetadataSearchFilter("saved_library"),
       query: "saas",
     };
 

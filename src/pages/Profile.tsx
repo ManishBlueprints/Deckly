@@ -31,13 +31,13 @@ import penguinMascot from "../assets/penguine.png";
 import { cn } from "../utils/cn";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  getOnboardingStage,
-  isOnboardingComplete,
-} from "../utils/onboarding";
+import { getOnboardingStage, isOnboardingComplete } from "../utils/onboarding";
 import { ProfileOnboardingFlow } from "../components/onboarding/ProfileOnboardingFlow";
 
-const TIER_PRICING: Record<Tier, { monthly: number; yearly: number; cta: string }> = {
+const TIER_PRICING: Record<
+  Tier,
+  { monthly: number; yearly: number; cta: string }
+> = {
   FREE: { monthly: 0, yearly: 0, cta: "Switch to Free" },
   PRO: { monthly: 9, yearly: 86, cta: "Get Pro" },
   PRO_PLUS: { monthly: 24, yearly: 230, cta: "Get Pro+" },
@@ -131,14 +131,16 @@ function Profile() {
   const queryClient = useQueryClient();
   const { profile, branding, signOutAllDevices, deleteAccount } = useAuth();
   const { markTourComplete } = useTourState();
-  const [activeSection, setActiveSection] = useState<ProfileSection>("identity");
+  const [activeSection, setActiveSection] =
+    useState<ProfileSection>("identity");
 
   useEffect(() => {
     document.title = "Profile | Deckly";
     window.scrollTo(0, 0);
   }, []);
 
-  const isValidTier = (t: string | undefined | null): t is Tier => ["FREE", "PRO", "PRO_PLUS"].includes(t as string);
+  const isValidTier = (t: string | undefined | null): t is Tier =>
+    ["FREE", "PRO", "PRO_PLUS"].includes(t as string);
   const tier: Tier = isValidTier(profile?.tier) ? profile.tier : "FREE";
   const onboardingStage = getOnboardingStage(profile, branding);
   const onboardingMode = onboardingStage !== "complete";
@@ -164,7 +166,11 @@ function Profile() {
     return <ProfileOnboardingFlow />;
   }
 
-  const sections: { id: ProfileSection; label: string; icon: React.ElementType }[] = [
+  const sections: {
+    id: ProfileSection;
+    label: string;
+    icon: React.ElementType;
+  }[] = [
     { id: "identity", label: "Identity", icon: User },
     { id: "tier", label: "Plan", icon: Crown },
     { id: "collaboration", label: "Team", icon: Users },
@@ -196,7 +202,11 @@ function Profile() {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 md:w-12 md:h-12 bg-surface-container border border-border overflow-hidden flex items-center justify-center">
                   {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={profile.avatar_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <span className="text-muted-foreground font-bold text-base md:text-lg">
                       {profile?.full_name?.charAt(0) || "U"}
@@ -214,14 +224,14 @@ function Profile() {
                         ? "bg-slate-800/50 text-slate-500 border-white/5"
                         : tier === "PRO"
                           ? "bg-amber-400 text-slate-950 border-amber-500/50"
-                          : "bg-purple-600 text-white border-purple-500/50"
+                          : "bg-purple-600 text-white border-purple-500/50",
                     )}
                   >
                     {TIER_CONFIG[tier].label}
                   </span>
                 </div>
               </div>
-              
+
               <button
                 onClick={() => navigate(-1)}
                 className="md:hidden p-2 text-muted-foreground hover:text-foreground active:scale-95 transition-all"
@@ -230,7 +240,9 @@ function Profile() {
               </button>
             </div>
             {profile?.handle && (
-              <p className="text-[10px] text-muted-foreground truncate opacity-60 mt-2 md:mt-0">@{profile.handle}</p>
+              <p className="text-[10px] text-muted-foreground truncate opacity-60 mt-2 md:mt-0">
+                @{profile.handle}
+              </p>
             )}
           </div>
 
@@ -244,7 +256,7 @@ function Profile() {
                   "flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm font-medium transition-all group shrink-0",
                   activeSection === id
                     ? "bg-deckly-primary/10 text-deckly-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-surface-high"
+                    : "text-muted-foreground hover:text-foreground hover:bg-surface-high",
                 )}
               >
                 <Icon size={16} />
@@ -259,7 +271,8 @@ function Profile() {
           {/* Sticky Header */}
           <div className="sticky top-0 z-40 bg-surface-lowest/80 backdrop-blur-md border-b border-border px-4 md:px-8 py-4 md:py-5 flex items-center justify-between shrink-0">
             <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em]">
-              {sections.find(s => s.id === activeSection)?.label || activeSection}
+              {sections.find((s) => s.id === activeSection)?.label ||
+                activeSection}
             </h2>
             <button
               onClick={() => navigate(-1)}
@@ -287,7 +300,12 @@ function Profile() {
                 )}
                 {activeSection === "tier" && <TierSection currentTier={tier} />}
                 {activeSection === "collaboration" && <CollaborationSection />}
-                {activeSection === "danger" && <DangerSection onSignOut={signOutAllDevices} onDeleteAccount={deleteAccount} />}
+                {activeSection === "danger" && (
+                  <DangerSection
+                    onSignOut={signOutAllDevices}
+                    onDeleteAccount={deleteAccount}
+                  />
+                )}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -317,28 +335,36 @@ function IdentitySection({
   const profileHydratedRef = useRef(false);
 
   const [roomName, setRoomName] = useState(branding?.room_name || "");
+  const [userName, setUserName] = useState(profile?.full_name || "");
   const [workspaceSlug, setWorkspaceSlug] = useState(profile?.handle || "");
   const [debouncedSlug, setDebouncedSlug] = useState(workspaceSlug);
 
   useEffect(() => {
     if (profileHydratedRef.current) return;
-    if (!branding?.room_name && !profile?.handle) return;
+    if (
+      !branding?.room_name &&
+      !profile?.handle &&
+      profile?.full_name === undefined
+    )
+      return;
 
     if (branding?.room_name) setRoomName(branding.room_name);
+    if (profile?.full_name !== undefined) setUserName(profile.full_name || "");
     if (profile?.handle) {
       setWorkspaceSlug(profile.handle);
       setDebouncedSlug(profile.handle);
     }
 
     profileHydratedRef.current = true;
-  }, [branding?.room_name, profile?.handle]);
+  }, [branding?.room_name, profile?.handle, profile?.full_name]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSlug(workspaceSlug), 500);
     return () => clearTimeout(timer);
   }, [workspaceSlug]);
 
-  const needsCheck = debouncedSlug.length >= 3 && debouncedSlug !== profile?.handle;
+  const needsCheck =
+    debouncedSlug.length >= 3 && debouncedSlug !== profile?.handle;
 
   const { data: slugData, isFetching: isCheckingSlug } = useQuery({
     queryKey: ["handle-available", debouncedSlug],
@@ -349,7 +375,13 @@ function IdentitySection({
   });
 
   const isSlugAvailable = needsCheck ? slugData : null;
-  const hasWorkspaceSetup = setupComplete || Boolean(profile?.handle && branding?.room_name && branding.room_name !== "Deckly Data Room");
+  const hasWorkspaceSetup =
+    setupComplete ||
+    Boolean(
+      profile?.handle &&
+      branding?.room_name &&
+      branding.room_name !== "Deckly Data Room",
+    );
 
   const currentLogo = branding?.logo_url || penguinMascot;
 
@@ -407,13 +439,23 @@ function IdentitySection({
         setBranding(updated);
       }
 
+      const trimmedUserName = userName.trim();
+      const updates: { full_name?: string | null; handle?: string } = {};
+
+      if (trimmedUserName !== (profile?.full_name || "")) {
+        updates.full_name = trimmedUserName || null;
+      }
+
       if (debouncedSlug !== profile?.handle && isSlugAvailable) {
-        if (profile?.id) {
-          const updatedProfile = await userService.updateProfile(profile.id, {
-            handle: debouncedSlug,
-          });
-          queryClient.setQueryData(["profile", profile.id], updatedProfile);
-        }
+        updates.handle = debouncedSlug;
+      }
+
+      if (profile?.id && Object.keys(updates).length > 0) {
+        const updatedProfile = await userService.updateProfile(
+          profile.id,
+          updates,
+        );
+        queryClient.setQueryData(["profile", profile.id], updatedProfile);
       }
 
       if (profile?.id) {
@@ -463,7 +505,10 @@ function IdentitySection({
               />
               {uploading && (
                 <div className="absolute inset-0 bg-background/60 backdrop-blur-xs flex items-center justify-center">
-                  <Loader2 size={20} className="text-deckly-primary animate-spin" />
+                  <Loader2
+                    size={20}
+                    className="text-deckly-primary animate-spin"
+                  />
                 </div>
               )}
             </div>
@@ -481,7 +526,8 @@ function IdentitySection({
           <div className="flex-1 space-y-3">
             <h3 className="text-sm font-bold text-white">Brand Mascot</h3>
             <p className="text-xs text-slate-500">
-              Appears in the sidebar and shared deck pages. PNGs work best. Max 2MB.
+              Appears in the sidebar and shared deck pages. PNGs work best. Max
+              2MB.
             </p>
             <div className="flex gap-3">
               <button
@@ -537,13 +583,32 @@ function IdentitySection({
 
         <div>
           <label
+            htmlFor="tour-user-name"
+            className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3"
+          >
+            User Name
+          </label>
+          <input
+            id="tour-user-name"
+            type="text"
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+            className="w-full px-4 py-3 bg-surface-lowest border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-deckly-primary/30 focus:border-deckly-primary transition-all placeholder:text-muted-foreground/30"
+            placeholder="e.g. Your Name"
+          />
+        </div>
+
+        <div>
+          <label
             htmlFor="tour-workspace-slug"
             className="block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3"
           >
             Public URL Handle
           </label>
           <div className="flex items-center bg-surface-lowest border border-border overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary/30 focus-within:border-deckly-primary transition-all">
-            <span className="pl-4 pr-1 text-xs text-muted-foreground select-none">/</span>
+            <span className="pl-4 pr-1 text-xs text-muted-foreground select-none">
+              /
+            </span>
             <input
               id="tour-workspace-slug"
               type="text"
@@ -554,7 +619,10 @@ function IdentitySection({
             />
             <div className="pr-4">
               {isCheckingSlug ? (
-                <Loader2 size={14} className="text-muted-foreground animate-spin" />
+                <Loader2
+                  size={14}
+                  className="text-muted-foreground animate-spin"
+                />
               ) : isSlugAvailable === true ? (
                 <Check size={14} className="text-deckly-primary" />
               ) : isSlugAvailable === false ? (
@@ -566,20 +634,29 @@ function IdentitySection({
           {workspaceSlug !== profile?.handle && isSlugAvailable === false && (
             <div className="mt-2 flex items-center gap-2 text-red-500">
               <AlertCircle size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Handle already taken</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">
+                Handle already taken
+              </span>
             </div>
           )}
 
-          {workspaceSlug !== profile?.handle && workspaceSlug.length > 0 && workspaceSlug.length < 3 && (
-            <div className="mt-2 flex items-center gap-2 text-slate-500">
-              <AlertCircle size={14} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Too short (min 3 chars)</span>
-            </div>
-          )}
+          {workspaceSlug !== profile?.handle &&
+            workspaceSlug.length > 0 &&
+            workspaceSlug.length < 3 && (
+              <div className="mt-2 flex items-center gap-2 text-slate-500">
+                <AlertCircle size={14} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">
+                  Too short (min 3 chars)
+                </span>
+              </div>
+            )}
 
           {workspaceSlug !== profile?.handle && isSlugAvailable === true && (
             <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20 flex gap-3">
-              <AlertCircle size={16} className="text-destructive shrink-0 mt-0.5" />
+              <AlertCircle
+                size={16}
+                className="text-destructive shrink-0 mt-0.5"
+              />
               <p className="text-[10px] text-destructive font-bold uppercase tracking-[0.15em] leading-relaxed">
                 Warning: Changing this breaks all shared links.
               </p>
@@ -589,7 +666,12 @@ function IdentitySection({
 
         <button
           onClick={handleSave}
-          disabled={saving || isCheckingSlug || workspaceSlug !== debouncedSlug || (debouncedSlug !== profile?.handle && !isSlugAvailable)}
+          disabled={
+            saving ||
+            isCheckingSlug ||
+            workspaceSlug !== debouncedSlug ||
+            (debouncedSlug !== profile?.handle && !isSlugAvailable)
+          }
           className="w-full py-4 bg-deckly-primary text-primary-foreground font-bold uppercase tracking-[0.2em] text-[10px] hover:brightness-110 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {saving ? (
@@ -613,11 +695,14 @@ function IdentitySection({
 
 /* ── Tier Section ── */
 function TierSection({ currentTier }: { currentTier: Tier }) {
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
+    "yearly",
+  );
   const [upgradeNoticeOpen, setUpgradeNoticeOpen] = useState(false);
   const { profile, session } = useAuth();
   const tierKeys: Tier[] = ["FREE", "PRO", "PRO_PLUS"];
-  const userName = profile?.full_name?.trim() || profile?.handle || "your username";
+  const userName =
+    profile?.full_name?.trim() || profile?.handle || "your username";
   const userEmail = session?.user?.email || "your email address";
 
   const handleCopy = async (value: string, label: string) => {
@@ -655,7 +740,9 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
 
   const getPricePerMonth = (tierKey: Tier) => {
     const pricing = TIER_PRICING[tierKey];
-    return billingCycle === "monthly" ? pricing.monthly : Math.floor(pricing.yearly / 12);
+    return billingCycle === "monthly"
+      ? pricing.monthly
+      : Number((pricing.yearly / 12).toFixed(2));
   };
 
   return (
@@ -685,7 +772,10 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
                   <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-deckly-primary mb-2">
                     Alpha Notice
                   </p>
-                  <h3 id="upgrade-notice-title" className="text-xl font-bold text-white">
+                  <h3
+                    id="upgrade-notice-title"
+                    className="text-xl font-bold text-white"
+                  >
                     Billing is not live yet
                   </h3>
                 </div>
@@ -701,7 +791,10 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
 
               <div className="px-6 py-5 space-y-5">
                 <div className="flex items-start gap-3 rounded-none border border-amber-500/20 bg-amber-500/10 p-4">
-                  <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-400" />
+                  <AlertTriangle
+                    size={18}
+                    className="mt-0.5 shrink-0 text-amber-400"
+                  />
                   <p className="text-sm text-slate-200 leading-relaxed">
                     This app is in alpha version. To upgrade, please email{" "}
                     <a
@@ -790,7 +883,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
               "flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
               billingCycle === "monthly"
                 ? "bg-surface-highest text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             Monthly
@@ -801,7 +894,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
               "relative flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2",
               billingCycle === "yearly"
                 ? "bg-surface-highest text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             Yearly
@@ -819,7 +912,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
           const isProPlus = tierKey === "PRO_PLUS";
           const TierIcon = tierIcons[tierKey];
           const price = getPricePerMonth(tierKey);
-          
+
           const prevTier = index > 0 ? tierKeys[index - 1] : null;
 
           return (
@@ -827,17 +920,23 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
               key={tierKey}
               className={cn(
                 "relative p-6 flex flex-col transition-all duration-500 group border",
-                isCurrent 
-                  ? "bg-surface-low border-deckly-primary/30" 
-                  : "bg-surface-low/30 border-border hover:bg-surface-low hover:border-surface-highest"
+                isCurrent
+                  ? "bg-surface-low border-deckly-primary/30"
+                  : "bg-surface-low/30 border-border hover:bg-surface-low hover:border-surface-highest",
               )}
             >
               {/* Header */}
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className={cn(
-                    tierKey === "FREE" ? "text-slate-500" : tierKey === "PRO" ? "text-deckly-primary" : "text-amber-400"
-                  )}>
+                  <div
+                    className={cn(
+                      tierKey === "FREE"
+                        ? "text-slate-500"
+                        : tierKey === "PRO"
+                          ? "text-deckly-primary"
+                          : "text-amber-400",
+                    )}
+                  >
                     <TierIcon size={20} />
                   </div>
                   <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-foreground">
@@ -849,7 +948,9 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
                   <span className="text-4xl font-bold tracking-tighter text-white">
                     ${price}
                   </span>
-                  <span className="text-sm text-muted-foreground opacity-60">/month</span>
+                  <span className="text-sm text-muted-foreground opacity-60">
+                    /month
+                  </span>
                 </div>
                 {billingCycle === "yearly" && tierKey !== "FREE" && (
                   <div className="space-y-1 mt-1">
@@ -857,7 +958,10 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
                       Billed annually
                     </p>
                     <p className="text-[9px] text-deckly-primary font-bold tracking-widest uppercase">
-                      Save ${TIER_PRICING[tierKey].monthly * 12 - TIER_PRICING[tierKey].yearly}/year
+                      Save $
+                      {TIER_PRICING[tierKey].monthly * 12 -
+                        TIER_PRICING[tierKey].yearly}
+                      /year
                     </p>
                   </div>
                 )}
@@ -865,7 +969,9 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
 
               {/* Feature Intro */}
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">
-                {tierKey === "FREE" ? "What's included:" : `Everything on ${prevTier === "PRO_PLUS" ? "Pro+" : prevTier}, plus:`}
+                {tierKey === "FREE"
+                  ? "What's included:"
+                  : `Everything on ${prevTier === "PRO_PLUS" ? "Pro+" : prevTier}, plus:`}
               </p>
 
               {/* Features List */}
@@ -873,19 +979,33 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
                 {TIER_FEATURES.map(({ key, label, format }) => {
                   const val = TIER_CONFIG[tierKey][key];
                   const prevVal = prevTier ? TIER_CONFIG[prevTier][key] : -1;
-                  
+
                   // Only show if it's a new or improved feature compared to the previous tier
-                  const isNewOrImproved = !areTierFeatureValuesEqual(val, prevVal);
+                  const isNewOrImproved = !areTierFeatureValuesEqual(
+                    val,
+                    prevVal,
+                  );
                   if (!isNewOrImproved && tierKey !== "FREE") return null;
 
                   const isIncluded = val !== 0 && val !== false;
-                  
+
                   return (
-                    <div key={key} className={cn(
-                      "flex items-start gap-3 transition-all",
-                      isIncluded ? "opacity-100" : "opacity-20 translate-x-1"
-                    )}>
-                      <Check size={12} className={cn("mt-0.5 shrink-0", isIncluded ? "text-deckly-primary" : "text-muted-foreground")} />
+                    <div
+                      key={key}
+                      className={cn(
+                        "flex items-start gap-3 transition-all",
+                        isIncluded ? "opacity-100" : "opacity-20 translate-x-1",
+                      )}
+                    >
+                      <Check
+                        size={12}
+                        className={cn(
+                          "mt-0.5 shrink-0",
+                          isIncluded
+                            ? "text-deckly-primary"
+                            : "text-muted-foreground",
+                        )}
+                      />
                       <div className="flex flex-col min-w-0">
                         <span className="text-[11px] text-foreground leading-tight">
                           {label}
@@ -917,7 +1037,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
                       ? "bg-white/5 text-foreground hover:bg-white/10 border border-border"
                       : isProPlus
                         ? "bg-amber-400 text-slate-950 hover:brightness-110 shadow-lg shadow-amber-400/5"
-                        : "bg-deckly-primary text-primary-foreground hover:brightness-110 shadow-lg shadow-deckly-primary/10"
+                        : "bg-deckly-primary text-primary-foreground hover:brightness-110 shadow-lg shadow-deckly-primary/10",
                 )}
               >
                 {isCurrent ? "Active Plan" : pricing.cta}
@@ -926,7 +1046,6 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
           );
         })}
       </div>
-
     </div>
   );
 }
@@ -964,26 +1083,37 @@ function CollaborationSection() {
         <div className="w-16 h-16 bg-surface-container flex items-center justify-center mb-6">
           <Users size={32} className="text-muted-foreground/40" />
         </div>
-        <h3 className="text-lg font-bold text-foreground uppercase tracking-widest mb-3">Multiplayer Mode</h3>
+        <h3 className="text-lg font-bold text-foreground uppercase tracking-widest mb-3">
+          Multiplayer Mode
+        </h3>
         <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
-          Invite stakeholders and co-founders to manage decks, review analytics, and collaborate on data rooms in real-time.
+          Invite stakeholders and co-founders to manage decks, review analytics,
+          and collaborate on data rooms in real-time.
         </p>
       </div>
 
       {/* Current Members */}
       <div className="bg-surface-low border border-border p-6">
-        <h3 className="text-[10px] font-bold text-foreground uppercase tracking-[0.2em] mb-4">Active Members</h3>
+        <h3 className="text-[10px] font-bold text-foreground uppercase tracking-[0.2em] mb-4">
+          Active Members
+        </h3>
         <div className="flex items-center gap-4 px-4 py-3 bg-surface-lowest border border-border">
           <div className="w-10 h-10 bg-deckly-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
             {profile?.full_name?.charAt(0) || "U"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-foreground font-bold truncate">{profile?.full_name || "You"}</p>
-            <p className="text-[9px] text-deckly-primary font-bold uppercase tracking-widest">Workspace Owner</p>
+            <p className="text-xs text-foreground font-bold truncate">
+              {profile?.full_name || "You"}
+            </p>
+            <p className="text-[9px] text-deckly-primary font-bold uppercase tracking-widest">
+              Workspace Owner
+            </p>
           </div>
           <div className="flex items-center gap-1.5 px-2 py-1 bg-deckly-primary/10 border border-deckly-primary/20">
             <div className="w-1 h-1 bg-deckly-primary animate-pulse" />
-            <span className="text-[8px] text-deckly-primary font-bold uppercase tracking-widest">Online</span>
+            <span className="text-[8px] text-deckly-primary font-bold uppercase tracking-widest">
+              Online
+            </span>
           </div>
         </div>
       </div>
@@ -1030,7 +1160,8 @@ function DangerSection({
       navigate("/", { replace: true });
       toast.success("Your account has been permanently deleted.");
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Account deletion failed.";
+      const message =
+        err instanceof Error ? err.message : "Account deletion failed.";
       setDeleteError(message);
       toast.error(message);
     } finally {
@@ -1040,7 +1171,6 @@ function DangerSection({
 
   return (
     <div className="space-y-6">
-
       {/* Sign Out Everywhere */}
       <div className="bg-surface-low border border-border p-6">
         <div className="flex items-start gap-4">
@@ -1048,16 +1178,21 @@ function DangerSection({
             <AlertTriangle size={18} className="text-amber-500" />
           </div>
           <div className="flex-1">
-            <h3 className="text-[10px] font-bold text-foreground uppercase tracking-[0.2em] mb-1.5">Security: Sign Out Everywhere</h3>
+            <h3 className="text-[10px] font-bold text-foreground uppercase tracking-[0.2em] mb-1.5">
+              Security: Sign Out Everywhere
+            </h3>
             <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              Revoke all active sessions and sign out of all devices currently logged into this account.
+              Revoke all active sessions and sign out of all devices currently
+              logged into this account.
             </p>
             <button
               onClick={handleSignOutAll}
               disabled={signingOut}
               className="px-6 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-bold uppercase tracking-widest border border-amber-500/20 transition-all disabled:opacity-50 flex items-center gap-2"
             >
-              {signingOut ? <Loader2 size={14} className="animate-spin" /> : null}
+              {signingOut ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : null}
               {signingOut ? "Revoking..." : "Revoke All Sessions"}
             </button>
           </div>
@@ -1071,9 +1206,12 @@ function DangerSection({
             <Trash2 size={18} className="text-destructive" />
           </div>
           <div className="flex-1">
-            <h3 className="text-[10px] font-bold text-destructive uppercase tracking-[0.2em] mb-1.5">Delete Account</h3>
+            <h3 className="text-[10px] font-bold text-destructive uppercase tracking-[0.2em] mb-1.5">
+              Delete Account
+            </h3>
             <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              Permanently destroy your workspace. This action is atomic and irreversible. All decks and analytics will be purged.
+              Permanently destroy your workspace. This action is atomic and
+              irreversible. All decks and analytics will be purged.
             </p>
 
             <button
@@ -1094,16 +1232,20 @@ function DangerSection({
               <div className="w-16 h-16 bg-destructive/10 flex items-center justify-center mb-6">
                 <Trash2 size={32} className="text-destructive" />
               </div>
-              <h2 className="text-sm font-bold text-white uppercase tracking-[0.3em] mb-3">Confirm Deletion</h2>
+              <h2 className="text-sm font-bold text-white uppercase tracking-[0.3em] mb-3">
+                Confirm Deletion
+              </h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                You are about to permanently delete your Deckly account. This cannot be undone.
+                You are about to permanently delete your Deckly account. This
+                cannot be undone.
               </p>
             </div>
 
             <div className="space-y-6">
               <div className="space-y-3">
                 <p className="text-[10px] text-destructive font-bold uppercase tracking-widest text-center">
-                  Type <span className="text-foreground">DELETE</span> below to confirm
+                  Type <span className="text-foreground">DELETE</span> below to
+                  confirm
                 </p>
                 <input
                   type="text"
@@ -1127,7 +1269,11 @@ function DangerSection({
                   disabled={deleting || !canDelete}
                   className="flex-1 py-4 bg-destructive text-destructive-foreground text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 disabled:grayscale"
                 >
-                  {deleting ? <Loader2 size={16} className="animate-spin mx-auto" /> : "Permanently Delete"}
+                  {deleting ? (
+                    <Loader2 size={16} className="animate-spin mx-auto" />
+                  ) : (
+                    "Permanently Delete"
+                  )}
                 </button>
                 <button
                   onClick={() => {

@@ -7,10 +7,10 @@ import { createClient } from "@supabase/supabase-js";
  * Accepts the storage_path returned by get_deck_payload and returns a
  * short-lived signed URL for the private decks bucket.
  *
- * The caller must pass the same slug + password they used with get_deck_payload
- * so this function can re-verify authorization before signing.
+ * The caller must pass the same handle + slug/alias + password they used
+ * with get_deck_payload so this function can re-verify authorization before signing.
  *
- * Request body: { slug: string, password?: string, storage_path: string }
+ * Request body: { handle?: string, slug: string, password?: string, storage_path: string }
  * Response:     { signed_url: string, expires_in: number }
  */
 Deno.serve(async (req: Request) => {
@@ -24,10 +24,41 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { slug, password, storage_path, image_paths: rawImagePaths, room_slug } = await req.json();
+    const {
+      handle,
+      slug,
+      password,
+      storage_path,
+      image_paths: rawImagePaths,
+      room_slug,
+    } = await req.json();
+    const deckSlug = typeof slug === "string" ? slug : null;
+    const roomSlug = typeof room_slug === "string" ? room_slug : null;
+    const storagePath = typeof storage_path === "string" ? storage_path : null;
     const image_paths: string[] = Array.isArray(rawImagePaths)
       ? rawImagePaths.filter((p): p is string => typeof p === "string")
       : [];
+
+    if (slug !== undefined && slug !== null && deckSlug === null) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request: slug must be a string" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (room_slug !== undefined && room_slug !== null && roomSlug === null) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request: room_slug must be a string" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (storage_path !== undefined && storage_path !== null && storagePath === null) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request: storage_path must be a string" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabasePublishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -51,10 +82,11 @@ Deno.serve(async (req: Request) => {
       pages?: Array<{ image_url: string } | string>;
     }
 
-    if (room_slug) {
+    if (roomSlug) {
       // Data room mode
       const { data: rpcData, error: rpcError } = await anonClient.rpc("get_data_room_payload", {
-        p_slug: room_slug,
+        p_handle: typeof handle === "string" ? handle : null,
+        p_slug: roomSlug,
         p_password: password ?? null,
       });
 
@@ -88,10 +120,11 @@ Deno.serve(async (req: Request) => {
           });
         });
       }
-    } else if (slug) {
+    } else if (deckSlug) {
       // Individual deck mode
       const { data: rpcData, error: rpcError } = await anonClient.rpc("get_deck_payload", {
-        p_slug: slug,
+        p_handle: typeof handle === "string" ? handle : null,
+        p_slug_or_alias: deckSlug,
         p_password: password ?? null,
       });
 
@@ -140,7 +173,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const requestedPaths = [];
-    if (storage_path) requestedPaths.push(storage_path);
+    if (storagePath) requestedPaths.push(storagePath);
     requestedPaths.push(...image_paths);
 
     // Reject if any requested path is not authorized through either mode
@@ -215,7 +248,7 @@ Deno.serve(async (req: Request) => {
       return url;
     };
 
-    const signedMain = storage_path ? transformUrl(signedData.find(d => d.path === storage_path)?.signedUrl) : null;
+    const signedMain = storagePath ? transformUrl(signedData.find(d => d.path === storagePath)?.signedUrl) : null;
     const signedImages = (image_paths as string[]).map((path: string) => ({
       path,
       signedUrl: transformUrl(signedData.find(d => d.path === path)?.signedUrl) || null,

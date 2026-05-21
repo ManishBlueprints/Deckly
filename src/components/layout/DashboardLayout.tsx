@@ -1,7 +1,14 @@
 import React from "react";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
-import { Plus, Upload, Home as RoomIcon, User, LogOut } from "lucide-react";
+import {
+  Plus,
+  Upload,
+  Home as RoomIcon,
+  User,
+  LogOut,
+  LifeBuoy,
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -38,9 +45,11 @@ export function DashboardLayout({
     "/content": "Content",
     "/rooms": "Rooms",
     "/upload": "Upload Deck",
-    "/saved-decks": "Saved Decks",
+    "/saved-library": "Saved Library",
+    "/saved-decks": "Saved Library",
     "/analytics": "Analytics",
     "/messages": "Messages",
+    "/feedback": "Help & Feedback",
     "/settings": "Settings",
   };
 
@@ -159,6 +168,15 @@ export function DashboardLayout({
                 >
                   <User size={16} className="text-primary" />
                   <span className="font-bold text-slate-200">Edit Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => navigate("/feedback")}
+                  className="flex items-center gap-2 py-3 cursor-pointer"
+                >
+                  <LifeBuoy size={16} className="text-primary" />
+                  <span className="font-bold text-slate-200">
+                    Help & Feedback
+                  </span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 

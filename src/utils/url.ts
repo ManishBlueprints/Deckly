@@ -1,9 +1,9 @@
 /**
  * Centralized utility for generating public sharing URLs.
- * Ensures consistent handle-based routing across the application.
+ * Ensures consistent workspace-slug-based routing across the application.
  * Actual routes: 
- *   Decks: /:handle/:slug
- *   Rooms: /:handle/room/:slug
+ *   Decks: /:workspaceSlug/:slug
+ *   Rooms: /:workspaceSlug/room/:slug
  */
 
 /**
@@ -27,22 +27,34 @@ function resolveShareOrigin(): string {
   return process.env.BASE_URL || 'http://localhost:5173';
 }
 
-export const getDeckPath = (handle: string, slug: string): string => {
+export const getDeckPath = (workspaceSlug: string, slug: string): string => {
   // Encode path segments to handle reserved characters
-  return `/${encodeURIComponent(handle)}/${encodeURIComponent(slug)}`;
+  return `/${encodeURIComponent(workspaceSlug)}/${encodeURIComponent(slug)}`;
 };
 
-export const getDeckShareUrl = (handle: string, slug: string): string => {
-  return `${resolveShareOrigin()}${getDeckPath(handle, slug)}`;
+export const getDeckShareUrl = (workspaceSlug: string, slug: string): string => {
+  return `${resolveShareOrigin()}${getDeckPath(workspaceSlug, slug)}`;
 };
 
-export const getDataRoomPath = (handle: string, slug: string): string => {
-  // Encode handle and slug, preserve literal "/room/" segment
-  return `/${encodeURIComponent(handle)}/room/${encodeURIComponent(slug)}`;
+/**
+ * Deck-link URLs currently share the same path format as deck URLs.
+ * Keep this wrapper so callers can stay link-aware if link-specific behavior
+ * is added later.
+ */
+export const getDeckLinkShareUrl = (
+  workspaceSlug: string,
+  slugOrAlias: string,
+): string => {
+  return getDeckShareUrl(workspaceSlug, slugOrAlias);
 };
 
-export const getDataRoomShareUrl = (handle: string, slug: string): string => {
-  return `${resolveShareOrigin()}${getDataRoomPath(handle, slug)}`;
+export const getDataRoomPath = (workspaceSlug: string, slug: string): string => {
+  // Encode workspace slug and slug, preserve literal "/room/" segment
+  return `/${encodeURIComponent(workspaceSlug)}/room/${encodeURIComponent(slug)}`;
+};
+
+export const getDataRoomShareUrl = (workspaceSlug: string, slug: string): string => {
+  return `${resolveShareOrigin()}${getDataRoomPath(workspaceSlug, slug)}`;
 };
 
 export const getDeckPreviewPath = (deckId: string): string => {

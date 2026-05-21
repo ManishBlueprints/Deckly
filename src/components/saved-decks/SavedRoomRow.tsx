@@ -53,6 +53,12 @@ export const SavedRoomRow = memo(function SavedRoomRow({
 
   const savedDateStr = formatSavedDate(new Date(room.saved_at));
   const currentFolder = folders.find((folder) => folder.id === room.folder_id);
+  const effectiveHandle =
+    room.room_owner_handle && room.room_owner_handle !== "unknown"
+      ? room.room_owner_handle
+      : room.room_handle && room.room_handle !== "unknown"
+        ? room.room_handle
+        : null;
   const { data: initialNote } = useDataRoomNotes(
     room.data_room_id || undefined,
     session?.user?.id,
@@ -110,23 +116,6 @@ export const SavedRoomRow = memo(function SavedRoomRow({
       await queryClient.invalidateQueries({
         queryKey: ["saved-data-rooms", session?.user?.id],
       });
-    },
-  });
-
-  const updateTagsMutation = useMutation({
-    mutationFn: async (tagIds: string[]) => {
-      if (!room.library_id) return;
-      await dataRoomLibraryService.updateRoomTags(room.library_id, tagIds);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["saved-data-rooms", session?.user?.id],
-      });
-    },
-    onError: (err) => {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to update room tags.",
-      );
     },
   });
 
@@ -209,9 +198,9 @@ export const SavedRoomRow = memo(function SavedRoomRow({
     }
   };
 
-  const savedRoomHref = room.room_handle
-    ? getDataRoomPath(room.room_handle, room.slug)
-    : "#";
+  const savedRoomHref = effectiveHandle
+    ? getDataRoomPath(effectiveHandle, room.slug)
+    : null;
 
   return (
     <motion.div
@@ -230,7 +219,7 @@ export const SavedRoomRow = memo(function SavedRoomRow({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-3 flex-wrap">
                 <Link
-                  to={savedRoomHref}
+                  to={savedRoomHref ?? "#"}
                   className="text-lg font-headline font-bold text-[#e5e2e1] hover:text-[#54e98a] transition-colors truncate"
                 >
                   {room.title}
@@ -246,10 +235,14 @@ export const SavedRoomRow = memo(function SavedRoomRow({
               </div>
 
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
-                  {room.room_handle}
-                </span>
-                <span className="w-1 h-1 bg-[#bbcbbb]/10 rounded-full" />
+                {effectiveHandle && (
+                  <>
+                    <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
+                      {effectiveHandle}
+                    </span>
+                    <span className="w-1 h-1 bg-[#bbcbbb]/10 rounded-full" />
+                  </>
+                )}
                 <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
                   Saved {savedDateStr}
                 </span>
@@ -307,14 +300,13 @@ export const SavedRoomRow = memo(function SavedRoomRow({
             tags={tags}
             openLabel="Open Room"
             openAction={() => {
-              if (room.data_room_id && room.room_handle) {
+              if (room.data_room_id && effectiveHandle !== null && savedRoomHref) {
                 window.open(savedRoomHref, "_blank", "noopener,noreferrer");
               }
             }}
             unsaveLabel="Remove from Saved"
             unsaveDescription={`Are you sure you want to remove "${room.title}" from your saved rooms? Your private note will stay saved for later.`}
             onMoveToFolder={(folderId) => moveFolderMutation.mutate(folderId)}
-            onUpdateTags={(tagIds) => updateTagsMutation.mutate(tagIds)}
             onUnsave={() => unsaveMutation.mutate()}
           />
         </div>

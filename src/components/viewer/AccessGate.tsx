@@ -115,7 +115,7 @@ const AccessGate: React.FC<AccessGateProps> = ({
         setIsVerifying(true);
         const isValid = onVerifyPassword
           ? await onVerifyPassword(password)
-          : await deckService.checkDeckPassword(deck.slug, password);
+          : await deckService.checkDeckPassword(null, deck.slug, password);
 
         if (isValid) {
           if (email) saveEmailToCache(email);

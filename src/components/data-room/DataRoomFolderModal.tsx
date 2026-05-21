@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, type CSSProperties } from "react";
 import { Loader2, Plus, X } from "lucide-react";
-import { DataRoomTag } from "../../types";
+import { GlobalTag } from "../../types";
 import {
   DEFAULT_FOLDER_COLOR,
   FOLDER_PICKER_COLORS,
@@ -20,7 +20,7 @@ interface DataRoomFolderModalProps {
     color: FolderColorKey;
     tagIds: string[];
   }) => Promise<void>;
-  existingTags: DataRoomTag[];
+  existingTags: GlobalTag[];
   initialData?: {
     name: string;
     color: FolderColorKey;
@@ -35,6 +35,8 @@ export function DataRoomFolderModal({
   existingTags,
   initialData,
 }: DataRoomFolderModalProps) {
+  const nameInputId = useId();
+  const tagInputId = useId();
   const [name, setName] = useState("");
   const [selectedColor, setSelectedColor] =
     useState<FolderColorKey>(DEFAULT_FOLDER_COLOR);
@@ -155,33 +157,42 @@ export function DataRoomFolderModal({
 
           <div className="space-y-6">
             <div className="space-y-2.5">
-              <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1">
+              <label
+                htmlFor={nameInputId}
+                className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1"
+              >
                 FOLDER NAME
               </label>
               <input
+                id={nameInputId}
+                name={nameInputId}
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Q1 FinTech Research"
-                className="w-full bg-surface-low border border-border px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all font-medium"
+                className="w-full bg-surface-low border border-border px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all font-medium"
                 autoFocus
               />
             </div>
 
             <div className="space-y-2.5">
-              <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1">
+              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1">
                 FOLDER IDENTITY
-              </label>
+              </div>
               <ColorSwatchPicker
                 colors={FOLDER_PICKER_COLORS}
                 value={selectedColor}
                 onChange={(value) => setSelectedColor(value as FolderColorKey)}
                 className="ml-1"
+                swatchClassName="rounded-none"
               />
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1">
+              <label
+                htmlFor={tagInputId}
+                className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1"
+              >
                 ADD TAGS
               </label>
 
@@ -195,19 +206,16 @@ export function DataRoomFolderModal({
                       style={{
                         backgroundColor: `${baseColor}15`,
                         borderColor: `${baseColor}30`,
-                      }}
+                        "--tag-color": baseColor,
+                      } as CSSProperties}
                     >
-                      <span
-                        className="text-[9px] font-bold uppercase tracking-wider"
-                        style={{ color: baseColor }}
-                      >
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-[color:var(--tag-color)]">
                         {tag.name}
                       </span>
                       <button
                         type="button"
                         onClick={() => removeTag(tag.id)}
-                        className="opacity-50 hover:opacity-100 hover:text-destructive transition-all"
-                        style={{ color: baseColor }}
+                        className="text-[color:var(--tag-color)] opacity-50 hover:opacity-100 hover:text-red-400 transition-all"
                       >
                         <X size={10} strokeWidth={3} />
                       </button>
@@ -218,6 +226,8 @@ export function DataRoomFolderModal({
 
               <div className="relative group">
                 <input
+                  id={tagInputId}
+                  name={tagInputId}
                   type="text"
                   value={tagQuery}
                   onChange={(e) => {

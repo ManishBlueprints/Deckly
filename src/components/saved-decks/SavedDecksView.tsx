@@ -15,8 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { SavedDeckEmptyState } from "./SavedDeckEmptyState";
-import { CreateFolderModal } from "./CreateFolderModal";
+import { SavedLibraryEmptyState } from "./SavedDeckEmptyState";
 import { FolderCard } from "./FolderCard";
 import { DocumentRow } from "./DocumentRow";
 import { SavedRoomRow } from "./SavedRoomRow";
@@ -26,20 +25,83 @@ import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
 import { MetadataSearchMenu } from "../search/MetadataSearchMenu";
 import { useMetadataSearchState } from "../../hooks/useMetadataSearchState";
 import { ManageTagsButton } from "../shared/ManageTagsButton";
+import { cn } from "../../utils/cn";
 import {
   filterSavedDeckRows,
   filterSavedRoomRows,
   type SavedDeckSearchResult,
   type SavedRoomSearchResult,
 } from "../../utils/metadataSearchAdapters";
+import { DataRoomFolderModal } from "../data-room/DataRoomFolderModal";
+import {
+  resolveFolderColorKey,
+  type FolderColorKey,
+} from "../../constants/folderColors";
 
-export function SavedDecksView() {
+type SavedLibraryViewMode = "all" | "decks" | "rooms";
+
+function getSavedLibraryEmptyStateCopy(
+  viewMode: SavedLibraryViewMode,
+  hasSearchFilters: boolean,
+) {
+  if (viewMode === "decks") {
+    return hasSearchFilters
+      ? {
+          title: "No saved decks match your filters",
+          description:
+            "Try clearing the current search, folder, or tag filter to see more decks.",
+          ctaLabel: "Create Folder",
+        }
+      : {
+          title: "No saved decks yet",
+          description:
+            "Save a deck from the viewer or content library and it will appear here.",
+          ctaLabel: "Create Folder",
+        };
+  }
+
+  if (viewMode === "rooms") {
+    return hasSearchFilters
+      ? {
+          title: "No saved rooms match your filters",
+          description:
+            "Try clearing the current search, folder, or tag filter to see more rooms.",
+          ctaLabel: "Create Folder",
+        }
+      : {
+          title: "No saved rooms yet",
+          description:
+            "Save a room from the room viewer and it will appear here.",
+          ctaLabel: "Create Folder",
+        };
+  }
+
+  return hasSearchFilters
+    ? {
+        title: "No saved items match your filters",
+        description:
+          "Try clearing the current search, folder, or tag filter to see more saved items.",
+        ctaLabel: "Create Folder",
+      }
+    : {
+        title: "No saved items yet",
+        description:
+          "Save decks and rooms to build a single shared library.",
+        ctaLabel: "Create Folder",
+      };
+}
+
+export function SavedLibraryView() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const { decks, folders, tags, isLoading, isError, actions } = useLibrary(
     session?.user?.id,
   );
-  const { data: savedRooms = [] } = useQuery({
+  const {
+    data: savedRooms = [],
+    isLoading: isSavedRoomsLoading,
+    isError: isSavedRoomsError,
+  } = useQuery({
     queryKey: ["saved-data-rooms", session?.user?.id],
     queryFn: () => dataRoomLibraryService.getSavedRooms(),
     enabled: !!session?.user?.id,
@@ -51,7 +113,8 @@ export function SavedDecksView() {
     string | "uncategorized"
   >("uncategorized");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
-  const search = useMetadataSearchState("saved_decks");
+  const [viewMode, setViewMode] = useState<SavedLibraryViewMode>("all");
+  const search = useMetadataSearchState("saved_library");
 
   // Modal state
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
@@ -82,6 +145,21 @@ export function SavedDecksView() {
     );
   }, [savedRooms, search.filter, selectedFolderId, selectedTagId]);
 
+  const visibleDecks = useMemo(() => {
+    if (viewMode === "rooms") return [];
+    return filteredDecks;
+  }, [filteredDecks, viewMode]);
+
+  const visibleSavedRooms = useMemo(() => {
+    if (viewMode === "decks") return [];
+    return filteredSavedRooms;
+  }, [filteredSavedRooms, viewMode]);
+
+  const hasAnyItems = decks.length > 0 || folders.length > 0 || savedRooms.length > 0;
+  const hasSearchFilters =
+    search.isActive ||
+    selectedTagId !== null ||
+    selectedFolderId !== "uncategorized";
   useEffect(() => {
     if (selectedTagId && !tags.some((tag) => tag.id === selectedTagId)) {
       setSelectedTagId(null);
@@ -95,6 +173,15 @@ export function SavedDecksView() {
       return acc;
     }, {});
   }, [savedRooms]);
+
+  const handleRetryLibraryLoad = useCallback(async () => {
+    await Promise.all([
+      actions.refetch(),
+      queryClient.invalidateQueries({
+        queryKey: ["saved-data-rooms", session?.user?.id],
+      }),
+    ]);
+  }, [actions, queryClient, session?.user?.id]);
 
   // --- Confirm: Delete folder ---
   const handleConfirmDeleteFolder = useCallback(async () => {
@@ -117,21 +204,46 @@ export function SavedDecksView() {
 
   // --- Folder modal handlers ---
   const handleCreateFolder = useCallback(
-    async (name: string, color: string, tagNames: string[]) => {
-      await actions.createFolder(name, color, tagNames);
+    async (input: {
+      name: string;
+      color: FolderColorKey;
+      tagIds: string[];
+    }) => {
+      await actions.createFolder(input.name, input.color, input.tagIds);
       setIsCreateFolderModalOpen(false);
     },
     [actions],
   );
 
   const handleSaveEditFolder = useCallback(
-    async (name: string, color: string, tagNames: string[]) => {
+    async (input: {
+      name: string;
+      color: FolderColorKey;
+      tagIds: string[];
+    }) => {
       if (!editingFolder) return;
-      await actions.updateFolder(editingFolder, name, color, tagNames);
+      await actions.updateFolder(
+        editingFolder,
+        input.name,
+        input.color,
+        input.tagIds,
+      );
       setEditingFolder(null);
       setIsCreateFolderModalOpen(false);
     },
     [editingFolder, actions],
+  );
+
+  const handleUpdateFolderTags = useCallback(
+    async (folder: LibraryFolder, tagIds: string[]) => {
+      await actions.updateFolder(
+        folder,
+        folder.name,
+        resolveFolderColorKey(folder.color),
+        tagIds,
+      );
+    },
+    [actions],
   );
 
   // --- Shared stable handlers for rows ---
@@ -161,6 +273,12 @@ export function SavedDecksView() {
       await actions.deleteTag(tagId);
       await queryClient.invalidateQueries({
         queryKey: ["saved-data-rooms", session?.user?.id],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["library-decks", session?.user?.id],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["library-folders", session?.user?.id],
       });
     },
     [actions, queryClient, session?.user?.id],
@@ -215,7 +333,9 @@ export function SavedDecksView() {
           </p>
         </div>
         <button
-          onClick={() => actions.refetch()}
+          onClick={() => {
+            void handleRetryLibraryLoad();
+          }}
           className="px-8 py-3 bg-primary text-black font-bold hover:bg-primary/90 transition-all"
         >
           Retry Connection
@@ -232,16 +352,20 @@ export function SavedDecksView() {
     );
   }
 
-  if (decks.length === 0 && folders.length === 0 && savedRooms.length === 0) {
+  if (!hasAnyItems) {
+    const emptyState = getSavedLibraryEmptyStateCopy(viewMode, hasSearchFilters);
     return (
       <div className="min-h-[calc(100vh-140px)] bg-deckly-background overflow-hidden">
-        <SavedDeckEmptyState
+        <SavedLibraryEmptyState
+          title={emptyState.title}
+          description={emptyState.description}
+          ctaLabel={emptyState.ctaLabel}
           onCreateFolder={() => setIsCreateFolderModalOpen(true)}
         />
-        <CreateFolderModal
+        <DataRoomFolderModal
           isOpen={isCreateFolderModalOpen}
           onClose={() => setIsCreateFolderModalOpen(false)}
-          onCreate={handleCreateFolder}
+          onSubmit={handleCreateFolder}
           existingTags={tags}
           initialData={null}
         />
@@ -260,36 +384,79 @@ export function SavedDecksView() {
                 Asset Repository
               </span>
               <h1 className="text-6xl font-headline font-extrabold text-[#e5e2e1] tracking-tighter">
-                Saved Data
+                Saved Library
               </h1>
             </div>
 
-            <div className="flex items-center gap-4">
-              <MetadataSearchMenu
-                filter={search.filter}
-                isActive={search.isActive || selectedTagId !== null}
-                onModeChange={search.setMode}
-                onQueryChange={search.setQuery}
-                onDatePresetChange={search.setDatePreset}
-                onCustomDateRangeChange={search.setCustomDateRange}
-                onClear={() => {
-                  search.resetFilter();
-                  setSelectedTagId(null);
-                }}
-                resultCount={filteredDecks.length + filteredSavedRooms.length}
-                triggerLabel="Search"
-                namePlaceholder="Search saved titles..."
-                filterOptions={tags.map((tag) => ({
-                  id: tag.id,
-                  name: tag.name,
-                  color: tag.color,
-                }))}
-                selectedFilterId={selectedTagId}
-                onFilterChange={setSelectedTagId}
-                filterEmptyMessage="No tags created"
-              />
-              <ManageTagsButton onClick={() => setIsManageTagsModalOpen(true)} />
+            <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-2 md:w-auto md:gap-4">
+              <div className="inline-flex min-w-0 w-full items-center border border-white/5 bg-surface-low p-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:flex-1 md:w-auto md:flex-none">
+                {(
+                  [
+                    ["all", "All"],
+                    ["decks", "Decks"],
+                    ["rooms", "Rooms"],
+                  ] as const
+                ).map(([mode, label]) => {
+                  const active = viewMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setViewMode(mode)}
+                      className={cn(
+                        "flex-1 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] transition-all sm:px-4 sm:text-[11px] sm:tracking-[0.16em] md:flex-none",
+                        active
+                          ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_rgba(34,197,94,0.2)]"
+                          : "text-muted-foreground hover:text-foreground hover:bg-surface-high",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex shrink-0 items-center justify-end gap-2">
+                <MetadataSearchMenu
+                  filter={search.filter}
+                  isActive={search.isActive || selectedTagId !== null}
+                  onModeChange={search.setMode}
+                  onQueryChange={search.setQuery}
+                  onDatePresetChange={search.setDatePreset}
+                  onCustomDateRangeChange={search.setCustomDateRange}
+                  onClear={() => {
+                    search.resetFilter();
+                    setSelectedTagId(null);
+                  }}
+                  resultCount={visibleDecks.length + visibleSavedRooms.length}
+                  triggerLabel="Search"
+                  namePlaceholder="Search saved titles..."
+                  filterOptions={tags.map((tag) => ({
+                    id: tag.id,
+                    name: tag.name,
+                    color: tag.color,
+                  }))}
+                  selectedFilterId={selectedTagId}
+                  onFilterChange={setSelectedTagId}
+                  filterEmptyMessage="No tags created"
+                  mobileIconOnly
+                />
+                <ManageTagsButton onClick={() => setIsManageTagsModalOpen(true)} />
+              </div>
             </div>
+          </div>
+
+          {/* Type Filter Summary */}
+          <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#bbcbbb]/35">
+            <span className="text-[#54e98a]">Saved Library</span>
+            <span className="w-1 h-1 rounded-full bg-[#bbcbbb]/15" />
+            <span>
+              {viewMode === "all"
+                ? "All items"
+                : viewMode === "decks"
+                  ? "Decks only"
+                  : "Rooms only"}
+            </span>
           </div>
 
           {/* Folders */}
@@ -312,6 +479,8 @@ export function SavedDecksView() {
                 <FolderCard
                   key={folder.id}
                   folder={folder}
+                  availableTags={tags}
+                  onUpdateTags={handleUpdateFolderTags}
                   isActive={selectedFolderId === folder.id}
                   documentCount={folder.deck_count + (roomCountByFolder[folder.id] || 0)}
                   onClick={() => handleFolderClick(folder.id)}
@@ -322,8 +491,30 @@ export function SavedDecksView() {
             </div>
           </div>
 
+          {(isSavedRoomsLoading || isSavedRoomsError) && (
+            <div className="flex items-start gap-3 border border-white/5 bg-surface-low px-4 py-3">
+              {isSavedRoomsLoading ? (
+                <Loader2 className="mt-0.5 animate-spin text-[#54e98a]" size={18} />
+              ) : (
+                <Filter className="mt-0.5 text-red-500" size={18} />
+              )}
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-white">
+                  {isSavedRoomsLoading
+                    ? "Loading saved rooms"
+                    : "Saved rooms unavailable"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isSavedRoomsLoading
+                    ? "Decks, folders, and the view toggle remain available while room data finishes loading."
+                    : "Decks, folders, and the view toggle remain available while room data is unavailable."}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Saved Rooms */}
-          {filteredSavedRooms.length > 0 && (
+          {visibleSavedRooms.length > 0 && (
             <div className="space-y-8">
               <div className="flex items-center gap-4">
                 <div className="w-8 h-1 bg-[#54e98a] rounded-full" />
@@ -333,7 +524,7 @@ export function SavedDecksView() {
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                {filteredSavedRooms.map((result: SavedRoomSearchResult) => (
+                {visibleSavedRooms.map((result: SavedRoomSearchResult) => (
                   <SavedRoomRow
                     key={result.room.library_id}
                     room={result.room}
@@ -350,44 +541,28 @@ export function SavedDecksView() {
           )}
 
           {/* Documents */}
-          <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-1 bg-[#54e98a] rounded-full opacity-40" />
-                <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
-                  {selectedFolderId === "uncategorized"
-                    ? "Uncategorized Docs"
-                    : folders.find((f) => f.id === selectedFolderId)?.name}
-                </h2>
+          {visibleDecks.length > 0 && (
+            <div className="space-y-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-8 h-1 bg-[#54e98a] rounded-full opacity-40" />
+                  <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
+                    Saved Decks
+                  </h2>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bbcbbb]/20">
+                    Total Inventory
+                  </p>
+                  <p className="text-lg font-headline font-bold text-[#e5e2e1]">
+                    {visibleDecks.length} Active Decks
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bbcbbb]/20">
-                  Total Inventory
-                </p>
-                <p className="text-lg font-headline font-bold text-[#e5e2e1]">
-                  {decks.length} Active Decks
-                </p>
-              </div>
-            </div>
 
-            <div className="space-y-4">
-              <AnimatePresence mode="popLayout" initial={false}>
-                {filteredDecks.length === 0 ? (
-                  <div className="py-32 text-center">
-                    <div className="w-20 h-20 bg-surface-card flex items-center justify-center text-[#54e98a]/20 mx-auto border border-white/5 mb-6">
-                      <span className="material-symbols-outlined text-4xl">
-                        inventory_2
-                      </span>
-                    </div>
-                    <p className="text-[#bbcbbb]/40 font-bold">
-                      No documents matching the current filter
-                    </p>
-                    <p className="text-[#bbcbbb]/40 text-sm mt-2">
-                      Try another title, tag, or clear the current search.
-                    </p>
-                  </div>
-                ) : (
-                  filteredDecks.map((result: SavedDeckSearchResult) => (
+              <div className="space-y-4">
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {visibleDecks.map((result: SavedDeckSearchResult) => (
                     <DocumentRow
                       key={result.deck.library_id}
                       deck={result.deck}
@@ -404,29 +579,29 @@ export function SavedDecksView() {
                       onUnsave={() => handleUnsaveRequest(result.deck)}
                       isUnsaving={unsavingDeckId === result.deck.library_id}
                     />
-                  ))
-                )}
-              </AnimatePresence>
+                  ))}
+                </AnimatePresence>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
 
       {/* Modals */}
-      <CreateFolderModal
+      <DataRoomFolderModal
         isOpen={isCreateFolderModalOpen}
         onClose={() => {
           setIsCreateFolderModalOpen(false);
           setEditingFolder(null);
         }}
-        onCreate={editingFolder ? handleSaveEditFolder : handleCreateFolder}
+        onSubmit={editingFolder ? handleSaveEditFolder : handleCreateFolder}
         existingTags={tags}
         initialData={
           editingFolder
             ? {
                 name: editingFolder.name,
-                color: editingFolder.color,
-                tags: editingFolder.tags.map((t) => t.name),
+                color: resolveFolderColorKey(editingFolder.color),
+                tagIds: editingFolder.tags.map((t) => t.id),
               }
             : null
         }
@@ -478,3 +653,5 @@ export function SavedDecksView() {
     </div>
   );
 }
+
+export const SavedDecksView = SavedLibraryView;
