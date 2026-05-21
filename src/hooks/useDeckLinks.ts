@@ -7,7 +7,8 @@ type CreateDeckLinkInput = {
 };
 
 export const deckLinkQueryKeys = {
-  list: (deckId: string) => ["deck-links", deckId] as const,
+  list: (deckId: string, userId?: string) =>
+    ["deck-links", deckId, userId ?? "anonymous"] as const,
   noDeck: ["deck-links", "no-deck"] as const,
   deckList: (userId: string) => ["decks", userId] as const,
   deckDetail: (deckId: string) => ["deck", deckId] as const,
@@ -19,7 +20,9 @@ async function invalidateDeckLinkRelatedQueries(
   userId?: string,
 ) {
   const invalidations = [
-    queryClient.invalidateQueries({ queryKey: deckLinkQueryKeys.list(deckId) }),
+    queryClient.invalidateQueries({
+      queryKey: deckLinkQueryKeys.list(deckId, userId),
+    }),
     queryClient.invalidateQueries({ queryKey: deckLinkQueryKeys.deckDetail(deckId) }),
   ];
 
@@ -38,7 +41,9 @@ export function useDeckLinks(
   options?: { enabled?: boolean },
 ) {
   return useQuery({
-    queryKey: deckId ? deckLinkQueryKeys.list(deckId) : deckLinkQueryKeys.noDeck,
+    queryKey: deckId
+      ? deckLinkQueryKeys.list(deckId, userId)
+      : deckLinkQueryKeys.noDeck,
     queryFn: () => deckLinkService.listDeckLinks(deckId!, userId),
     enabled: !!deckId && (options?.enabled ?? true),
     staleTime: 30_000,

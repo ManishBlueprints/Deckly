@@ -536,64 +536,29 @@ export function useManageDeckWorkflow({
           setProgress("Finalizing...");
           setProgressPercent(95);
 
-          const { data: deckRecord, error: deckError } = await supabase
-            .from("decks")
-            .insert([
-              {
-                title,
-                slug,
-                description,
-                file_url: finalFileUrl,
-                pages: finalPages,
-                status: finalStatus as "PENDING" | "CONVERTING" | "PROCESSED",
-                display_mode: conversionMode,
-                file_size: file?.size || 0,
-                file_type: fileType,
-                user_id: userId,
-                require_email: requireEmail,
-                require_password: requirePassword,
-                view_password: finalViewPassword,
-                expires_at: expiresAt
-                  ? new Date(expiresAt).toISOString()
-                  : null,
-              },
-            ])
-            .select()
-            .single();
+          const { data: deckRecord, error: deckCreateError } = await supabase.rpc(
+            "create_deck_with_primary_link",
+            {
+              p_user_id: userId,
+              p_title: title,
+              p_slug: slug,
+              p_description: description,
+              p_file_url: finalFileUrl,
+              p_pages: finalPages,
+              p_status: finalStatus as "PENDING" | "CONVERTING" | "PROCESSED",
+              p_display_mode: conversionMode,
+              p_file_size: file?.size || 0,
+              p_file_type: fileType,
+              p_require_email: requireEmail,
+              p_require_password: requirePassword,
+              p_view_password: finalViewPassword,
+              p_expires_at: expiresAt
+                ? new Date(expiresAt).toISOString()
+                : null,
+            },
+          );
 
-          if (deckError) throw deckError;
-
-          const { error: deckLinkError } = await supabase
-            .from("deck_links")
-            .insert({
-              deck_id: deckRecord.id,
-              link_name: "Default Link",
-              link_alias: slug,
-              is_enabled: true,
-              is_primary: true,
-            });
-
-          if (deckLinkError) {
-            try {
-              await deckService.deleteDeck(
-                deckRecord.id,
-                finalFileUrl || "",
-                slug,
-                userId,
-              );
-            } catch (cleanupErr) {
-              console.error(
-                "Failed to rollback deck after primary link creation failure:",
-                {
-                  deckId: deckRecord.id,
-                  slug,
-                  cleanupErr,
-                },
-              );
-            }
-
-            throw deckLinkError;
-          }
+          if (deckCreateError) throw deckCreateError;
 
           if (returnToRoom && deckRecord) {
             setProgress("Linking to Data Room...");

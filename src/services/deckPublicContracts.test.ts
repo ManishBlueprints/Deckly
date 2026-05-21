@@ -27,6 +27,10 @@ const aliasOnlyMigrationSql = readFileSync(
   path.resolve(__dirname, "../../supabase/migrations/20260515140000_restore_alias_only_deck_links.sql"),
   "utf8",
 );
+const passwordRateLimitMigrationSql = readFileSync(
+  path.resolve(__dirname, "../../supabase/migrations/20260522100000_scope_deck_password_rate_limit_by_handle.sql"),
+  "utf8",
+);
 const libraryMetadataMigrationSql = readFileSync(
   path.resolve(__dirname, "../../supabase/migrations/20260518133000_add_library_deck_metadata_rpc.sql"),
   "utf8",
@@ -41,6 +45,7 @@ const effectivePublicDeckSql = [
   compatibilityMigrationSql,
   migrationSql,
   aliasOnlyMigrationSql,
+  passwordRateLimitMigrationSql,
 ].join("\n");
 
 describe("public deck SQL alias-only contracts", () => {
@@ -68,6 +73,13 @@ describe("public deck SQL alias-only contracts", () => {
     expect(aliasOnlyMigrationSql).toContain("FROM public.get_decks_public(NULL, NULL);");
     expect(aliasOnlyMigrationSql).toContain("CREATE OR REPLACE FUNCTION public.check_deck_password(p_slug TEXT, p_password TEXT)");
     expect(aliasOnlyMigrationSql).toContain("CREATE OR REPLACE FUNCTION public.get_deck_payload(p_slug TEXT, p_password TEXT)");
+  });
+
+  it("scopes password rate limits by handle plus slug-or-alias", () => {
+    expect(passwordRateLimitMigrationSql).toContain("v_rate_limit_key TEXT := COALESCE(p_handle, '') || ':' || p_slug_or_alias;");
+    expect(passwordRateLimitMigrationSql).toContain("public.check_rate_limit(v_ip, v_rate_limit_key)");
+    expect(passwordRateLimitMigrationSql).toContain("public.clear_rate_limit(v_ip, v_rate_limit_key)");
+    expect(passwordRateLimitMigrationSql).toContain("public.record_failed_attempt(v_ip, v_rate_limit_key)");
   });
 });
 

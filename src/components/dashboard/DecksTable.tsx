@@ -671,7 +671,9 @@ function DeckTagMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-80 p-0 overflow-hidden border-white/10 bg-[#151515] shadow-[0_24px_80px_-20px_rgba(0,0,0,0.85)]"
+        sideOffset={8}
+        collisionPadding={16}
+        className="w-[min(20rem,calc(100vw-4rem))] p-0 overflow-hidden border-white/10 bg-[#151515] shadow-[0_24px_80px_-20px_rgba(0,0,0,0.85)] sm:w-80"
         onEscapeKeyDown={() => setTagFilterQuery("")}
       >
         <div className="border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3">

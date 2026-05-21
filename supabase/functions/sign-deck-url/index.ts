@@ -34,6 +34,7 @@ Deno.serve(async (req: Request) => {
     } = await req.json();
     const deckSlug = typeof slug === "string" ? slug : null;
     const roomSlug = typeof room_slug === "string" ? room_slug : null;
+    const storagePath = typeof storage_path === "string" ? storage_path : null;
     const image_paths: string[] = Array.isArray(rawImagePaths)
       ? rawImagePaths.filter((p): p is string => typeof p === "string")
       : [];
@@ -48,6 +49,13 @@ Deno.serve(async (req: Request) => {
     if (room_slug !== undefined && room_slug !== null && roomSlug === null) {
       return new Response(
         JSON.stringify({ error: "Invalid request: room_slug must be a string" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (storage_path !== undefined && storage_path !== null && storagePath === null) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request: storage_path must be a string" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -165,7 +173,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const requestedPaths = [];
-    if (storage_path) requestedPaths.push(storage_path);
+    if (storagePath) requestedPaths.push(storagePath);
     requestedPaths.push(...image_paths);
 
     // Reject if any requested path is not authorized through either mode
@@ -240,7 +248,7 @@ Deno.serve(async (req: Request) => {
       return url;
     };
 
-    const signedMain = storage_path ? transformUrl(signedData.find(d => d.path === storage_path)?.signedUrl) : null;
+    const signedMain = storagePath ? transformUrl(signedData.find(d => d.path === storagePath)?.signedUrl) : null;
     const signedImages = (image_paths as string[]).map((path: string) => ({
       path,
       signedUrl: transformUrl(signedData.find(d => d.path === path)?.signedUrl) || null,

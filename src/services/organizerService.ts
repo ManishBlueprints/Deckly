@@ -15,7 +15,10 @@ interface FolderJoinResult {
   color: string;
   created_at: string;
   library_folder_tags: { global_tags: LibraryTag }[];
-  investor_library: { count: number }[];
+}
+
+interface InvestorLibraryFolderCountRow {
+  folder_id: string | null;
 }
 
 /** Narrow type for the investor_library select used in getSavedDecksOrganized.
@@ -39,6 +42,10 @@ type SavedDeckMeta = {
   user_handle?: string | null;
   tags?: LibraryTag[] | null;
 };
+
+function normalizeTagIds(tagIds: string[]): string[] {
+  return Array.from(new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean)));
+}
 
 const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | null => {
   if (!tag) return null;
@@ -65,47 +72,40 @@ export const organizerService = {
       const uid = await getSessionUserId(optionalUserId);
       if (!uid) return [];
 
-      const { data, error } = await supabase
+      const { data: foldersData, error: foldersError } = await supabase
         .from("library_folders")
         .select(`
           *,
           library_folder_tags (
             global_tags (*)
-          ),
-          investor_library (count)
+          )
         `)
         .eq("user_id", uid)
         .order("name");
 
-      if (error) {
-        console.warn(
-          "Complex getFolders query failed, falling back to simple select:",
-          error,
-        );
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from("library_folders")
-          .select("*")
-          .eq("user_id", uid)
-          .order("name");
+      if (foldersError) throw foldersError;
 
-        if (fallbackError) throw fallbackError;
+      const { data: folderCountRows, error: folderCountError } = await supabase
+        .from("investor_library")
+        .select("folder_id")
+        .eq("user_id", uid)
+        .not("folder_id", "is", null);
 
-        return (fallbackData || []).map((f) => ({
-          id: f.id,
-          name: f.name,
-          color: resolveFolderColorKey(f.color),
-          created_at: f.created_at,
-          deck_count: 0,
-          tags: [],
-        }));
-      }
+      if (folderCountError) throw folderCountError;
 
-      return (data as FolderJoinResult[] || []).map((f) => ({
+      const deckCountByFolderId = (folderCountRows as InvestorLibraryFolderCountRow[] | null ?? [])
+        .reduce<Map<string, number>>((counts, row) => {
+          if (!row.folder_id) return counts;
+          counts.set(row.folder_id, (counts.get(row.folder_id) ?? 0) + 1);
+          return counts;
+        }, new Map());
+
+      return (foldersData as FolderJoinResult[] || []).map((f) => ({
         id: f.id,
         name: f.name,
         color: resolveFolderColorKey(f.color),
         created_at: f.created_at,
-        deck_count: f.investor_library?.[0]?.count || 0,
+        deck_count: deckCountByFolderId.get(f.id) ?? 0,
         tags: (f.library_folder_tags || [])
           .map((ft) => normalizeLibraryTag(ft.global_tags))
           .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null)),
@@ -284,8 +284,9 @@ export const organizerService = {
 
     // 4. Link tags
     try {
-      const resolvedTags = await globalTagService.fetchTagsByIds(tagIds, userId, false);
-      if (resolvedTags.length !== Array.from(new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean))).length) {
+      const normalizedTagIds = normalizeTagIds(tagIds);
+      const resolvedTags = await globalTagService.fetchTagsByIds(normalizedTagIds, userId, false);
+      if (resolvedTags.length !== normalizedTagIds.length) {
         throw new Error("One or more tags were not found.");
       }
 
@@ -452,9 +453,10 @@ export const organizerService = {
     return withRetry(async () => {
       const uid = await getRequiredSessionUserId();
 
-      const ownedTags = await globalTagService.fetchTagsByIds(tagIds, uid, false);
+      const normalizedTagIds = normalizeTagIds(tagIds);
+      const ownedTags = await globalTagService.fetchTagsByIds(normalizedTagIds, uid, false);
       const ownedTagIds = ownedTags.map((tag) => tag.id);
-      if (ownedTagIds.length !== Array.from(new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean))).length) {
+      if (ownedTagIds.length !== normalizedTagIds.length) {
         throw new Error("One or more tags were not found.");
       }
 

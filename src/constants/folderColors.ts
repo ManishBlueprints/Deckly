@@ -47,8 +47,9 @@ export const resolveFolderColorKey = (
     return value;
   }
 
-  const byHex = FOLDER_PICKER_COLORS.find(
-    (color) => color.hex.toLowerCase() === value?.toLowerCase(),
+  const normalizedValue = value?.toLowerCase();
+  const byHex = [...FOLDER_PICKER_COLORS, ...FOLDER_COLORS].find(
+    (color) => color.hex.toLowerCase() === normalizedValue,
   );
 
   return byHex?.key ?? DEFAULT_FOLDER_COLOR;

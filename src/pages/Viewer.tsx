@@ -60,6 +60,13 @@ function Viewer() {
     let cancelled = false;
     let timerId: ReturnType<typeof setTimeout> | undefined;
 
+    const clearRefreshTimer = () => {
+      if (timerId) {
+        clearTimeout(timerId);
+        timerId = undefined;
+      }
+    };
+
     const failClosedIfExpired = (meta: SignedUrlMeta) => {
       if (!isSignedUrlExpired(meta)) {
         return false;
@@ -69,6 +76,17 @@ function Viewer() {
       setError("The document is no longer available.");
       setIsUnlocked(false);
       return true;
+    };
+
+    const scheduleNextSignedUrlRefresh = (meta: SignedUrlMeta) => {
+      clearRefreshTimer();
+      timerId = setTimeout(() => {
+        const currentMeta = signedUrlMeta.current ?? meta;
+        if (failClosedIfExpired(currentMeta)) {
+          return;
+        }
+        void attemptRefresh(currentMeta);
+      }, getSignedUrlRefreshDelayMs(meta));
     };
 
     const attemptRefresh = async (meta: SignedUrlMeta, attempt = 0): Promise<void> => {
@@ -87,6 +105,12 @@ function Viewer() {
             prev ? { ...prev, file_url: nextFileUrl } : prev,
           );
         }
+
+        const currentMeta = signedUrlMeta.current ?? meta;
+        if (failClosedIfExpired(currentMeta)) {
+          return;
+        }
+        scheduleNextSignedUrlRefresh(currentMeta);
       } catch {
         if (cancelled) return;
 
@@ -97,6 +121,7 @@ function Viewer() {
 
         if (attempt < SIGNED_URL_REFRESH_RETRY_DELAYS_MS.length) {
           setRefreshWarning("Connection issue refreshing the document. Retrying...");
+          clearRefreshTimer();
           timerId = setTimeout(() => {
             void attemptRefresh(currentMeta, attempt + 1);
           }, SIGNED_URL_REFRESH_RETRY_DELAYS_MS[attempt]);
@@ -104,6 +129,7 @@ function Viewer() {
         }
 
         setRefreshWarning("Connection issue refreshing the document. The current view will stay available until the link expires.");
+        clearRefreshTimer();
         timerId = setTimeout(() => {
           if (failClosedIfExpired(currentMeta)) {
             return;
@@ -113,19 +139,11 @@ function Viewer() {
       }
     };
 
-    timerId = setTimeout(() => {
-      const currentMeta = signedUrlMeta.current;
-      if (!currentMeta || failClosedIfExpired(currentMeta)) {
-        return;
-      }
-      void attemptRefresh(currentMeta);
-    }, getSignedUrlRefreshDelayMs(signedUrlMeta.current));
+    scheduleNextSignedUrlRefresh(signedUrlMeta.current);
 
     return () => {
       cancelled = true;
-      if (timerId) {
-        clearTimeout(timerId);
-      }
+      clearRefreshTimer();
     };
   }, [isUnlocked, deck?.file_url]); // re-schedule whenever file_url is replaced by a refresh
 

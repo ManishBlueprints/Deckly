@@ -32,7 +32,7 @@ const mocks = vi.hoisted(() => {
   };
 
   const createTableChain = (table: string) => {
-    let mode = "select";
+    const mode = "select";
     const chain = {
       select: vi.fn(() => chain),
       eq: vi.fn(() => chain),

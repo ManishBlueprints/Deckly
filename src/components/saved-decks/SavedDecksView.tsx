@@ -388,8 +388,8 @@ export function SavedLibraryView() {
               </h1>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="inline-flex items-center border border-white/5 bg-surface-low p-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+            <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-2 md:w-auto md:gap-4">
+              <div className="inline-flex min-w-0 w-full items-center border border-white/5 bg-surface-low p-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:flex-1 md:w-auto md:flex-none">
                 {(
                   [
                     ["all", "All"],
@@ -404,7 +404,7 @@ export function SavedLibraryView() {
                       type="button"
                       onClick={() => setViewMode(mode)}
                       className={cn(
-                        "px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] transition-all",
+                        "flex-1 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] transition-all sm:px-4 sm:text-[11px] sm:tracking-[0.16em] md:flex-none",
                         active
                           ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_rgba(34,197,94,0.2)]"
                           : "text-muted-foreground hover:text-foreground hover:bg-surface-high",
@@ -416,30 +416,33 @@ export function SavedLibraryView() {
                 })}
               </div>
 
-              <MetadataSearchMenu
-                filter={search.filter}
-                isActive={search.isActive || selectedTagId !== null}
-                onModeChange={search.setMode}
-                onQueryChange={search.setQuery}
-                onDatePresetChange={search.setDatePreset}
-                onCustomDateRangeChange={search.setCustomDateRange}
-                onClear={() => {
-                  search.resetFilter();
-                  setSelectedTagId(null);
-                }}
-                resultCount={visibleDecks.length + visibleSavedRooms.length}
-                triggerLabel="Search"
-                namePlaceholder="Search saved titles..."
-                filterOptions={tags.map((tag) => ({
-                  id: tag.id,
-                  name: tag.name,
-                  color: tag.color,
-                }))}
-                selectedFilterId={selectedTagId}
-                onFilterChange={setSelectedTagId}
-                filterEmptyMessage="No tags created"
-              />
-              <ManageTagsButton onClick={() => setIsManageTagsModalOpen(true)} />
+              <div className="flex shrink-0 items-center justify-end gap-2">
+                <MetadataSearchMenu
+                  filter={search.filter}
+                  isActive={search.isActive || selectedTagId !== null}
+                  onModeChange={search.setMode}
+                  onQueryChange={search.setQuery}
+                  onDatePresetChange={search.setDatePreset}
+                  onCustomDateRangeChange={search.setCustomDateRange}
+                  onClear={() => {
+                    search.resetFilter();
+                    setSelectedTagId(null);
+                  }}
+                  resultCount={visibleDecks.length + visibleSavedRooms.length}
+                  triggerLabel="Search"
+                  namePlaceholder="Search saved titles..."
+                  filterOptions={tags.map((tag) => ({
+                    id: tag.id,
+                    name: tag.name,
+                    color: tag.color,
+                  }))}
+                  selectedFilterId={selectedTagId}
+                  onFilterChange={setSelectedTagId}
+                  filterEmptyMessage="No tags created"
+                  mobileIconOnly
+                />
+                <ManageTagsButton onClick={() => setIsManageTagsModalOpen(true)} />
+              </div>
             </div>
           </div>
 

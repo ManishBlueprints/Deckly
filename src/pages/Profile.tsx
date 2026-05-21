@@ -742,7 +742,7 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
     const pricing = TIER_PRICING[tierKey];
     return billingCycle === "monthly"
       ? pricing.monthly
-      : Math.floor(pricing.yearly / 12);
+      : Number((pricing.yearly / 12).toFixed(2));
   };
 
   return (

@@ -44,6 +44,7 @@ export interface MetadataSearchMenuProps {
   selectedFilterId?: string | null;
   onFilterChange?: (filterId: string | null) => void;
   filterEmptyMessage?: string;
+  mobileIconOnly?: boolean;
 }
 
 /**
@@ -66,6 +67,7 @@ export function MetadataSearchMenu({
   selectedFilterId = null,
   onFilterChange,
   filterEmptyMessage = "No filters available",
+  mobileIconOnly = false,
 }: MetadataSearchMenuProps) {
   const activeSummary = buildActiveSummary(
     filter,
@@ -96,16 +98,19 @@ export function MetadataSearchMenu({
           aria-label={triggerLabel}
           className={cn(
             "inline-flex h-11 w-full min-w-0 items-center justify-between border border-border bg-surface-low px-4 text-sm font-semibold text-foreground shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition-all hover:border-primary/35 hover:bg-surface-high md:w-[220px]",
+            mobileIconOnly && "relative h-11 w-11 shrink-0 justify-center rounded-sm px-0 md:w-[220px] md:justify-between md:px-4",
             isActive && "border-primary/45 bg-primary/10 text-foreground shadow-[0_14px_34px_rgba(34,197,94,0.10)]",
             className,
           )}
         >
-          <span className="flex min-w-0 items-center gap-2.5">
+          <span className={cn("flex min-w-0 items-center gap-2.5", mobileIconOnly && "gap-0 md:gap-2.5")}>
             <Search size={17} className={cn("shrink-0 text-muted-foreground", isActive && "text-primary")} />
-            <span className="leading-none">{triggerLabel}</span>
+            <span className={cn("leading-none", mobileIconOnly && "hidden md:inline")}>
+              {triggerLabel}
+            </span>
           </span>
 
-          <span className="flex items-center gap-2">
+          <span className={cn("flex items-center gap-2", mobileIconOnly && "hidden md:flex")}>
             {typeof resultCount === "number" && isActive ? (
               <Badge variant="secondary" className="h-5 border-0 bg-primary/15 px-1.5 text-[10px] leading-none text-primary">
                 {resultCount}
@@ -121,6 +126,9 @@ export function MetadataSearchMenu({
             ) : null}
             <SlidersHorizontal size={15} className="shrink-0 opacity-70" />
           </span>
+          {mobileIconOnly && isActive ? (
+            <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary md:hidden" />
+          ) : null}
         </button>
       </PopoverTrigger>
 

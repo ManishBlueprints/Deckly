@@ -212,7 +212,7 @@ function DataRoomViewer() {
     if (isSaved) {
       dataRoomLibraryService.updateLibraryLastViewed(room.id);
     }
-  }, [session, room?.id, isSaved, saveToLibraryMutation, pendingAction, room]);
+  }, [session, room?.id, isSaved, saveToLibraryMutation, pendingAction, room, handle]);
 
   // Track view when a document is selected
   useEffect(() => {
@@ -274,7 +274,7 @@ function DataRoomViewer() {
           : "Failed to save room. Please try again.",
       );
     }
-  }, [room, session, isSaved, saveToLibraryMutation]);
+  }, [room, session, isSaved, saveToLibraryMutation, handle]);
 
   const handleNotes = useCallback(() => {
     if (!room) return;

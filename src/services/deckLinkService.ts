@@ -20,6 +20,18 @@ type CreateDeckLinkInput = {
   linkAlias?: string;
 };
 
+const DECK_LINK_CREATE_CONFLICT_RETRIES = 3;
+
+function isUniqueConstraintError(error: unknown): error is { code: string } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string" &&
+    (error as { code: string }).code === "23505"
+  );
+}
+
 async function getDeckOwnerMeta(
   deckId: string,
   providedUserId?: string,
@@ -83,8 +95,9 @@ export const deckLinkService = {
     input: CreateDeckLinkInput,
     providedUserId?: string,
   ): Promise<DeckLink> {
-    // Avoid retrying the insert; retries around non-idempotent inserts can create duplicates.
-    const prepared = await withRetry(async () => {
+    const hasExplicitAlias = Boolean(input?.linkAlias && input.linkAlias.trim().length > 0);
+
+    const prepareInsert = async () => {
       const ownerMeta = await getDeckOwnerMeta(deckId, providedUserId);
       const existingLinks = await this.listDeckLinks(deckId, ownerMeta.userId);
       const existingAliases = new Set(
@@ -93,7 +106,6 @@ export const deckLinkService = {
           .filter((alias): alias is string => Boolean(alias)),
       );
 
-      const hasExplicitAlias = Boolean(input?.linkAlias && input.linkAlias.trim().length > 0);
       let normalizedAlias = hasExplicitAlias ? normalizeSlug(input.linkAlias!) : null;
       if (hasExplicitAlias && !normalizedAlias) {
         throw new Error("Link alias must contain at least one letter or number.");
@@ -121,27 +133,52 @@ export const deckLinkService = {
 
       return {
         ownerMeta,
+        existingAliases,
         linkName,
         normalizedAlias,
         isPrimary: existingLinks.length === 0,
       };
-    });
+    };
 
-    const { data, error } = await supabase
-      .from("deck_links")
-      .insert({
-        deck_id: prepared.ownerMeta.deckId,
-        link_name: prepared.linkName,
-        link_alias: prepared.normalizedAlias,
-        is_enabled: false,
-        is_primary: prepared.isPrimary,
-      })
-      .select("id, deck_id, link_name, link_alias, public_token, is_enabled, is_primary, created_at, updated_at")
-      .single();
+    for (let attempt = 0; attempt <= DECK_LINK_CREATE_CONFLICT_RETRIES; attempt += 1) {
+      const prepared = await withRetry(prepareInsert);
 
-    if (error) throw error;
+      const { data, error } = await supabase
+        .from("deck_links")
+        .insert({
+          deck_id: prepared.ownerMeta.deckId,
+          link_name: prepared.linkName,
+          link_alias: prepared.normalizedAlias,
+          is_enabled: false,
+          is_primary: prepared.isPrimary,
+        })
+        .select("id, deck_id, link_name, link_alias, public_token, is_enabled, is_primary, created_at, updated_at")
+        .single();
 
-    return hydrateDeckLinks([data as DeckLinkRow], prepared.ownerMeta)[0];
+      if (!error) {
+        return hydrateDeckLinks([data as DeckLinkRow], prepared.ownerMeta)[0];
+      }
+
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+
+      if (hasExplicitAlias) {
+        const refreshed = await withRetry(prepareInsert);
+        if (
+          refreshed.normalizedAlias &&
+          refreshed.existingAliases.has(refreshed.normalizedAlias)
+        ) {
+          throw new Error("Link alias is already in use.");
+        }
+      }
+
+      if (attempt === DECK_LINK_CREATE_CONFLICT_RETRIES) {
+        throw error;
+      }
+    }
+
+    throw new Error("Failed to create deck link.");
   },
 
   async createDefaultDeckLink(

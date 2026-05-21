@@ -3,6 +3,7 @@
 
 -- Ensure UUID extension exists
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 0. PROFILES TABLE
 CREATE TABLE IF NOT EXISTS public.profiles (

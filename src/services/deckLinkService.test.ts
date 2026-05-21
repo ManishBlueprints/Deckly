@@ -265,6 +265,125 @@ describe("deckLinkService", () => {
     expect(link.share_url).toBe("http://localhost:5173/founder/seed-round-link2");
   });
 
+  it("recomputes alias and primary state after a unique-conflict race", async () => {
+    mocks.queueResponse("decks.select.single", [
+      { data: { id: "deck-1", slug: "seed-round", user_id: "user-1" }, error: null },
+      { data: { id: "deck-1", slug: "seed-round", user_id: "user-1" }, error: null },
+      { data: { id: "deck-1", slug: "seed-round", user_id: "user-1" }, error: null },
+      { data: { id: "deck-1", slug: "seed-round", user_id: "user-1" }, error: null },
+    ]);
+
+    mocks.queueResponse("deck_links.select", [
+      {
+        data: [],
+        error: null,
+      },
+      {
+        data: [
+          {
+            id: "link-1",
+            deck_id: "deck-1",
+            link_name: "Default Link",
+            link_alias: null,
+            public_token: "0123456789abcdef0123456789abcdef",
+            is_enabled: true,
+            is_primary: true,
+            created_at: "2026-05-14T00:00:00.000Z",
+            updated_at: "2026-05-14T00:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+    ]);
+
+    mocks.queueResponse("deck_links.insert.single", [
+      {
+        data: null,
+        error: { code: "23505", message: "duplicate key value violates unique constraint" },
+      },
+      {
+        data: {
+          id: "link-2",
+          deck_id: "deck-1",
+          link_name: "Link 2",
+          link_alias: "seed-round-link2",
+          public_token: "fedcba9876543210fedcba9876543210",
+          is_enabled: false,
+          is_primary: false,
+          created_at: "2026-05-14T00:00:03.000Z",
+          updated_at: "2026-05-14T00:00:03.000Z",
+        },
+        error: null,
+      },
+    ]);
+
+    const link = await deckLinkService.createDeckLink("deck-1", {}, "user-1");
+
+    const firstInsertCall = vi.mocked(mocks.mockSupabase.from).mock.results[3]?.value.insert;
+    const secondInsertCall = vi.mocked(mocks.mockSupabase.from).mock.results[7]?.value.insert;
+
+    expect(firstInsertCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deck_id: "deck-1",
+        is_primary: true,
+        link_alias: null,
+      }),
+    );
+    expect(secondInsertCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deck_id: "deck-1",
+        is_primary: false,
+        link_alias: "seed-round-link2",
+      }),
+    );
+    expect(link.link_alias).toBe("seed-round-link2");
+  });
+
+  it("surfaces a user-friendly error when an explicit alias is taken concurrently", async () => {
+    mocks.queueResponse("decks.select.single", [
+      { data: { id: "deck-1", slug: "seed-round", user_id: "user-1" }, error: null },
+      { data: { id: "deck-1", slug: "seed-round", user_id: "user-1" }, error: null },
+      { data: { id: "deck-1", slug: "seed-round", user_id: "user-1" }, error: null },
+      { data: { id: "deck-1", slug: "seed-round", user_id: "user-1" }, error: null },
+    ]);
+
+    mocks.queueResponse("deck_links.select", [
+      {
+        data: [],
+        error: null,
+      },
+      {
+        data: [
+          {
+            id: "link-1",
+            deck_id: "deck-1",
+            link_name: "Investor Follow-up",
+            link_alias: "investor-follow-up",
+            public_token: "fedcba9876543210fedcba9876543210",
+            is_enabled: false,
+            is_primary: false,
+            created_at: "2026-05-14T00:00:03.000Z",
+            updated_at: "2026-05-14T00:00:03.000Z",
+          },
+        ],
+        error: null,
+      },
+    ]);
+
+    mocks.queueResponse("deck_links.insert.single", {
+      data: null,
+      error: { code: "23505", message: "duplicate key value violates unique constraint" },
+    });
+
+    await expect(
+      deckLinkService.createDeckLink(
+        "deck-1",
+        { linkName: "Investor Follow-up", linkAlias: "Investor Follow Up" },
+        "user-1",
+      ),
+    ).rejects.toThrow("Link alias is already in use.");
+  });
+
   it("enables and disables deck links through the owner-scoped update path", async () => {
     mocks.queueResponse("decks.select.single", [
       {

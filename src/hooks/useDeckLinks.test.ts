@@ -51,7 +51,7 @@ describe("useDeckLinks hooks", () => {
 
     expect(reactQueryMocks.useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        queryKey: deckLinkQueryKeys.list("deck-1"),
+        queryKey: deckLinkQueryKeys.list("deck-1", "user-1"),
         enabled: true,
       }),
     );
@@ -71,7 +71,7 @@ describe("useDeckLinks hooks", () => {
       "user-1",
     );
     expect(reactQueryMocks.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: deckLinkQueryKeys.list("deck-1"),
+      queryKey: deckLinkQueryKeys.list("deck-1", "user-1"),
     });
     expect(reactQueryMocks.invalidateQueries).toHaveBeenCalledWith({
       queryKey: deckLinkQueryKeys.deckList("user-1"),
@@ -91,7 +91,7 @@ describe("useDeckLinks hooks", () => {
     expect(deckLinkService.enableDeckLink).toHaveBeenCalledWith("deck-1", "link-1", "user-1");
     expect(deckLinkService.disableDeckLink).toHaveBeenCalledWith("deck-1", "link-1", "user-1");
     expect(reactQueryMocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
-      queryKey: deckLinkQueryKeys.list("deck-1"),
+      queryKey: deckLinkQueryKeys.list("deck-1", "user-1"),
     });
     expect(reactQueryMocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
       queryKey: deckLinkQueryKeys.deckDetail("deck-1"),
@@ -100,7 +100,7 @@ describe("useDeckLinks hooks", () => {
       queryKey: deckLinkQueryKeys.deckList("user-1"),
     });
     expect(reactQueryMocks.invalidateQueries).toHaveBeenNthCalledWith(4, {
-      queryKey: deckLinkQueryKeys.list("deck-1"),
+      queryKey: deckLinkQueryKeys.list("deck-1", "user-1"),
     });
     expect(reactQueryMocks.invalidateQueries).toHaveBeenNthCalledWith(5, {
       queryKey: deckLinkQueryKeys.deckDetail("deck-1"),
