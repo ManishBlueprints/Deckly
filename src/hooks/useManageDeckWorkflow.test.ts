@@ -9,20 +9,24 @@ function readSource(relativePath: string): string {
 }
 
 describe("useManageDeckWorkflow upload contracts", () => {
-  it("creates an enabled primary deck link when a new deck is uploaded", () => {
+  it("creates a new deck through the atomic deck-and-primary-link RPC", () => {
     const source = readSource("src/hooks/useManageDeckWorkflow.ts");
+    const migration = readSource(
+      "supabase/migrations/20260522090000_create_deck_with_primary_link.sql",
+    );
 
-    expect(source).toContain('.from("deck_links")');
-    expect(source).toContain('link_name: "Default Link"');
-    expect(source).toContain("link_alias: slug");
-    expect(source).toContain("is_enabled: true");
-    expect(source).toContain("is_primary: true");
+    expect(source).toContain('rpc(\n            "create_deck_with_primary_link"');
+    expect(migration).toContain("CREATE OR REPLACE FUNCTION public.create_deck_with_primary_link");
+    expect(migration).toContain("'Default Link'");
+    expect(migration).toContain("p_slug");
+    expect(migration).toContain("true,");
   });
 
-  it("rolls back the created deck if primary link creation fails", () => {
+  it("rolls back the created deck if post-create conversion fails", () => {
     const source = readSource("src/hooks/useManageDeckWorkflow.ts");
 
-    expect(source).toContain("Failed to rollback deck after primary link creation failure:");
+    expect(source).toContain("Interactive conversion failed for newly created deck:");
+    expect(source).toContain("Failed to rollback newly created deck after conversion failure:");
     expect(source).toContain("await deckService.deleteDeck(");
   });
 });
