@@ -3,7 +3,7 @@ BEGIN;
 CREATE TABLE IF NOT EXISTS public.deck_links (
     id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
-    public_token TEXT NOT NULL DEFAULT encode(gen_random_bytes(16), 'hex'),
+    public_token TEXT NOT NULL DEFAULT encode(extensions.gen_random_bytes(16), 'hex'),
     is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     is_primary BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
