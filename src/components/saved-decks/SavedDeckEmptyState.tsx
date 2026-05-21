@@ -1,14 +1,48 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 
-interface SavedDeckEmptyStateProps {
+interface SavedLibraryEmptyStateProps {
+  title: string;
+  description: string;
+  ctaLabel: string;
   onCreateFolder: () => void;
+  compact?: boolean;
 }
 
-export function SavedDeckEmptyState({
+export function SavedLibraryEmptyState({
+  title,
+  description,
+  ctaLabel,
   onCreateFolder,
-}: SavedDeckEmptyStateProps) {
+  compact = false,
+}: SavedLibraryEmptyStateProps) {
   const [showTip, setShowTip] = useState(true);
+
+  if (compact) {
+    return (
+      <section className="rounded-2xl border border-white/5 bg-surface-card/80 px-6 py-8 md:px-8 md:py-10 font-body w-full">
+        <div className="max-w-xl mx-auto text-center">
+          <h2 className="text-2xl md:text-3xl font-headline font-extrabold tracking-tighter text-[#e5e2e1] mb-3">
+            {title}
+          </h2>
+          <p className="text-[#bbcbbb]/80 text-sm md:text-base font-light leading-relaxed max-w-md mx-auto mb-8">
+            {description}
+          </p>
+
+          <button
+            type="button"
+            onClick={onCreateFolder}
+            className="px-8 py-4 bg-[#54e98a] text-[#003919] font-bold text-sm tracking-tight flex items-center gap-3 mx-auto transition-all duration-300 active:scale-95"
+          >
+            <span className="material-symbols-outlined">
+              create_new_folder
+            </span>
+            <span>{ctaLabel}</span>
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="flex-1 flex items-center justify-center px-6 py-12 md:px-12 md:py-24 bg-deckly-background min-h-[700px] font-body w-full">
@@ -58,21 +92,22 @@ export function SavedDeckEmptyState({
           className="relative z-10"
         >
           <h2 className="text-3xl md:text-4xl font-headline font-extrabold tracking-tighter text-[#e5e2e1] mb-4">
-            No documents yet
+            {title}
           </h2>
           <p className="text-[#bbcbbb]/80 text-base md:text-lg font-light leading-relaxed mb-10 max-w-md mx-auto">
-            Your pipeline is clear. Start by saving your first deck.
+            {description}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
+              type="button"
               onClick={onCreateFolder}
               className="px-8 py-4 bg-[#54e98a] text-[#003919] font-bold text-sm tracking-tight flex items-center space-x-3 transition-all duration-300 active:scale-95 group"
             >
               <span className="material-symbols-outlined">
                 create_new_folder
               </span>
-              <span>Create Folder</span>
+              <span>{ctaLabel}</span>
             </button>
           </div>
         </motion.div>
@@ -90,8 +125,8 @@ export function SavedDeckEmptyState({
             </span>
             <h4 className="text-sm font-bold text-[#e5e2e1]">Sorting</h4>
             <p className="text-xs text-[#bbcbbb] font-medium leading-relaxed">
-              You can sort documents by sector and funding stage or any custom
-              way you want.
+              You can sort saved items by title, tags, folders, or any custom
+              workflow you prefer.
             </p>
           </div>
           <div className="space-y-2">
@@ -102,7 +137,7 @@ export function SavedDeckEmptyState({
               Data Enrichment
             </h4>
             <p className="text-xs text-[#bbcbbb] font-medium leading-relaxed">
-              Every folder generates a unique executive summary of its contents.
+              Every folder can summarize the items inside it for quick context.
             </p>
           </div>
           <div className="space-y-2">
@@ -111,7 +146,7 @@ export function SavedDeckEmptyState({
             </span>
             <h4 className="text-sm font-bold text-[#e5e2e1]">Vault Privacy</h4>
             <p className="text-xs text-[#bbcbbb] font-medium leading-relaxed">
-              Folders are encrypted to protect deck data
+              Saved items stay private to your account and workspace.
             </p>
           </div>
         </motion.div>
@@ -151,7 +186,7 @@ export function SavedDeckEmptyState({
                     Quick Tip
                   </p>
                   <p className="text-[11px] text-[#bbcbbb] leading-tight font-medium">
-                    You can create custom tags and search files based of tags.
+                    You can create custom tags and search saved items by tag.
                   </p>
                 </div>
               </div>
@@ -162,3 +197,5 @@ export function SavedDeckEmptyState({
     </section>
   );
 }
+
+export const SavedDeckEmptyState = SavedLibraryEmptyState;

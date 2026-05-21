@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, FolderInput, Loader2, Plus } from "lucide-react";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DocumentPicker } from "../components/dashboard/DocumentPicker";
 import { DataRoom, DataRoomDocument } from "../types";
@@ -23,6 +23,7 @@ import { DataRoomFolderWithTags, DataRoomTag } from "../types";
 import { DataRoomDetailHeader } from "../components/data-room/detail/DataRoomDetailHeader";
 import { DataRoomDetailTabs, DataRoomDetailTab } from "../components/data-room/detail/DataRoomDetailTabs";
 import { DataRoomContentToolbar } from "../components/data-room/detail/DataRoomContentToolbar";
+import { DataRoomContentActionButton } from "../components/data-room/detail/DataRoomContentToolbar";
 import { DataRoomFolderStrip } from "../components/data-room/detail/DataRoomFolderStrip";
 import { DataRoomAnalyticsPanel } from "../components/data-room/detail/DataRoomAnalyticsPanel";
 import { DataRoomSettingsPanel } from "../components/data-room/detail/DataRoomSettingsPanel";
@@ -364,6 +365,18 @@ function DataRoomDetail() {
     }
   }, [deletingFolder, folderActions, loadAll]);
 
+  const handleUpdateFolderTags = useCallback(
+    async (folder: DataRoomFolderWithTags, tagIds: string[]) => {
+      await folderActions.updateFolder(
+        folder.id,
+        folder.name,
+        folder.color,
+        tagIds,
+      );
+    },
+    [folderActions],
+  );
+
   const handleCreateTag = async (name: string, color?: string) => {
     if (!roomId) throw new Error("Room not found");
     return folderActions.createTag(name, color);
@@ -522,6 +535,7 @@ function DataRoomDetail() {
         {activeTab === "content" && (
           <DataRoomContentSection
             folders={folders}
+            tags={tags}
             foldersLoading={foldersLoading}
             folderDocumentCounts={folderDocumentCounts}
             activeFolderId={activeFolderId}
@@ -536,6 +550,7 @@ function DataRoomDetail() {
               setEditingFolder(nextFolder);
               setFolderModalOpen(true);
             }}
+            onUpdateFolderTags={handleUpdateFolderTags}
             onDeleteFolder={(nextFolder) => setDeletingFolder(nextFolder)}
             onEditTags={() => setTagModalOpen(true)}
             search={search}
@@ -546,7 +561,6 @@ function DataRoomDetail() {
             documentMatchInfo={documentMatchInfo}
             onRemoveDocument={handleRemoveDocument}
             onReorderDocuments={handleReorderDocuments}
-            tags={tags}
             onUpdateDocumentTags={handleUpdateDocumentTags}
             onMoveDocumentToFolder={handleMoveDocumentToFolder}
             onViewAnalytics={(deckId) => navigate(`/analytics/${deckId}`)}
@@ -696,6 +710,7 @@ function DataRoomDetail() {
 
 function DataRoomContentSection({
   folders,
+  tags,
   foldersLoading,
   folderDocumentCounts,
   activeFolderId,
@@ -704,6 +719,7 @@ function DataRoomContentSection({
   onAddExisting,
   onNewFolder,
   onEditFolder,
+  onUpdateFolderTags,
   onDeleteFolder,
   onEditTags,
   search,
@@ -714,7 +730,6 @@ function DataRoomContentSection({
   documentMatchInfo,
   onRemoveDocument,
   onReorderDocuments,
-  tags,
   onUpdateDocumentTags,
   onMoveDocumentToFolder,
   onViewAnalytics,
@@ -722,6 +737,7 @@ function DataRoomContentSection({
   signedThumbnails,
 }: {
   folders: DataRoomFolderWithTags[];
+  tags: DataRoomTag[];
   foldersLoading: boolean;
   folderDocumentCounts: Map<string, number>;
   activeFolderId: string | null;
@@ -730,6 +746,7 @@ function DataRoomContentSection({
   onAddExisting: () => void;
   onNewFolder: () => void;
   onEditFolder: (folder: DataRoomFolderWithTags) => void;
+  onUpdateFolderTags: (folder: DataRoomFolderWithTags, tagIds: string[]) => Promise<void>;
   onDeleteFolder: (folder: DataRoomFolderWithTags) => void;
   onEditTags: () => void;
   search: ReturnType<typeof useMetadataSearchState>;
@@ -740,7 +757,6 @@ function DataRoomContentSection({
   documentMatchInfo: Record<string, DataRoomDocumentSearchResult>;
   onRemoveDocument: (deckId: string) => Promise<void>;
   onReorderDocuments: (orderedDeckIds: string[]) => Promise<void>;
-  tags: DataRoomTag[];
   onUpdateDocumentTags: (documentId: string, tagIds: string[]) => Promise<void>;
   onMoveDocumentToFolder: (documentId: string, folderId: string | null) => Promise<void>;
   onViewAnalytics: (deckId: string) => void;
@@ -783,12 +799,14 @@ function DataRoomContentSection({
 
       <DataRoomFolderStrip
         folders={folders}
+        tags={tags}
         folderDocumentCounts={folderDocumentCounts}
         loading={foldersLoading}
         activeFolderId={activeFolderId}
         onSelectFolder={onSelectFolder}
         onCreateFolder={onNewFolder}
         onEditFolder={onEditFolder}
+        onUpdateFolderTags={onUpdateFolderTags}
         onDeleteFolder={onDeleteFolder}
       />
 
@@ -820,12 +838,23 @@ function DataRoomContentSection({
                 ? "Add decks to gate them inside this room."
                 : "Try another title, tag, or clear the current search."}
             </p>
-            <button
-              onClick={onNewDeck}
-              className="mt-2 rounded-xl bg-[#54e98a] px-5 py-3 text-sm font-bold text-[#003919] transition-all hover:opacity-90"
-            >
-              New Deck
-            </button>
+            {documents.length === 0 ? (
+              <div className="mt-3 flex w-full max-w-sm flex-col gap-3 sm:flex-row sm:justify-center">
+                <DataRoomContentActionButton
+                  onClick={onNewDeck}
+                  icon={<Plus size={16} />}
+                  variant="primary"
+                >
+                  New Deck
+                </DataRoomContentActionButton>
+                <DataRoomContentActionButton
+                  onClick={onAddExisting}
+                  icon={<FolderInput size={16} />}
+                >
+                  Add Existing
+                </DataRoomContentActionButton>
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="p-3 sm:p-4">

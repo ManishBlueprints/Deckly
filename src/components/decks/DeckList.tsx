@@ -24,6 +24,7 @@ import { Deck, BrandingSettings } from "../../types";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { useAuth } from "../../contexts/AuthContext";
+import { DeckLinkManagerModal } from "../dashboard/DeckLinkManagerModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { getDeckPreviewPath, getDeckShareUrl } from "../../utils/url";
+import { getDeckPreviewPath } from "../../utils/url";
 
 interface DeckListProps {
   decks: Deck[];
@@ -63,7 +64,7 @@ function DeckList({
   const [selectedAnalyticsDeck, setSelectedAnalyticsDeck] =
     useState<Deck | null>(null);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedDeckForLinks, setSelectedDeckForLinks] = useState<Deck | null>(null);
   const [resetTarget, setResetTarget] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -241,29 +242,6 @@ function DeckList({
       );
     } finally {
       setIsResetting(false);
-    }
-  };
-
-  const handleCopyLink = async (e: React.MouseEvent, deck: Deck) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!profile?.handle) {
-      alert("Please set a handle in your profile settings to share decks.");
-      return;
-    }
-    try {
-      await deckService.publishDeck(deck.id);
-      const url = getDeckShareUrl(profile.handle, deck.slug);
-      await navigator.clipboard.writeText(url);
-      setCopiedId(deck.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Failed to copy link to clipboard.";
-      console.error("Failed to copy link:", errorMessage);
-      toast.error("Failed to copy link. Please try again.");
     }
   };
 
@@ -653,22 +631,18 @@ function DeckList({
                       </h2>
                       <div className="flex flex-shrink-0 gap-2 items-center ml-auto">
                         <ActionButton
-                          onClick={(e: React.MouseEvent) =>
-                            handleCopyLink(e, deck)
-                          }
-                          title="Copy Link"
-                          active={copiedId === deck.id}
+                          onClick={(e: React.MouseEvent) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedDeckForLinks(deck);
+                          }}
+                          title="Manage Links"
                         >
                           <Share2
                             size={18}
                             strokeWidth={3}
                             className="text-white flex-shrink-0"
                           />
-                          {copiedId === deck.id && (
-                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[10px] px-2 py-1 rounded border border-white/10 shadow-xl z-50">
-                              Copied!
-                            </div>
-                          )}
                         </ActionButton>
                         <ActionButton
                           onClick={(e: React.MouseEvent) => {
@@ -774,6 +748,13 @@ function DeckList({
           />
         )}
       </AnimatePresence>
+
+      <DeckLinkManagerModal
+        deck={selectedDeckForLinks}
+        workspaceSlug={profile?.handle}
+        isOpen={!!selectedDeckForLinks}
+        onClose={() => setSelectedDeckForLinks(null)}
+      />
 
       <AlertDialog open={resetTarget} onOpenChange={setResetTarget}>
         <AlertDialogContent>

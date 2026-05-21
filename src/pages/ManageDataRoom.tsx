@@ -26,6 +26,7 @@ import { AccessProtectionSection } from "../components/dashboard/form-sections/A
 import { DangerZoneSection } from "../components/dashboard/form-sections/DangerZoneSection";
 import { DataRoomDocument } from "../types";
 import { dataRoomService } from "../services/dataRoomService";
+import { deckService } from "../services/deckService";
 import { useDataRoomFolders } from "../hooks/useDataRoomFolders";
 import { useAuth } from "../contexts/AuthContext";
 import { DataRoomCreateTour } from "../components/tours/DataRoomCreateTour";
@@ -231,7 +232,19 @@ function ManageDataRoom() {
           console.error("Failed to add documents", err);
         }
       } else {
-        // In create mode, just track deck IDs locally (documents will be added after creation)
+        // In create mode, keep the selected deck payload locally so the list can render titles/thumbnails.
+        let availableDecks: Awaited<ReturnType<typeof deckService.getDecksByIds>> = [];
+        try {
+          availableDecks = await deckService.getDecksByIds(deckIds);
+        } catch (err) {
+          console.error(
+            "Failed to hydrate create-mode documents via deckService.getDecksByIds",
+            err,
+          );
+          toast.error("Failed to load full asset details. Documents were added without previews.");
+          availableDecks = [];
+        }
+        const deckMap = new Map(availableDecks.map((deck) => [deck.id, deck]));
         const fakeDocs = deckIds.map((id, i) => ({
           id: `temp-${id}`,
           data_room_id: "",
@@ -239,6 +252,8 @@ function ManageDataRoom() {
           folder_id: null,
           display_order: documents.length + i,
           added_at: new Date().toISOString(),
+          deck: deckMap.get(id),
+          tags: [],
         })) as DataRoomDocument[];
         setDocuments((prev) => [...prev, ...fakeDocs]);
       }
@@ -446,7 +461,7 @@ function ManageDataRoom() {
       const e = err as { message?: string; code?: string };
       
       // Handle unique constraint violation for slug
-      if (e?.code === '23505' || e?.message?.includes('unique constraint "data_rooms_slug_key"')) {
+      if (e?.code === '23505' || e?.message?.includes('unique constraint "data_rooms_user_id_slug_key"')) {
         toast.error("This URL slug is already taken. Please choose another.");
       } else {
         toast.error(e?.message || "Failed to save data room");
@@ -853,6 +868,15 @@ function ManageDataRoom() {
                     <DataRoomFolderCard
                       key={folder.id}
                       folder={folder}
+                      availableTags={tags}
+                      onUpdateTags={async (next, tagIds) => {
+                        await folderActions.updateFolder(
+                          next.id,
+                          next.name,
+                          next.color,
+                          tagIds,
+                        );
+                      }}
                       isActive={false}
                       documentCount={folderDocumentCounts.get(folder.id) || 0}
                       onEdit={(next) => {

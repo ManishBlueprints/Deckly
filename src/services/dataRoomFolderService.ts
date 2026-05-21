@@ -433,12 +433,12 @@ const replaceDocumentTags = async (
 ): Promise<DataRoomTag[]> => {
   const { data: document, error: documentError } = await supabase
     .from("data_room_documents")
-    .select("id, data_room_id")
+    .select("id, data_room_id, deck_id")
     .eq("id", documentId)
     .maybeSingle();
 
   if (documentError) throw documentError;
-  if (!document || document.data_room_id !== options.roomId) {
+  if (!document || document.data_room_id !== options.roomId || !document.deck_id) {
     throw new DataRoomFolderServiceError(
       "DOCUMENT_NOT_FOUND",
       "Document not found.",
@@ -447,10 +447,11 @@ const replaceDocumentTags = async (
 
   const dedupedTagIds = normalizeTagIds(tagIds);
   if (dedupedTagIds.length === 0) {
-    const { error } = await supabase
-      .from("data_room_document_tags")
-      .delete()
-      .eq("document_id", documentId);
+    const { error } = await supabase.rpc("reconcile_deck_tags", {
+      p_deck_id: document.deck_id,
+      p_user_id: options.userId,
+      p_tag_ids: [],
+    });
     if (error) throw error;
     return [];
   }
@@ -463,39 +464,14 @@ const replaceDocumentTags = async (
     );
   }
 
-  const previousLinks = await supabase
-    .from("data_room_document_tags")
-    .select("tag_id")
-    .eq("document_id", documentId);
+  const { error: reconcileError } = await supabase.rpc("reconcile_deck_tags", {
+    p_deck_id: document.deck_id,
+    p_user_id: options.userId,
+    p_tag_ids: dedupedTagIds,
+  });
 
-  if (previousLinks.error) throw previousLinks.error;
-
-  const { error: deleteError } = await supabase
-    .from("data_room_document_tags")
-    .delete()
-    .eq("document_id", documentId);
-
-  if (deleteError) throw deleteError;
-
-  const { error: insertError } = await supabase
-    .from("data_room_document_tags")
-    .insert(
-      dedupedTagIds.map((tagId) => ({
-        document_id: documentId,
-        tag_id: tagId,
-      })),
-    );
-
-  if (insertError) {
-    if (previousLinks.data && previousLinks.data.length > 0) {
-      await supabase.from("data_room_document_tags").insert(
-        (previousLinks.data as { tag_id: string }[]).map((link) => ({
-          document_id: documentId,
-          tag_id: link.tag_id,
-        })),
-      );
-    }
-    throw insertError;
+  if (reconcileError) {
+    throw reconcileError;
   }
 
   return tagRows;

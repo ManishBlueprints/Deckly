@@ -133,20 +133,16 @@ export function filterSavedRoomRows(
   selectedFolderId: string | "uncategorized",
   selectedTagId: string | null = null,
 ) : SavedRoomSearchResult[] {
-  if (selectedFolderId === "uncategorized") {
-    return [];
-  }
-
   return rooms.reduce<SavedRoomSearchResult[]>((results, room) => {
-    const matchesFolder = room.folder_id === selectedFolderId;
-    const matchesTag =
-      selectedTagId === null || room.tags.some((tag) => tag.id === selectedTagId);
-    const matchedTagNames =
-      filter.mode === "name" ? collectMatchingTagNames(room.tags, filter.query) : [];
+    const matchesFolder =
+      selectedFolderId === "uncategorized"
+        ? room.folder_id === null
+        : room.folder_id === selectedFolderId;
+    const matchesTag = selectedTagId === null;
+    const matchedTagNames: string[] = [];
     const matchesName =
       filter.mode !== "name" ||
-      matchesMetadataNameQuery(room.title, filter.query) ||
-      matchedTagNames.length > 0;
+      matchesMetadataNameQuery(room.title, filter.query);
     const matchesDate =
       filter.mode !== "date" || matchesMetadataDateFilter(room.saved_at, filter.date);
 

@@ -1,12 +1,7 @@
-import { DashboardLayout } from "../components/layout/DashboardLayout";
-import { SavedDecksView } from "../components/saved-decks/SavedDecksView";
+import { Navigate } from "react-router-dom";
 
 function SavedDecks() {
-  return (
-    <DashboardLayout title="Saved Decks">
-      <SavedDecksView />
-    </DashboardLayout>
-  );
+  return <Navigate to="/saved-library" replace />;
 }
 
 export default SavedDecks;

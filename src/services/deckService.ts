@@ -27,6 +27,54 @@ const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | n
   };
 };
 
+const hydrateSignedDeckUrls = async (decks: Deck[]): Promise<Deck[]> => {
+  const pathsToSign = new Set<string>();
+
+  decks.forEach((deck) => {
+    const mainPath = extractStoragePath(deck.file_url, "decks");
+    if (mainPath) pathsToSign.add(mainPath);
+
+    deck.pages?.forEach((page) => {
+      const imagePath = extractStoragePath(page.image_url, "decks");
+      if (imagePath) pathsToSign.add(imagePath);
+    });
+  });
+
+  if (pathsToSign.size === 0) {
+    return decks;
+  }
+
+  const { data: signedData, error: signError } = await supabase.storage
+    .from("decks")
+    .createSignedUrls(Array.from(pathsToSign), 3600);
+
+  if (signError || !signedData) {
+    return decks;
+  }
+
+  const signedUrlMap = new Map<string, string>();
+  signedData.forEach((item) => {
+    if (item.path && item.signedUrl) {
+      signedUrlMap.set(item.path, item.signedUrl);
+    }
+  });
+
+  return decks.map((deck) => {
+    const mainPath = extractStoragePath(deck.file_url, "decks");
+    const signedFileUrl = mainPath ? signedUrlMap.get(mainPath) : null;
+
+    return {
+      ...deck,
+      file_url: signedFileUrl ?? deck.file_url,
+      pages: deck.pages?.map((page) => {
+        const imagePath = extractStoragePath(page.image_url, "decks");
+        const signedImageUrl = imagePath ? signedUrlMap.get(imagePath) : null;
+        return signedImageUrl ? { ...page, image_url: signedImageUrl } : page;
+      }) ?? [],
+    };
+  });
+};
+
 const deckCrudService = {
   async getAllDecks(providedUserId?: string): Promise<Deck[]> {
     return withRetry(async () => {
@@ -44,6 +92,25 @@ const deckCrudService = {
     });
   },
 
+  async getDecksByIds(
+    deckIds: string[],
+    providedUserId?: string,
+  ): Promise<Deck[]> {
+    return withRetry(async () => {
+      const userId = providedUserId || (await getDeckSession())?.user.id;
+      if (!userId || deckIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from("decks")
+        .select("*")
+        .eq("user_id", userId)
+        .in("id", deckIds);
+
+      if (error) throw error;
+      return hydrateSignedDeckUrls(data as Deck[]);
+    });
+  },
+
   async getDeckById(id: string, providedUserId?: string): Promise<Deck> {
     const userId = await getRequiredDeckUserId(providedUserId);
 
@@ -55,47 +122,7 @@ const deckCrudService = {
       .single();
 
     if (error) throw error;
-    const deck = data as Deck;
-
-    // Because the decks bucket is PRIVATE, public URLs stored in the DB will 403.
-    // If the owner is viewing their own deck, getDeckById is called instead of getDeckPayload.
-    // We must use their authenticated session to hydrate the signed URLs via the Storage API.
-    const pathsToSign: string[] = [];
-    
-    const mainPath = extractStoragePath(deck.file_url, "decks");
-    if (mainPath) pathsToSign.push(mainPath);
-
-    const imagePaths = (deck.pages || [])
-      .map(p => extractStoragePath(p.image_url, "decks"))
-      .filter((p): p is string => !!p);
-    
-    pathsToSign.push(...imagePaths);
-
-    if (pathsToSign.length > 0) {
-      const { data: signedData, error: signError } = await supabase.storage
-        .from("decks")
-        .createSignedUrls(pathsToSign, 3600);
-      
-      if (!signError && signedData) {
-        const signedUrlMap = new Map<string, string>();
-        signedData.forEach(d => {
-          if (d.path && d.signedUrl) signedUrlMap.set(d.path, d.signedUrl);
-        });
-
-        if (mainPath && signedUrlMap.has(mainPath)) {
-          deck.file_url = signedUrlMap.get(mainPath)!;
-        }
-
-        if (deck.pages) {
-          deck.pages = deck.pages.map(page => {
-            const pPath = extractStoragePath(page.image_url, "decks");
-            const sUrl = pPath ? signedUrlMap.get(pPath) : null;
-            return sUrl ? { ...page, image_url: sUrl } : page;
-          });
-        }
-      }
-    }
-
+    const [deck] = await hydrateSignedDeckUrls([data as Deck]);
     return deck;
   },
 
@@ -300,21 +327,29 @@ const deckCrudService = {
 };
 
 const deckPublicService = {
-  async getDeckByHandleAndSlug(handle: string, slug: string): Promise<Deck> {
+  async getDeckByHandleAndSlug(
+    handle: string,
+    slugOrAlias: string,
+  ): Promise<Deck> {
     const { data, error } = await supabase
-      .rpc("get_decks_public")
-      .select("*")
-      .eq("slug", slug)
-      .eq("user_handle", handle)
+      .rpc("get_decks_public", {
+        p_handle: handle,
+        p_slug_or_alias: slugOrAlias,
+      })
       .single();
 
     if (error) throw error;
     return data as Deck;
   },
 
-  async checkDeckPassword(slug: string, password: string): Promise<boolean> {
+  async checkDeckPassword(
+    handle: string | null,
+    slugOrAlias: string,
+    password: string,
+  ): Promise<boolean> {
     const { data, error } = await supabase.rpc("check_deck_password", {
-      p_slug: slug,
+      p_handle: handle,
+      p_slug_or_alias: slugOrAlias,
       p_password: password,
     });
     if (error) throw error;
@@ -322,11 +357,13 @@ const deckPublicService = {
   },
 
   async getDeckPayload(
-    slug: string,
+    slugOrAlias: string,
     password?: string,
+    handle?: string | null,
   ): Promise<{ file_url: string; signed_url?: string; expires_in?: number; pages: SlidePage[] }> {
     const { data, error } = await supabase.rpc("get_deck_payload", {
-      p_slug: slug,
+      p_handle: handle ?? null,
+      p_slug_or_alias: slugOrAlias,
       p_password: password ?? null,
     });
     if (error) throw error;
@@ -343,7 +380,8 @@ const deckPublicService = {
 
       const { data: fnData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
         body: { 
-          slug, 
+          handle: handle ?? null,
+          slug: slugOrAlias,
           password: password ?? null, 
           storage_path: payload.storage_path,
           image_paths: imagePaths 
@@ -420,9 +458,11 @@ const deckPublicService = {
     slug: string,
   ): Promise<{ handle: string; slug: string } | null> {
     const { data, error } = await supabase
-      .rpc("get_decks_public")
+      .rpc("get_decks_public", {
+        p_handle: null,
+        p_slug_or_alias: slug,
+      })
       .select("user_handle, slug")
-      .eq("slug", slug)
       .maybeSingle();
 
     if (error) throw error;
@@ -447,7 +487,7 @@ const deckAnalyticsService = {
       if (!decks || decks.length === 0) return [];
 
       const deckIds = decks.map((deck) => deck.id);
-      const [tagLinksResult, statsResult, pageViewsResult, savesResult] = await Promise.all([
+      const [tagLinksResult, statsResult, pageViewsResult, savesResult, deckLinksResult] = await Promise.all([
         supabase
           .from("decks")
           .select(`
@@ -469,6 +509,10 @@ const deckAnalyticsService = {
         supabase
           .from("investor_library")
           .select("deck_id")
+          .in("deck_id", deckIds),
+        supabase
+          .from("deck_links")
+          .select("deck_id, is_enabled")
           .in("deck_id", deckIds),
       ]);
 
@@ -509,6 +553,16 @@ const deckAnalyticsService = {
         saves = (savesResult.data || []) as { deck_id: string }[];
       }
 
+      let deckLinks: { deck_id: string; is_enabled: boolean }[] = [];
+      if (deckLinksResult.error) {
+        console.warn("deck_links lookup failed while hydrating Content Library", deckLinksResult.error);
+      } else {
+        deckLinks = (deckLinksResult.data || []) as {
+          deck_id: string;
+          is_enabled: boolean;
+        }[];
+      }
+
       const viewsMap: Record<string, Set<string>> = {};
       pageViews.forEach((pageView: { deck_id: string; visitor_id: string }) => {
         if (!viewsMap[pageView.deck_id]) viewsMap[pageView.deck_id] = new Set();
@@ -531,11 +585,23 @@ const deckAnalyticsService = {
         }
       });
 
+      const totalLinkCountMap: Record<string, number> = {};
+      const activeLinkCountMap: Record<string, number> = {};
+      deckLinks.forEach((link) => {
+        totalLinkCountMap[link.deck_id] = (totalLinkCountMap[link.deck_id] || 0) + 1;
+
+        if (link.is_enabled) {
+          activeLinkCountMap[link.deck_id] = (activeLinkCountMap[link.deck_id] || 0) + 1;
+        }
+      });
+
       return (decks as Deck[]).map((deck) => ({
         ...deck,
+        active_link_count: activeLinkCountMap[deck.id] || 0,
         total_views: viewsMap[deck.id]?.size || 0,
         save_count: savesMap[deck.id] || 0,
         last_viewed_at: lastActiveMap[deck.id] || null,
+        total_link_count: totalLinkCountMap[deck.id] || 0,
         tags: tagsByDeckId.get(deck.id) || [],
       })) as DeckWithAnalytics[];
     });

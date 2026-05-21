@@ -1,8 +1,10 @@
+/// <reference types="node" />
 /// <reference types="vitest/globals" />
 import {
   getDeckPath,
   getDataRoomPath,
   getDeckShareUrl,
+  getDeckLinkShareUrl,
   getDataRoomShareUrl,
   getDeckPreviewPath,
   getDataRoomPreviewPath,
@@ -34,6 +36,7 @@ describe("url utilities", () => {
     it("generates correct data room preview path", () => {
       expect(getDataRoomPreviewPath("room-123")).toBe("/preview/room/room-123");
     });
+
   });
 
   describe("Origin and Full URLs", () => {
@@ -61,6 +64,32 @@ describe("url utilities", () => {
       vi.stubGlobal("window", undefined);
       delete process.env.BASE_URL;
       expect(getDeckShareUrl("u", "d")).toBe("http://localhost:5173/u/d");
+    });
+
+    it("builds deck link share URLs without a link token", () => {
+      vi.stubGlobal("window", {
+        location: { origin: "https://deckly.space" }
+      });
+
+      expect(
+        getDeckLinkShareUrl(
+          "user",
+          "deck",
+        ),
+      ).toBe("https://deckly.space/user/deck");
+    });
+
+    it("builds deck link share URLs with a custom alias path", () => {
+      vi.stubGlobal("window", {
+        location: { origin: "https://deckly.space" }
+      });
+
+      expect(
+        getDeckLinkShareUrl(
+          "user",
+          "investor-follow-up",
+        ),
+      ).toBe("https://deckly.space/user/investor-follow-up");
     });
   });
 });

@@ -5,6 +5,7 @@ import {
   FileSignature,
   Bookmark,
   MessageSquare,
+  MessageCircleMore,
   LogOut,
   ChevronLeft,
   Settings,
@@ -19,13 +20,14 @@ import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
 import { useQueryClient } from "@tanstack/react-query";
 import { deckService } from "../../services/deckService";
 import { dataRoomService } from "../../services/dataRoomService";
+import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
 import { organizerService } from "../../services/organizerService";
 
 const NAV_ITEMS = [
   { icon: LayoutGrid, label: "Dashboard", href: "/" },
   { icon: Folder, label: "Content", href: "/content" },
   { icon: DoorOpen, label: "Rooms", href: "/rooms" },
-  { icon: Bookmark, label: "Saved Decks", href: "/saved-decks" },
+  { icon: Bookmark, label: "Saved Library", href: "/saved-library" },
   {
     icon: FileSignature,
     label: "Sign",
@@ -76,7 +78,8 @@ export function Sidebar() {
       "/": () => import("../../pages/Home"),
       "/content": () => import("../../pages/ContentPage"),
       "/rooms": () => import("../../pages/DataRoomsPage"),
-      "/saved-decks": () => import("../../pages/SavedDecks"),
+      "/saved-library": () => import("../../pages/SavedLibrary"),
+      "/feedback": () => import("../../pages/Feedback"),
       "/profile": () => import("../../pages/Profile"),
     };
 
@@ -97,10 +100,15 @@ export function Sidebar() {
         queryFn: () => dataRoomService.getDataRooms(),
         staleTime: 5 * 60 * 1000,
       });
-    } else if (item.href === "/saved-decks" && userId) {
+    } else if (item.href === "/saved-library" && userId) {
       queryClient.prefetchQuery({
         queryKey: ["library-decks", userId],
         queryFn: () => organizerService.getSavedDecksOrganized(userId),
+        staleTime: 5 * 60 * 1000,
+      });
+      queryClient.prefetchQuery({
+        queryKey: ["saved-data-rooms", userId],
+        queryFn: () => dataRoomLibraryService.getSavedRooms(),
         staleTime: 5 * 60 * 1000,
       });
       queryClient.prefetchQuery({
@@ -274,6 +282,50 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className={cn("px-3 pb-4 shrink-0")}>
+        <Link
+          to="/feedback"
+          title={isCollapsed ? "Help & Feedback" : undefined}
+          className={cn(
+            "flex items-center gap-3 px-6 py-3 transition-all relative group text-slate-500 hover:text-white hover:bg-[#1c1c1c]",
+            location.pathname === "/feedback" &&
+              "bg-[#3a3939] text-primary border-l-2 border-primary",
+            isCollapsed && "justify-center px-0",
+          )}
+          onMouseEnter={() =>
+            handleMouseEnter({
+              icon: MessageCircleMore,
+              label: "Help & Feedback",
+              href: "/feedback",
+            })
+          }
+        >
+          <div
+            className={cn(
+              location.pathname === "/feedback"
+                ? "text-primary bg-primary/10 p-1 scale-110 flex shrink-0 transition-all"
+                : "text-slate-500 group-hover:text-slate-200 flex shrink-0 transition-all",
+            )}
+          >
+            <MessageCircleMore
+              size={isCollapsed ? 20 : 18}
+              fill="currentColor"
+              className={cn(
+                "transition-all",
+                location.pathname !== "/feedback" &&
+                  "opacity-40 group-hover:opacity-100",
+              )}
+            />
+          </div>
+
+          {!isCollapsed && (
+            <span className="text-sm font-medium tracking-wide truncate flex-1 uppercase">
+              Help & Feedback
+            </span>
+          )}
+        </Link>
+      </div>
 
       {/* ── User Profile Footer ── */}
       <div className={cn("px-6 mt-auto shrink-0")}>

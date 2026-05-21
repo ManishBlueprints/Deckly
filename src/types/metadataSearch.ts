@@ -5,7 +5,7 @@
 export const METADATA_SEARCH_PAGE_SCOPES = [
   "content_library",
   "data_room",
-  "saved_decks",
+  "saved_library",
 ] as const;
 
 export type MetadataSearchPageScope =
@@ -37,7 +37,7 @@ export interface MetadataSearchDateFilter {
 }
 
 /**
- * Reusable page-scoped search state shared by Content Library, Data Room, and Saved Decks.
+ * Reusable page-scoped search state shared by Content Library, Data Room, and Saved Library.
  * Pages keep their own rendering and field-selection logic.
  */
 export interface MetadataSearchFilterState {
