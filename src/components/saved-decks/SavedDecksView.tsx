@@ -32,7 +32,6 @@ import {
   type SavedDeckSearchResult,
   type SavedRoomSearchResult,
 } from "../../utils/metadataSearchAdapters";
-import { getDeckPath } from "../../utils/url";
 import { DataRoomFolderModal } from "../data-room/DataRoomFolderModal";
 import {
   resolveFolderColorKey,
@@ -86,8 +85,7 @@ function getSavedLibraryEmptyStateCopy(
       }
     : {
         title: "No saved items yet",
-        description:
-          "Save decks and rooms to build a single shared library.",
+        description: "Save decks and rooms to build a single shared library.",
         ctaLabel: "Create Folder",
       };
 }
@@ -133,7 +131,12 @@ export function SavedLibraryView() {
   // --- Derived / filtered list ---
   const filteredDecks = useMemo(
     () =>
-      filterSavedDeckRows(decks, search.filter, selectedFolderId, selectedTagId),
+      filterSavedDeckRows(
+        decks,
+        search.filter,
+        selectedFolderId,
+        selectedTagId,
+      ),
     [decks, search.filter, selectedFolderId, selectedTagId],
   );
 
@@ -156,7 +159,8 @@ export function SavedLibraryView() {
     return filteredSavedRooms;
   }, [filteredSavedRooms, viewMode]);
 
-  const hasAnyItems = decks.length > 0 || folders.length > 0 || savedRooms.length > 0;
+  const hasAnyItems =
+    decks.length > 0 || folders.length > 0 || savedRooms.length > 0;
   const hasSearchFilters =
     search.isActive ||
     selectedTagId !== null ||
@@ -285,22 +289,25 @@ export function SavedLibraryView() {
     [actions, queryClient, session?.user?.id],
   );
 
-  const handleUnsaveRequest = useCallback((deck: SavedDeckOrganized) => {
-    setUnsavingDeckId(deck.library_id);
-    void actions
-      .unsaveDeck(deck.deck_id)
-      .catch((err) => {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Failed to remove deck from library.";
-        console.error("Failed to unsave deck:", err);
-        toast.error(errorMessage);
-      })
-      .finally(() => {
-        setUnsavingDeckId(null);
-      });
-  }, [actions]);
+  const handleUnsaveRequest = useCallback(
+    (deck: SavedDeckOrganized) => {
+      setUnsavingDeckId(deck.library_id);
+      void actions
+        .unsaveDeck(deck.deck_id)
+        .catch((err) => {
+          const errorMessage =
+            err instanceof Error
+              ? err.message
+              : "Failed to remove deck from library.";
+          console.error("Failed to unsave deck:", err);
+          toast.error(errorMessage);
+        })
+        .finally(() => {
+          setUnsavingDeckId(null);
+        });
+    },
+    [actions],
+  );
 
   const handleEditFolderRequest = useCallback((f: LibraryFolder) => {
     setEditingFolder(f);
@@ -354,7 +361,10 @@ export function SavedLibraryView() {
   }
 
   if (!hasAnyItems) {
-    const emptyState = getSavedLibraryEmptyStateCopy(viewMode, hasSearchFilters);
+    const emptyState = getSavedLibraryEmptyStateCopy(
+      viewMode,
+      hasSearchFilters,
+    );
     return (
       <div className="min-h-[calc(100vh-140px)] bg-deckly-background overflow-hidden">
         <SavedLibraryEmptyState
@@ -442,7 +452,9 @@ export function SavedLibraryView() {
                   filterEmptyMessage="No tags created"
                   mobileIconOnly
                 />
-                <ManageTagsButton onClick={() => setIsManageTagsModalOpen(true)} />
+                <ManageTagsButton
+                  onClick={() => setIsManageTagsModalOpen(true)}
+                />
               </div>
             </div>
           </div>
@@ -483,7 +495,9 @@ export function SavedLibraryView() {
                   availableTags={tags}
                   onUpdateTags={handleUpdateFolderTags}
                   isActive={selectedFolderId === folder.id}
-                  documentCount={folder.deck_count + (roomCountByFolder[folder.id] || 0)}
+                  documentCount={
+                    folder.deck_count + (roomCountByFolder[folder.id] || 0)
+                  }
                   onClick={() => handleFolderClick(folder.id)}
                   onEdit={handleEditFolderRequest}
                   onDelete={handleDeleteFolderRequest}
@@ -495,7 +509,10 @@ export function SavedLibraryView() {
           {(isSavedRoomsLoading || isSavedRoomsError) && (
             <div className="flex items-start gap-3 border border-white/5 bg-surface-low px-4 py-3">
               {isSavedRoomsLoading ? (
-                <Loader2 className="mt-0.5 animate-spin text-[#54e98a]" size={18} />
+                <Loader2
+                  className="mt-0.5 animate-spin text-[#54e98a]"
+                  size={18}
+                />
               ) : (
                 <Filter className="mt-0.5 text-red-500" size={18} />
               )}
@@ -572,7 +589,7 @@ export function SavedLibraryView() {
                       matchedTagNames={result.matchedTagNames}
                       onSummarize={() =>
                         window.open(
-                          `${getDeckPath(result.deck.user_handle, result.deck.slug)}?ai=summary`,
+                          `/${encodeURIComponent(result.deck.user_handle)}/${encodeURIComponent(result.deck.slug)}?ai=summary`,
                           "_blank",
                           "noopener,noreferrer",
                         )
@@ -583,7 +600,9 @@ export function SavedLibraryView() {
                       onUpdateTags={(tagIds) =>
                         handleUpdateTags(result.deck.library_id, tagIds)
                       }
-                      onSaveNote={(note) => handleSaveNote(result.deck.deck_id, note)}
+                      onSaveNote={(note) =>
+                        handleSaveNote(result.deck.deck_id, note)
+                      }
                       onUnsave={() => handleUnsaveRequest(result.deck)}
                       isUnsaving={unsavingDeckId === result.deck.library_id}
                     />
