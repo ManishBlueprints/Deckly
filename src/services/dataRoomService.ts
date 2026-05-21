@@ -21,6 +21,36 @@ const normalizeDataRoomTag = (
   };
 };
 
+const normalizeDataRoomTagCollection = (
+  rawTags: Array<DataRoomTag | null | undefined> | null | undefined,
+): DataRoomTag[] =>
+  (rawTags || [])
+    .map((tag) => normalizeDataRoomTag(tag))
+    .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
+
+const getUserScopedDeckTags = async (
+  deckIds: string[],
+): Promise<Map<string, DataRoomTag[]>> => {
+  if (deckIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .rpc("get_library_deck_metadata", {
+      p_deck_ids: deckIds,
+    })
+    .select("id, tags");
+
+  if (error) throw error;
+
+  const tagMap = new Map<string, DataRoomTag[]>();
+  ((Array.isArray(data) ? data : []) as { id: string; tags?: DataRoomTag[] | null }[]).forEach(
+    (deck) => {
+      tagMap.set(deck.id, normalizeDataRoomTagCollection(deck.tags));
+    },
+  );
+
+  return tagMap;
+};
+
 export const dataRoomService = {
   // ── CRUD ────────────────────────────────────────────────
 
@@ -161,22 +191,27 @@ export const dataRoomService = {
         .from("data_room_documents")
         .select(`
           id,
-          deck:decks (
-            title
-          ),
-          data_room_document_tags (
-            global_tags (
-              id,
-              name,
-              color,
-              deleted_at
-            )
-          )
+          deck:decks ( id, title )
         `)
         .eq("data_room_id", roomId)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
+
+      const deckIds = ((data || []) as Record<string, unknown>[])
+        .map((document) => {
+          const rawDeck = document.deck;
+          const deck =
+            Array.isArray(rawDeck)
+              ? (rawDeck[0] as Record<string, unknown> | undefined)
+              : rawDeck && typeof rawDeck === "object"
+                ? (rawDeck as Record<string, unknown>)
+                : undefined;
+          return typeof deck?.id === "string" ? deck.id : null;
+        })
+        .filter((deckId): deckId is string => Boolean(deckId));
+
+      const deckTagsMap = await getUserScopedDeckTags(deckIds);
 
       return ((data || []) as Record<string, unknown>[]).map((document) => {
         const rawDeck = document.deck;
@@ -186,21 +221,8 @@ export const dataRoomService = {
             : rawDeck && typeof rawDeck === "object"
               ? (rawDeck as Record<string, unknown>)
               : undefined;
-        const rawDocumentTagLinks = Array.isArray(document.data_room_document_tags)
-          ? document.data_room_document_tags
-          : [];
-        const tags = rawDocumentTagLinks
-          .map((link) => {
-            const rawGlobalTags =
-              link && typeof link === "object" && "global_tags" in link
-                ? (link as { global_tags?: unknown }).global_tags
-                : undefined;
-            const globalTag = Array.isArray(rawGlobalTags) ? rawGlobalTags[0] : rawGlobalTags;
-            return globalTag && typeof globalTag === "object"
-              ? normalizeDataRoomTag(globalTag as DataRoomTag)
-              : null;
-          })
-          .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
+        const deckId = typeof deck?.id === "string" ? deck.id : "";
+        const tags = deckTagsMap.get(deckId) || [];
 
         return {
           id: String(document.id),
@@ -220,39 +242,30 @@ export const dataRoomService = {
         .from("data_room_documents")
         .select(`
           *,
-          deck:decks (
-            *
-          ),
-          data_room_document_tags (
-            global_tags (*)
-          )
+          deck:decks ( * )
         `)
         .eq("data_room_id", roomId)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
 
-      const documents = (data || []).map((d: DataRoomDocument & { deck?: Deck | null }) => ({
-        ...d,
-        deck: d.deck || undefined,
-      })) as DataRoomDocument[];
+      const deckIds = ((data || []) as DataRoomDocument[])
+        .map((document) => document.deck_id)
+        .filter(Boolean);
+      const deckTagsMap = await getUserScopedDeckTags(deckIds);
 
-      documents.forEach((doc) => {
-        const documentTagLinks = (
-          doc as DataRoomDocument & {
-            data_room_document_tags?: { global_tags?: DataRoomTag | DataRoomTag[] | null }[];
-          }
-        ).data_room_document_tags || [];
-        const tags = documentTagLinks
-          .map((link) => {
-            const globalTag = Array.isArray(link.global_tags)
-              ? link.global_tags[0]
-              : link.global_tags;
-            return normalizeDataRoomTag(globalTag);
-          })
-          .filter((tag): tag is DataRoomTag => Boolean(tag && tag.deleted_at === null));
-        doc.tags = tags;
-      });
+      const documents = (data || []).map((d) => {
+        const rawDeck =
+          d && typeof d === "object" && "deck" in d
+            ? (d as { deck?: Deck | null }).deck
+            : null;
+
+        return {
+          ...(d as DataRoomDocument),
+          deck: rawDeck ? ({ ...rawDeck } as Deck) : undefined,
+          tags: deckTagsMap.get((d as DataRoomDocument).deck_id) || [],
+        };
+      }) as DataRoomDocument[];
 
       // Hydrate signed URLs only when explicitly requested
       if (options?.signUrls) {
@@ -524,7 +537,8 @@ export const dataRoomService = {
       let query = supabase
         .from("data_rooms")
         .select("id")
-        .eq("slug", slug);
+        .eq("slug", slug)
+        .eq("user_id", userId);
 
       if (excludeId) {
         query = query.neq("id", excludeId);
@@ -538,10 +552,12 @@ export const dataRoomService = {
   },
 
   async checkDataRoomPassword(
+    handle: string,
     slug: string,
     password: string,
   ): Promise<boolean> {
     const { data, error } = await supabase.rpc("check_data_room_password", {
+      p_handle: handle,
       p_slug: slug,
       p_password: password,
     });
@@ -550,10 +566,12 @@ export const dataRoomService = {
   },
 
   async getDataRoomPayload(
+    handle: string,
     slug: string,
     password?: string,
   ): Promise<(Deck & { folder_id?: string | null; folder_name?: string | null })[]> {
     const { data: rawData, error } = await supabase.rpc("get_data_room_payload", {
+      p_handle: handle,
       p_slug: slug,
       p_password: password || null,
     });
@@ -585,6 +603,7 @@ export const dataRoomService = {
       try {
         const { data: fnData, error: fnError } = await supabase.functions.invoke("sign-deck-url", {
           body: { 
+            handle,
             room_slug: slug, 
             password: password ?? null, 
             image_paths: allPaths 
@@ -628,17 +647,4 @@ export const dataRoomService = {
     return decks;
   },
 
-  async getDataRoomBySlugOnly(
-    slug: string,
-  ): Promise<{ handle: string; slug: string } | null> {
-    const { data, error } = await supabase
-      .rpc("get_data_rooms_public")
-      .select("user_handle, slug")
-      .eq("slug", slug)
-      .limit(1)
-      .single();
-
-    if (error || !data) return null;
-    return { handle: data.user_handle, slug: data.slug };
-  },
 };

@@ -20,7 +20,6 @@ import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { deckService } from "../services/deckService";
 import { analyticsService } from "../services/analyticsService";
-import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { Deck } from "../types";
@@ -28,6 +27,17 @@ import {
   useIsDeckSaved,
   useSaveToLibraryMutation,
 } from "../hooks/useViewerQueries";
+import {
+  getSignedUrlRefreshDelayMs,
+  isSignedUrlExpired,
+  loadViewerDeck,
+  refreshViewerSignedUrl,
+  SignedUrlMeta,
+  unlockViewerDeck,
+} from "./viewerPublicAccess";
+
+const SIGNED_URL_REFRESH_RETRY_DELAYS_MS = [1000, 2000, 4000] as const;
+const SIGNED_URL_RECOVERY_RETRY_MS = 5000;
 
 function Viewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
@@ -39,6 +49,7 @@ function Viewer() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [refreshWarning, setRefreshWarning] = useState<string | null>(null);
 
   // UI States
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -49,32 +60,99 @@ function Viewer() {
 
   // Tracks metadata needed to refresh the signed URL before it expires.
   // Stored in a ref so the refresh effect doesn't re-run on every render.
-  const signedUrlMeta = useRef<{ slug: string; password?: string; expiresIn: number } | null>(null);
+  const signedUrlMeta = useRef<SignedUrlMeta | null>(null);
 
   // Automatically refresh the signed URL ~60 s before it expires.
   useEffect(() => {
     if (!isUnlocked || !signedUrlMeta.current) return;
-    const { slug: metaSlug, password: metaPassword, expiresIn } = signedUrlMeta.current;
-    // Schedule refresh 60 s before expiry (minimum 5 s to avoid thrashing).
-    const refreshMs = Math.max((expiresIn - 60) * 1000, 5000);
-    const timerId = setTimeout(async () => {
+    let cancelled = false;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+
+    const clearRefreshTimer = () => {
+      if (timerId) {
+        clearTimeout(timerId);
+        timerId = undefined;
+      }
+    };
+
+    const failClosedIfExpired = (meta: SignedUrlMeta) => {
+      if (!isSignedUrlExpired(meta)) {
+        return false;
+      }
+
+      setRefreshWarning(null);
+      setError("The document is no longer available.");
+      setIsUnlocked(false);
+      return true;
+    };
+
+    const scheduleNextSignedUrlRefresh = (meta: SignedUrlMeta) => {
+      clearRefreshTimer();
+      timerId = setTimeout(() => {
+        const currentMeta = signedUrlMeta.current ?? meta;
+        if (failClosedIfExpired(currentMeta)) {
+          return;
+        }
+        void attemptRefresh(currentMeta);
+      }, getSignedUrlRefreshDelayMs(meta));
+    };
+
+    const attemptRefresh = async (meta: SignedUrlMeta, attempt = 0): Promise<void> => {
       try {
-        const refreshed = await deckService.getDeckPayload(metaSlug, metaPassword);
-        if (refreshed.signed_url) {
-          signedUrlMeta.current = {
-            slug: metaSlug,
-            password: metaPassword,
-            expiresIn: refreshed.expires_in ?? expiresIn,
-          };
+        const refreshed = await refreshViewerSignedUrl({ meta });
+        if (cancelled) return;
+
+        setRefreshWarning(null);
+        if (refreshed.signedUrlMeta) {
+          signedUrlMeta.current = refreshed.signedUrlMeta;
+        }
+
+        const nextFileUrl = refreshed.fileUrl;
+        if (nextFileUrl) {
           setDeck((prev) =>
-            prev ? { ...prev, file_url: refreshed.signed_url! } : prev
+            prev ? { ...prev, file_url: nextFileUrl } : prev,
           );
         }
+
+        const currentMeta = signedUrlMeta.current ?? meta;
+        if (failClosedIfExpired(currentMeta)) {
+          return;
+        }
+        scheduleNextSignedUrlRefresh(currentMeta);
       } catch {
-        // Refresh failed — viewer will see a load error on next page turn; not fatal.
+        if (cancelled) return;
+
+        const currentMeta = signedUrlMeta.current ?? meta;
+        if (failClosedIfExpired(currentMeta)) {
+          return;
+        }
+
+        if (attempt < SIGNED_URL_REFRESH_RETRY_DELAYS_MS.length) {
+          setRefreshWarning("Connection issue refreshing the document. Retrying...");
+          clearRefreshTimer();
+          timerId = setTimeout(() => {
+            void attemptRefresh(currentMeta, attempt + 1);
+          }, SIGNED_URL_REFRESH_RETRY_DELAYS_MS[attempt]);
+          return;
+        }
+
+        setRefreshWarning("Connection issue refreshing the document. The current view will stay available until the link expires.");
+        clearRefreshTimer();
+        timerId = setTimeout(() => {
+          if (failClosedIfExpired(currentMeta)) {
+            return;
+          }
+          void attemptRefresh(currentMeta, 0);
+        }, SIGNED_URL_RECOVERY_RETRY_MS);
       }
-    }, refreshMs);
-    return () => clearTimeout(timerId);
+    };
+
+    scheduleNextSignedUrlRefresh(signedUrlMeta.current);
+
+    return () => {
+      cancelled = true;
+      clearRefreshTimer();
+    };
   }, [isUnlocked, deck?.file_url]); // re-schedule whenever file_url is replaced by a refresh
 
   // TanStack Queries
@@ -97,58 +175,23 @@ function Viewer() {
     }
   }, [session]);
 
-  const loadDeck = useCallback(async (silent = false) => {
-    if (!slug || !handle) return;
+  const loadDeck = useCallback(async (silent = false, suppressAnalytics = false) => {
+    if (!slug) return;
     try {
       if (!silent) setLoading(true);
-      const data = await deckService.getDeckByHandleAndSlug(handle, slug);
-      setDeck(data);
+      setError(null);
+      const result = await loadViewerDeck({ handle: handle ?? null, slug });
 
-      // Check if current user is the owner
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-      const userIsOwner = currentSession?.user?.id === data.user_id;
-      setIsOwner(userIsOwner);
+      setDeck(result.deck);
+      setIsOwner(result.isOwner);
+      setIsUnlocked(result.isUnlocked);
+      setRefreshWarning(null);
+      signedUrlMeta.current = result.signedUrlMeta ?? null;
 
-      // If no protection OR user is the owner, track view immediately and unlock
-      if ((!data.require_email && !data.require_password) || userIsOwner) {
-        if (userIsOwner) {
-          const fullDeck = await deckService.getDeckById(data.id);
-          setDeck(fullDeck);
-        } else {
-          try {
-            const payload = await deckService.getDeckPayload(data.slug);
-            // Prefer the short-lived signed_url if the bucket is private
-            const resolvedPayload = payload.signed_url
-              ? { ...payload, file_url: payload.signed_url, expires_in: payload.expires_in }
-              : payload;
-            if (payload.signed_url && payload.expires_in) {
-              signedUrlMeta.current = { slug: data.slug, expiresIn: payload.expires_in };
-            }
-            setDeck({ ...data, ...resolvedPayload });
-          } catch {
-            throw new Error("Failed to load document content.");
-          }
-        }
-
-        setIsUnlocked(true);
-        if (!userIsOwner) {
-          analyticsService.trackDeckView(data);
-        }
+      if (!suppressAnalytics && result.isUnlocked && result.analyticsDeck) {
+        analyticsService.trackDeckView(result.analyticsDeck);
       }
     } catch (err: unknown) {
-      // Try slug-only fallback for namespacing enforcement
-      try {
-        const fallback = await deckService.getDeckBySlugOnly(slug);
-        if (fallback && fallback.handle !== handle) {
-          window.location.replace(`/${fallback.handle}/${fallback.slug}`);
-          return;
-        }
-      } catch {
-        /* ignore */
-      }
-
       setError(err instanceof Error ? err.message : "Failed to load deck.");
       console.error("Error loading deck:", err);
     } finally {
@@ -165,7 +208,7 @@ function Viewer() {
     let timeoutId: ReturnType<typeof setTimeout>;
     if (deck?.status === "PENDING" || deck?.status === "CONVERTING") {
       timeoutId = setTimeout(() => {
-        loadDeck(true);
+        loadDeck(true, true);
       }, 5000);
     }
     return () => clearTimeout(timeoutId);
@@ -307,17 +350,21 @@ function Viewer() {
         ) : !isUnlocked ? (
           <AccessGate
             deck={deck}
+            sessionEmail={viewerEmail}
+            onVerifyPassword={(password) =>
+              deckService.checkDeckPassword(handle ?? null, slug ?? deck.slug, password)
+            }
             onAccessGranted={async (email, password) => {
               try {
-                const payload = await deckService.getDeckPayload(deck.slug, password);
-                // Prefer the short-lived signed_url if the bucket is private
-                const resolvedPayload = payload.signed_url
-                  ? { ...payload, file_url: payload.signed_url, expires_in: payload.expires_in }
-                  : payload;
-                if (payload.signed_url && payload.expires_in) {
-                  signedUrlMeta.current = { slug: deck.slug, password, expiresIn: payload.expires_in };
-                }
-                setDeck((prev) => prev ? { ...prev, ...resolvedPayload } : prev);
+                setError(null);
+                const { resolvedDeck, signedUrlMeta: nextSignedUrlMeta } = await unlockViewerDeck({
+                  handle: handle ?? null,
+                  password,
+                  slug: slug ?? deck.slug,
+                });
+                signedUrlMeta.current = nextSignedUrlMeta ?? null;
+                setRefreshWarning(null);
+                setDeck((prev) => prev ? { ...prev, ...resolvedDeck } : prev);
                 setIsUnlocked(true);
                 if (email) {
                   setViewerEmail(email);
@@ -337,6 +384,11 @@ function Viewer() {
             animate={{ opacity: 1 }}
             className="flex-1 flex flex-col items-stretch relative"
           >
+            {refreshWarning ? (
+              <div className="absolute top-4 right-4 z-[100] max-w-md rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                {refreshWarning}
+              </div>
+            ) : null}
             <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[100] flex flex-wrap items-center gap-2 px-2 md:px-0">
               <Link to="/" className="group">
                 <div className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all">

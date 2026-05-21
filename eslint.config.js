@@ -6,7 +6,13 @@ import tseslint from 'typescript-eslint'
 
 export default Object.assign([], tseslint.config(
   {
-    ignores: ['**/dist/**', 'docs/.vitepress/cache', 'testsprite_tests'],
+    ignores: [
+      '**/dist/**',
+      'docs/.vitepress/cache',
+      'docs/.vitepress/.temp/**',
+      'docs/.vitepress/dist/**',
+      'testsprite_tests',
+    ],
   },
   {
     extends: [

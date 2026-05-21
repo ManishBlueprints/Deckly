@@ -32,8 +32,56 @@ BEGIN
     RAISE EXCEPTION 'Missing table: public.global_tag_aliases';
   END IF;
 
+  IF to_regclass('public.deck_links') IS NULL THEN
+    RAISE EXCEPTION 'Missing table: public.deck_links';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'deck_links'
+      AND column_name = 'link_name'
+  ) THEN
+    RAISE EXCEPTION 'Missing column: public.deck_links.link_name';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'deck_links'
+      AND column_name = 'link_alias'
+  ) THEN
+    RAISE EXCEPTION 'Missing column: public.deck_links.link_alias';
+  END IF;
+
   IF to_regprocedure('public.get_decks_public()') IS NULL THEN
     RAISE EXCEPTION 'Missing function: public.get_decks_public()';
+  END IF;
+
+  IF to_regprocedure('public.get_decks_public(text,text)') IS NULL THEN
+    RAISE EXCEPTION 'Missing function: public.get_decks_public(text,text)';
+  END IF;
+
+  IF to_regprocedure('public.check_deck_password(text,text,text)') IS NULL THEN
+    RAISE EXCEPTION 'Missing function: public.check_deck_password(text,text,text)';
+  END IF;
+
+  IF to_regprocedure('public.get_deck_payload(text,text,text)') IS NULL THEN
+    RAISE EXCEPTION 'Missing function: public.get_deck_payload(text,text,text)';
+  END IF;
+
+  IF to_regprocedure('public.resolve_public_deck_link(text,text)') IS NULL THEN
+    RAISE EXCEPTION 'Missing function: public.resolve_public_deck_link(text,text)';
+  END IF;
+
+  IF to_regprocedure('public.enforce_deck_link_alias_workspace_collision()') IS NULL THEN
+    RAISE EXCEPTION 'Missing function: public.enforce_deck_link_alias_workspace_collision()';
+  END IF;
+
+  IF to_regprocedure('public.enforce_deck_slug_workspace_collision()') IS NULL THEN
+    RAISE EXCEPTION 'Missing function: public.enforce_deck_slug_workspace_collision()';
   END IF;
 
   IF to_regprocedure('public.get_owner_thumbnails()') IS NULL THEN
@@ -54,6 +102,23 @@ BEGIN
 
   IF to_regprocedure('public.is_admin(uuid)') IS NULL THEN
     RAISE EXCEPTION 'Missing function: public.is_admin(uuid)';
+  END IF;
+
+  IF to_regprocedure('public.sync_deck_public_compatibility_trigger()') IS NULL THEN
+    RAISE EXCEPTION 'Missing function: public.sync_deck_public_compatibility_trigger()';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger t
+    JOIN pg_class c ON c.oid = t.tgrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = 'deck_links'
+      AND t.tgname = 'tr_sync_deck_public_compatibility'
+      AND NOT t.tgisinternal
+  ) THEN
+    RAISE EXCEPTION 'Missing trigger on public.deck_links: tr_sync_deck_public_compatibility';
   END IF;
 
   IF NOT EXISTS (

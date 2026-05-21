@@ -3,6 +3,11 @@ import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
 import { withRetry } from "../utils/resilience";
 import { LibraryFolder, LibraryTag, SavedDeckOrganized } from "../types";
 import { globalTagService } from "./globalTagService";
+import {
+  DEFAULT_FOLDER_COLOR,
+  resolveFolderColorKey,
+  type FolderColorKey,
+} from "../constants/folderColors";
 
 interface FolderJoinResult {
   id: string;
@@ -10,7 +15,10 @@ interface FolderJoinResult {
   color: string;
   created_at: string;
   library_folder_tags: { global_tags: LibraryTag }[];
-  investor_library: { count: number }[];
+}
+
+interface InvestorLibraryFolderCountRow {
+  folder_id: string | null;
 }
 
 /** Narrow type for the investor_library select used in getSavedDecksOrganized.
@@ -21,7 +29,22 @@ interface InvestorLibraryEntry {
   folder_id: string | null;
   created_at: string;
   last_viewed_at: string | null;
-  library_deck_tags: { global_tags: LibraryTag }[];
+}
+
+type SavedDeckMeta = {
+  id: string;
+  title: string;
+  slug: string;
+  file_type?: string;
+  status?: string;
+  description?: string | null;
+  user_id: string;
+  user_handle?: string | null;
+  tags?: LibraryTag[] | null;
+};
+
+function normalizeTagIds(tagIds: string[]): string[] {
+  return Array.from(new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean)));
 }
 
 const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | null => {
@@ -33,6 +56,14 @@ const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | n
   };
 };
 
+const normalizeTagCollection = (
+  rawTags: Array<LibraryTag | null | undefined> | null | undefined,
+): LibraryTag[] => {
+  return (rawTags || [])
+    .map((tag) => normalizeLibraryTag(tag))
+    .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null));
+};
+
 export const organizerService = {
   // --- FOLDERS ---
 
@@ -41,47 +72,40 @@ export const organizerService = {
       const uid = await getSessionUserId(optionalUserId);
       if (!uid) return [];
 
-      const { data, error } = await supabase
+      const { data: foldersData, error: foldersError } = await supabase
         .from("library_folders")
         .select(`
           *,
           library_folder_tags (
             global_tags (*)
-          ),
-          investor_library (count)
+          )
         `)
         .eq("user_id", uid)
         .order("name");
 
-      if (error) {
-        console.warn(
-          "Complex getFolders query failed, falling back to simple select:",
-          error,
-        );
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from("library_folders")
-          .select("*")
-          .eq("user_id", uid)
-          .order("name");
+      if (foldersError) throw foldersError;
 
-        if (fallbackError) throw fallbackError;
+      const { data: folderCountRows, error: folderCountError } = await supabase
+        .from("investor_library")
+        .select("folder_id")
+        .eq("user_id", uid)
+        .not("folder_id", "is", null);
 
-        return (fallbackData || []).map((f) => ({
-          id: f.id,
-          name: f.name,
-          color: f.color || "#666666",
-          created_at: f.created_at,
-          deck_count: 0,
-          tags: [],
-        }));
-      }
+      if (folderCountError) throw folderCountError;
 
-      return (data as FolderJoinResult[] || []).map((f) => ({
+      const deckCountByFolderId = (folderCountRows as InvestorLibraryFolderCountRow[] | null ?? [])
+        .reduce<Map<string, number>>((counts, row) => {
+          if (!row.folder_id) return counts;
+          counts.set(row.folder_id, (counts.get(row.folder_id) ?? 0) + 1);
+          return counts;
+        }, new Map());
+
+      return (foldersData as FolderJoinResult[] || []).map((f) => ({
         id: f.id,
         name: f.name,
-        color: f.color || "#666666",
+        color: resolveFolderColorKey(f.color),
         created_at: f.created_at,
-        deck_count: f.investor_library?.[0]?.count || 0,
+        deck_count: deckCountByFolderId.get(f.id) ?? 0,
         tags: (f.library_folder_tags || [])
           .map((ft) => normalizeLibraryTag(ft.global_tags))
           .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null)),
@@ -91,8 +115,8 @@ export const organizerService = {
 
   async createFolder(
     name: string,
-    color?: string,
-    tagNames: string[] = [],
+    color: FolderColorKey = DEFAULT_FOLDER_COLOR,
+    tagIds: string[] = [],
   ): Promise<LibraryFolder> {
     // Note: No withRetry here - this is a multi-step non-idempotent operation.
     // Retrying could create duplicate folders since there's no unique constraint on (user_id, name).
@@ -102,7 +126,7 @@ export const organizerService = {
       .from("library_folders")
       .insert([{
         name,
-        color: color || "#666666",
+        color,
         user_id: userId,
       }])
       .select()
@@ -119,38 +143,41 @@ export const organizerService = {
         .insert([{ name, user_id: userId }])
         .select()
         .single();
-      finalData = fbData ? { ...fbData, color: color || "#666666" } : fbData;
+      finalData = fbData ? { ...fbData, color } : fbData;
       finalError = fbError;
     }
 
     if (finalError) throw finalError;
 
-    const createdTags: LibraryTag[] = [];
+    const uniqueTagIds = Array.from(
+      new Set(tagIds.map((id) => id.trim()).filter(Boolean)),
+    );
+    let createdTags: LibraryTag[] = [];
 
     try {
-      const canonicalTags = tagNames
-        ? Array.from(new Set(tagNames.map((t) => t.trim().toUpperCase()).filter(Boolean)))
-        : [];
-      for (const tagName of canonicalTags) {
-        const tagData = await globalTagService.createOrRestoreTag(
-          userId,
-          tagName,
-          "#666666",
-        );
+      createdTags = await globalTagService.fetchTagsByIds(
+        uniqueTagIds,
+        userId,
+        false,
+      );
 
+      if (createdTags.length !== uniqueTagIds.length) {
+        throw new Error("One or more tags were not found.");
+      }
+
+      for (const tagData of createdTags) {
         const { error: linkErr } = await supabase
           .from("library_folder_tags")
           .insert([{ folder_id: finalData.id, tag_id: tagData.id }]);
 
         if (linkErr) {
-          console.error(`Failed to link tag ${tagName}:`, {
+          console.error("Failed to link folder tag:", {
             folder_id: finalData.id,
             tag_id: tagData.id,
             error: linkErr,
           });
           throw linkErr;
         }
-        createdTags.push(tagData);
       }
     } catch (err) {
       console.error("Critical failure during folder creation process, rolling back:", err);
@@ -186,8 +213,8 @@ export const organizerService = {
   async updateFolder(
     folderId: string,
     name: string,
-    color?: string,
-    tagNames: string[] = [],
+    color: FolderColorKey = DEFAULT_FOLDER_COLOR,
+    tagIds: string[] = [],
   ): Promise<LibraryFolder> {
     // Note: No withRetry here - this is a multi-step operation with compensating rollback.
     // The caller can handle network errors and retry if needed.
@@ -213,7 +240,7 @@ export const organizerService = {
       .from("library_folders")
       .update({
         name,
-        color: color || "#666666",
+        color,
         updated_at: new Date().toISOString(),
       })
       .eq("id", folderId)
@@ -257,33 +284,28 @@ export const organizerService = {
 
     // 4. Link tags
     try {
-      const canonicalTags = tagNames 
-        ? Array.from(new Set(tagNames.map(t => t.trim().toUpperCase()).filter(Boolean)))
-        : [];
-      if (canonicalTags.length > 0) {
-        for (const tagName of canonicalTags) {
-          const tagData = await globalTagService.createOrRestoreTag(
-            userId,
-            tagName,
-            "#666666",
-          );
+      const normalizedTagIds = normalizeTagIds(tagIds);
+      const resolvedTags = await globalTagService.fetchTagsByIds(normalizedTagIds, userId, false);
+      if (resolvedTags.length !== normalizedTagIds.length) {
+        throw new Error("One or more tags were not found.");
+      }
 
-          if (tagData) {
-            const { error: insertErr } = await supabase
-              .from("library_folder_tags")
-              .insert([{ folder_id: folderId, tag_id: tagData.id }]);
+      if (resolvedTags.length > 0) {
+        for (const tagData of resolvedTags) {
+          const { error: insertErr } = await supabase
+            .from("library_folder_tags")
+            .insert([{ folder_id: folderId, tag_id: tagData.id }]);
 
-            if (insertErr) {
-              console.error(`Failed to link tag ${tagName}:`, {
-                folder_id: folderId,
-                tag_id: tagData.id,
-                error: insertErr,
-              });
-              throw insertErr;
-            }
-
-            createdTags.push(tagData);
+          if (insertErr) {
+            console.error("Failed to link folder tag:", {
+              folder_id: folderId,
+              tag_id: tagData.id,
+              error: insertErr,
+            });
+            throw insertErr;
           }
+
+          createdTags.push(tagData);
         }
       }
     } catch (err) {
@@ -315,13 +337,22 @@ export const organizerService = {
 
         // Restore folder row to original state
         if (originalName !== undefined) {
+          const rollbackPayload: {
+            name: string;
+            updated_at: string;
+            color?: string;
+          } = {
+            name: originalName,
+            updated_at: new Date().toISOString(),
+          };
+
+          if (originalColor !== undefined) {
+            rollbackPayload.color = originalColor || DEFAULT_FOLDER_COLOR;
+          }
+
           await supabase
             .from("library_folders")
-            .update({
-              name: originalName,
-              color: originalColor || "#666666",
-              updated_at: new Date().toISOString(),
-            })
+            .update(rollbackPayload)
             .eq("id", folderId);
         }
       } catch (rollbackErr) {
@@ -340,7 +371,7 @@ export const organizerService = {
     return {
       id: folderId,
       name,
-      color: color || "#666666",
+      color,
       created_at: updatedFolderData?.created_at || new Date().toISOString(),
       tags: createdTags,
       deck_count: 0, // simplified
@@ -422,61 +453,32 @@ export const organizerService = {
     return withRetry(async () => {
       const uid = await getRequiredSessionUserId();
 
-      const ownedTags = await globalTagService.fetchTagsByIds(tagIds, uid, false);
+      const normalizedTagIds = normalizeTagIds(tagIds);
+      const ownedTags = await globalTagService.fetchTagsByIds(normalizedTagIds, uid, false);
       const ownedTagIds = ownedTags.map((tag) => tag.id);
-      if (ownedTagIds.length !== Array.from(new Set(tagIds.map((tagId) => tagId.trim()).filter(Boolean))).length) {
+      if (ownedTagIds.length !== normalizedTagIds.length) {
         throw new Error("One or more tags were not found.");
       }
 
-      // 1. Get current tags
-      const { data: currentTags, error: fetchError } = await supabase
-        .from("library_deck_tags")
-        .select("tag_id")
-        .eq("library_id", libraryId);
+      const { data: libraryItem, error: libraryItemError } = await supabase
+        .from("investor_library")
+        .select("deck_id")
+        .eq("id", libraryId)
+        .eq("user_id", uid)
+        .maybeSingle();
 
-      if (fetchError) throw fetchError;
-
-      const currentTagIds = (currentTags || []).map((t) => t.tag_id);
-
-      const toAdd = ownedTagIds.filter((id) => !currentTagIds.includes(id));
-      const toRemove = currentTagIds.filter((id) => !ownedTagIds.includes(id));
-
-      // 2. Remove tags
-      if (toRemove.length > 0) {
-        const { error: removeError } = await supabase
-          .from("library_deck_tags")
-          .delete()
-          .eq("library_id", libraryId)
-          .in("tag_id", toRemove);
-        if (removeError) throw removeError;
+      if (libraryItemError) throw libraryItemError;
+      if (!libraryItem?.deck_id) {
+        throw new Error("Saved deck not found.");
       }
 
-      // 3. Add tags
-      if (toAdd.length > 0) {
-        const { error: addError } = await supabase
-          .from("library_deck_tags")
-          .insert(
-            toAdd.map((tagId) => ({ library_id: libraryId, tag_id: tagId })),
-          );
-        if (addError) {
-          // Rollback: re-add removed tags
-          if (toRemove.length > 0) {
-            const { error: rollbackErr } = await supabase
-              .from("library_deck_tags")
-              .insert(
-                toRemove.map((tagId) => ({
-                  library_id: libraryId,
-                  tag_id: tagId,
-                })),
-              );
-              
-            if (rollbackErr) {
-              console.error("CRITICAL: Failed to rollback tag removal in updateDeckTags", { libraryId, toRemove, rollbackErr });
-            }
-          }
-          throw addError;
-        }
-      }
+      const { error } = await supabase.rpc("reconcile_deck_tags", {
+        p_deck_id: libraryItem.deck_id,
+        p_user_id: uid,
+        p_tag_ids: ownedTagIds,
+      });
+
+      if (error) throw error;
     });
   },
 
@@ -496,10 +498,7 @@ export const organizerService = {
           deck_id,
           folder_id,
           created_at,
-          last_viewed_at,
-          library_deck_tags (
-            global_tags (*)
-          )
+          last_viewed_at
         `)
         .eq("user_id", uid)
         .order("created_at", { ascending: false });
@@ -510,29 +509,20 @@ export const organizerService = {
         item.deck_id
       );
 
-      type SavedDeckMeta = {
-        id: string;
-        title: string;
-        slug: string;
-        file_type?: string;
-        status?: string;
-        description?: string | null;
-        user_id: string;
-        user_handle?: string | null;
-      };
-
       const deckMap = new Map<string, SavedDeckMeta>();
+      const deckTagsMap = new Map<string, LibraryTag[]>();
       let notesMap: Record<string, string> = {};
 
       if (deckIds.length > 0) {
         const [
-          { data: ownedDecks, error: ownedDecksError },
+          { data: libraryDecks, error: libraryDecksError },
           { data: notesData, error: notesErr },
         ] = await Promise.all([
           supabase
-            .from("decks")
-            .select("id, title, slug, file_type, status, description, user_id")
-            .in("id", deckIds),
+            .rpc("get_library_deck_metadata", {
+              p_deck_ids: deckIds,
+            })
+            .select("id, title, slug, file_type, status, description, user_id, user_handle, tags"),
           supabase
             .from("investor_notes")
             .select("deck_id, content")
@@ -540,33 +530,20 @@ export const organizerService = {
             .in("deck_id", deckIds),
         ]);
 
-        if (ownedDecksError) throw ownedDecksError;
+        if (libraryDecksError) throw libraryDecksError;
         if (notesErr) throw notesErr;
 
-        (ownedDecks || []).forEach((deck) => {
-          deckMap.set(deck.id, deck as SavedDeckMeta);
-        });
+        ((Array.isArray(libraryDecks) ? libraryDecks : []) as SavedDeckMeta[]).forEach(
+          (deck) => {
+            deckMap.set(deck.id, deck as SavedDeckMeta);
+            deckTagsMap.set(deck.id, normalizeTagCollection(deck.tags));
+          },
+        );
 
         notesMap = (notesData || []).reduce((acc, curr) => {
           acc[curr.deck_id] = curr.content;
           return acc;
         }, {} as Record<string, string>);
-
-        const unresolvedDeckIds = deckIds.filter((deckId) => !deckMap.has(deckId));
-
-        if (unresolvedDeckIds.length > 0) {
-          const { data: publicDecks, error: publicDecksError } = await supabase
-            .rpc("get_decks_public")
-            .select("id, title, slug, file_type, status, description, user_id, user_handle")
-            .in("id", unresolvedDeckIds);
-
-          if (publicDecksError) throw publicDecksError;
-
-          ((Array.isArray(publicDecks) ? publicDecks : []) as SavedDeckMeta[])
-            .forEach((deck: SavedDeckMeta) => {
-            deckMap.set(deck.id, deck as SavedDeckMeta);
-          });
-        }
       }
 
       return ((data as unknown as InvestorLibraryEntry[]) || []).map((item) => {
@@ -581,6 +558,7 @@ export const organizerService = {
         return {
           library_id: item.id,
           deck_id: item.deck_id,
+          user_id: deckData?.user_id || "",
           folder_id: item.folder_id,
           saved_at: item.created_at,
           last_viewed_at: item.last_viewed_at,
@@ -593,9 +571,7 @@ export const organizerService = {
           description: deckData?.description || null,
           investor_note: notesMap[item.deck_id] || "",
           is_available: !!deckData,
-          tags: (item.library_deck_tags || [])
-            .map((dt) => normalizeLibraryTag(dt.global_tags))
-            .filter((tag): tag is LibraryTag => Boolean(tag && tag.deleted_at === null)),
+          tags: deckTagsMap.get(item.deck_id) || [],
         };
       });
     });

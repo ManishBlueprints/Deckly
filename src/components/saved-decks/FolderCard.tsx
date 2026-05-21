@@ -1,9 +1,16 @@
-import { memo } from "react";
-import { Folder, Edit2, Trash2 } from "lucide-react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Folder, Edit2, Tag, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { LibraryFolder } from "../../types";
+import { toast } from "sonner";
+import { LibraryFolder, LibraryTag } from "../../types";
 import { cn } from "../../utils/cn";
 import { TagChip } from "./TagChip";
+import { getFolderColorHex } from "../../constants/folderColors";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 interface FolderCardProps {
   folder?: LibraryFolder;
@@ -11,6 +18,8 @@ interface FolderCardProps {
   onClick?: () => void;
   isActive?: boolean;
   onEdit?: (folder: LibraryFolder) => void;
+  availableTags?: LibraryTag[];
+  onUpdateTags?: (folder: LibraryFolder, tagIds: string[]) => Promise<void> | void;
   onDelete?: (folder: LibraryFolder) => void;
   documentCount?: number;
 }
@@ -21,9 +30,58 @@ export const FolderCard = memo(function FolderCard({
   onClick,
   isActive,
   onEdit,
+  availableTags = [],
+  onUpdateTags,
   onDelete,
   documentCount,
 }: FolderCardProps) {
+  const [tagFilterQuery, setTagFilterQuery] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [isUpdatingTags, setIsUpdatingTags] = useState(false);
+  const isUpdatingTagsRef = useRef(false);
+  const pendingTagIdsRef = useRef<string[] | null>(null);
+  const lastCommittedTagIdsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    const nextTagIds = folder?.tags.map((tag) => tag.id) ?? [];
+    lastCommittedTagIdsRef.current = nextTagIds;
+    if (!isUpdatingTagsRef.current) {
+      setSelectedTagIds(nextTagIds);
+    }
+  }, [folder]);
+
+  const queueTagSelection = useCallback(
+    (nextTagIds: string[]) => {
+      pendingTagIdsRef.current = nextTagIds;
+      if (isUpdatingTagsRef.current || !folder || !onUpdateTags) return;
+
+      isUpdatingTagsRef.current = true;
+      setIsUpdatingTags(true);
+
+      void (async () => {
+        try {
+          while (pendingTagIdsRef.current) {
+            const targetTagIds = pendingTagIdsRef.current;
+            pendingTagIdsRef.current = null;
+            await onUpdateTags(folder, targetTagIds);
+            lastCommittedTagIdsRef.current = targetTagIds;
+          }
+        } catch (err) {
+          pendingTagIdsRef.current = null;
+          setSelectedTagIds(lastCommittedTagIdsRef.current);
+          console.error("Failed to update saved library folder tags", err);
+          toast.error(
+            err instanceof Error ? err.message : "Failed to update folder tags.",
+          );
+        } finally {
+          isUpdatingTagsRef.current = false;
+          setIsUpdatingTags(false);
+        }
+      })();
+    },
+    [folder, onUpdateTags],
+  );
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
     if (e.key === "Enter" || e.key === " ") {
@@ -56,6 +114,12 @@ export const FolderCard = memo(function FolderCard({
   }
 
   if (!folder) return null;
+  const folderColor = getFolderColorHex(folder.color);
+  const filteredTags = availableTags.filter((tag) =>
+    tagFilterQuery.trim()
+      ? tag.name.toLowerCase().includes(tagFilterQuery.trim().toLowerCase())
+      : true,
+  );
 
   return (
     <motion.div
@@ -83,13 +147,119 @@ export const FolderCard = memo(function FolderCard({
       <div className="mb-10 transition-transform group-hover:scale-110">
         <Folder
           className="w-8 h-8"
-          style={{ color: folder.color }}
-          fill={folder.color}
+          style={{ color: folderColor }}
+          fill={folderColor}
         />
       </div>
 
       <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-10">
+        {onUpdateTags && availableTags.length > 0 && (
+          <DropdownMenu onOpenChange={(open) => !open && setTagFilterQuery("")}>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Edit folder tags"
+                className="p-2 bg-white/5 hover:bg-white/10 text-[#bbcbbb]/40 hover:text-white focus-visible:text-white focus-visible:bg-white/10 transition-colors"
+              >
+                <Tag size={14} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-80 p-0 overflow-hidden border-white/10 bg-[#151515] shadow-[0_24px_80px_-20px_rgba(0,0,0,0.85)]"
+              onEscapeKeyDown={() => setTagFilterQuery("")}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bbcbbb]/40">
+                      Apply tags
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {selectedTagIds.length > 0
+                        ? `${selectedTagIds.length} selected`
+                        : "Pick one or more tags"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTagIds([]);
+                      queueTagSelection([]);
+                    }}
+                    disabled={isUpdatingTags && selectedTagIds.length === 0}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
+                  >
+                    Clear all
+                  </button>
+                </div>
+
+                <div className="mt-3">
+                  <input
+                    value={tagFilterQuery}
+                    onChange={(e) => setTagFilterQuery(e.target.value)}
+                    placeholder="Search tags..."
+                    className="w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-white placeholder:text-slate-500 outline-none transition focus:border-emerald-500/30 focus:ring-1 focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+
+              <div className="max-h-72 overflow-y-auto p-2 custom-scrollbar">
+                {filteredTags.length === 0 ? (
+                  <div className="px-3 py-8 text-center">
+                    <p className="text-sm font-medium text-slate-400">
+                      No tags found
+                    </p>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-slate-600">
+                      Try a different search
+                    </p>
+                  </div>
+                ) : (
+                  filteredTags.map((tag) => {
+                    const isSelected = selectedTagIds.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTagIds((prev) => {
+                            const nextIds = prev.includes(tag.id)
+                              ? prev.filter((id) => id !== tag.id)
+                              : [...prev, tag.id];
+                            queueTagSelection(nextIds);
+                            return nextIds;
+                          });
+                        }}
+                        disabled={isUpdatingTags && pendingTagIdsRef.current === null}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-all",
+                          isSelected
+                            ? "border-emerald-500/25 bg-emerald-500/10"
+                            : "border-transparent hover:border-white/10 hover:bg-white/[0.04]",
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <TagChip tag={tag} size="md" className="shrink-0" />
+                            {isSelected && (
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-400">
+                                Applied
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onEdit?.(folder);
@@ -100,6 +270,7 @@ export const FolderCard = memo(function FolderCard({
           <Edit2 size={14} />
         </button>
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onDelete?.(folder);

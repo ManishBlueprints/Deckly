@@ -28,7 +28,6 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
-import { getDataRoomPath } from "../utils/url";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -83,7 +82,11 @@ function DataRoomViewer() {
   // Fetches public data room details, enforces slugs, and checks expiry
   // Also validates if the current user is the owner to bypass the access gate
   const loadRoom = useCallback(async () => {
-    if (!slug || !handle) return;
+    if (!slug || !handle) {
+      setError("Data room not found");
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const data = await dataRoomService.getDataRoomByHandleAndSlug(
@@ -91,18 +94,6 @@ function DataRoomViewer() {
         slug,
       );
       if (!data) {
-        // Try slug-only fallback for namespacing enforcement
-        try {
-          const fallback = await dataRoomService.getDataRoomBySlugOnly(slug);
-          if (fallback && fallback.handle !== handle) {
-            window.location.replace(
-              getDataRoomPath(fallback.handle, fallback.slug),
-            );
-            return;
-          }
-        } catch {
-          /* ignore */
-        }
         setError("Data room not found");
         return;
       }
@@ -140,6 +131,7 @@ function DataRoomViewer() {
         // Free public
         try {
           const payloadDocs = await dataRoomService.getDataRoomPayload(
+            handle!,
             data.slug,
           );
           docsToSet = payloadDocs.map((deckObj: unknown, index: number) => {
@@ -189,9 +181,7 @@ function DataRoomViewer() {
     } finally {
       setLoading(false);
     }
-    // 'handle' is intentionally excluded: adding it would reset the room on every navigation
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, handle]);
 
   useEffect(() => {
     loadRoom();
@@ -201,11 +191,16 @@ function DataRoomViewer() {
     if (!session || !room) return;
 
     const pendingSaveId = localStorage.getItem("pending_save_data_room_id");
-    if (pendingSaveId === room.id) {
-      localStorage.removeItem("pending_save_data_room_id");
-      if (!isSaved) {
-        void saveToLibraryMutation
-          .mutateAsync({ dataRoomId: room.id, save: true, roomSnapshot: room })
+      if (pendingSaveId === room.id) {
+        localStorage.removeItem("pending_save_data_room_id");
+        if (!isSaved) {
+          void saveToLibraryMutation
+          .mutateAsync({
+            dataRoomId: room.id,
+            save: true,
+            roomSnapshot: room,
+            ownerHandle: handle,
+          })
           .then(() => {
             setShowSuccessToast(true);
             setTimeout(() => setShowSuccessToast(false), 3000);
@@ -231,7 +226,7 @@ function DataRoomViewer() {
     if (isSaved) {
       dataRoomLibraryService.updateLibraryLastViewed(room.id);
     }
-  }, [session, room?.id, isSaved, saveToLibraryMutation, pendingAction, room]);
+  }, [session, room?.id, isSaved, saveToLibraryMutation, pendingAction, room, handle]);
 
   // Track view when a document is selected
   useEffect(() => {
@@ -279,6 +274,7 @@ function DataRoomViewer() {
         dataRoomId: room.id,
         save: nextSaveState,
         roomSnapshot: room,
+        ownerHandle: handle,
       });
 
       if (nextSaveState) {
@@ -292,7 +288,7 @@ function DataRoomViewer() {
           : "Failed to save room. Please try again.",
       );
     }
-  }, [room, session, isSaved, saveToLibraryMutation]);
+  }, [room, session, isSaved, saveToLibraryMutation, handle]);
 
   const handleNotes = useCallback(() => {
     if (!room) return;
@@ -433,8 +429,12 @@ function DataRoomViewer() {
           <AccessGate
             deck={roomAsDeck}
             onAccessGranted={async (email, password) => {
-              try {
-                const payloadDocs = await dataRoomService.getDataRoomPayload(room.slug, password);
+          try {
+                const payloadDocs = await dataRoomService.getDataRoomPayload(
+                  handle!,
+                  room.slug,
+                  password,
+                );
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const docsToSet = payloadDocs.map((deckObj: any, index: number) => {
                 const deck = deckObj as Deck & {
@@ -477,7 +477,7 @@ function DataRoomViewer() {
               }
             }}
             onVerifyPassword={(pass) =>
-              dataRoomService.checkDataRoomPassword(room.slug, pass)
+              dataRoomService.checkDataRoomPassword(handle!, room.slug, pass)
             }
           />
         ) : room ? (
