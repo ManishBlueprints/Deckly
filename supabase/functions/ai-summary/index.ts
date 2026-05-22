@@ -40,6 +40,23 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
+const logAiTelemetry = (
+  event: string,
+  payload: Record<string, unknown>,
+) => {
+  console.log(
+    JSON.stringify({
+      channel: "ai_summary",
+      event,
+      timestamp: new Date().toISOString(),
+      ...payload,
+    }),
+  );
+};
+
+const toErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
 const getServiceClient = () => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey =
@@ -505,7 +522,7 @@ const createChatService = (supabaseClient: SupabaseClient) =>
 
       if (error) throw error;
     },
-    async retrieveSnippets(request) {
+    retrieveSnippets(request) {
       return createRetrievalService(supabaseClient).retrieveSnippets(request);
     },
   });
@@ -713,6 +730,11 @@ Deno.serve(async (request: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const requestStartedAt = Date.now();
+  let telemetryContext: Record<string, unknown> = {
+    method: request.method,
+  };
+
   try {
     const supabaseClient = getServiceClient();
     const body = await request.json().catch(() => ({}));
@@ -720,6 +742,13 @@ Deno.serve(async (request: Request) => {
     const scopeType =
       typeof body.scope_type === "string" ? body.scope_type : null;
     const scopeId = typeof body.scope_id === "string" ? body.scope_id : null;
+
+    telemetryContext = {
+      ...telemetryContext,
+      action,
+      scope_type: scopeType,
+      scope_id: scopeId,
+    };
 
     if (
       !scopeType ||
@@ -805,7 +834,7 @@ Deno.serve(async (request: Request) => {
           .neq("content_hash", key.content_hash);
         if (error) throw error;
       },
-    }, async (operation) => operation());
+    }, (operation) => operation());
 
     if (action === "chat") {
       const authenticatedUser = await getAuthenticatedUser(supabaseClient, request);
@@ -849,6 +878,14 @@ Deno.serve(async (request: Request) => {
           summaryCacheLookup.summary_text ??
           (typeof body.summary_text === "string" ? body.summary_text : null),
       };
+
+      logAiTelemetry("chat_requested", {
+        ...telemetryContext,
+        auth_state: "signed_in",
+        user_id: authenticatedUser.id,
+        cache_state: summaryCacheLookup.state,
+        has_summary_context: Boolean(summaryContext.summary_text),
+      });
 
       const context = await chatService.assembleFollowUpContext({
         scope_type: scopeType as AiScopeReference["scope_type"],
@@ -901,6 +938,17 @@ Deno.serve(async (request: Request) => {
         created_at: now,
       });
 
+      logAiTelemetry("chat_completed", {
+        ...telemetryContext,
+        auth_state: "signed_in",
+        user_id: authenticatedUser.id,
+        session_id: context.session.id,
+        content_hash: contentHash,
+        cache_state: summaryCacheLookup.state,
+        retrieval_count: context.retrieval.snippets.length,
+        duration_ms: Date.now() - requestStartedAt,
+      });
+
       return new Response(
         JSON.stringify({
           scope_type: scopeType,
@@ -947,7 +995,7 @@ Deno.serve(async (request: Request) => {
         lookupCache: (key, currentNow) => guestCacheService.lookupCache(key, currentNow),
         writeCache: (input) => guestCacheService.writeCache(input),
         getUsageCount: (_, currentNow) => getGuestSummaryUsageCount(supabaseClient, ipAddress, currentNow),
-        recordUsage: async (_, cacheKey, consumedAt) =>
+        recordUsage: (_, cacheKey, consumedAt) =>
           recordGuestSummaryUsage(supabaseClient, {
             ipAddress,
             scopeType: cacheKey.scope_type,
@@ -958,12 +1006,35 @@ Deno.serve(async (request: Request) => {
         generateSummary: callOpenAiSummary,
       });
 
+      logAiTelemetry("summary_requested", {
+        ...telemetryContext,
+        auth_state: "guest",
+      });
+
       const result = await orchestrator.summarize({
         scope_type: "deck",
         scope_id: scopeId,
         actor,
         model_identifier: AI_SUMMARY_MODEL_IDENTIFIER,
         model_version: AI_SUMMARY_MODEL_VERSION,
+      });
+
+      logAiTelemetry("summary_resolved", {
+        ...telemetryContext,
+        auth_state: "guest",
+        status: result.status,
+        cache_state: result.cache.state,
+        cache_hit: result.cache.hit,
+        cached_reopen: result.cache.cached_reopen,
+        should_regenerate: result.cache.should_regenerate,
+        content_hash: result.scope.content_hash,
+        partial_data: result.partial_data,
+        no_content: result.no_content,
+        usage_count: result.usage.usage_count,
+        quota_allowed: result.usage.quota?.allowed ?? null,
+        quota_limit: result.usage.quota?.limitPer24Hours ?? null,
+        quota_remaining: result.usage.quota?.remaining ?? null,
+        duration_ms: Date.now() - requestStartedAt,
       });
 
       const statusCode =
@@ -990,12 +1061,37 @@ Deno.serve(async (request: Request) => {
       generateSummary: callOpenAiSummary,
     });
 
+    logAiTelemetry("summary_requested", {
+      ...telemetryContext,
+      auth_state: "signed_in",
+      user_id: authenticatedUser.id,
+    });
+
     const result = await orchestrator.summarize({
       scope_type: scopeType as AiScopeReference["scope_type"],
       scope_id: scopeId,
       actor,
       model_identifier: AI_SUMMARY_MODEL_IDENTIFIER,
       model_version: AI_SUMMARY_MODEL_VERSION,
+    });
+
+    logAiTelemetry("summary_resolved", {
+      ...telemetryContext,
+      auth_state: "signed_in",
+      user_id: authenticatedUser.id,
+      status: result.status,
+      cache_state: result.cache.state,
+      cache_hit: result.cache.hit,
+      cached_reopen: result.cache.cached_reopen,
+      should_regenerate: result.cache.should_regenerate,
+      content_hash: result.scope.content_hash,
+      partial_data: result.partial_data,
+      no_content: result.no_content,
+      usage_count: result.usage.usage_count,
+      quota_allowed: result.usage.quota?.allowed ?? null,
+      quota_limit: result.usage.quota?.limitPer24Hours ?? null,
+      quota_remaining: result.usage.quota?.remaining ?? null,
+      duration_ms: Date.now() - requestStartedAt,
     });
 
     const statusCode =
@@ -1010,7 +1106,12 @@ Deno.serve(async (request: Request) => {
       headers: corsHeaders,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = toErrorMessage(error);
+    logAiTelemetry("request_failed", {
+      ...telemetryContext,
+      error_message: message,
+      duration_ms: Date.now() - requestStartedAt,
+    });
     return new Response(
       JSON.stringify({
         error: true,

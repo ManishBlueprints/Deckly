@@ -4,6 +4,7 @@ import {
   type AiSummaryChatMessage,
   type AiSummaryChatResult,
 } from "../services/aiSummaryService";
+import { analyticsService } from "../services/analyticsService";
 import type { AiSummaryInitialResult } from "../services/aiSummaryInitialOrchestrator";
 import type { AiScopeType } from "../services/aiScopeResolutionBuilder";
 
@@ -147,6 +148,13 @@ export function useAiSummaryPanel({ onRequireAuth, isGuest }: UseAiSummaryPanelO
     setActiveScope(scope);
     setIsOpen(true);
 
+    analyticsService.trackAiSummaryRequested({
+      scope_type: scope.scope_type,
+      scope_id: scope.scope_id,
+      scope_label: scope.scope_label ?? null,
+      auth_state: isGuest ? "guest" : "signed_in",
+    });
+
     activeRequestKeyRef.current = requestKey;
     setChatMessages([]);
     setChatInputValue("");
@@ -161,11 +169,36 @@ export function useAiSummaryPanel({ onRequireAuth, isGuest }: UseAiSummaryPanelO
         title: scope.scope_label ?? null,
       });
       setResultState(result);
+      analyticsService.trackAiSummaryResolved({
+        scope_type: scope.scope_type,
+        scope_id: scope.scope_id,
+        scope_label: scope.scope_label ?? null,
+        auth_state: isGuest ? "guest" : "signed_in",
+        status: result.status,
+        cache_state: result.cache.state,
+        cached_reopen: result.cache.cached_reopen,
+        partial_data: result.partial_data,
+        no_content: result.no_content,
+        usage_count: result.usage.usage_count,
+        quota_limit: result.usage.quota?.limitPer24Hours ?? null,
+        quota_remaining: result.usage.quota?.remaining ?? null,
+        quota_scope: result.usage.quota?.scope ?? null,
+      });
       return result;
+    } catch (error) {
+      analyticsService.trackAiSummaryResolved({
+        scope_type: scope.scope_type,
+        scope_id: scope.scope_id,
+        scope_label: scope.scope_label ?? null,
+        auth_state: isGuest ? "guest" : "signed_in",
+        status: "error",
+        error_message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
     } finally {
       setIsSummaryLoading(false);
     }
-  }, [setResultState]);
+  }, [isGuest, setResultState]);
 
   const submitChat = useCallback(async () => {
     if (!activeScope || !summaryResult) return;
@@ -176,6 +209,13 @@ export function useAiSummaryPanel({ onRequireAuth, isGuest }: UseAiSummaryPanelO
     if (!summaryResult.summary_text) {
       return;
     }
+
+    analyticsService.trackAiSummaryChatSubmitted({
+      scope_type: activeScope.scope_type,
+      scope_id: activeScope.scope_id,
+      scope_label: activeScope.scope_label ?? null,
+      auth_state: isGuest ? "guest" : "signed_in",
+    });
 
     setIsChatLoading(true);
     const userMessageId = `user-${Date.now()}`;
@@ -205,17 +245,42 @@ export function useAiSummaryPanel({ onRequireAuth, isGuest }: UseAiSummaryPanelO
       } else if (result.assistant_message) {
         setChatMessages((prev) => [...prev, result.assistant_message as AiSummaryChatMessage]);
       }
+
+      analyticsService.trackAiSummaryChatResolved({
+        scope_type: activeScope.scope_type,
+        scope_id: activeScope.scope_id,
+        scope_label: activeScope.scope_label ?? null,
+        auth_state: isGuest ? "guest" : "signed_in",
+        status: "completed",
+        session_id: result.session_id,
+        message_count: Array.isArray(result.messages) ? result.messages.length : null,
+      });
     } catch (error) {
       const status = (error as { status?: number } | null)?.status;
       setChatMessages((prev) => prev.filter((message) => message.id !== userMessageId));
       setChatInputValue(question);
+      analyticsService.trackAiSummaryChatResolved({
+        scope_type: activeScope.scope_type,
+        scope_id: activeScope.scope_id,
+        scope_label: activeScope.scope_label ?? null,
+        auth_state: isGuest ? "guest" : "signed_in",
+        status: status === 401 || status === 403 ? "auth_required" : "error",
+        error_message: error instanceof Error ? error.message : String(error),
+      });
       if (status === 401 || status === 403) {
+        analyticsService.trackAiSummaryAuthPrompt({
+          scope_type: activeScope.scope_type,
+          scope_id: activeScope.scope_id,
+          scope_label: activeScope.scope_label ?? null,
+          auth_state: isGuest ? "guest" : "signed_in",
+          status: "chat_locked",
+        });
         onRequireAuth();
       }
     } finally {
       setIsChatLoading(false);
     }
-  }, [activeScope, chatInputValue, onRequireAuth, summaryResult]);
+  }, [activeScope, chatInputValue, isGuest, onRequireAuth, summaryResult]);
 
   const state: AiSummaryPanelState = {
     isOpen,
