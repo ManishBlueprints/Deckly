@@ -28,6 +28,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
+import type { Tier } from "../constants/tiers";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -38,7 +39,7 @@ import {
 function DataRoomViewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
   const [folderGroups, setFolderGroups] = useState<{ id: string; name: string }[]>([]);
@@ -64,6 +65,7 @@ function DataRoomViewer() {
       setShowAuthModal(true);
     },
     isGuest: !session,
+    tier: (profile?.tier as Tier) || "FREE",
   });
 
   // Handle responsive sidebar and screen size

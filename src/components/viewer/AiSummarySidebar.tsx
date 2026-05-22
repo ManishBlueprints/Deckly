@@ -56,6 +56,11 @@ const noticeToneClasses: Record<AiSummarySidebarNoticeTone, string> = {
   warning: "border-amber-500/20 bg-amber-500/10 text-amber-300",
 };
 
+type AiFormattedBlock =
+  | { type: "heading"; content: string }
+  | { type: "bullet"; content: string }
+  | { type: "paragraph"; content: string };
+
 function SummarySkeleton() {
   return (
     <div className="space-y-2.5" aria-hidden="true">
@@ -64,6 +69,164 @@ function SummarySkeleton() {
       <div className="h-4 w-[94%] bg-white/5 animate-pulse" />
       <div className="h-4 w-[88%] bg-white/5 animate-pulse" />
       <div className="h-4 w-[70%] bg-white/5 animate-pulse" />
+    </div>
+  );
+}
+
+const normalizeAiContent = (value: string): string =>
+  value
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+const parseAiFormattedBlocks = (value: string): AiFormattedBlock[] => {
+  const normalized = normalizeAiContent(value);
+  if (!normalized) return [];
+
+  const lines = normalized.split("\n");
+  const blocks: AiFormattedBlock[] = [];
+  let paragraphBuffer: string[] = [];
+
+  const flushParagraph = () => {
+    if (paragraphBuffer.length === 0) return;
+    const content = paragraphBuffer.join(" ").replace(/\s+/g, " ").trim();
+    if (content) {
+      blocks.push({ type: "paragraph", content });
+    }
+    paragraphBuffer = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushParagraph();
+      continue;
+    }
+
+    const boldHeadingMatch = line.match(/^\*\*(.+?)\*\*$/);
+    if (boldHeadingMatch) {
+      flushParagraph();
+      blocks.push({
+        type: "heading",
+        content: boldHeadingMatch[1]?.trim() ?? line,
+      });
+      continue;
+    }
+
+    const plainHeadingMatch = line.match(/^\d+\.\s*(.+)$/);
+    if (plainHeadingMatch && line.length <= 80) {
+      flushParagraph();
+      blocks.push({
+        type: "heading",
+        content: plainHeadingMatch[1]?.trim() ?? line,
+      });
+      continue;
+    }
+
+    const bulletMatch = line.match(/^[-•]\s+(.+)$/);
+    if (bulletMatch) {
+      flushParagraph();
+      blocks.push({
+        type: "bullet",
+        content: bulletMatch[1]?.trim() ?? line,
+      });
+      continue;
+    }
+
+    paragraphBuffer.push(line);
+  }
+
+  flushParagraph();
+  return blocks;
+};
+
+function renderInlineEmphasis(content: string) {
+  const segments = content.split(/(\*\*.*?\*\*)/g).filter(Boolean);
+
+  return segments.map((segment, index) => {
+    const strongMatch = segment.match(/^\*\*(.*?)\*\*$/);
+    if (strongMatch) {
+      return (
+        <strong key={`${segment}-${index}`} className="font-semibold text-slate-100">
+          {strongMatch[1]}
+        </strong>
+      );
+    }
+
+    return <span key={`${segment}-${index}`}>{segment}</span>;
+  });
+}
+
+function FormattedAiContent({
+  content,
+  variant = "summary",
+}: {
+  content: string;
+  variant?: "summary" | "chat";
+}) {
+  const blocks = parseAiFormattedBlocks(content);
+
+  if (blocks.length === 0) {
+    return <p className="text-sm leading-relaxed text-slate-100">{content}</p>;
+  }
+
+  return (
+    <div className={variant === "summary" ? "space-y-4" : "space-y-3"}>
+      {blocks.map((block, index) => {
+        if (block.type === "heading") {
+          return (
+            <div
+              key={`${block.type}-${index}-${block.content}`}
+              className="border-l-2 border-deckly-primary/40 pl-3"
+            >
+              <h4 className="text-[13px] font-semibold tracking-tight text-white">
+                {renderInlineEmphasis(block.content)}
+              </h4>
+            </div>
+          );
+        }
+
+        if (block.type === "bullet") {
+          return (
+            <div
+              key={`${block.type}-${index}-${block.content}`}
+              className="flex items-start gap-2.5 text-[13px] leading-6 text-slate-200"
+            >
+              <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-deckly-primary/70" />
+              <p>{renderInlineEmphasis(block.content)}</p>
+            </div>
+          );
+        }
+
+        return (
+          <p
+            key={`${block.type}-${index}-${block.content}`}
+            className={`text-[13px] leading-6 ${variant === "summary" ? "text-slate-200" : "text-slate-300"}`}
+          >
+            {renderInlineEmphasis(block.content)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function SummaryLoadingState() {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-sm border border-deckly-primary/10 bg-deckly-primary/[0.04] px-3 py-2">
+        <p className="text-[11px] font-medium text-slate-200">
+          Deckly AI is reviewing the deck from a startup investor perspective.
+        </p>
+        <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+          Pulling out the company story, market signals, traction, risks, and the main points investors would care about.
+        </p>
+      </div>
+      <SummarySkeleton />
+      <p className="text-[10px] leading-relaxed text-slate-500">
+        This usually takes a few seconds. The summary will appear here automatically when it is ready.
+      </p>
     </div>
   );
 }
@@ -97,6 +260,16 @@ export function AiSummarySidebar({
   const showSummaryEmpty = !isSummaryLoading && !summary?.trim();
   const isChatDisabled = isChatLocked || isSummaryLoading || showSummaryEmpty;
   const canSubmit = Boolean(chatInputValue.trim()) && !isChatLoading && !isChatDisabled;
+  const handleChatKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    if (canSubmit) {
+      onChatSubmit?.();
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -160,22 +333,20 @@ export function AiSummarySidebar({
                       {isSummaryLoading ? (
                         <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-deckly-primary">
                           <Loader2 size={11} className="animate-spin" />
-                          Generating
+                          Building investor summary
                         </div>
                       ) : null}
                     </div>
 
                     <div className="mt-3">
                       {isSummaryLoading ? (
-                        <SummarySkeleton />
+                        <SummaryLoadingState />
                       ) : showSummaryEmpty ? (
                         <p className="text-sm leading-relaxed text-slate-500">
                           {summaryEmptyMessage}
                         </p>
                       ) : (
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-100">
-                          {summary}
-                        </p>
+                        <FormattedAiContent content={summary ?? ""} variant="summary" />
                       )}
                     </div>
                   </section>
@@ -212,7 +383,7 @@ export function AiSummarySidebar({
                 </div>
               </div>
 
-              <div className="mt-auto border-t border-white/5 bg-[#0f1116]">
+              <div className="flex min-h-0 max-h-[52vh] flex-col overflow-hidden border-t border-white/5 bg-[#0f1116]">
                 <div className="border-b border-white/5 px-3 py-2.5">
                   <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                     Follow-up chat
@@ -241,7 +412,7 @@ export function AiSummarySidebar({
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                     <div className="flex-1 min-h-0 space-y-3 overflow-y-auto px-3 py-3 custom-scrollbar">
                       {chatMessages.length === 0 ? (
                         <p className="text-xs leading-relaxed text-slate-500">
@@ -259,7 +430,11 @@ export function AiSummarySidebar({
                               <p className="mb-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                                 {isUser ? "You" : "Deckly AI"}
                               </p>
-                              <p className="whitespace-pre-wrap">{message.content}</p>
+                              {isUser ? (
+                                <p className="whitespace-pre-wrap">{message.content}</p>
+                              ) : (
+                                <FormattedAiContent content={message.content} variant="chat" />
+                              )}
                             </div>
                           );
                         })
@@ -278,6 +453,7 @@ export function AiSummarySidebar({
                         <textarea
                           value={chatInputValue}
                           onChange={(event) => onChatInputChange?.(event.target.value)}
+                          onKeyDown={handleChatKeyDown}
                           onFocus={() => onChatFocus?.()}
                           placeholder={chatPlaceholder}
                           disabled={isChatDisabled}

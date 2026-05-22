@@ -23,6 +23,7 @@ import { analyticsService } from "../services/analyticsService";
 import { useAuth } from "../contexts/AuthContext";
 import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { Deck } from "../types";
+import type { Tier } from "../constants/tiers";
 import {
   useIsDeckSaved,
   useSaveToLibraryMutation,
@@ -42,7 +43,7 @@ const SIGNED_URL_RECOVERY_RETRY_MS = 5000;
 function Viewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [viewerEmail, setViewerEmail] = useState<string | undefined>();
@@ -164,6 +165,7 @@ function Viewer() {
       setShowAuthModal(true);
     },
     isGuest: !session,
+    tier: (profile?.tier as Tier) || "FREE",
   });
 
   // Initialize viewerEmail from session if available

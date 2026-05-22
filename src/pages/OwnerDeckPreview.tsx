@@ -22,6 +22,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { Deck } from "../types";
+import type { Tier } from "../constants/tiers";
 import {
   useIsDeckSaved,
   useSaveToLibraryMutation,
@@ -30,7 +31,7 @@ import {
 function OwnerDeckPreview() {
   const { deckId } = useParams<{ deckId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [viewerEmail, setViewerEmail] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
@@ -110,6 +111,7 @@ function OwnerDeckPreview() {
       setShowAuthModal(true);
     },
     isGuest: false,
+    tier: (profile?.tier as Tier) || "FREE",
   });
 
   useEffect(() => {

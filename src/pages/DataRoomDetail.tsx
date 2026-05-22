@@ -48,6 +48,7 @@ import {
 } from "../components/ui/alert-dialog";
 import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
+import type { Tier } from "../constants/tiers";
 
 /* ───────── main page ───────── */
 function DataRoomDetail() {
@@ -256,6 +257,7 @@ function DataRoomDetail() {
       toast.info("Sign in to unlock AI follow-up chat.");
     },
     isGuest: false,
+    tier: (profile?.tier as Tier) || "FREE",
   });
 
   useEffect(() => {

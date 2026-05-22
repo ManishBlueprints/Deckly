@@ -12,6 +12,7 @@ export interface TierConfig {
   maxDecksPerDay: number;
   maxDecksPerRoom: number;
   aiSummariesPerDay: number;
+  aiChatsPerDay: number;
   supportedFormats: string[];
   teamMembers: number;
   prioritySupport: boolean;
@@ -30,6 +31,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxDecksPerDay: 30,
     maxDecksPerRoom: 50,
     aiSummariesPerDay: 2,
+    aiChatsPerDay: 4,
     supportedFormats: ["PDF"],
     teamMembers: 0,
     prioritySupport: false,
@@ -46,6 +48,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxDecksPerDay: 30,
     maxDecksPerRoom: 50,
     aiSummariesPerDay: 10,
+    aiChatsPerDay: 20,
     supportedFormats: ["PDF", "XLSX", "DOCX", "PPTX"],
     teamMembers: 0,
     prioritySupport: false,
@@ -62,6 +65,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxDecksPerDay: 30,
     maxDecksPerRoom: 50,
     aiSummariesPerDay: 50,
+    aiChatsPerDay: 100,
     supportedFormats: ["PDF", "XLSX", "DOCX", "PPT"],
     teamMembers: 5,
     prioritySupport: true,

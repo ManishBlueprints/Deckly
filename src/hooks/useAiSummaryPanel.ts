@@ -1,10 +1,12 @@
 import { useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   aiSummaryService,
   type AiSummaryChatMessage,
   type AiSummaryChatResult,
 } from "../services/aiSummaryService";
 import { analyticsService } from "../services/analyticsService";
+import { TIER_CONFIG, type Tier } from "../constants/tiers";
 import type { AiSummaryInitialResult } from "../services/aiSummaryInitialOrchestrator";
 import type { AiScopeType } from "../services/aiScopeResolutionBuilder";
 
@@ -22,6 +24,7 @@ export interface AiSummaryPanelMetaItem {
 export interface UseAiSummaryPanelOptions {
   onRequireAuth: () => void;
   isGuest: boolean;
+  tier?: Tier;
 }
 
 export interface AiSummaryPanelState {
@@ -39,9 +42,6 @@ export interface AiSummaryPanelState {
   activeResult: AiSummaryInitialResult | null;
 }
 
-const formatCount = (count: number, singular: string, plural?: string) =>
-  `${count} ${count === 1 ? singular : plural ?? `${singular}s`}`;
-
 const getSummaryNotice = (result: AiSummaryInitialResult): {
   notice: string | null;
   tone: "default" | "success" | "warning";
@@ -50,35 +50,14 @@ const getSummaryNotice = (result: AiSummaryInitialResult): {
     const quota = result.usage.quota;
     if (quota?.scope === "guest") {
       return {
-        notice: "Guests get one AI summary per day from this IP. Sign in to continue exploring without waiting.",
+        notice: "No summaries left today. Sign in to unlock more AI usage.",
         tone: "warning",
       };
     }
 
     return {
-      notice: "You’ve reached today’s AI summary limit for your plan. Upgrade to keep generating fresh summaries.",
+      notice: "No summaries left today on your current plan.",
       tone: "warning",
-    };
-  }
-
-  if (result.no_content) {
-    return {
-      notice: "This scope has no extractable text, so there is nothing to summarize yet.",
-      tone: "warning",
-    };
-  }
-
-  if (result.partial_data) {
-    return {
-      notice: "Some files were excluded, so the summary reflects only the extractable content.",
-      tone: "default",
-    };
-  }
-
-  if (result.status === "cached") {
-    return {
-      notice: "Reopened from cache without consuming another summary request.",
-      tone: "success",
     };
   }
 
@@ -88,37 +67,61 @@ const getSummaryNotice = (result: AiSummaryInitialResult): {
   };
 };
 
-const buildSummaryMeta = (result: AiSummaryInitialResult): AiSummaryPanelMetaItem[] => [
-  {
-    label: "Scope",
-    value: result.scope.scope_label ?? result.scope.scope_id,
-  },
-  {
-    label: "Sources",
-    value: formatCount(result.metadata.total_sources, "file"),
-  },
-  {
-    label: "Included",
-    value: formatCount(result.metadata.included_sources, "file"),
-  },
-  {
-    label: "Excluded",
-    value: formatCount(result.metadata.excluded_sources, "file"),
-  },
-  {
-    label: "Strategy",
-    value: result.strategy ? result.strategy.replace("_", " ") : "No content",
-  },
-  {
-    label: "Freshness",
-    value: result.cache.cached_reopen ? "Cached reopen" : result.freshness.state,
-  },
-];
+const getEffectiveTier = (isGuest: boolean, tier?: Tier): Tier =>
+  isGuest ? "FREE" : tier ?? "FREE";
+
+const getSummariesLeft = (
+  result: AiSummaryInitialResult,
+): number | null => {
+  const quota = result.usage.quota;
+  if (!quota) return null;
+
+  const shouldDecrementAfterFreshSummary =
+    result.status === "completed" &&
+    quota.allowed &&
+    quota.chargeable &&
+    !result.cache.cached_reopen;
+
+  return Math.max(
+    quota.remaining - (shouldDecrementAfterFreshSummary ? 1 : 0),
+    0,
+  );
+};
+
+const buildSummaryMeta = (
+  result: AiSummaryInitialResult,
+  isGuest: boolean,
+  tier?: Tier,
+): AiSummaryPanelMetaItem[] => {
+  const effectiveTier = getEffectiveTier(isGuest, tier);
+  const tierConfig = TIER_CONFIG[effectiveTier];
+  const summariesLeft = getSummariesLeft(result);
+
+  return [
+    {
+      label: "Summaries left",
+      value:
+        summariesLeft === null
+          ? `${tierConfig.aiSummariesPerDay} / day`
+          : `${summariesLeft} left today`,
+    },
+    {
+      label: "Chats",
+      value: isGuest
+        ? "Sign in required"
+        : `${tierConfig.aiChatsPerDay} / day`,
+    },
+  ];
+};
 
 const getSummaryText = (result: AiSummaryInitialResult | null): string | null =>
   result?.summary_text ?? null;
 
-export function useAiSummaryPanel({ onRequireAuth, isGuest }: UseAiSummaryPanelOptions) {
+export function useAiSummaryPanel({
+  onRequireAuth,
+  isGuest,
+  tier,
+}: UseAiSummaryPanelOptions) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -259,9 +262,10 @@ export function useAiSummaryPanel({ onRequireAuth, isGuest }: UseAiSummaryPanelO
       const status = (error as { status?: number } | null)?.status;
       setChatMessages((prev) => prev.filter((message) => message.id !== userMessageId));
       setChatInputValue(question);
-      setSummaryNotice(error instanceof Error ? error.message : String(error));
-      setSummaryNoticeTone("warning");
+      setSummaryNotice(null);
+      setSummaryNoticeTone("default");
       console.error("AI summary chat failed", error);
+      toast.error("Deckly AI could not answer right now. Please try again.");
       analyticsService.trackAiSummaryChatResolved({
         scope_type: activeScope.scope_type,
         scope_id: activeScope.scope_id,
@@ -290,7 +294,7 @@ export function useAiSummaryPanel({ onRequireAuth, isGuest }: UseAiSummaryPanelO
     isSummaryLoading,
     isChatLoading,
     summary: getSummaryText(summaryResult),
-    summaryMeta: summaryResult ? buildSummaryMeta(summaryResult) : [],
+    summaryMeta: summaryResult ? buildSummaryMeta(summaryResult, isGuest, tier) : [],
     summaryNotice,
     summaryNoticeTone,
     chatMessages,

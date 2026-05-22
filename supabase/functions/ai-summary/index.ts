@@ -671,17 +671,17 @@ const callOpenAiSummary = async (
 ): Promise<AiSummaryProviderResult> => {
   const systemPrompt =
     input.mode === "aggregate"
-      ? "You combine document summaries into one concise investor-facing overview. Preserve cross-document themes, material risks, and open questions."
+      ? "You are a professional startup investor reviewing pitch materials. Combine document summaries into one concise investor-grade analysis. Prioritize startup overview, problem, solution, product, target customer, market, business model, traction, go-to-market, competition, risks, and fundraising signals. Preserve cross-document themes, material risks, and open questions. Do not invent facts. If evidence is missing, say so explicitly."
       : input.mode === "source"
-      ? "You summarize one document for a later recursive roll-up. Keep it factual, concise, and easy to merge."
-      : "You write concise investor-facing summaries for document scopes.";
+      ? "You are a professional startup investor reviewing one source document from a pitch workflow. Summarize it for a later roll-up. Keep it factual, concise, and easy to merge. Focus on company overview, problem, solution, market, customer, traction, business model, competition, risks, and any fundraising or commercial signals. Do not invent facts. If the document is not clearly a pitch deck, still extract strategic, commercial, and market-relevant points."
+      : "You are a professional startup investor reviewing pitch materials. Write a concise investor-grade analysis for the scope. Focus on what the company does, what problem it solves, how the product works, who the customer is, what market evidence is shown, how the business makes money, what traction exists, what go-to-market approach is implied, what risks or gaps remain, and what the main takeaway is. Do not invent facts. If evidence is missing or weak, say so clearly.";
 
   const userPrompt =
     input.mode === "aggregate"
-      ? `Scope: ${input.scope.scope_type}\nLabel: ${input.scope.scope_label ?? input.scope.scope_id}\nCombine these source summaries into one concise overview:\n\n${input.content}`
+      ? `Scope: ${input.scope.scope_type}\nLabel: ${input.scope.scope_label ?? input.scope.scope_id}\nCombine these source summaries into one investor-style pitch analysis.\n\nReturn a compact response with these sections when supported by the source material:\n1. Startup overview\n2. What the pitch is saying\n3. Market and customer\n4. Business model and traction\n5. Risks, gaps, and open questions\n6. Main takeaway\n\nIf a section is not supported by the material, say that the evidence is limited.\n\nSource summaries:\n\n${input.content}`
       : input.mode === "source"
-      ? `Scope: ${input.scope.scope_type}\nLabel: ${input.scope.scope_label ?? input.scope.scope_id}\nSource ${input.source_index}/${input.total_sources}: ${input.source_title ?? "Untitled"}\nSummarize the following extractable text:\n\n${input.content}`
-      : `Scope: ${input.scope.scope_type}\nLabel: ${input.scope.scope_label ?? input.scope.scope_id}\nCreate an initial summary from the following extractable text:\n\n${input.content}`;
+      ? `Scope: ${input.scope.scope_type}\nLabel: ${input.scope.scope_label ?? input.scope.scope_id}\nSource ${input.source_index}/${input.total_sources}: ${input.source_title ?? "Untitled"}\nSummarize the following extractable text from a startup-investor point of view.\n\nReturn a compact factual summary that highlights:\n- what the company/product appears to be\n- the problem and solution\n- market/customer evidence\n- business model or monetization clues\n- traction, proof points, or metrics\n- risks, missing evidence, or unclear claims\n\nExtractable text:\n\n${input.content}`
+      : `Scope: ${input.scope.scope_type}\nLabel: ${input.scope.scope_label ?? input.scope.scope_id}\nAnalyze the following extractable text from a professional startup investor point of view.\n\nReturn a concise response with these sections when supported by the source material:\n1. Startup overview\n2. What the pitch is saying\n3. Market and customer\n4. Business model and traction\n5. Risks, gaps, and open questions\n6. Main takeaway\n\nBe specific about claims, evidence, and missing information. If this is not clearly a pitch deck, still summarize it through a startup, market, and commercial lens.\n\nExtractable text:\n\n${input.content}`;
 
   const response = await fetch(AI_CHAT_COMPLETIONS_URL, {
     method: "POST",
@@ -730,7 +730,7 @@ const callOpenAiChat = async (input: {
   scope_label: string | null;
 }): Promise<AiSummaryProviderResult> => {
   const systemPrompt =
-    "You answer concise investor-facing follow-up questions about the provided summary. Use the summary and retrieved snippets first, then the chat history. Do not invent facts.";
+    "You are a professional startup investor answering follow-up questions about pitch materials. Always answer from an investor analysis perspective unless the user explicitly asks for another lens. Focus on startup quality, market, customer, business model, traction, competition, fundraising readiness, risks, and missing evidence. Use the provided summary and retrieved snippets first, then the chat history. Default to short, direct answers: usually 2 to 5 sentences or 3 to 5 short bullets. Start with the answer, then give the brief explanation. Do not use markdown tables or long report-style formatting unless the user explicitly asks for it. Be concise, specific, and factual. Do not invent facts; if the material does not support a conclusion, say so clearly.";
   const contextPrompt = [
     `Scope: ${input.scope_type}`,
     `Label: ${input.scope_label ?? "Untitled"}`,
@@ -744,7 +744,11 @@ const callOpenAiChat = async (input: {
 
   const messages = [
     { role: "system", content: systemPrompt },
-    { role: "system", content: contextPrompt },
+    {
+      role: "system",
+      content:
+        `${contextPrompt}\n\nWhen appropriate, explain the main points of the pitch deck, what the company is trying to prove, where the evidence is strong, and where an investor would still have questions. Keep the response compact and easy to scan unless the user explicitly asks for a deeper breakdown.`,
+    },
     ...input.recent_history.map((message) => ({
       role: message.role,
       content: message.content,
