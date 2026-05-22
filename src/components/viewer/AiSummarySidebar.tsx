@@ -115,7 +115,7 @@ export function AiSummarySidebar({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.98 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="fixed top-4 right-4 z-[120] flex h-[min(42rem,calc(100vh-2rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden border border-white/10 bg-[#101114] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
+            className="fixed top-0 right-0 z-[120] flex h-screen w-[min(24rem,100vw)] flex-col overflow-hidden border border-white/10 bg-[#101114] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
           >
             <div className="border-b border-white/5 bg-[#0f1116] px-4 py-3">
               <div className="flex items-center justify-between gap-3">
@@ -241,8 +241,8 @@ export function AiSummarySidebar({
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex flex-col">
-                    <div className="max-h-52 space-y-3 overflow-y-auto px-3 py-3 custom-scrollbar">
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex-1 min-h-0 space-y-3 overflow-y-auto px-3 py-3 custom-scrollbar">
                       {chatMessages.length === 0 ? (
                         <p className="text-xs leading-relaxed text-slate-500">
                           {chatEmptyMessage}
@@ -257,7 +257,7 @@ export function AiSummarySidebar({
                               className={`border px-3 py-2 text-sm leading-relaxed ${isUser ? "ml-8 border-deckly-primary/20 bg-deckly-primary/8 text-slate-100" : "mr-8 border-white/10 bg-white/[0.03] text-slate-300"}`}
                             >
                               <p className="mb-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                                {isUser ? "You" : "AI"}
+                                {isUser ? "You" : "Deckly AI"}
                               </p>
                               <p className="whitespace-pre-wrap">{message.content}</p>
                             </div>
