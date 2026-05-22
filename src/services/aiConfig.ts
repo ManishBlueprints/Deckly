@@ -2,12 +2,13 @@ export const AI_PROVIDER_NAME = "openrouter";
 export const AI_CHAT_COMPLETIONS_URL =
   "https://openrouter.ai/api/v1/chat/completions";
 
-export const AI_SUMMARY_MODEL_IDENTIFIER = "openai/gpt-oss-120b:free";
+export const AI_SUMMARY_MODEL_IDENTIFIER = "google/gemma-4-26b-a4b-it:free";
 export const AI_SUMMARY_MODEL_VERSION =
-  "summary-openrouter-gpt-oss-120b-free-v1";
+  "summary-openrouter-gemma-4-26b-a4b-it-free-v1";
 
-export const AI_CHAT_MODEL_IDENTIFIER = "openai/gpt-oss-120b:free";
-export const AI_CHAT_MODEL_VERSION = "chat-openrouter-gpt-oss-120b-free-v1";
+export const AI_CHAT_MODEL_IDENTIFIER = "nvidia/nemotron-3-nano-30b-a3b:free";
+export const AI_CHAT_MODEL_VERSION =
+  "chat-openrouter-nemotron-3-nano-30b-a3b-free-v1";
 
 export const AI_EMBEDDING_MODEL_IDENTIFIER =
   "nvidia/llama-nemotron-embed-vl-1b-v2:free";

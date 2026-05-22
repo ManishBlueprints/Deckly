@@ -61,6 +61,12 @@ type AiFormattedBlock =
   | { type: "bullet"; content: string }
   | { type: "paragraph"; content: string };
 
+interface AiSummaryScoreItem {
+  label: string;
+  score: number;
+  detail: string | null;
+}
+
 function SummarySkeleton() {
   return (
     <div className="space-y-2.5" aria-hidden="true">
@@ -78,6 +84,108 @@ const normalizeAiContent = (value: string): string =>
     .replace(/\r\n?/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+const AI_SCORECARD_LABELS = [
+  "Market",
+  "Execution / stage",
+  "Traction",
+  "Go-to-market",
+  "Business model",
+  "Startup potential",
+  "Investor readiness / evidence quality",
+] as const;
+
+const normalizeHeadingLabel = (value: string): string =>
+  value
+    .replace(/^\*\*|\*\*$/g, "")
+    .replace(/^\d+\.\s*/, "")
+    .trim()
+    .toLowerCase();
+
+const matchScorecardLine = (line: string) =>
+  line.match(
+    /^[-•]?\s*(Market|Execution\s*\/\s*stage|Traction|Go-to-market|Business model|Startup potential|Investor readiness\s*\/\s*evidence quality)\s*:\s*(\d{1,3})\s*%?\s*(?:[–-]\s*(.+))?$/i,
+  );
+
+const parseAiSummaryExtras = (value: string): {
+  scorecard: AiSummaryScoreItem[];
+  standouts: string[];
+  remainingContent: string;
+} => {
+  const normalized = normalizeAiContent(value);
+  if (!normalized) {
+    return {
+      scorecard: [],
+      standouts: [],
+      remainingContent: "",
+    };
+  }
+
+  const lines = normalized.split("\n");
+  const remainingLines: string[] = [];
+  const scorecard: AiSummaryScoreItem[] = [];
+  const standouts: string[] = [];
+  let mode: "scorecard" | "standouts" | null = null;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const heading = normalizeHeadingLabel(line);
+
+    if (heading === "scorecard") {
+      mode = "scorecard";
+      continue;
+    }
+
+    if (heading === "standouts from deck") {
+      mode = "standouts";
+      continue;
+    }
+
+    if (
+      mode &&
+      heading &&
+      heading !== line.toLowerCase() &&
+      heading !== "scorecard" &&
+      heading !== "standouts from deck"
+    ) {
+      mode = null;
+    }
+
+    const scoreMatch = matchScorecardLine(line);
+    if (scoreMatch) {
+      const rawLabel = scoreMatch[1] ?? "";
+      const matchedLabel =
+        AI_SCORECARD_LABELS.find(
+          (label) =>
+            label.toLowerCase().replace(/\s+/g, " ").trim() ===
+            rawLabel.toLowerCase().replace(/\s+/g, " ").trim(),
+        ) ?? rawLabel;
+      const rawScore = Number(scoreMatch[2] ?? 0);
+      scorecard.push({
+        label: matchedLabel,
+        score: Math.max(0, Math.min(rawScore, 100)),
+        detail: scoreMatch[3]?.trim() ?? null,
+      });
+      continue;
+    }
+
+    if (mode === "standouts") {
+      const standoutMatch = line.match(/^[-•]\s+(.+)$/);
+      if (standoutMatch) {
+        standouts.push(standoutMatch[1]?.trim() ?? line);
+        continue;
+      }
+    }
+
+    remainingLines.push(rawLine);
+  }
+
+  return {
+    scorecard,
+    standouts,
+    remainingContent: normalizeAiContent(remainingLines.join("\n")),
+  };
+};
 
 const parseAiFormattedBlocks = (value: string): AiFormattedBlock[] => {
   const normalized = normalizeAiContent(value);
@@ -212,6 +320,87 @@ function FormattedAiContent({
   );
 }
 
+function SummaryScorecard({
+  items,
+}: {
+  items: AiSummaryScoreItem[];
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <section className="space-y-2 border border-white/5 bg-black/20 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+          Pitch scorecard
+        </p>
+        <p className="text-[9px] text-slate-500">
+          Investor + startup lens
+        </p>
+      </div>
+
+      <div className="space-y-2.5">
+        {items.map((item) => (
+          <div key={item.label} className="group relative space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] font-medium text-slate-200">{item.label}</p>
+              <p className="text-[11px] font-semibold text-white">{item.score}%</p>
+            </div>
+            <div className="relative h-10 overflow-hidden rounded-sm border border-emerald-500/15 bg-[#1a1d24]">
+              <div
+                className="absolute inset-y-0 left-0 rounded-sm bg-[#55dc88]"
+                style={{ width: `${item.score}%` }}
+              />
+              <div className="absolute inset-0 flex items-center justify-between px-3">
+                <span className="text-[11px] font-medium text-slate-950">
+                  {item.label}
+                </span>
+                <span className="text-[11px] font-semibold text-slate-950">
+                  {item.score}%
+                </span>
+              </div>
+            </div>
+            {item.detail ? (
+              <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-[18rem] rounded-sm border border-white/10 bg-[#11141b] p-3 text-[11px] leading-relaxed text-slate-300 shadow-[0_18px_40px_rgba(0,0,0,0.45)] group-hover:block">
+                <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-deckly-primary">
+                  {item.label}
+                </p>
+                <p>{item.detail}</p>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SummaryStandouts({
+  items,
+}: {
+  items: string[];
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <section className="space-y-2 border border-white/5 bg-black/20 p-3">
+      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        Standouts from deck
+      </p>
+      <div className="space-y-2">
+        {items.map((item, index) => (
+          <div
+            key={`${item}-${index}`}
+            className="flex items-start gap-2.5 text-[13px] leading-6 text-slate-200"
+          >
+            <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-deckly-primary/70" />
+            <p>{renderInlineEmphasis(item)}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function SummaryLoadingState() {
   return (
     <div className="space-y-4">
@@ -260,6 +449,7 @@ export function AiSummarySidebar({
   const showSummaryEmpty = !isSummaryLoading && !summary?.trim();
   const isChatDisabled = isChatLocked || isSummaryLoading || showSummaryEmpty;
   const canSubmit = Boolean(chatInputValue.trim()) && !isChatLoading && !isChatDisabled;
+  const parsedSummary = summary ? parseAiSummaryExtras(summary) : null;
   const handleChatKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey) {
       return;
@@ -346,7 +536,14 @@ export function AiSummarySidebar({
                           {summaryEmptyMessage}
                         </p>
                       ) : (
-                        <FormattedAiContent content={summary ?? ""} variant="summary" />
+                        <div className="space-y-3">
+                          <SummaryScorecard items={parsedSummary?.scorecard ?? []} />
+                          <SummaryStandouts items={parsedSummary?.standouts ?? []} />
+                          <FormattedAiContent
+                            content={parsedSummary?.remainingContent ?? summary ?? ""}
+                            variant="summary"
+                          />
+                        </div>
                       )}
                     </div>
                   </section>
@@ -380,102 +577,99 @@ export function AiSummarySidebar({
                       ) : null}
                     </section>
                   )}
-                </div>
-              </div>
-
-              <div className="flex min-h-0 max-h-[52vh] flex-col overflow-hidden border-t border-white/5 bg-[#0f1116]">
-                <div className="border-b border-white/5 px-3 py-2.5">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Follow-up chat
-                  </p>
-                </div>
-
-                {isChatLocked ? (
-                  <div className="space-y-4 p-3">
-                    <div className="flex h-10 w-10 items-center justify-center border border-white/10 bg-white/[0.03] text-slate-400">
-                      <Lock size={16} />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-semibold text-white">
-                        {chatLockTitle}
-                      </h4>
-                      <p className="text-xs leading-relaxed text-slate-400">
-                        {chatLockDescription}
+                  <section className="border-t border-white/5 bg-[#0f1116]">
+                    <div className="border-b border-white/5 px-3 py-2.5">
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Follow-up chat
                       </p>
                     </div>
-                    <Button
-                      onClick={onRequireAuth}
-                      className="bg-deckly-primary px-4 font-semibold text-slate-950 hover:bg-deckly-primary/90"
-                    >
-                      {chatCtaLabel}
-                      <ArrowRight size={14} />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                    <div className="flex-1 min-h-0 space-y-3 overflow-y-auto px-3 py-3 custom-scrollbar">
-                      {chatMessages.length === 0 ? (
-                        <p className="text-xs leading-relaxed text-slate-500">
-                          {chatEmptyMessage}
-                        </p>
-                      ) : (
-                        chatMessages.map((message) => {
-                          const isUser = message.role === "user";
 
-                          return (
-                            <div
-                              key={message.id}
-                              className={`border px-3 py-2 text-sm leading-relaxed ${isUser ? "ml-8 border-deckly-primary/20 bg-deckly-primary/8 text-slate-100" : "mr-8 border-white/10 bg-white/[0.03] text-slate-300"}`}
-                            >
-                              <p className="mb-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                                {isUser ? "You" : "Deckly AI"}
-                              </p>
-                              {isUser ? (
-                                <p className="whitespace-pre-wrap">{message.content}</p>
-                              ) : (
-                                <FormattedAiContent content={message.content} variant="chat" />
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
-
-                      {isChatLoading ? (
-                        <div className="mr-8 flex items-center gap-2 border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                          <Loader2 size={11} className="animate-spin" />
-                          Thinking...
+                    {isChatLocked ? (
+                      <div className="space-y-4 p-3">
+                        <div className="flex h-10 w-10 items-center justify-center border border-white/10 bg-white/[0.03] text-slate-400">
+                          <Lock size={16} />
                         </div>
-                      ) : null}
-                    </div>
-
-                    <div className="border-t border-white/5 p-3">
-                      <div className="border border-white/10 bg-[#0d1016] p-2">
-                        <textarea
-                          value={chatInputValue}
-                          onChange={(event) => onChatInputChange?.(event.target.value)}
-                          onKeyDown={handleChatKeyDown}
-                          onFocus={() => onChatFocus?.()}
-                          placeholder={chatPlaceholder}
-                          disabled={isChatDisabled}
-                          className="min-h-[4.5rem] w-full resize-none border-none bg-transparent text-sm leading-relaxed text-slate-100 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:text-slate-600"
-                        />
-                        <div className="mt-2 flex items-center justify-between gap-3">
-                          <p className="text-[9px] text-slate-500">
-                            Chat stays scoped to this summary session
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-semibold text-white">
+                            {chatLockTitle}
+                          </h4>
+                          <p className="text-xs leading-relaxed text-slate-400">
+                            {chatLockDescription}
                           </p>
-                          <button
-                            type="button"
-                            onClick={() => onChatSubmit?.()}
-                            disabled={!canSubmit}
-                            className="flex h-8 w-8 items-center justify-center border border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary transition-colors disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
-                          >
-                            <Send size={14} />
-                          </button>
+                        </div>
+                        <Button
+                          onClick={onRequireAuth}
+                          className="bg-deckly-primary px-4 font-semibold text-slate-950 hover:bg-deckly-primary/90"
+                        >
+                          {chatCtaLabel}
+                          <ArrowRight size={14} />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 px-3 py-3">
+                        {chatMessages.length === 0 ? (
+                          <p className="text-xs leading-relaxed text-slate-500">
+                            {chatEmptyMessage}
+                          </p>
+                        ) : (
+                          chatMessages.map((message) => {
+                            const isUser = message.role === "user";
+
+                            return (
+                              <div
+                                key={message.id}
+                                className={`border px-3 py-2 text-sm leading-relaxed ${isUser ? "ml-8 border-deckly-primary/20 bg-deckly-primary/8 text-slate-100" : "mr-8 border-white/10 bg-white/[0.03] text-slate-300"}`}
+                              >
+                                <p className="mb-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                  {isUser ? "You" : "Deckly AI"}
+                                </p>
+                                {isUser ? (
+                                  <p className="whitespace-pre-wrap">{message.content}</p>
+                                ) : (
+                                  <FormattedAiContent content={message.content} variant="chat" />
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+
+                        {isChatLoading ? (
+                          <div className="mr-8 flex items-center gap-2 border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                            <Loader2 size={11} className="animate-spin" />
+                            Thinking...
+                          </div>
+                        ) : null}
+
+                        <div className="border-t border-white/5 pt-3">
+                          <div className="border border-white/10 bg-[#0d1016] p-2">
+                            <textarea
+                              value={chatInputValue}
+                              onChange={(event) => onChatInputChange?.(event.target.value)}
+                              onKeyDown={handleChatKeyDown}
+                              onFocus={() => onChatFocus?.()}
+                              placeholder={chatPlaceholder}
+                              disabled={isChatDisabled}
+                              className="min-h-[4.5rem] w-full resize-none border-none bg-transparent text-sm leading-relaxed text-slate-100 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:text-slate-600"
+                            />
+                            <div className="mt-2 flex items-center justify-between gap-3">
+                              <p className="text-[9px] text-slate-500">
+                                Chat stays scoped to this summary session
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => onChatSubmit?.()}
+                                disabled={!canSubmit}
+                                className="flex h-8 w-8 items-center justify-center border border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary transition-colors disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
+                              >
+                                <Send size={14} />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                )}
+                    )}
+                  </section>
+                </div>
               </div>
             </div>
           </motion.div>
