@@ -1,6 +1,6 @@
-import { supabase } from "./supabase";
-import { withRetry } from "../utils/resilience";
-import { AI_SUMMARY_QUOTA_WINDOW_HOURS } from "./aiSummaryQuotaPolicy";
+import { supabase } from "./supabase.ts";
+import { withRetry } from "../utils/resilience.ts";
+import { AI_SUMMARY_QUOTA_WINDOW_HOURS } from "./aiSummaryQuotaPolicy.ts";
 
 export {
   AI_SUMMARY_QUOTA_WINDOW_HOURS,
@@ -8,14 +8,14 @@ export {
   evaluateGuestAiSummaryQuota,
   evaluateSignedInAiSummaryQuota,
   getAiSummaryQuotaLimit,
-} from "./aiSummaryQuotaPolicy";
+} from "./aiSummaryQuotaPolicy.ts";
 export type {
   AiSummaryQuotaDecision,
   AiSummaryQuotaInput,
   AiSummaryQuotaNextAction,
   AiSummaryQuotaReason,
   AiSummaryQuotaScope,
-} from "./aiSummaryQuotaPolicy";
+} from "./aiSummaryQuotaPolicy.ts";
 
 export interface AiGuestUsageRecordInput {
   ipAddress: string;

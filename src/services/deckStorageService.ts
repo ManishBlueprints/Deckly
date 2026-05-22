@@ -1,6 +1,6 @@
-import { supabase } from "./supabase";
-import { extractStoragePath, getRequiredDeckUserId } from "./deckService.shared";
-import { withRetry } from "../utils/resilience";
+import { supabase } from "./supabase.ts";
+import { extractStoragePath, getRequiredDeckUserId } from "./deckService.shared.ts";
+import { withRetry } from "../utils/resilience.ts";
 
 /**
  * Sanitizes a deck slug for storage paths.

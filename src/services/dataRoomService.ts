@@ -1,5 +1,5 @@
-import { supabase } from "./supabase";
-import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
+import { supabase } from "./supabase.ts";
+import { getRequiredSessionUserId, getSessionUserId } from "./authSession.ts";
 import {
   DataRoom,
   DataRoomDocument,
@@ -7,8 +7,8 @@ import {
   DataRoomTag,
   Deck,
 } from "../types";
-import { withRetry } from "../utils/resilience";
-import { extractStoragePath } from "./deckService.shared";
+import { withRetry } from "../utils/resilience.ts";
+import { extractStoragePath } from "./deckService.shared.ts";
 
 const normalizeDataRoomTag = (
   tag: DataRoomTag | null | undefined,

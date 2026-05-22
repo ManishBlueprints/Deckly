@@ -1,7 +1,7 @@
-import { supabase } from "./supabase";
-import { withRetry } from "../utils/resilience";
-import type { AiChunkMetadata } from "./aiChunkIndexingService";
-import type { AiScopeReference, AiScopeType } from "./aiScopeResolutionBuilder";
+import { supabase } from "./supabase.ts";
+import { withRetry } from "../utils/resilience.ts";
+import type { AiChunkMetadata } from "./aiChunkIndexingService.ts";
+import type { AiScopeReference, AiScopeType } from "./aiScopeResolutionBuilder.ts";
 
 export const AI_RETRIEVAL_MAX_RESULTS = 6;
 export const AI_RETRIEVAL_MAX_CHARACTERS = 3600;

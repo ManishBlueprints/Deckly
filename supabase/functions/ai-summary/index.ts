@@ -26,6 +26,12 @@ import {
   createAiRetrievalQueryService,
   type AiRetrievedSnippet,
 } from "../../../src/services/aiRetrievalQueryService.ts";
+import {
+  AI_CHAT_COMPLETIONS_URL,
+  AI_EMBEDDING_MODEL_IDENTIFIER,
+  AI_EMBEDDING_MODEL_VERSION,
+  AI_PROVIDER_NAME,
+} from "../../../src/services/aiConfig.ts";
 import { AI_SUMMARY_QUOTA_WINDOW_HOURS } from "../../../src/services/aiSummaryQuotaPolicy.ts";
 
 type ProfileRow = {
@@ -54,8 +60,78 @@ const logAiTelemetry = (
   );
 };
 
-const toErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+const toErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error && typeof error === "object") {
+    const maybeError = error as {
+      message?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      code?: unknown;
+      error_description?: unknown;
+    };
+
+    const parts = [
+      typeof maybeError.message === "string" ? maybeError.message : null,
+      typeof maybeError.details === "string" ? maybeError.details : null,
+      typeof maybeError.hint === "string" ? maybeError.hint : null,
+      typeof maybeError.code === "string" ? `code=${maybeError.code}` : null,
+      typeof maybeError.error_description === "string"
+        ? maybeError.error_description
+        : null,
+    ].filter(Boolean);
+
+    if (parts.length > 0) {
+      return parts.join(" | ");
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Unknown object error";
+    }
+  }
+
+  return String(error);
+};
+
+const getAiProviderApiKey = () => {
+  const apiKey = Deno.env.get("OPENROUTER_API_KEY") ?? "";
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is not configured.");
+  }
+  return apiKey;
+};
+
+const getAiProviderHeaders = () => {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${getAiProviderApiKey()}`,
+    "Content-Type": "application/json",
+  };
+
+  const referer =
+    Deno.env.get("OPENROUTER_HTTP_REFERER") ??
+    Deno.env.get("PUBLIC_APP_URL") ??
+    Deno.env.get("SITE_URL") ??
+    "";
+  const title = Deno.env.get("OPENROUTER_APP_TITLE") ?? "Deckly";
+
+  if (referer) {
+    headers["HTTP-Referer"] = referer;
+  }
+  if (title) {
+    headers["X-Title"] = title;
+  }
+
+  return headers;
+};
 
 const getServiceClient = () => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -593,9 +669,6 @@ const getSignedInUsageCount = async (
 const callOpenAiSummary = async (
   input: AiSummaryGenerateInput,
 ): Promise<AiSummaryProviderResult> => {
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured.");
-
   const systemPrompt =
     input.mode === "aggregate"
       ? "You combine document summaries into one concise investor-facing overview. Preserve cross-document themes, material risks, and open questions."
@@ -610,12 +683,9 @@ const callOpenAiSummary = async (
       ? `Scope: ${input.scope.scope_type}\nLabel: ${input.scope.scope_label ?? input.scope.scope_id}\nSource ${input.source_index}/${input.total_sources}: ${input.source_title ?? "Untitled"}\nSummarize the following extractable text:\n\n${input.content}`
       : `Scope: ${input.scope.scope_type}\nLabel: ${input.scope.scope_label ?? input.scope.scope_id}\nCreate an initial summary from the following extractable text:\n\n${input.content}`;
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch(AI_CHAT_COMPLETIONS_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: getAiProviderHeaders(),
     body: JSON.stringify({
       model: AI_SUMMARY_MODEL_IDENTIFIER,
       messages: [
@@ -659,9 +729,6 @@ const callOpenAiChat = async (input: {
   scope_type: "deck" | "folder" | "data_room";
   scope_label: string | null;
 }): Promise<AiSummaryProviderResult> => {
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured.");
-
   const systemPrompt =
     "You answer concise investor-facing follow-up questions about the provided summary. Use the summary and retrieved snippets first, then the chat history. Do not invent facts.";
   const contextPrompt = [
@@ -685,12 +752,9 @@ const callOpenAiChat = async (input: {
     { role: "user", content: input.question },
   ];
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch(AI_CHAT_COMPLETIONS_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: getAiProviderHeaders(),
     body: JSON.stringify({
       model: AI_CHAT_MODEL_IDENTIFIER,
       messages,
@@ -883,6 +947,11 @@ Deno.serve(async (request: Request) => {
         ...telemetryContext,
         auth_state: "signed_in",
         user_id: authenticatedUser.id,
+        provider: AI_PROVIDER_NAME,
+        model_identifier: AI_CHAT_MODEL_IDENTIFIER,
+        model_version: AI_CHAT_MODEL_VERSION,
+        embedding_model: AI_EMBEDDING_MODEL_IDENTIFIER,
+        embedding_model_version: AI_EMBEDDING_MODEL_VERSION,
         cache_state: summaryCacheLookup.state,
         has_summary_context: Boolean(summaryContext.summary_text),
       });
@@ -899,8 +968,8 @@ Deno.serve(async (request: Request) => {
         title: typeof body.title === "string" ? body.title : null,
         summary_context: summaryContext,
         retrieval: {
-          embedding_model: "text-embedding-3-small",
-          model_version: "2026-05-02",
+          embedding_model: AI_EMBEDDING_MODEL_IDENTIFIER,
+          model_version: AI_EMBEDDING_MODEL_VERSION,
           max_results: AI_RETRIEVAL_MAX_RESULTS,
           max_characters: AI_RETRIEVAL_MAX_CHARACTERS,
           max_candidates: AI_RETRIEVAL_MAX_CANDIDATES,
@@ -942,6 +1011,11 @@ Deno.serve(async (request: Request) => {
         ...telemetryContext,
         auth_state: "signed_in",
         user_id: authenticatedUser.id,
+        provider: AI_PROVIDER_NAME,
+        model_identifier: AI_CHAT_MODEL_IDENTIFIER,
+        model_version: AI_CHAT_MODEL_VERSION,
+        embedding_model: AI_EMBEDDING_MODEL_IDENTIFIER,
+        embedding_model_version: AI_EMBEDDING_MODEL_VERSION,
         session_id: context.session.id,
         content_hash: contentHash,
         cache_state: summaryCacheLookup.state,
@@ -1009,6 +1083,9 @@ Deno.serve(async (request: Request) => {
       logAiTelemetry("summary_requested", {
         ...telemetryContext,
         auth_state: "guest",
+        provider: AI_PROVIDER_NAME,
+        model_identifier: AI_SUMMARY_MODEL_IDENTIFIER,
+        model_version: AI_SUMMARY_MODEL_VERSION,
       });
 
       const result = await orchestrator.summarize({
@@ -1022,6 +1099,9 @@ Deno.serve(async (request: Request) => {
       logAiTelemetry("summary_resolved", {
         ...telemetryContext,
         auth_state: "guest",
+        provider: AI_PROVIDER_NAME,
+        model_identifier: AI_SUMMARY_MODEL_IDENTIFIER,
+        model_version: AI_SUMMARY_MODEL_VERSION,
         status: result.status,
         cache_state: result.cache.state,
         cache_hit: result.cache.hit,
@@ -1065,6 +1145,9 @@ Deno.serve(async (request: Request) => {
       ...telemetryContext,
       auth_state: "signed_in",
       user_id: authenticatedUser.id,
+      provider: AI_PROVIDER_NAME,
+      model_identifier: AI_SUMMARY_MODEL_IDENTIFIER,
+      model_version: AI_SUMMARY_MODEL_VERSION,
     });
 
     const result = await orchestrator.summarize({
@@ -1079,6 +1162,9 @@ Deno.serve(async (request: Request) => {
       ...telemetryContext,
       auth_state: "signed_in",
       user_id: authenticatedUser.id,
+      provider: AI_PROVIDER_NAME,
+      model_identifier: AI_SUMMARY_MODEL_IDENTIFIER,
+      model_version: AI_SUMMARY_MODEL_VERSION,
       status: result.status,
       cache_state: result.cache.state,
       cache_hit: result.cache.hit,
@@ -1110,6 +1196,22 @@ Deno.serve(async (request: Request) => {
     logAiTelemetry("request_failed", {
       ...telemetryContext,
       error_message: message,
+      error_type:
+        error instanceof Error
+          ? error.name
+          : error && typeof error === "object"
+            ? "object"
+            : typeof error,
+      error_payload:
+        error && typeof error === "object"
+          ? (() => {
+              try {
+                return JSON.parse(JSON.stringify(error));
+              } catch {
+                return null;
+              }
+            })()
+          : null,
       duration_ms: Date.now() - requestStartedAt,
     });
     return new Response(

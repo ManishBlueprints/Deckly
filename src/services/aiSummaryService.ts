@@ -1,6 +1,6 @@
-import { supabase } from "./supabase";
-import type { AiSummaryInitialResult } from "./aiSummaryInitialOrchestrator";
-import type { AiScopeReference, AiScopeType } from "./aiScopeResolutionBuilder";
+import { supabase } from "./supabase.ts";
+import type { AiSummaryInitialResult } from "./aiSummaryInitialOrchestrator.ts";
+import type { AiScopeReference, AiScopeType } from "./aiScopeResolutionBuilder.ts";
 
 export interface AiSummaryChatMessage {
   id: string;

@@ -1,4 +1,4 @@
-import { TIER_CONFIG, type Tier } from "../constants/tiers";
+import { TIER_CONFIG, type Tier } from "../constants/tiers.ts";
 
 export const AI_SUMMARY_QUOTA_WINDOW_HOURS = 24;
 const AI_SUMMARY_QUOTA_WINDOW_MS = AI_SUMMARY_QUOTA_WINDOW_HOURS * 60 * 60 * 1000;

@@ -1,15 +1,16 @@
-import { supabase } from "./supabase";
-import { withRetry } from "../utils/resilience";
+import { supabase } from "./supabase.ts";
+import { withRetry } from "../utils/resilience.ts";
+import { AI_EMBEDDING_VECTOR_DIMENSIONS } from "./aiConfig.ts";
 import type {
   AiIncludedSource,
   AiNoContentReason,
   AiScopeResolution,
   AiScopeType,
-} from "./aiScopeResolverService";
+} from "./aiScopeResolverService.ts";
 
 export const AI_CHUNK_MAX_CHARACTERS = 1200;
 export const AI_CHUNK_OVERLAP_CHARACTERS = 150;
-export const AI_EMBEDDING_VECTOR_DIMENSIONS = 1536;
+export { AI_EMBEDDING_VECTOR_DIMENSIONS } from "./aiConfig.ts";
 
 export interface AiChunkEmbeddingModelConfig {
   embedding_model: string;

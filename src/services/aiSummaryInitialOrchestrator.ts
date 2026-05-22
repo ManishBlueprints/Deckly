@@ -1,24 +1,27 @@
-import type { Tier } from "../constants/tiers";
+import type { Tier } from "../constants/tiers.ts";
 import {
   evaluateGuestAiSummaryQuota,
   evaluateSignedInAiSummaryQuota,
   type AiSummaryQuotaDecision,
-} from "./aiSummaryQuotaPolicy";
+} from "./aiSummaryQuotaPolicy.ts";
+import {
+  AI_SUMMARY_MODEL_IDENTIFIER,
+  AI_SUMMARY_MODEL_VERSION,
+} from "./aiConfig.ts";
 import type {
   AiNoContentReason,
   AiScopeReference,
   AiScopeResolution,
   AiScopeType,
-} from "./aiScopeResolutionBuilder";
+} from "./aiScopeResolutionBuilder.ts";
 import type {
   AiSummaryCacheKey,
   AiSummaryCacheLookupResult,
   AiSummaryCacheState,
   AiSummaryCacheWriteInput,
-} from "./aiSummaryCacheCore";
+} from "./aiSummaryCacheCore.ts";
 
-export const AI_SUMMARY_MODEL_IDENTIFIER = "gpt-4o-mini";
-export const AI_SUMMARY_MODEL_VERSION = "initial-summary-v1";
+export { AI_SUMMARY_MODEL_IDENTIFIER, AI_SUMMARY_MODEL_VERSION } from "./aiConfig.ts";
 export const AI_SUMMARY_RECURSIVE_SOURCE_THRESHOLD = 4;
 export const AI_SUMMARY_RECURSIVE_CHARACTER_THRESHOLD = 18000;
 

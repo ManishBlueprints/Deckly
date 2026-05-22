@@ -1,8 +1,8 @@
-import { supabase } from "./supabase";
-import { getDeckSession } from "./deckService.shared";
-import { withRetry } from "../utils/resilience";
+import { supabase } from "./supabase.ts";
+import { getDeckSession } from "./deckService.shared.ts";
+import { withRetry } from "../utils/resilience.ts";
 import { DataRoom, SavedDataRoomOrganized } from "../types";
-import { getRequiredSessionUserId } from "./authSession";
+import { getRequiredSessionUserId } from "./authSession.ts";
 
 interface SavedDataRoomRow {
   id: string;

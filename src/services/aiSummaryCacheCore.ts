@@ -1,4 +1,4 @@
-import type { AiScopeType } from "./aiScopeResolutionBuilder";
+import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
 
 export const AI_SUMMARY_CACHE_WINDOW_HOURS = 24;
 const AI_SUMMARY_CACHE_WINDOW_MS = AI_SUMMARY_CACHE_WINDOW_HOURS * 60 * 60 * 1000;

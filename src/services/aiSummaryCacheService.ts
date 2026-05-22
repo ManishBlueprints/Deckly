@@ -1,11 +1,11 @@
-import { supabase } from "./supabase";
-import { withRetry } from "../utils/resilience";
+import { supabase } from "./supabase.ts";
+import { withRetry } from "../utils/resilience.ts";
 import {
   buildAiSummaryCacheRowPayload,
   createAiSummaryCacheServiceWithRetry,
   type AiSummaryCacheDependencies,
   type AiSummaryCacheRow,
-} from "./aiSummaryCacheCore";
+} from "./aiSummaryCacheCore.ts";
 
 export {
   AI_SUMMARY_CACHE_WINDOW_HOURS,
@@ -13,7 +13,7 @@ export {
   classifyAiSummaryCacheRow,
   createAiSummaryCacheServiceWithRetry,
   lookupAiSummaryCacheWithDependencies,
-} from "./aiSummaryCacheCore";
+} from "./aiSummaryCacheCore.ts";
 export type {
   AiSummaryCacheDependencies,
   AiSummaryCacheKey,
@@ -22,7 +22,7 @@ export type {
   AiSummaryCacheState,
   AiSummaryCacheStoredStatus,
   AiSummaryCacheWriteInput,
-} from "./aiSummaryCacheCore";
+} from "./aiSummaryCacheCore.ts";
 
 const defaultDependencies: AiSummaryCacheDependencies = {
   async getExactCacheRow(key) {

@@ -1,15 +1,18 @@
-import { supabase } from "./supabase";
-import { withRetry } from "../utils/resilience";
-import { aiRetrievalQueryService } from "./aiRetrievalQueryService";
-import type { AiScopeReference, AiScopeType } from "./aiScopeResolutionBuilder";
+import { supabase } from "./supabase.ts";
+import { withRetry } from "../utils/resilience.ts";
+import { aiRetrievalQueryService } from "./aiRetrievalQueryService.ts";
+import {
+  AI_CHAT_MODEL_IDENTIFIER,
+  AI_CHAT_MODEL_VERSION,
+} from "./aiConfig.ts";
+import type { AiScopeReference, AiScopeType } from "./aiScopeResolutionBuilder.ts";
 import type {
   AiRetrievalRequest,
   AiRetrievalResult,
   AiRetrievedSnippet,
-} from "./aiRetrievalQueryService";
+} from "./aiRetrievalQueryService.ts";
 
-export const AI_CHAT_MODEL_IDENTIFIER = "gpt-4o-mini";
-export const AI_CHAT_MODEL_VERSION = "follow-up-chat-v1";
+export { AI_CHAT_MODEL_IDENTIFIER, AI_CHAT_MODEL_VERSION } from "./aiConfig.ts";
 export const AI_CHAT_HISTORY_LIMIT = 12;
 
 export type AiChatAuthState = "guest" | "signed_in";

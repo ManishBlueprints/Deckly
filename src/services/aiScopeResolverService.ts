@@ -1,12 +1,12 @@
-import { getRequiredSessionUserId } from "./authSession";
-import { supabase } from "./supabase";
-import { withRetry } from "../utils/resilience";
+import { getRequiredSessionUserId } from "./authSession.ts";
+import { supabase } from "./supabase.ts";
+import { withRetry } from "../utils/resilience.ts";
 import {
   buildAiScopeResolution,
   type AiScopeDocumentRecord,
   type AiScopeReference,
   type AiScopeResolution,
-} from "./aiScopeResolutionBuilder";
+} from "./aiScopeResolutionBuilder.ts";
 
 export type {
   AiExcludedSource,
@@ -19,8 +19,8 @@ export type {
   AiScopeResolutionMetadata,
   AiScopeType,
   AiSourceExclusionReason,
-} from "./aiScopeResolutionBuilder";
-export { buildAiScopeResolution, createAiContentHash } from "./aiScopeResolutionBuilder";
+} from "./aiScopeResolutionBuilder.ts";
+export { buildAiScopeResolution, createAiContentHash } from "./aiScopeResolutionBuilder.ts";
 
 interface AiScopeResolverDependencies {
   getOwnedDeck: (deckId: string, userId: string) => Promise<AiScopeDocumentRecord | null>;

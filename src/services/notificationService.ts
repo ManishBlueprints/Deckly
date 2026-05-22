@@ -1,5 +1,5 @@
-import { supabase } from "./supabase";
-import { withRetry } from "../utils/resilience";
+import { supabase } from "./supabase.ts";
+import { withRetry } from "../utils/resilience.ts";
 import type {
   GroupedNotification,
   Notification,

@@ -1,9 +1,9 @@
 import posthog from "posthog-js";
-import { withRetry } from "../utils/resilience";
-import { supabase } from "./supabase";
+import { withRetry } from "../utils/resilience.ts";
+import { supabase } from "./supabase.ts";
 import { Deck, DeckPageStats } from "../types";
-import { getTierConfig } from "../constants/tiers";
-import type { AiScopeType } from "./aiScopeResolutionBuilder";
+import { getTierConfig } from "../constants/tiers.ts";
+import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;

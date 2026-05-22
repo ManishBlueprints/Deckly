@@ -15,7 +15,8 @@ describe("useManageDeckWorkflow upload contracts", () => {
       "supabase/migrations/20260522090000_create_deck_with_primary_link.sql",
     );
 
-    expect(source).toContain('rpc(\n            "create_deck_with_primary_link"');
+    expect(source).toContain('supabase.rpc(');
+    expect(source).toContain('"create_deck_with_primary_link"');
     expect(migration).toContain("CREATE OR REPLACE FUNCTION public.create_deck_with_primary_link");
     expect(migration).toContain("'Default Link'");
     expect(migration).toContain("p_slug");
