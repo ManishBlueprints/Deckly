@@ -259,6 +259,9 @@ export function useAiSummaryPanel({ onRequireAuth, isGuest }: UseAiSummaryPanelO
       const status = (error as { status?: number } | null)?.status;
       setChatMessages((prev) => prev.filter((message) => message.id !== userMessageId));
       setChatInputValue(question);
+      setSummaryNotice(error instanceof Error ? error.message : String(error));
+      setSummaryNoticeTone("warning");
+      console.error("AI summary chat failed", error);
       analyticsService.trackAiSummaryChatResolved({
         scope_type: activeScope.scope_type,
         scope_id: activeScope.scope_id,

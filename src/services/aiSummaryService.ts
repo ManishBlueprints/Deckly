@@ -49,6 +49,20 @@ const getAuthHeaders = async (): Promise<Record<string, string>> => {
 
 const parseJson = <T,>(value: unknown): T => value as T;
 
+const buildRequestError = (
+  fallbackMessage: string,
+  response: Response,
+  data: unknown,
+) => {
+  const message = typeof (data as { message?: unknown } | null)?.message === "string"
+    ? String((data as { message?: string }).message)
+    : fallbackMessage;
+  const error = new Error(message);
+  (error as Error & { status?: number }).status = response.status;
+  (error as Error & { payload?: unknown }).payload = data;
+  return error;
+};
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
@@ -87,14 +101,15 @@ const ensureExtractableText = async (
 
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    const message =
-      typeof data?.message === "string"
-        ? data.message
-        : "Failed to prepare document text for AI summary.";
-    const error = new Error(message);
-    (error as Error & { status?: number }).status = response.status;
-    (error as Error & { payload?: unknown }).payload = data;
-    throw error;
+    console.error("AI extraction request failed", {
+      status: response.status,
+      payload: data,
+    });
+    throw buildRequestError(
+      "Failed to prepare document text for AI summary.",
+      response,
+      data,
+    );
   }
 
   return parseJson<AiExtractionResult>(data);
@@ -115,11 +130,11 @@ export const aiSummaryService = {
     });
 
     if (!response.ok && response.status !== 429) {
-      const message = typeof data?.message === "string" ? data.message : "Failed to load AI summary.";
-      const error = new Error(message);
-      (error as Error & { status?: number }).status = response.status;
-      (error as Error & { payload?: unknown }).payload = data;
-      throw error;
+      console.error("AI summary request failed", {
+        status: response.status,
+        payload: data,
+      });
+      throw buildRequestError("Failed to load AI summary.", response, data);
     }
 
     return parseJson<AiSummaryInitialResult>(data);
@@ -137,11 +152,11 @@ export const aiSummaryService = {
     });
 
     if (!response.ok) {
-      const message = typeof data?.message === "string" ? data.message : "Failed to send AI chat message.";
-      const error = new Error(message);
-      (error as Error & { status?: number }).status = response.status;
-      (error as Error & { payload?: unknown }).payload = data;
-      throw error;
+      console.error("AI chat request failed", {
+        status: response.status,
+        payload: data,
+      });
+      throw buildRequestError("Failed to send AI chat message.", response, data);
     }
 
     return parseJson<AiSummaryChatResult>(data);

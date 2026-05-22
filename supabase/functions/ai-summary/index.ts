@@ -465,7 +465,7 @@ const createRetrievalService = (supabaseClient: SupabaseClient) =>
     async getScopeChunks(scope) {
       const { data, error } = await supabaseClient
         .from("ai_chunk_embeddings")
-        .select("id, scope_type, scope_id, content_hash, chunk_index, source_label, chunk_text, metadata, repository_score")
+        .select("id, scope_type, scope_id, content_hash, chunk_index, source_label, chunk_text, metadata")
         .eq("scope_type", scope.scope_type)
         .eq("scope_id", scope.scope_id)
         .eq("content_hash", scope.content_hash)
