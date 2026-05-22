@@ -498,6 +498,7 @@ function Viewer() {
         summaryMeta={aiSummary.state.summaryMeta}
         summaryNotice={aiSummary.state.summaryNotice}
         summaryNoticeTone={aiSummary.state.summaryNoticeTone}
+        onResummarize={aiSummary.resummarizeCurrent}
         chatMessages={aiSummary.state.chatMessages}
         chatInputValue={aiSummary.state.chatInputValue}
         onChatInputChange={aiSummary.setChatInputValue}

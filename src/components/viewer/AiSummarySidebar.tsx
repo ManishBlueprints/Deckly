@@ -36,6 +36,7 @@ export interface AiSummarySidebarProps {
   summaryMeta?: AiSummarySidebarMetaItem[];
   summaryNotice?: string | null;
   summaryNoticeTone?: AiSummarySidebarNoticeTone;
+  onResummarize?: () => void;
   chatMessages?: AiSummarySidebarChatMessage[];
   chatInputValue?: string;
   onChatInputChange?: (value: string) => void;
@@ -67,6 +68,11 @@ interface AiSummaryScoreItem {
   detail: string | null;
 }
 
+interface AiScorecardSchemaEntry {
+  label: string;
+  keys: string[];
+}
+
 function SummarySkeleton() {
   return (
     <div className="space-y-2.5" aria-hidden="true">
@@ -87,6 +93,7 @@ const normalizeAiContent = (value: string): string =>
 
 const AI_SCORECARD_LABELS = [
   "Market",
+  "Team",
   "Execution / stage",
   "Traction",
   "Go-to-market",
@@ -95,8 +102,23 @@ const AI_SCORECARD_LABELS = [
   "Investor readiness / evidence quality",
 ] as const;
 
+const AI_SCORECARD_SCHEMA: AiScorecardSchemaEntry[] = [
+  { label: "Market", keys: ["market"] },
+  { label: "Team", keys: ["team"] },
+  { label: "Execution / stage", keys: ["execution_stage", "execution", "stage"] },
+  { label: "Traction", keys: ["traction"] },
+  { label: "Go-to-market", keys: ["go_to_market", "gtm"] },
+  { label: "Business model", keys: ["business_model"] },
+  { label: "Startup potential", keys: ["startup_potential"] },
+  {
+    label: "Investor readiness / evidence quality",
+    keys: ["investor_readiness", "evidence_quality", "investor_readiness_evidence_quality"],
+  },
+] as const;
+
 const normalizeHeadingLabel = (value: string): string =>
   value
+    .replace(/^#+\s*/, "")
     .replace(/^\*\*|\*\*$/g, "")
     .replace(/^\d+\.\s*/, "")
     .trim()
@@ -104,8 +126,94 @@ const normalizeHeadingLabel = (value: string): string =>
 
 const matchScorecardLine = (line: string) =>
   line.match(
-    /^[-•]?\s*(Market|Execution\s*\/\s*stage|Traction|Go-to-market|Business model|Startup potential|Investor readiness\s*\/\s*evidence quality)\s*:\s*(\d{1,3})\s*%?\s*(?:[–-]\s*(.+))?$/i,
+    /^[-•]?\s*(?:\*\*)?(Market|Team|Execution\s*\/\s*stage|Traction|Go-to-market|Business model|Startup potential|Investor readiness\s*\/\s*evidence quality)(?:\*\*)?\s*:\s*(\d{1,3})\s*%?\s*(?:[–-]\s*(.+)|\((.+)\))?$/i,
   );
+
+const parseStructuredScorecard = (value: string): {
+  scorecard: AiSummaryScoreItem[];
+  contentWithoutBlock: string;
+} => {
+  const match = value.match(/<scorecard_json>\s*([\s\S]*?)\s*<\/scorecard_json>/i);
+  if (!match) {
+    return {
+      scorecard: [],
+      contentWithoutBlock: value,
+    };
+  }
+
+  const contentWithoutBlock = normalizeAiContent(value.replace(match[0], ""));
+  const rawJson = match[1]?.trim();
+  if (!rawJson) {
+    return {
+      scorecard: [],
+      contentWithoutBlock,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(rawJson) as Record<string, unknown>;
+    const scorecard = AI_SCORECARD_SCHEMA.flatMap((entry) => {
+      const rawValue = entry.keys
+        .map((key) => parsed[key])
+        .find((candidate) => candidate !== undefined);
+
+      if (rawValue === undefined) {
+        return [];
+      }
+
+      if (typeof rawValue === "number") {
+        return [
+          {
+            label: entry.label,
+            score: Math.max(0, Math.min(Math.round(rawValue), 100)),
+            detail: null,
+          },
+        ];
+      }
+
+      if (rawValue && typeof rawValue === "object") {
+        const rawObject = rawValue as Record<string, unknown>;
+        const scoreValue =
+          typeof rawObject.score === "number"
+            ? rawObject.score
+            : typeof rawObject.value === "number"
+              ? rawObject.value
+              : null;
+
+        if (scoreValue === null) {
+          return [];
+        }
+
+        const detail =
+          typeof rawObject.detail === "string"
+            ? rawObject.detail.trim()
+            : typeof rawObject.reason === "string"
+              ? rawObject.reason.trim()
+              : null;
+
+        return [
+          {
+            label: entry.label,
+            score: Math.max(0, Math.min(Math.round(scoreValue), 100)),
+            detail: detail || null,
+          },
+        ];
+      }
+
+      return [];
+    });
+
+    return {
+      scorecard,
+      contentWithoutBlock,
+    };
+  } catch {
+    return {
+      scorecard: [],
+      contentWithoutBlock,
+    };
+  }
+};
 
 const parseAiSummaryExtras = (value: string): {
   scorecard: AiSummaryScoreItem[];
@@ -121,9 +229,11 @@ const parseAiSummaryExtras = (value: string): {
     };
   }
 
-  const lines = normalized.split("\n");
+  const structured = parseStructuredScorecard(normalized);
+
+  const lines = structured.contentWithoutBlock.split("\n");
   const remainingLines: string[] = [];
-  const scorecard: AiSummaryScoreItem[] = [];
+  const scorecard: AiSummaryScoreItem[] = [...structured.scorecard];
   const standouts: string[] = [];
   let mode: "scorecard" | "standouts" | null = null;
 
@@ -160,11 +270,14 @@ const parseAiSummaryExtras = (value: string): {
             label.toLowerCase().replace(/\s+/g, " ").trim() ===
             rawLabel.toLowerCase().replace(/\s+/g, " ").trim(),
         ) ?? rawLabel;
+      if (scorecard.some((item) => item.label === matchedLabel)) {
+        continue;
+      }
       const rawScore = Number(scoreMatch[2] ?? 0);
       scorecard.push({
         label: matchedLabel,
         score: Math.max(0, Math.min(rawScore, 100)),
-        detail: scoreMatch[3]?.trim() ?? null,
+        detail: scoreMatch[3]?.trim() ?? scoreMatch[4]?.trim() ?? null,
       });
       continue;
     }
@@ -177,13 +290,26 @@ const parseAiSummaryExtras = (value: string): {
       }
     }
 
+    if (heading === "scorecard" || heading === "standouts from deck") {
+      continue;
+    }
+
     remainingLines.push(rawLine);
   }
+
+  const cleanedRemainingContent = normalizeAiContent(
+    remainingLines
+      .filter((rawLine) => {
+        const heading = normalizeHeadingLabel(rawLine.trim());
+        return heading !== "scorecard";
+      })
+      .join("\n"),
+  );
 
   return {
     scorecard,
     standouts,
-    remainingContent: normalizeAiContent(remainingLines.join("\n")),
+    remainingContent: cleanedRemainingContent,
   };
 };
 
@@ -206,8 +332,14 @@ const parseAiFormattedBlocks = (value: string): AiFormattedBlock[] => {
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
+    const heading = normalizeHeadingLabel(line);
 
     if (!line) {
+      flushParagraph();
+      continue;
+    }
+
+    if (heading === "scorecard") {
       flushParagraph();
       continue;
     }
@@ -328,39 +460,27 @@ function SummaryScorecard({
   if (items.length === 0) return null;
 
   return (
-    <section className="space-y-2 border border-white/5 bg-black/20 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Pitch scorecard
-        </p>
-        <p className="text-[9px] text-slate-500">
-          Investor + startup lens
-        </p>
-      </div>
-
+    <section className="space-y-3 border border-white/5 bg-black/20 p-3">
       <div className="space-y-2.5">
         {items.map((item) => (
-          <div key={item.label} className="group relative space-y-1.5">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[11px] font-medium text-slate-200">{item.label}</p>
-              <p className="text-[11px] font-semibold text-white">{item.score}%</p>
-            </div>
-            <div className="relative h-10 overflow-hidden rounded-sm border border-emerald-500/15 bg-[#1a1d24]">
+          <div key={item.label} className="group relative">
+            <div className="relative h-9 overflow-hidden rounded-md border border-emerald-500/15 bg-[#171b22] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
               <div
-                className="absolute inset-y-0 left-0 rounded-sm bg-[#55dc88]"
+                className="absolute inset-y-0 left-0 rounded-md bg-gradient-to-r from-[#38c976] to-[#67e79a] transition-[width] duration-500"
                 style={{ width: `${item.score}%` }}
               />
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.08)_0,rgba(255,255,255,0)_24px)] opacity-30" />
               <div className="absolute inset-0 flex items-center justify-between px-3">
-                <span className="text-[11px] font-medium text-slate-950">
+                <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.55)]">
                   {item.label}
                 </span>
-                <span className="text-[11px] font-semibold text-slate-950">
+                <span className="text-[11px] font-semibold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.55)]">
                   {item.score}%
                 </span>
               </div>
             </div>
             {item.detail ? (
-              <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-[18rem] rounded-sm border border-white/10 bg-[#11141b] p-3 text-[11px] leading-relaxed text-slate-300 shadow-[0_18px_40px_rgba(0,0,0,0.45)] group-hover:block">
+              <div className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-[19rem] rounded-md border border-white/10 bg-[#11141b] p-3 text-[11px] leading-relaxed text-slate-300 shadow-[0_18px_40px_rgba(0,0,0,0.45)] group-hover:block">
                 <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-deckly-primary">
                   {item.label}
                 </p>
@@ -433,6 +553,7 @@ export function AiSummarySidebar({
   summaryMeta = [],
   summaryNotice = null,
   summaryNoticeTone = "default",
+  onResummarize,
   chatMessages = [],
   chatInputValue = "",
   onChatInputChange,
@@ -510,6 +631,21 @@ export function AiSummarySidebar({
                   <X size={16} />
                 </button>
               </div>
+
+              {onResummarize ? (
+                <div className="mt-2 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onResummarize}
+                    disabled={isSummaryLoading}
+                    className="h-7 border-deckly-primary/20 bg-deckly-primary/[0.05] px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-deckly-primary hover:bg-deckly-primary/[0.12] hover:text-deckly-primary"
+                  >
+                    {isSummaryLoading ? "Resummarizing..." : "Resummarize"}
+                  </Button>
+                </div>
+              ) : null}
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col">
@@ -528,7 +664,7 @@ export function AiSummarySidebar({
                       ) : null}
                     </div>
 
-                    <div className="mt-3">
+                    <div className="mt-2">
                       {isSummaryLoading ? (
                         <SummaryLoadingState />
                       ) : showSummaryEmpty ? (

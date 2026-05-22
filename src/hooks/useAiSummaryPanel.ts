@@ -289,6 +289,11 @@ export function useAiSummaryPanel({
     }
   }, [activeScope, chatInputValue, isGuest, onRequireAuth, summaryResult]);
 
+  const resummarizeCurrent = useCallback(async () => {
+    if (!activeScope || isSummaryLoading) return null;
+    return requestSummary(activeScope);
+  }, [activeScope, isSummaryLoading, requestSummary]);
+
   const state: AiSummaryPanelState = {
     isOpen,
     isSummaryLoading,
@@ -309,6 +314,7 @@ export function useAiSummaryPanel({
     open,
     close,
     requestSummary,
+    resummarizeCurrent,
     setChatInputValue,
     submitChat,
     setIsOpen,
