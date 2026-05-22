@@ -29,6 +29,12 @@ export interface AiSummaryChatRequest extends AiScopeReference {
   summary_text?: string | null;
 }
 
+interface AiExtractionResult extends AiScopeReference {
+  processed_documents: number;
+  extracted_documents: number;
+  skipped_documents: number;
+}
+
 const getAuthHeaders = async (): Promise<Record<string, string>> => {
   const {
     data: { session },
@@ -66,8 +72,41 @@ const invokeAiSummaryFunction = async (body: Record<string, unknown>) => {
   return { response, data };
 };
 
+const ensureExtractableText = async (
+  request: AiScopeReference,
+): Promise<AiExtractionResult> => {
+  const headers = await getAuthHeaders();
+  const response = await fetch("/api/extract-document-text", {
+    method: "POST",
+    headers: {
+      ...(headers.Authorization ? { Authorization: headers.Authorization } : {}),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      typeof data?.message === "string"
+        ? data.message
+        : "Failed to prepare document text for AI summary.";
+    const error = new Error(message);
+    (error as Error & { status?: number }).status = response.status;
+    (error as Error & { payload?: unknown }).payload = data;
+    throw error;
+  }
+
+  return parseJson<AiExtractionResult>(data);
+};
+
 export const aiSummaryService = {
   async summarizeScope(request: AiSummaryRequest): Promise<AiSummaryInitialResult> {
+    await ensureExtractableText({
+      scope_type: request.scope_type,
+      scope_id: request.scope_id,
+    });
+
     const { response, data } = await invokeAiSummaryFunction({
       action: "summarize",
       scope_type: request.scope_type,

@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS public.decks (
     slug TEXT NOT NULL UNIQUE,
     description TEXT,
     file_url TEXT,
+    extracted_text TEXT,
     pages JSONB DEFAULT '[]'::jsonb,
     display_mode TEXT DEFAULT 'raw',
     file_type TEXT DEFAULT 'pdf',
