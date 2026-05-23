@@ -140,8 +140,33 @@ const getAiProviderHeaders = () => {
 };
 
 const AI_PROVIDER_REQUEST_TIMEOUT_MS = Number(
-  Deno.env.get("AI_PROVIDER_REQUEST_TIMEOUT_MS") ?? "10000",
+  Deno.env.get("AI_PROVIDER_REQUEST_TIMEOUT_MS") ?? "30000",
 );
+const AI_PROVIDER_MAX_RETRIES = Number(
+  Deno.env.get("AI_PROVIDER_MAX_RETRIES") ?? "1",
+);
+const AI_PROVIDER_RETRY_DELAY_MS = Number(
+  Deno.env.get("AI_PROVIDER_RETRY_DELAY_MS") ?? "750",
+);
+
+type AiProviderMessageRole = "system" | "user" | "assistant";
+type AiProviderMessage = { role: AiProviderMessageRole; content: string };
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRetryableProviderStatus = (status: number): boolean =>
+  status === 408 || status === 409 || status === 429 || status >= 500;
+
+const createProviderError = (
+  message: string,
+  status: number | null,
+  payload: unknown,
+  retryable: boolean,
+) => Object.assign(new Error(message), {
+  provider_status: status,
+  provider_payload: payload,
+  retryable,
+});
 
 const fetchWithTimeout = async (
   input: string | URL | Request,
@@ -168,6 +193,78 @@ const fetchWithTimeout = async (
   } finally {
     clearTimeout(timeoutId);
   }
+};
+
+const callAiProvider = async (args: {
+  model: string;
+  messages: AiProviderMessage[];
+}) => {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= AI_PROVIDER_MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetchWithTimeout(AI_CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers: getAiProviderHeaders(),
+        body: JSON.stringify({
+          model: args.model,
+          messages: args.messages,
+          temperature: 0.2,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = payload && typeof payload === "object" && "error" in payload
+          ? String(
+            (payload as { error?: { message?: string } }).error?.message ??
+              "OpenAI request failed.",
+          )
+          : "OpenAI request failed.";
+
+        throw createProviderError(
+          message,
+          response.status,
+          payload,
+          isRetryableProviderStatus(response.status),
+        );
+      }
+
+      return payload;
+    } catch (error) {
+      lastError = error;
+
+      const maybeError = error as {
+        message?: unknown;
+        provider_status?: unknown;
+        retryable?: unknown;
+      };
+      const retryable = maybeError.retryable === true || (
+        typeof maybeError.message === "string" &&
+        maybeError.message.includes("timed out after")
+      );
+
+      if (!retryable || attempt === AI_PROVIDER_MAX_RETRIES) {
+        throw error;
+      }
+
+      console.warn("AI provider request failed; retrying.", {
+        attempt: attempt + 1,
+        max_retries: AI_PROVIDER_MAX_RETRIES,
+        retry_delay_ms: AI_PROVIDER_RETRY_DELAY_MS,
+        provider_status:
+          typeof maybeError.provider_status === "number"
+            ? maybeError.provider_status
+            : null,
+        message:
+          typeof maybeError.message === "string" ? maybeError.message : String(error),
+      });
+
+      await sleep(AI_PROVIDER_RETRY_DELAY_MS * (attempt + 1));
+    }
+  }
+
+  throw lastError;
 };
 
 const getServiceClient = () => {
@@ -785,29 +882,13 @@ const callOpenAiSummary = async (
       input.scope.scope_label ?? input.scope.scope_id
     }\nAnalyze the following extractable text from a professional startup investor point of view.\n\nReturn the response in this exact section order when the material supports it:\n1. <scorecard_json>{"market":{"score":NN,"detail":"..."},"team":{"score":NN,"detail":"..."},"execution_stage":{"score":NN,"detail":"..."},"traction":{"score":NN,"detail":"..."},"go_to_market":{"score":NN,"detail":"..."},"business_model":{"score":NN,"detail":"..."},"startup_potential":{"score":NN,"detail":"..."},"investor_readiness":{"score":NN,"detail":"..."}}</scorecard_json>\n2. Standouts from deck\n- 3 to 5 short bullets only\n3. Startup overview\n4. What the pitch is saying\n5. Market and customer\n6. Business model and traction\n7. Risks, gaps, and open questions\n8. Main takeaway\n\nRules:\n- The scorecard_json block must be valid JSON and must appear exactly once.\n- Do not repeat the scorecard as prose bullets outside the scorecard_json block.\n- Use percentage scores that reflect evidence quality and overall investor attractiveness, not hype.\n- Be fair to both the startup stage and the investor perspective.\n- Score Team based on founder credibility, relevant experience, completeness of key roles, and signals of execution ability.\n- Early-stage companies can still score well on potential even if revenue is low.\n- If evidence is weak, lower Investor readiness / evidence quality.\n- Keep the summary concise and easy to scan.\n- Be specific about claims, evidence, and missing information.\n- If this is not clearly a pitch deck, still summarize it through a startup, market, and commercial lens.\n\nExtractable text:\n\n${input.content}`;
 
-  const response = await fetchWithTimeout(AI_CHAT_COMPLETIONS_URL, {
-    method: "POST",
-    headers: getAiProviderHeaders(),
-    body: JSON.stringify({
-      model: AI_SUMMARY_MODEL_IDENTIFIER,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.2,
-    }),
+  const payload = await callAiProvider({
+    model: AI_SUMMARY_MODEL_IDENTIFIER,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
   });
-
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message = payload && typeof payload === "object" && "error" in payload
-      ? String(
-        (payload as { error?: { message?: string } }).error?.message ??
-          "OpenAI request failed.",
-      )
-      : "OpenAI request failed.";
-    throw new Error(message);
-  }
 
   const typedPayload = payload as {
     choices?: Array<{ message?: { content?: string } }>;
@@ -858,7 +939,7 @@ const callOpenAiChat = async (input: {
       : "Relevant snippets: none available",
   ].join("\n");
 
-  const messages = [
+  const messages: AiProviderMessage[] = [
     { role: "system", content: systemPrompt },
     {
       role: "system",
@@ -872,26 +953,10 @@ const callOpenAiChat = async (input: {
     { role: "user", content: input.question },
   ];
 
-  const response = await fetchWithTimeout(AI_CHAT_COMPLETIONS_URL, {
-    method: "POST",
-    headers: getAiProviderHeaders(),
-    body: JSON.stringify({
-      model: AI_CHAT_MODEL_IDENTIFIER,
-      messages,
-      temperature: 0.2,
-    }),
+  const payload = await callAiProvider({
+    model: AI_CHAT_MODEL_IDENTIFIER,
+    messages,
   });
-
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message = payload && typeof payload === "object" && "error" in payload
-      ? String(
-        (payload as { error?: { message?: string } }).error?.message ??
-          "OpenAI request failed.",
-      )
-      : "OpenAI request failed.";
-    throw new Error(message);
-  }
 
   const typedPayload = payload as {
     choices?: Array<{ message?: { content?: string } }>;

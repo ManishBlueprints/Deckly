@@ -30,4 +30,15 @@ describe("useManageDeckWorkflow upload contracts", () => {
     expect(source).toContain("Failed to rollback newly created deck after conversion failure:");
     expect(source).toContain("await deckService.deleteDeck(");
   });
+
+  it("clears extracted text when replacing a deck source file", () => {
+    const workflowSource = readSource("src/hooks/useManageDeckWorkflow.ts");
+    const settingsSource = readSource("src/components/dashboard/DeckSettingsForm.tsx");
+    const detailSource = readSource("src/components/decks/DeckDetailPanel.tsx");
+
+    expect(workflowSource).toContain("...(file ? { extracted_text: null } : {}),");
+    expect(workflowSource).toContain("extracted_text: previousValues.extracted_text,");
+    expect(settingsSource).toContain("...(newFile ? { extracted_text: null } : {}),");
+    expect(detailSource).toContain("...(newFile ? { extracted_text: null } : {}),");
+  });
 });
