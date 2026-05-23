@@ -136,12 +136,13 @@ const apiDevBridge = () => ({
         await sendWebResponse(response, res);
       } catch (error) {
         console.error("[api-dev-bridge] extract-document-text failed", error);
+        const message = error instanceof Error ? error.message : String(error);
         res.statusCode = 500;
         res.setHeader("content-type", "application/json");
         res.end(
           JSON.stringify({
             error: true,
-            message: "An internal error occurred.",
+            message,
           }),
         );
       }

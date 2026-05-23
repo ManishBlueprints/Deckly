@@ -1,11 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
+import { deleteObjects, listAllObjects } from "../_shared/r2.ts";
 
 // delete-account Edge Function
 // Verifies the caller's JWT, purges all storage objects, then deletes the
 // auth.users row which cascades to profiles, branding, decks, data_rooms, etc.
 
 Deno.serve(async (req: Request) => {
-  // Only accept POST
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
@@ -14,8 +14,10 @@ Deno.serve(async (req: Request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const supabaseSecretKey = Deno.env.get("PROJECT_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const supabasePublishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const supabaseSecretKey =
+    Deno.env.get("PROJECT_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const supabasePublishableKey =
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
   if (!supabaseUrl || !supabaseSecretKey || !supabasePublishableKey) {
     return new Response(
@@ -24,7 +26,6 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  // Extract Bearer token from Authorization header
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -32,9 +33,9 @@ Deno.serve(async (req: Request) => {
       headers: { "Content-Type": "application/json" },
     });
   }
+
   const accessToken = authHeader.replace("Bearer ", "").trim();
 
-  // Create a USER-scoped client to verify the JWT
   const userClient = createClient(supabaseUrl, supabasePublishableKey, {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
   });
@@ -48,70 +49,25 @@ Deno.serve(async (req: Request) => {
   }
 
   const userId = user.id;
-
-  // Create admin client to perform privileged operations
   const adminClient = createClient(supabaseUrl, supabaseSecretKey);
 
   try {
-    // --- Step 1: Purge all storage objects owned by this user ---
-    // Files are stored under `decks/{userId}/...` paths
-    const filePaths: string[] = [];
-
-    const traverseFolder = async (path: string) => {
-      const pageSize = 1000;
-      let offset = 0;
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data: items, error: listError } = await adminClient.storage
-          .from("decks")
-          .list(path, { limit: pageSize, offset });
-
-        if (listError) {
-          console.error(`[delete-account] Failed to list storage directory '${path}':`, listError.message);
-          throw listError;
-        }
-
-        if (!items || items.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        for (const item of items) {
-          if (item.id) {
-            // It's a file
-            filePaths.push(`${path}/${item.name}`);
-          } else {
-            // It's a subfolder
-            await traverseFolder(`${path}/${item.name}`);
-          }
-        }
-
-        if (items.length < pageSize) {
-          hasMore = false;
-        } else {
-          offset += pageSize;
-        }
-      }
-    }
-
-    await traverseFolder(userId);
+    const filePaths = (await listAllObjects("decks", userId)).map((item) => item.name);
 
     if (filePaths.length > 0) {
       console.log(`[delete-account] Removing ${filePaths.length} storage objects for user ${userId}`);
-      // Delete in batches of 100 (Supabase limit)
       const BATCH = 100;
       for (let i = 0; i < filePaths.length; i += BATCH) {
         const chunk = filePaths.slice(i, i + BATCH);
-        const { error: removeError } = await adminClient.storage.from("decks").remove(chunk);
-        if (removeError) {
-          console.error(`[delete-account] Storage remove error:`, removeError.message);
-          // Non-fatal: continue with account deletion
+        try {
+          await deleteObjects("decks", chunk);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`[delete-account] Storage remove error:`, message);
         }
       }
     }
 
-    // --- Step 2: Delete the auth user (cascades to all DB tables) ---
     console.log(`[delete-account] Deleting auth.users row for ${userId}`);
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
 

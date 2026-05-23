@@ -1,6 +1,6 @@
-import { supabase } from "./supabase.ts";
 import { extractStoragePath, getRequiredDeckUserId } from "./deckService.shared.ts";
 import { withRetry } from "../utils/resilience.ts";
+import { storageService } from "./storageService.ts";
 
 /**
  * Sanitizes a deck slug for storage paths.
@@ -22,15 +22,11 @@ export const deckStorageService = {
     const safeSlug = sanitizeStorageSlug(slug);
     const fileName = `${userId}/decks/${safeSlug}-${Date.now()}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("decks")
-      .upload(fileName, file);
+    const { error: uploadError } = await storageService.upload("decks", fileName, file);
 
     if (uploadError) throw uploadError;
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("decks").getPublicUrl(fileName);
+    const publicUrl = storageService.getPublicUrl("decks", fileName);
 
     return { userId, publicUrl, fileName };
   },
@@ -58,18 +54,14 @@ export const deckStorageService = {
 
       while (attempts < maxAttempts) {
         try {
-          const { error } = await supabase.storage
-            .from("decks")
-            .upload(fileName, imageBlobs[index], {
-              contentType: "image/webp",
-              upsert: true,
-            });
+          const { error } = await storageService.upload("decks", fileName, imageBlobs[index], {
+            contentType: "image/webp",
+            upsert: true,
+          });
 
           if (error) throw error;
 
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from("decks").getPublicUrl(fileName);
+          const publicUrl = storageService.getPublicUrl("decks", fileName);
           imageUrls[index] = publicUrl;
           uploadedCount++;
 
@@ -106,7 +98,7 @@ export const deckStorageService = {
     }
 
     await withRetry(async () => {
-      const { error } = await supabase.storage.from("decks").remove([storagePath]);
+      const { error } = await storageService.remove("decks", [storagePath]);
       if (
         error &&
         !error.message?.toLowerCase().includes("not found")
@@ -117,45 +109,21 @@ export const deckStorageService = {
 
     await withRetry(async () => {
       const safeSlug = sanitizeStorageSlug(slug);
-      const listAllFilesRecursively = async (bucket: string, prefix: string): Promise<string[]> => {
-        const files: string[] = [];
-        let offset = 0;
-        const limit = 100;
-        let hasMore = true;
+      const { data, error } = await storageService.list(
+        "decks",
+        `${userId}/deck-images/${safeSlug}`,
+      );
 
-        while (hasMore) {
-          const { data, error } = await supabase.storage
-            .from(bucket)
-            .list(prefix, { limit, offset });
-
-          if (error) {
-            if (!error.message?.toLowerCase().includes("not found")) {
-              throw error;
-            }
-            break;
-          }
-
-          if (data && data.length > 0) {
-            for (const item of data) {
-              const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
-              // Folders typically lack metadata, while files have it.
-              if (item.metadata) {
-                files.push(fullPath);
-              } else {
-                const nestedFiles = await listAllFilesRecursively(bucket, fullPath);
-                files.push(...nestedFiles);
-              }
-            }
-            offset += data.length;
-            hasMore = data.length === limit;
-          } else {
-            hasMore = false;
-          }
+      if (error) {
+        if (!error.message?.toLowerCase().includes("not found")) {
+          throw error;
         }
-        return files;
-      };
+        return;
+      }
 
-      const allFilesToDelete = await listAllFilesRecursively("decks", `${userId}/deck-images/${safeSlug}`);
+      const allFilesToDelete = (data || [])
+        .map((item) => item.name)
+        .filter((name) => name.startsWith(`${userId}/deck-images/${safeSlug}`));
 
       if (allFilesToDelete.length > 0) {
         // supabase remove has a limit depending on the payload length, but usually accepts a lot. Let's chunk if necessary, or pass all.
@@ -163,9 +131,7 @@ export const deckStorageService = {
         const chunkSize = 100;
         for (let i = 0; i < allFilesToDelete.length; i += chunkSize) {
           const chunk = allFilesToDelete.slice(i, i + chunkSize);
-          const { error: removeError } = await supabase.storage
-            .from("decks")
-            .remove(chunk);
+          const { error: removeError } = await storageService.remove("decks", chunk);
 
           if (removeError && !removeError.message?.toLowerCase().includes("not found")) {
             throw removeError;
@@ -180,7 +146,7 @@ export const deckStorageService = {
     if (paths.length === 0) return;
 
     await withRetry(async () => {
-      const { error } = await supabase.storage.from("decks").remove(paths);
+      const { error } = await storageService.remove("decks", paths);
       if (error && !error.message?.toLowerCase().includes("not found")) {
         throw error;
       }
