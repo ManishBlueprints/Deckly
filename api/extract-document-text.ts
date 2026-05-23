@@ -59,6 +59,7 @@ const logExtraction = (event: string, payload: Record<string, unknown>) => {
 const EXTERNAL_FETCH_TIMEOUT_MS = Number(
   process.env.EXTERNAL_FETCH_TIMEOUT_MS?.trim() || "10000",
 );
+const INTERNAL_ERROR_MESSAGE = "An internal error occurred.";
 
 const formatUnknownError = (error: unknown): string => {
   if (error instanceof Error) {
@@ -664,7 +665,7 @@ export default async function handler(request: Request) {
     return json(
       {
         error: true,
-        message: formattedError,
+        message: INTERNAL_ERROR_MESSAGE,
       },
       500,
     );

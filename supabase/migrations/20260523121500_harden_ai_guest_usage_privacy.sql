@@ -5,13 +5,15 @@ ALTER TABLE public.ai_guest_usage
     ADD COLUMN IF NOT EXISTS retention_expires_at TIMESTAMPTZ;
 
 UPDATE public.ai_guest_usage
-SET ip_hash = encode(digest(host(ip_address), 'sha256'), 'hex')
+SET ip_hash = gen_random_uuid()::text,
+    retention_expires_at = NOW()
 WHERE ip_hash IS NULL
   AND ip_address IS NOT NULL;
 
 UPDATE public.ai_guest_usage
 SET retention_expires_at = COALESCE(consumed_at, created_at, NOW()) + INTERVAL '90 days'
-WHERE retention_expires_at IS NULL;
+WHERE retention_expires_at IS NULL
+  AND NOT (ip_hash IS NOT NULL AND ip_address IS NOT NULL);
 
 ALTER TABLE public.ai_guest_usage
     ALTER COLUMN ip_hash SET NOT NULL,

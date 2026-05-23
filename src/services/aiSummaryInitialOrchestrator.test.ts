@@ -408,40 +408,42 @@ describe("aiSummaryInitialOrchestrator", () => {
       recordUsage,
     });
 
-    await expect(
-      orchestrator.summarize({
-        scope_type: "deck",
-        scope_id: "deck-1",
-        actor: {
-          type: "signed_in",
-          user_id: "user-1",
-          tier: "FREE",
-        },
-        now: new Date("2026-05-02T12:00:00.000Z"),
-      }),
-    ).resolves.toMatchObject({
-      status: "completed",
-      summary_text: "Fresh summary",
-    });
-
-    expect(recordUsage).toHaveBeenCalledTimes(1);
-    expect(writeCache).toHaveBeenCalledTimes(1);
-    expect(writeCache).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: "ready",
+    try {
+      await expect(
+        orchestrator.summarize({
+          scope_type: "deck",
+          scope_id: "deck-1",
+          actor: {
+            type: "signed_in",
+            user_id: "user-1",
+            tier: "FREE",
+          },
+          now: new Date("2026-05-02T12:00:00.000Z"),
+        }),
+      ).resolves.toMatchObject({
+        status: "completed",
         summary_text: "Fresh summary",
-      }),
-    );
-    expect(errorSpy).toHaveBeenCalledWith(
-      "Failed to record AI summary usage.",
-      expect.objectContaining({
-        actorType: "signed_in",
-        scopeType: "deck",
-        scopeId: "deck-1",
-      }),
-    );
+      });
 
-    errorSpy.mockRestore();
+      expect(recordUsage).toHaveBeenCalledTimes(1);
+      expect(writeCache).toHaveBeenCalledTimes(1);
+      expect(writeCache).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "ready",
+          summary_text: "Fresh summary",
+        }),
+      );
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to record AI summary usage.",
+        expect.objectContaining({
+          actorType: "signed_in",
+          scopeType: "deck",
+          scopeId: "deck-1",
+        }),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("returns generating when another worker already claimed the cache row", async () => {

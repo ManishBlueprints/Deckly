@@ -85,8 +85,8 @@ BEGIN
     INTO v_inserted;
 
     UPDATE public.ai_chat_sessions
-    SET last_message_at = v_inserted.created_at,
-        updated_at = v_inserted.created_at
+    SET last_message_at = GREATEST(COALESCE(last_message_at, v_inserted.created_at), v_inserted.created_at),
+        updated_at = GREATEST(COALESCE(updated_at, v_inserted.created_at), v_inserted.created_at)
     WHERE id = p_session_id;
 
     RETURN v_inserted;

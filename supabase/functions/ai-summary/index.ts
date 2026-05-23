@@ -53,6 +53,20 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
+const INTERNAL_ERROR_MESSAGE = "An internal error occurred.";
+
+const parseEnvNonNegativeInteger = (
+  rawValue: string | undefined,
+  fallback: number,
+): number => {
+  const parsed = Number(rawValue ?? String(fallback));
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+
+  return Math.floor(parsed);
+};
+
 const logAiTelemetry = (
   event: string,
   payload: Record<string, unknown>,
@@ -139,14 +153,17 @@ const getAiProviderHeaders = () => {
   return headers;
 };
 
-const AI_PROVIDER_REQUEST_TIMEOUT_MS = Number(
-  Deno.env.get("AI_PROVIDER_REQUEST_TIMEOUT_MS") ?? "30000",
+const AI_PROVIDER_REQUEST_TIMEOUT_MS = parseEnvNonNegativeInteger(
+  Deno.env.get("AI_PROVIDER_REQUEST_TIMEOUT_MS"),
+  30000,
 );
-const AI_PROVIDER_MAX_RETRIES = Number(
-  Deno.env.get("AI_PROVIDER_MAX_RETRIES") ?? "1",
+const AI_PROVIDER_MAX_RETRIES = parseEnvNonNegativeInteger(
+  Deno.env.get("AI_PROVIDER_MAX_RETRIES"),
+  1,
 );
-const AI_PROVIDER_RETRY_DELAY_MS = Number(
-  Deno.env.get("AI_PROVIDER_RETRY_DELAY_MS") ?? "750",
+const AI_PROVIDER_RETRY_DELAY_MS = parseEnvNonNegativeInteger(
+  Deno.env.get("AI_PROVIDER_RETRY_DELAY_MS"),
+  750,
 );
 
 type AiProviderMessageRole = "system" | "user" | "assistant";
@@ -1483,7 +1500,7 @@ Deno.serve(async (request: Request) => {
       JSON.stringify({
         error: true,
         code: "INTERNAL_ERROR",
-        message,
+        message: INTERNAL_ERROR_MESSAGE,
       }),
       { status: 500, headers: corsHeaders },
     );

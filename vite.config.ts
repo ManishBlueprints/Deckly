@@ -96,46 +96,6 @@ const toHeaderEntries = (
     return [[key, value]];
   });
 
-const formatUnknownError = (error: unknown): string => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  if (error && typeof error === "object") {
-    const candidate = error as {
-      message?: unknown;
-      details?: unknown;
-      hint?: unknown;
-      code?: unknown;
-      error?: unknown;
-    };
-
-    const parts = [
-      typeof candidate.message === "string" ? candidate.message : null,
-      typeof candidate.details === "string" ? candidate.details : null,
-      typeof candidate.hint === "string" ? candidate.hint : null,
-      typeof candidate.code === "string" ? `code=${candidate.code}` : null,
-      typeof candidate.error === "string" ? candidate.error : null,
-    ].filter(Boolean);
-
-    if (parts.length > 0) {
-      return parts.join(" | ");
-    }
-
-    try {
-      return JSON.stringify(error);
-    } catch {
-      return "Unknown object error";
-    }
-  }
-
-  return String(error);
-};
-
 const apiDevBridge = () => ({
   name: "api-dev-bridge",
   configureServer(server: {
@@ -175,14 +135,13 @@ const apiDevBridge = () => ({
         const response = await handler(request);
         await sendWebResponse(response, res);
       } catch (error) {
-        const formattedError = formatUnknownError(error);
         console.error("[api-dev-bridge] extract-document-text failed", error);
         res.statusCode = 500;
         res.setHeader("content-type", "application/json");
         res.end(
           JSON.stringify({
             error: true,
-            message: formattedError,
+            message: "An internal error occurred.",
           }),
         );
       }

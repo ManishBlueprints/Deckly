@@ -65,6 +65,7 @@ export const getGuestAiSummaryUsageCount = async (
       .from("ai_guest_usage")
       .select("id", { count: "exact", head: true })
       .eq("ip_hash", guestKey)
+      .eq("usage_kind", "summary")
       .gte("consumed_at", windowStart.toISOString())
       .lte("consumed_at", now.toISOString());
 

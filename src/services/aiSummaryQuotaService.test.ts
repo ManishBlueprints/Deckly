@@ -268,6 +268,7 @@ describe("aiSummaryQuotaService", () => {
       "ip_hash",
       await deriveGuestQuotaKey("203.0.113.10", "test-guest-quota-secret"),
     );
+    expect(tableChain.eq).toHaveBeenCalledWith("usage_kind", "summary");
     expect(tableChain.gte).toHaveBeenCalledWith(
       "consumed_at",
       new Date(now.getTime() - AI_SUMMARY_QUOTA_WINDOW_HOURS * 60 * 60 * 1000).toISOString(),
