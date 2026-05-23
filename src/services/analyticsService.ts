@@ -1,8 +1,9 @@
 import posthog from "posthog-js";
-import { withRetry } from "../utils/resilience";
-import { supabase } from "./supabase";
+import { withRetry } from "../utils/resilience.ts";
+import { supabase } from "./supabase.ts";
 import { Deck, DeckPageStats } from "../types";
-import { getTierConfig } from "../constants/tiers";
+import { getTierConfig } from "../constants/tiers.ts";
+import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
@@ -78,12 +79,35 @@ const writeGeoCacheToSession = (value: GeoLocation) => {
   }
 };
 
+type AiSummaryTelemetryMetadata = {
+  scope_type: AiScopeType;
+  scope_id: string;
+  scope_label?: string | null;
+  auth_state?: "guest" | "signed_in";
+  status?: string | null;
+  cache_state?: string | null;
+  cached_reopen?: boolean;
+  partial_data?: boolean;
+  no_content?: boolean;
+  usage_count?: number | null;
+  quota_limit?: number | null;
+  quota_remaining?: number | null;
+  quota_scope?: string | null;
+  session_id?: string | null;
+  message_count?: number | null;
+  error_message?: string | null;
+  [key: string]: unknown;
+};
+
+const captureEvent = (event: string, properties: Record<string, unknown>) => {
+  if (!posthogKey) return;
+  posthog.capture(event, properties);
+};
+
 export const analyticsService = {
   // Track when someone views a deck
   trackDeckView(deck: Deck, metadata: Record<string, unknown> = {}) {
-    if (!posthogKey) return;
-
-    posthog.capture("deck_viewed", {
+    captureEvent("deck_viewed", {
       deck_id: deck.id,
       deck_slug: deck.slug,
       deck_title: deck.title,
@@ -94,9 +118,7 @@ export const analyticsService = {
 
   // Track page navigation in PDF
   trackPageView(deck: Deck, pageNumber: number, timeSpent: number = 0) {
-    if (!posthogKey) return;
-
-    posthog.capture("pdf_page_viewed", {
+    captureEvent("pdf_page_viewed", {
       deck_id: deck.id,
       deck_slug: deck.slug,
       deck_title: deck.title,
@@ -108,9 +130,7 @@ export const analyticsService = {
 
   // Track when someone completes viewing a deck
   trackDeckComplete(deck: Deck, totalPages: number) {
-    if (!posthogKey) return;
-
-    posthog.capture("deck_completed", {
+    captureEvent("deck_completed", {
       deck_id: deck.id,
       deck_slug: deck.slug,
       deck_title: deck.title,
@@ -123,6 +143,26 @@ export const analyticsService = {
   identifyUser(userId: string, traits?: Record<string, unknown>) {
     if (!posthogKey) return;
     posthog.identify(userId, traits);
+  },
+
+  trackAiSummaryRequested(metadata: AiSummaryTelemetryMetadata) {
+    captureEvent("ai_summary_requested", metadata);
+  },
+
+  trackAiSummaryResolved(metadata: AiSummaryTelemetryMetadata) {
+    captureEvent("ai_summary_resolved", metadata);
+  },
+
+  trackAiSummaryAuthPrompt(metadata: AiSummaryTelemetryMetadata) {
+    captureEvent("ai_summary_auth_prompt_shown", metadata);
+  },
+
+  trackAiSummaryChatSubmitted(metadata: AiSummaryTelemetryMetadata) {
+    captureEvent("ai_summary_chat_submitted", metadata);
+  },
+
+  trackAiSummaryChatResolved(metadata: AiSummaryTelemetryMetadata) {
+    captureEvent("ai_summary_chat_resolved", metadata);
   },
 
   // Get or generate a persistent visitor ID

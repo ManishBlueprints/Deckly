@@ -1,13 +1,13 @@
-import { supabase } from "./supabase";
-import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
-import { withRetry } from "../utils/resilience";
+import { supabase } from "./supabase.ts";
+import { getRequiredSessionUserId, getSessionUserId } from "./authSession.ts";
+import { withRetry } from "../utils/resilience.ts";
 import { LibraryFolder, LibraryTag, SavedDeckOrganized } from "../types";
-import { globalTagService } from "./globalTagService";
+import { globalTagService } from "./globalTagService.ts";
 import {
   DEFAULT_FOLDER_COLOR,
   resolveFolderColorKey,
   type FolderColorKey,
-} from "../constants/folderColors";
+} from "../constants/folderColors.ts";
 
 interface FolderJoinResult {
   id: string;

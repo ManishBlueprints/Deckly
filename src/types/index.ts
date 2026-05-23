@@ -38,6 +38,7 @@ export interface Deck {
   file_type?: string;
   display_mode?: "raw" | "interactive";
   expires_at?: string | null;
+  extracted_text?: string | null;
   investor_note?: string;
   user_handle?: string;
   active_link_count?: number;

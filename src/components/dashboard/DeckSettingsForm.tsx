@@ -168,6 +168,7 @@ export function DeckSettingsForm({
         file_url: finalFileUrl,
         pages: finalPages,
         file_size: fileSize,
+        ...(newFile ? { extracted_text: null } : {}),
         require_email: requireEmail,
         require_password: requirePassword,
         view_password: finalViewPassword ?? undefined,

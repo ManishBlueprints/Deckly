@@ -1,22 +1,22 @@
-import { supabase } from "./supabase";
-import { getRequiredSessionUserId } from "./authSession";
-import { withRetry } from "../utils/resilience";
+import { supabase } from "./supabase.ts";
+import { getRequiredSessionUserId } from "./authSession.ts";
+import { withRetry } from "../utils/resilience.ts";
 import {
   DataRoomFolder,
   DataRoomFolderWithTags,
   DataRoomTag,
 } from "../types";
-import { globalTagService } from "./globalTagService";
+import { globalTagService } from "./globalTagService.ts";
 import {
   DEFAULT_FOLDER_COLOR,
   FolderColorKey,
   isFolderColorKey,
-} from "../constants/folderColors";
+} from "../constants/folderColors.ts";
 import {
   MAX_FOLDER_NAME_LENGTH,
   MAX_TAG_NAME_LENGTH,
   MAX_TAGS_PER_FOLDER,
-} from "../constants/folderValidation";
+} from "../constants/folderValidation.ts";
 
 export type DataRoomFolderErrorCode =
   | "ROOM_NOT_FOUND"

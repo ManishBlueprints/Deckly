@@ -12,6 +12,7 @@ export interface TierConfig {
   maxDecksPerDay: number;
   maxDecksPerRoom: number;
   aiSummariesPerDay: number;
+  aiChatsPerDay: number;
   supportedFormats: string[];
   teamMembers: number;
   prioritySupport: boolean;
@@ -29,7 +30,8 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxFileSizeMB: 10,
     maxDecksPerDay: 30,
     maxDecksPerRoom: 50,
-    aiSummariesPerDay: 0,
+    aiSummariesPerDay: 2,
+    aiChatsPerDay: 4,
     supportedFormats: ["PDF"],
     teamMembers: 0,
     prioritySupport: false,
@@ -46,6 +48,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxDecksPerDay: 30,
     maxDecksPerRoom: 50,
     aiSummariesPerDay: 10,
+    aiChatsPerDay: 20,
     supportedFormats: ["PDF", "XLSX", "DOCX", "PPTX"],
     teamMembers: 0,
     prioritySupport: false,
@@ -61,14 +64,18 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxFileSizeMB: 100,
     maxDecksPerDay: 30,
     maxDecksPerRoom: 50,
-    aiSummariesPerDay: -1,
+    aiSummariesPerDay: 50,
+    aiChatsPerDay: 100,
     supportedFormats: ["PDF", "XLSX", "DOCX", "PPTX"],
     teamMembers: 5,
     prioritySupport: true,
   },
 };
 
-export const getTierConfig = (isPro: boolean, tierOverride?: Tier): TierConfig => {
+export const getTierConfig = (
+  isPro: boolean,
+  tierOverride?: Tier,
+): TierConfig => {
   if (tierOverride) return TIER_CONFIG[tierOverride];
   return isPro ? TIER_CONFIG.PRO : TIER_CONFIG.FREE;
 };

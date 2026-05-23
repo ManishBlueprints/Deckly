@@ -1,7 +1,7 @@
-import { supabase } from "./supabase";
+import { supabase } from "./supabase.ts";
 import { BrandingSettings } from "../types";
-import { withRetry } from "../utils/resilience";
-import { extractStoragePath, getRequiredDeckUserId } from "./deckService.shared";
+import { withRetry } from "../utils/resilience.ts";
+import { extractStoragePath, getRequiredDeckUserId } from "./deckService.shared.ts";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set([
   "image/png",

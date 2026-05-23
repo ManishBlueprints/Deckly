@@ -1,6 +1,6 @@
-import { supabase } from "./supabase";
-import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
-import { withRetry } from "../utils/resilience";
+import { supabase } from "./supabase.ts";
+import { getRequiredSessionUserId, getSessionUserId } from "./authSession.ts";
+import { withRetry } from "../utils/resilience.ts";
 
 export const roomNoteService = {
   async getNote(dataRoomId: string, providedUserId?: string): Promise<string> {

@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE public.decks
+ADD COLUMN IF NOT EXISTS extracted_text TEXT;
+
+COMMIT;

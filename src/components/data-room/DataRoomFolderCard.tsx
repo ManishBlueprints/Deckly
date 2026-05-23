@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Edit2, Folder, Tag, Trash2 } from "lucide-react";
+import { Edit2, Folder, Sparkles, Tag, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { DataRoomFolderWithTags, DataRoomTag } from "../../types";
@@ -20,8 +20,12 @@ interface DataRoomFolderCardProps {
   onClick?: () => void;
   onEdit?: (folder: DataRoomFolderWithTags) => void;
   availableTags?: DataRoomTag[];
-  onUpdateTags?: (folder: DataRoomFolderWithTags, tagIds: string[]) => Promise<void> | void;
+  onUpdateTags?: (
+    folder: DataRoomFolderWithTags,
+    tagIds: string[],
+  ) => Promise<void> | void;
   onDelete?: (folder: DataRoomFolderWithTags) => void;
+  onSummarize?: (folder: DataRoomFolderWithTags) => void;
   documentCount?: number;
 }
 
@@ -38,6 +42,7 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
   availableTags = [],
   onUpdateTags,
   onDelete,
+  onSummarize,
   documentCount,
 }: DataRoomFolderCardProps) {
   const [tagFilterQuery, setTagFilterQuery] = useState("");
@@ -47,6 +52,7 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
   const pendingTagIdsRef = useRef<string[] | null>(null);
   const lastCommittedTagIdsRef = useRef<string[]>([]);
   const folderColor = getColorHex(folder?.color ?? "#64748B");
+  const canSummarize = (documentCount ?? 0) > 0;
 
   useEffect(() => {
     const nextTagIds = folder?.tags.map((tag) => tag.id) ?? [];
@@ -77,7 +83,9 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
           setSelectedTagIds(lastCommittedTagIdsRef.current);
           console.error("Failed to update data room folder tags", err);
           toast.error(
-            err instanceof Error ? err.message : "Failed to update folder tags.",
+            err instanceof Error
+              ? err.message
+              : "Failed to update folder tags.",
           );
         } finally {
           isUpdatingTagsRef.current = false;
@@ -105,21 +113,28 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
         onKeyDown={handleKeyDown}
-        className={compact
-          ? "h-[160px] w-full bg-surface-card border border-dashed border-border flex flex-col items-center justify-center gap-2.5 group hover:border-border hover:bg-surface-high transition-colors cursor-pointer rounded-md"
-          : "h-[190px] w-full bg-surface-card border border-dashed border-border flex flex-col items-center justify-center gap-3 group hover:border-border hover:bg-surface-high transition-colors cursor-pointer rounded-md"
+        className={
+          compact
+            ? "h-[160px] w-full bg-surface-card border border-dashed border-border flex flex-col items-center justify-center gap-2.5 group hover:border-border hover:bg-surface-high transition-colors cursor-pointer rounded-md"
+            : "h-[190px] w-full bg-surface-card border border-dashed border-border flex flex-col items-center justify-center gap-3 group hover:border-border hover:bg-surface-high transition-colors cursor-pointer rounded-md"
         }
       >
-        <div className={compact
-          ? "w-9 h-9 bg-surface-low flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors"
-          : "w-10 h-10 bg-surface-low flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors"
-        }>
+        <div
+          className={
+            compact
+              ? "w-9 h-9 bg-surface-low flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors"
+              : "w-10 h-10 bg-surface-low flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors"
+          }
+        >
           <Folder size={compact ? 18 : 20} />
         </div>
-        <span className={compact
-          ? "text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground group-hover:text-primary transition-colors"
-          : "text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground group-hover:text-primary transition-colors"
-        }>
+        <span
+          className={
+            compact
+              ? "text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground group-hover:text-primary transition-colors"
+              : "text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground group-hover:text-primary transition-colors"
+          }
+        >
           New Folder
         </span>
       </motion.div>
@@ -142,10 +157,10 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
       transition={{ duration: 0.1 }}
       onClick={onClick}
       onKeyDown={handleKeyDown}
-        className={cn(
-          compact
-            ? "h-[160px] w-full bg-surface-card border border-border p-3.5 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md"
-            : "h-[190px] w-full bg-surface-card border border-border p-4 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md",
+      className={cn(
+        compact
+          ? "h-[160px] w-full bg-surface-card border border-border p-3.5 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md"
+          : "h-[190px] w-full bg-surface-card border border-border p-4 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md",
       )}
     >
       {isActive && (
@@ -155,7 +170,11 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
         />
       )}
 
-      <div className={compact ? "mb-4 transition-colors" : "mb-6 transition-colors"}>
+      <div
+        className={
+          compact ? "mb-4 transition-colors" : "mb-6 transition-colors"
+        }
+      >
         <Folder
           className={compact ? "w-5 h-5" : "w-6 h-6"}
           style={{ color: folderColor }}
@@ -164,6 +183,20 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
       </div>
 
       <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-10">
+        {onSummarize ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (canSummarize) onSummarize(folder);
+            }}
+            aria-label="Summarize folder"
+            disabled={!canSummarize}
+            className="p-2 rounded-md bg-surface-low hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface-low disabled:hover:text-muted-foreground"
+          >
+            <Sparkles size={14} />
+          </button>
+        ) : null}
         {onUpdateTags && availableTags.length > 0 && (
           <DropdownMenu onOpenChange={(open) => !open && setTagFilterQuery("")}>
             <DropdownMenuTrigger asChild>
@@ -243,7 +276,9 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
                             return nextIds;
                           });
                         }}
-                        disabled={isUpdatingTags && pendingTagIdsRef.current === null}
+                        disabled={
+                          isUpdatingTags && pendingTagIdsRef.current === null
+                        }
                         className={cn(
                           "flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-all",
                           isSelected
@@ -294,10 +329,13 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
       </div>
 
       <div className="space-y-2 flex-1">
-        <h3 className={compact
-          ? "text-sm font-semibold text-foreground leading-tight truncate"
-          : "text-base font-semibold text-foreground leading-tight truncate"
-        }>
+        <h3
+          className={
+            compact
+              ? "text-sm font-semibold text-foreground leading-tight truncate"
+              : "text-base font-semibold text-foreground leading-tight truncate"
+          }
+        >
           {folder.name}
         </h3>
 
@@ -324,11 +362,20 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
         </div>
       </div>
 
-      <div className={compact ? "pt-2 border-t border-border w-full" : "pt-2.5 border-t border-border w-full"}>
-        <span className={compact
-          ? "text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground"
-          : "text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground"
-        }>
+      <div
+        className={
+          compact
+            ? "pt-2 border-t border-border w-full"
+            : "pt-2.5 border-t border-border w-full"
+        }
+      >
+        <span
+          className={
+            compact
+              ? "text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground"
+              : "text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground"
+          }
+        >
           {documentCount ?? 0} Document{(documentCount ?? 0) !== 1 ? "s" : ""}
         </span>
       </div>
