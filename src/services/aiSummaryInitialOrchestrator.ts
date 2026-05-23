@@ -116,6 +116,7 @@ export interface AiSummaryInitialOrchestratorDependencies {
     key: AiSummaryCacheKey,
     now: Date,
   ) => Promise<AiSummaryCacheLookupResult>;
+  claimCache: (input: AiSummaryCacheWriteInput) => Promise<boolean>;
   writeCache: (
     input: AiSummaryCacheWriteInput,
   ) => Promise<AiSummaryCacheLookupResult>;
@@ -396,7 +397,7 @@ export const createAiSummaryInitialOrchestrator = (
 
     const strategy = selectAiSummaryStrategy(resolution);
 
-    await dependencies.writeCache({
+    const pendingCacheInput: AiSummaryCacheWriteInput = {
       ...cacheKey,
       status: "pending",
       summary_text: null,
@@ -406,7 +407,53 @@ export const createAiSummaryInitialOrchestrator = (
         generation_mode: "generated",
       }),
       now,
-    });
+    };
+
+    const claimed = await dependencies.claimCache(pendingCacheInput);
+    if (!claimed) {
+      const updatedCacheLookup = await dependencies.lookupCache(cacheKey, now);
+
+      if (updatedCacheLookup.state === "cached" || updatedCacheLookup.state === "no_content") {
+        return buildResult({
+          status: updatedCacheLookup.state === "cached" ? "cached" : "no_content",
+          resolution,
+          contentHash,
+          cacheState: updatedCacheLookup,
+          summaryText: updatedCacheLookup.summary_text,
+          strategy:
+            (updatedCacheLookup.summary_metadata.strategy as AiSummaryStrategy | null | undefined) ?? null,
+          summaryMetadata: updatedCacheLookup.summary_metadata,
+          usage: {
+            quota: quotaDecision,
+            usage_count: usageCount,
+          },
+          freshness: {
+            state: "cached",
+            generated_at: updatedCacheLookup.cache_row?.generated_at ?? null,
+            expires_at: updatedCacheLookup.cache_row?.expires_at ?? null,
+          },
+        });
+      }
+
+      return buildResult({
+        status: "generating",
+        resolution,
+        contentHash,
+        cacheState: updatedCacheLookup,
+        summaryText: null,
+        strategy: null,
+        summaryMetadata: updatedCacheLookup.summary_metadata,
+        usage: {
+          quota: null,
+          usage_count: null,
+        },
+        freshness: {
+          state: "cached",
+          generated_at: updatedCacheLookup.cache_row?.generated_at ?? null,
+          expires_at: updatedCacheLookup.cache_row?.expires_at ?? null,
+        },
+      });
+    }
 
     try {
       let providerResult: AiSummaryProviderResult;
@@ -467,7 +514,16 @@ export const createAiSummaryInitialOrchestrator = (
       });
 
       if (quotaDecision.chargeable) {
-        await dependencies.recordUsage?.(request.actor, cacheKey, now);
+        try {
+          await dependencies.recordUsage?.(request.actor, cacheKey, now);
+        } catch (error) {
+          console.error("Failed to record AI summary usage.", {
+            actorType: request.actor.type,
+            scopeType: request.scope_type,
+            scopeId: request.scope_id,
+            error,
+          });
+        }
       }
 
       return buildResult({

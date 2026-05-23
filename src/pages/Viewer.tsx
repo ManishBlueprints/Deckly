@@ -268,6 +268,7 @@ function Viewer() {
         scope_id: deck.id,
         scope_label: deck.title,
       });
+      if (!result) return;
 
       if (result.status === "quota_limited") {
         if (result.usage.quota?.scope === "guest") {
@@ -498,7 +499,6 @@ function Viewer() {
         summaryMeta={aiSummary.state.summaryMeta}
         summaryNotice={aiSummary.state.summaryNotice}
         summaryNoticeTone={aiSummary.state.summaryNoticeTone}
-        onResummarize={aiSummary.resummarizeCurrent}
         chatMessages={aiSummary.state.chatMessages}
         chatInputValue={aiSummary.state.chatInputValue}
         onChatInputChange={aiSummary.setChatInputValue}

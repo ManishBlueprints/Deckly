@@ -105,6 +105,7 @@ export interface AiEnsureChatSessionRequest extends AiScopeReference {
 
 export interface AiAppendChatMessageRequest {
   session: Pick<AiManagedChatSession, "id" | "auth_state" | "session_key">;
+  message_id: string;
   role: AiChatMessageRole;
   content: string;
   citations?: Record<string, unknown>[];
@@ -175,10 +176,9 @@ export interface AiChatSessionServiceDependencies {
     now: Date;
   }) => Promise<AiChatSessionRow>;
   getMessages: (session_id: string) => Promise<AiChatMessageRow[]>;
-  getLatestMessage: (session_id: string) => Promise<AiChatMessageRow | null>;
-  insertMessage: (input: {
+  appendMessageAtomically: (input: {
+    message_id: string;
     session_id: string;
-    message_index: number;
     role: AiChatMessageRole;
     content: string;
     citations: Record<string, unknown>[];
@@ -188,7 +188,6 @@ export interface AiChatSessionServiceDependencies {
     model_version: string | null;
     created_at: string;
   }) => Promise<AiChatMessageRow>;
-  touchSession: (session_id: string, last_message_at: string) => Promise<void>;
   retrieveSnippets: (request: AiRetrievalRequest) => Promise<AiRetrievalResult>;
 }
 
@@ -466,25 +465,19 @@ const defaultDependencies: AiChatSessionServiceDependencies = {
       .filter((row): row is AiChatMessageRow => Boolean(row));
   },
 
-  async getLatestMessage(session_id) {
-    const { data, error } = await supabase
-      .from("ai_chat_messages")
-      .select("*")
-      .eq("session_id", session_id)
-      .order("message_index", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) throw error;
-    return asMessageRow(data);
-  },
-
-  async insertMessage(input) {
-    const { data, error } = await supabase
-      .from("ai_chat_messages")
-      .insert(input)
-      .select("*")
-      .single();
+  async appendMessageAtomically(input) {
+    const { data, error } = await supabase.rpc("append_ai_chat_message", {
+      p_message_id: input.message_id,
+      p_session_id: input.session_id,
+      p_role: input.role,
+      p_content: input.content,
+      p_citations: input.citations,
+      p_retrieval_context: input.retrieval_context,
+      p_token_count: input.token_count,
+      p_model_identifier: input.model_identifier,
+      p_model_version: input.model_version,
+      p_created_at: input.created_at,
+    });
 
     if (error) throw error;
     const row = asMessageRow(data);
@@ -493,18 +486,6 @@ const defaultDependencies: AiChatSessionServiceDependencies = {
     }
 
     return row;
-  },
-
-  async touchSession(session_id, last_message_at) {
-    const { error } = await supabase
-      .from("ai_chat_sessions")
-      .update({
-        last_message_at,
-        updated_at: last_message_at,
-      })
-      .eq("id", session_id);
-
-    if (error) throw error;
   },
 
   async retrieveSnippets(request) {
@@ -651,17 +632,20 @@ export const createAiChatSessionService = (
         throw new Error("AI chat message persistence requires a signed-in session.");
       }
 
+      const messageId = request.message_id.trim();
+      if (!messageId) {
+        throw new Error("AI chat messages require a client-generated message id.");
+      }
+
       const content = request.content.trim();
       if (!content) {
         throw new Error("AI chat messages cannot be empty.");
       }
 
-      const latestMessage = await dependencies.getLatestMessage(request.session.id);
-      const messageIndex = latestMessage ? latestMessage.message_index + 1 : 0;
       const createdAt = request.created_at ?? new Date();
-      const persisted = await dependencies.insertMessage({
+      return dependencies.appendMessageAtomically({
+        message_id: messageId,
         session_id: request.session.id,
-        message_index: messageIndex,
         role: request.role,
         content,
         citations: request.citations ?? [],
@@ -671,9 +655,6 @@ export const createAiChatSessionService = (
         model_version: request.model_version ?? null,
         created_at: createdAt.toISOString(),
       });
-
-      await dependencies.touchSession(request.session.id, persisted.created_at);
-      return persisted;
     });
   },
 

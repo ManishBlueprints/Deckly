@@ -110,7 +110,7 @@ function OwnerDeckPreview() {
     onRequireAuth: () => {
       setShowAuthModal(true);
     },
-    isGuest: false,
+    isGuest: !session,
     tier: (profile?.tier as Tier) || "FREE",
   });
 
@@ -142,6 +142,7 @@ function OwnerDeckPreview() {
         scope_id: deck.id,
         scope_label: deck.title,
       });
+      if (!result) return;
 
       if (result.status === "quota_limited" && result.usage.quota?.nextAction === "upgrade") {
         setShowUpgradeModal(true);
@@ -324,7 +325,6 @@ function OwnerDeckPreview() {
         summaryMeta={aiSummary.state.summaryMeta}
         summaryNotice={aiSummary.state.summaryNotice}
         summaryNoticeTone={aiSummary.state.summaryNoticeTone}
-        onResummarize={aiSummary.resummarizeCurrent}
         chatMessages={aiSummary.state.chatMessages}
         chatInputValue={aiSummary.state.chatInputValue}
         onChatInputChange={aiSummary.setChatInputValue}

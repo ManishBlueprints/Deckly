@@ -146,7 +146,9 @@ export function useAiSummaryPanel({
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
 
-  const requestSummary = useCallback(async (scope: AiSummaryPanelScope) => {
+  const requestSummary = useCallback(async (
+    scope: AiSummaryPanelScope,
+  ): Promise<AiSummaryInitialResult | null> => {
     const requestKey = `${scope.scope_type}:${scope.scope_id}`;
     setActiveScope(scope);
     setIsOpen(true);
@@ -171,6 +173,9 @@ export function useAiSummaryPanel({
         scope_id: scope.scope_id,
         title: scope.scope_label ?? null,
       });
+      if (activeRequestKeyRef.current !== requestKey) {
+        return result;
+      }
       setResultState(result);
       analyticsService.trackAiSummaryResolved({
         scope_type: scope.scope_type,
@@ -189,6 +194,9 @@ export function useAiSummaryPanel({
       });
       return result;
     } catch (error) {
+      if (activeRequestKeyRef.current !== requestKey) {
+        return null;
+      }
       analyticsService.trackAiSummaryResolved({
         scope_type: scope.scope_type,
         scope_id: scope.scope_id,
@@ -199,7 +207,9 @@ export function useAiSummaryPanel({
       });
       throw error;
     } finally {
-      setIsSummaryLoading(false);
+      if (activeRequestKeyRef.current === requestKey) {
+        setIsSummaryLoading(false);
+      }
     }
   }, [isGuest, setResultState]);
 
@@ -289,11 +299,6 @@ export function useAiSummaryPanel({
     }
   }, [activeScope, chatInputValue, isGuest, onRequireAuth, summaryResult]);
 
-  const resummarizeCurrent = useCallback(async () => {
-    if (!activeScope || isSummaryLoading) return null;
-    return requestSummary(activeScope);
-  }, [activeScope, isSummaryLoading, requestSummary]);
-
   const state: AiSummaryPanelState = {
     isOpen,
     isSummaryLoading,
@@ -314,7 +319,6 @@ export function useAiSummaryPanel({
     open,
     close,
     requestSummary,
-    resummarizeCurrent,
     setChatInputValue,
     submitChat,
     setIsOpen,

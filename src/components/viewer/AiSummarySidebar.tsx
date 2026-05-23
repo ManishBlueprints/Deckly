@@ -36,7 +36,6 @@ export interface AiSummarySidebarProps {
   summaryMeta?: AiSummarySidebarMetaItem[];
   summaryNotice?: string | null;
   summaryNoticeTone?: AiSummarySidebarNoticeTone;
-  onResummarize?: () => void;
   chatMessages?: AiSummarySidebarChatMessage[];
   chatInputValue?: string;
   onChatInputChange?: (value: string) => void;
@@ -553,7 +552,6 @@ export function AiSummarySidebar({
   summaryMeta = [],
   summaryNotice = null,
   summaryNoticeTone = "default",
-  onResummarize,
   chatMessages = [],
   chatInputValue = "",
   onChatInputChange,
@@ -626,26 +624,12 @@ export function AiSummarySidebar({
                 <button
                   type="button"
                   onClick={onClose}
+                  aria-label="Close chat"
                   className="flex h-8 w-8 items-center justify-center border border-white/10 bg-white/[0.03] text-slate-400 transition-colors hover:text-white"
                 >
                   <X size={16} />
                 </button>
               </div>
-
-              {onResummarize ? (
-                <div className="mt-2 flex justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={onResummarize}
-                    disabled={isSummaryLoading}
-                    className="h-7 border-deckly-primary/20 bg-deckly-primary/[0.05] px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-deckly-primary hover:bg-deckly-primary/[0.12] hover:text-deckly-primary"
-                  >
-                    {isSummaryLoading ? "Resummarizing..." : "Resummarize"}
-                  </Button>
-                </div>
-              ) : null}
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col">
@@ -783,6 +767,7 @@ export function AiSummarySidebar({
                               onChange={(event) => onChatInputChange?.(event.target.value)}
                               onKeyDown={handleChatKeyDown}
                               onFocus={() => onChatFocus?.()}
+                              aria-label="Chat message"
                               placeholder={chatPlaceholder}
                               disabled={isChatDisabled}
                               className="min-h-[4.5rem] w-full resize-none border-none bg-transparent text-sm leading-relaxed text-slate-100 outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:text-slate-600"
@@ -794,6 +779,7 @@ export function AiSummarySidebar({
                               <button
                                 type="button"
                                 onClick={() => onChatSubmit?.()}
+                                aria-label="Send message"
                                 disabled={!canSubmit}
                                 className="flex h-8 w-8 items-center justify-center border border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary transition-colors disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.03] disabled:text-slate-600"
                               >

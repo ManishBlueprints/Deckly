@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
     eq: ReturnType<typeof vi.fn>;
     neq: ReturnType<typeof vi.fn>;
     order: ReturnType<typeof vi.fn>;
+    limit: ReturnType<typeof vi.fn>;
     maybeSingle: ReturnType<typeof vi.fn>;
     then: PromiseLike<MockResponse>["then"];
   };
@@ -67,6 +68,7 @@ const mocks = vi.hoisted(() => {
         ordered = true;
         return chain;
       }),
+      limit: vi.fn(() => chain),
       maybeSingle: vi.fn(async () =>
         consumeResponse(`${table}.${mode}${ordered ? ".order" : ""}.maybeSingle`),
       ),
@@ -337,6 +339,7 @@ describe("aiSummaryCacheService", () => {
     const service = createAiSummaryCacheService({
       getExactCacheRow: vi.fn(async () => null),
       getLatestCacheRow: vi.fn(async () => null),
+      claimPendingCacheRow: vi.fn(async () => true),
       markStaleRows: vi.fn(async () => undefined),
       upsertCacheRow,
     });

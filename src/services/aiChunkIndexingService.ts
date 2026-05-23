@@ -78,8 +78,10 @@ export interface AiChunkIndexingResult {
 interface AiChunkIndexingDependencies {
   getLatestContentHash: (scope: AiChunkIndexRepositoryScope) => Promise<string | null>;
   deleteChunksForScopeModel: (scope: AiChunkIndexRepositoryScope) => Promise<void>;
-  deleteStaleChunks: (key: AiChunkIndexRepositoryKey) => Promise<void>;
-  replaceExactChunks: (rows: AiChunkEmbeddingRow[], key: AiChunkIndexRepositoryKey) => Promise<void>;
+  replaceScopeChunksAtomically: (
+    rows: AiChunkEmbeddingRow[],
+    key: AiChunkIndexRepositoryKey,
+  ) => Promise<void>;
   generateEmbeddings: (
     chunks: AiChunkDraft[],
     model: AiChunkEmbeddingModelConfig,
@@ -278,51 +280,23 @@ const defaultDependencies: AiChunkIndexingDependencies = {
     if (error) throw error;
   },
 
-  async deleteStaleChunks(key) {
-    const { error } = await supabase
-      .from("ai_chunk_embeddings")
-      .delete()
-      .eq("scope_type", key.scope_type)
-      .eq("scope_id", key.scope_id)
-      .eq("embedding_model", key.embedding_model)
-      .eq("model_version", key.model_version)
-      .neq("content_hash", key.content_hash);
-
-    if (error) throw error;
-  },
-
-  async replaceExactChunks(rows, key) {
-    const { error: deleteError } = await supabase
-      .from("ai_chunk_embeddings")
-      .delete()
-      .eq("scope_type", key.scope_type)
-      .eq("scope_id", key.scope_id)
-      .eq("content_hash", key.content_hash)
-      .eq("embedding_model", key.embedding_model)
-      .eq("model_version", key.model_version);
-
-    if (deleteError) throw deleteError;
-    if (rows.length === 0) return;
-
+  async replaceScopeChunksAtomically(rows, key) {
     const payload = rows.map((row) => ({
-      scope_type: row.scope_type,
-      scope_id: row.scope_id,
-      content_hash: row.content_hash,
       chunk_index: row.chunk_index,
       source_label: row.source_label,
       chunk_text: row.chunk_text,
-      embedding_model: row.embedding_model,
-      model_version: row.model_version,
       embedding: row.embedding,
       metadata: row.metadata,
     }));
 
-    const { error } = await supabase
-      .from("ai_chunk_embeddings")
-      .upsert(payload, {
-        onConflict:
-          "scope_type,scope_id,content_hash,chunk_index,embedding_model,model_version",
-      });
+    const { error } = await supabase.rpc("replace_ai_chunk_embeddings_atomic", {
+      p_scope_type: key.scope_type,
+      p_scope_id: key.scope_id,
+      p_content_hash: key.content_hash,
+      p_embedding_model: key.embedding_model,
+      p_model_version: key.model_version,
+      p_rows: payload,
+    });
 
     if (error) throw error;
   },
@@ -380,6 +354,19 @@ export const createAiChunkIndexingService = (
           throw new Error("Chunk indexing produced no chunks for extractable content.");
         }
 
+        if (previousContentHash === input.resolution.content_hash) {
+          return {
+            status: "skipped",
+            scope_type: input.resolution.scope_type,
+            scope_id: input.resolution.scope_id,
+            content_hash: input.resolution.content_hash,
+            chunk_count: chunks.length,
+            previous_content_hash: previousContentHash,
+            content_hash_changed: false,
+            skipped_reason: null,
+          };
+        }
+
         const embeddings = await resolvedDependencies.generateEmbeddings(chunks, {
           embedding_model: input.embedding_model,
           model_version: input.model_version,
@@ -394,8 +381,7 @@ export const createAiChunkIndexingService = (
           content_hash: input.resolution.content_hash,
         } satisfies AiChunkIndexRepositoryKey;
 
-        await resolvedDependencies.deleteStaleChunks(key);
-        await resolvedDependencies.replaceExactChunks(rows, key);
+        await resolvedDependencies.replaceScopeChunksAtomically(rows, key);
 
         return {
           status: "indexed",

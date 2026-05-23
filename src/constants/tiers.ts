@@ -66,7 +66,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     maxDecksPerRoom: 50,
     aiSummariesPerDay: 50,
     aiChatsPerDay: 100,
-    supportedFormats: ["PDF", "XLSX", "DOCX", "PPT"],
+    supportedFormats: ["PDF", "XLSX", "DOCX", "PPTX"],
     teamMembers: 5,
     prioritySupport: true,
   },

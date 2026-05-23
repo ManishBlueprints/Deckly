@@ -105,8 +105,7 @@ describe("aiChunkIndexingService", () => {
 
     const getLatestContentHash = vi.fn(async () => "old-hash");
     const deleteChunksForScopeModel = vi.fn(async () => undefined);
-    const deleteStaleChunks = vi.fn(async () => undefined);
-    const replaceExactChunks = vi.fn(async () => undefined);
+    const replaceScopeChunksAtomically = vi.fn(async () => undefined);
     const generateEmbeddings = vi.fn(async (chunks: Array<{ chunk_text: string }>) =>
       chunks.map((_, index) => createEmbedding(index + 10)),
     );
@@ -114,8 +113,7 @@ describe("aiChunkIndexingService", () => {
     const service = createAiChunkIndexingService({
       getLatestContentHash,
       deleteChunksForScopeModel,
-      deleteStaleChunks,
-      replaceExactChunks,
+      replaceScopeChunksAtomically,
       generateEmbeddings,
     });
 
@@ -138,14 +136,7 @@ describe("aiChunkIndexingService", () => {
     });
     expect(deleteChunksForScopeModel).not.toHaveBeenCalled();
     expect(generateEmbeddings).toHaveBeenCalledTimes(1);
-    expect(deleteStaleChunks).toHaveBeenCalledWith({
-      scope_type: "folder",
-      scope_id: "folder-1",
-      content_hash: resolution.content_hash,
-      embedding_model: "text-embedding-3-small",
-      model_version: "2026-05-02",
-    });
-    expect(replaceExactChunks).toHaveBeenCalledWith(
+    expect(replaceScopeChunksAtomically).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({
           scope_type: "folder",
@@ -180,15 +171,13 @@ describe("aiChunkIndexingService", () => {
 
     const getLatestContentHash = vi.fn(async () => "old-hash");
     const deleteChunksForScopeModel = vi.fn(async () => undefined);
-    const deleteStaleChunks = vi.fn(async () => undefined);
-    const replaceExactChunks = vi.fn(async () => undefined);
+    const replaceScopeChunksAtomically = vi.fn(async () => undefined);
     const generateEmbeddings = vi.fn(async () => [createEmbedding(1)]);
 
     const service = createAiChunkIndexingService({
       getLatestContentHash,
       deleteChunksForScopeModel,
-      deleteStaleChunks,
-      replaceExactChunks,
+      replaceScopeChunksAtomically,
       generateEmbeddings,
     });
 
@@ -214,8 +203,7 @@ describe("aiChunkIndexingService", () => {
       embedding_model: "text-embedding-3-small",
       model_version: "2026-05-02",
     });
-    expect(deleteStaleChunks).not.toHaveBeenCalled();
-    expect(replaceExactChunks).not.toHaveBeenCalled();
+    expect(replaceScopeChunksAtomically).not.toHaveBeenCalled();
     expect(generateEmbeddings).not.toHaveBeenCalled();
   });
 });

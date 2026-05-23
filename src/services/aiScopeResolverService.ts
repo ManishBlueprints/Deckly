@@ -105,7 +105,19 @@ const defaultDependencies: AiScopeResolverDependencies = {
         deck_id,
         folder_id,
         display_order,
-        deck:decks (*)
+        deck:decks (
+          id,
+          title,
+          file_type,
+          file_url,
+          pages,
+          extracted_text,
+          text_content,
+          plain_text,
+          markdown_content,
+          transcript,
+          ocr_text
+        )
       `)
       .eq("data_room_id", roomId)
       .order("display_order", { ascending: true });

@@ -49,10 +49,32 @@ const defaultDependencies: AiSummaryCacheDependencies = {
       .eq("model_identifier", key.model_identifier)
       .eq("model_version", key.model_version)
       .order("updated_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (error) throw error;
     return (data as AiSummaryCacheRow | null) ?? null;
+  },
+
+  async claimPendingCacheRow(input) {
+    const payload = buildAiSummaryCacheRowPayload({
+      ...input,
+      status: "pending",
+    });
+
+    const { data, error } = await supabase.rpc("claim_ai_summary_cache_pending", {
+      p_scope_type: input.scope_type,
+      p_scope_id: input.scope_id,
+      p_content_hash: input.content_hash,
+      p_model_identifier: input.model_identifier,
+      p_model_version: input.model_version,
+      p_summary_metadata: payload.summary_metadata ?? {},
+      p_last_accessed_at: payload.last_accessed_at,
+      p_updated_at: payload.updated_at,
+    });
+
+    if (error) throw error;
+    return Boolean(data);
   },
 
   async upsertCacheRow(input) {

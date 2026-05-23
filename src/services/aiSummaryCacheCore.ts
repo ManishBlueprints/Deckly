@@ -65,6 +65,7 @@ export interface AiSummaryCacheDependencies {
   getLatestCacheRow: (
     key: Pick<AiSummaryCacheKey, "scope_type" | "scope_id" | "model_identifier" | "model_version">,
   ) => Promise<AiSummaryCacheRow | null>;
+  claimPendingCacheRow: (input: AiSummaryCacheWriteInput) => Promise<boolean>;
   upsertCacheRow: (input: AiSummaryCacheWriteInput) => Promise<void>;
   markStaleRows: (
     key: Pick<AiSummaryCacheKey, "scope_type" | "scope_id" | "model_identifier" | "model_version"> & {
@@ -205,6 +206,12 @@ export const createAiSummaryCacheServiceWithRetry = (
     now: Date = new Date(),
   ): Promise<AiSummaryCacheLookupResult> {
     return retry(async () => lookupAiSummaryCacheWithDependencies(dependencies, key, now));
+  },
+
+  async claimCache(
+    input: AiSummaryCacheWriteInput,
+  ): Promise<boolean> {
+    return retry(async () => dependencies.claimPendingCacheRow(input));
   },
 
   async writeCache(

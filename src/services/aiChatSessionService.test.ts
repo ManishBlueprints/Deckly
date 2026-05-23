@@ -171,19 +171,29 @@ const createInMemoryService = () => {
         });
     },
 
-    async getLatestMessage(session_id) {
-      return (
-        messages
-          .filter((message) => message.session_id === session_id)
-          .sort((left, right) => right.message_index - left.message_index)[0] ?? null
-      );
-    },
+    async appendMessageAtomically(input) {
+      const existing = messages.find((message) => message.id === input.message_id);
+      if (existing) {
+        if (existing.session_id !== input.session_id) {
+          throw new Error("Message id already belongs to another session.");
+        }
+        const session = sessions.find((entry) => entry.id === input.session_id);
+        if (session) {
+          session.last_message_at = existing.created_at;
+          session.updated_at = existing.created_at;
+        }
+        return existing;
+      }
 
-    async insertMessage(input) {
+      const nextIndex =
+        messages
+          .filter((message) => message.session_id === input.session_id)
+          .reduce((max, message) => Math.max(max, message.message_index), -1) + 1;
+
       const row = createMessageRow({
-        id: `message-${messages.length + 1}`,
+        id: input.message_id,
         session_id: input.session_id,
-        message_index: input.message_index,
+        message_index: nextIndex,
         role: input.role,
         content: input.content,
         citations: input.citations,
@@ -194,14 +204,13 @@ const createInMemoryService = () => {
         created_at: input.created_at,
       });
       messages.push(row);
-      return row;
-    },
 
-    async touchSession(session_id, last_message_at) {
-      const session = sessions.find((entry) => entry.id === session_id);
-      if (!session) return;
-      session.last_message_at = last_message_at;
-      session.updated_at = last_message_at;
+      const session = sessions.find((entry) => entry.id === input.session_id);
+      if (session) {
+        session.last_message_at = input.created_at;
+        session.updated_at = input.created_at;
+      }
+      return row;
     },
 
     async retrieveSnippets(request) {
@@ -371,12 +380,14 @@ describe("aiChatSessionService", () => {
 
     await service.appendMessage({
       session: ensured.session,
+      message_id: "message-1",
       role: "user",
       content: "How is revenue trending?",
       created_at: new Date("2026-05-02T12:01:00.000Z"),
     });
     await service.appendMessage({
       session: ensured.session,
+      message_id: "message-2",
       role: "assistant",
       content: "Revenue is trending upward.",
       retrieval_context: [createSnippet()],
@@ -386,6 +397,7 @@ describe("aiChatSessionService", () => {
     });
     await service.appendMessage({
       session: ensured.session,
+      message_id: "message-3",
       role: "user",
       content: "Which file shows that?",
       created_at: new Date("2026-05-02T12:02:00.000Z"),
@@ -402,6 +414,46 @@ describe("aiChatSessionService", () => {
       "1:assistant",
       "2:user",
     ]);
+  });
+
+  it("is idempotent when the same client message id is retried", async () => {
+    const { service, messages, sessions } = createInMemoryService();
+    const ensured = await service.ensureSession({
+      scope_type: "folder",
+      scope_id: "folder-1",
+      content_hash: "hash-1",
+      actor: {
+        auth_state: "signed_in",
+        user_id: "user-1",
+      },
+      summary_context: {
+        summary_cache_id: "cache-1",
+        summary_text: "Summary",
+      },
+      now: new Date("2026-05-02T12:00:00.000Z"),
+    });
+
+    const first = await service.appendMessage({
+      session: ensured.session,
+      message_id: "message-retry-1",
+      role: "user",
+      content: "Is this idempotent?",
+      created_at: new Date("2026-05-02T12:01:00.000Z"),
+    });
+
+    const second = await service.appendMessage({
+      session: ensured.session,
+      message_id: "message-retry-1",
+      role: "user",
+      content: "Is this idempotent?",
+      created_at: new Date("2026-05-02T12:01:00.000Z"),
+    });
+
+    expect(first.id).toBe("message-retry-1");
+    expect(second.id).toBe("message-retry-1");
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.message_index).toBe(0);
+    expect(sessions[0]?.last_message_at).toBe("2026-05-02T12:01:00.000Z");
   });
 
   it("keeps guest summary context intact and unlocks signed-in chat without re-summary", async () => {

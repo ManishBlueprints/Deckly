@@ -369,16 +369,17 @@ const defaultDependencies: AiRetrievalDependencies = {
     return asString(contentHash);
   },
 
-  async getScopeChunks(scope) {
+  async getScopeChunks(scope, options) {
     const { data, error } = await supabase
       .from("ai_chunk_embeddings")
-      .select("id, scope_type, scope_id, content_hash, chunk_index, source_label, chunk_text, metadata")
+      .select("id, scope_type, scope_id, content_hash, chunk_index, source_label, chunk_text, metadata, repository_score")
       .eq("scope_type", scope.scope_type)
       .eq("scope_id", scope.scope_id)
       .eq("content_hash", scope.content_hash)
       .eq("embedding_model", scope.embedding_model)
       .eq("model_version", scope.model_version)
-      .order("chunk_index", { ascending: true });
+      .order("chunk_index", { ascending: true })
+      .limit(options.max_candidates);
 
     if (error) throw error;
 

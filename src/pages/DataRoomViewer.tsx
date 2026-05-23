@@ -314,6 +314,7 @@ function DataRoomViewer() {
         scope_id: selectedDeck.id,
         scope_label: selectedDeck.title,
       });
+      if (!result) return;
 
       if (result.status === "quota_limited") {
         if (result.usage.quota?.scope === "guest") {
@@ -607,7 +608,6 @@ function DataRoomViewer() {
         summaryMeta={aiSummary.state.summaryMeta}
         summaryNotice={aiSummary.state.summaryNotice}
         summaryNoticeTone={aiSummary.state.summaryNoticeTone}
-        onResummarize={aiSummary.resummarizeCurrent}
         chatMessages={aiSummary.state.chatMessages}
         chatInputValue={aiSummary.state.chatInputValue}
         onChatInputChange={aiSummary.setChatInputValue}

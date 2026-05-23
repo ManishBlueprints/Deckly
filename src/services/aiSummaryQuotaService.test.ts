@@ -9,6 +9,10 @@ import {
   getGuestAiSummaryUsageCount,
   recordGuestAiSummaryUsage,
 } from "./aiSummaryQuotaService";
+import { deriveGuestQuotaKey } from "./aiGuestUsageIdentity";
+
+const originalProjectSecretKey = process.env.PROJECT_SECRET_KEY;
+const originalServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const mocks = vi.hoisted(() => {
   type MockResponse = {
@@ -101,6 +105,22 @@ describe("aiSummaryQuotaService", () => {
   beforeEach(() => {
     mocks.responseQueues.clear();
     vi.clearAllMocks();
+    process.env.PROJECT_SECRET_KEY = "test-guest-quota-secret";
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  });
+
+  afterAll(() => {
+    if (originalProjectSecretKey === undefined) {
+      delete process.env.PROJECT_SECRET_KEY;
+    } else {
+      process.env.PROJECT_SECRET_KEY = originalProjectSecretKey;
+    }
+
+    if (originalServiceRoleKey === undefined) {
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    } else {
+      process.env.SUPABASE_SERVICE_ROLE_KEY = originalServiceRoleKey;
+    }
   });
 
   it("keeps canonical AI summary limits on the tier config", () => {
@@ -244,7 +264,10 @@ describe("aiSummaryQuotaService", () => {
       lte: ReturnType<typeof vi.fn>;
     };
 
-    expect(tableChain.eq).toHaveBeenCalledWith("ip_address", "203.0.113.10");
+    expect(tableChain.eq).toHaveBeenCalledWith(
+      "ip_hash",
+      await deriveGuestQuotaKey("203.0.113.10", "test-guest-quota-secret"),
+    );
     expect(tableChain.gte).toHaveBeenCalledWith(
       "consumed_at",
       new Date(now.getTime() - AI_SUMMARY_QUOTA_WINDOW_HOURS * 60 * 60 * 1000).toISOString(),
@@ -268,7 +291,7 @@ describe("aiSummaryQuotaService", () => {
     };
 
     expect(insertChain.insert).toHaveBeenCalledWith({
-      ip_address: "203.0.113.10",
+      ip_hash: await deriveGuestQuotaKey("203.0.113.10", "test-guest-quota-secret"),
       usage_date: "2026-05-02",
       scope_type: "deck",
       scope_id: "deck-1",
@@ -277,6 +300,7 @@ describe("aiSummaryQuotaService", () => {
       model_version: "v1",
       usage_kind: "summary",
       consumed_at: now.toISOString(),
+      retention_expires_at: new Date("2026-07-31T12:00:00.000Z").toISOString(),
     });
   });
 });

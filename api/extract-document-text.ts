@@ -56,6 +56,10 @@ const logExtraction = (event: string, payload: Record<string, unknown>) => {
   );
 };
 
+const EXTERNAL_FETCH_TIMEOUT_MS = Number(
+  process.env.EXTERNAL_FETCH_TIMEOUT_MS?.trim() || "10000",
+);
+
 const formatUnknownError = (error: unknown): string => {
   if (error instanceof Error) {
     return error.message;
@@ -117,16 +121,12 @@ const getServiceClient = (): SupabaseClient => {
     getEnv("SUPABASE_URL") || getEnv("VITE_SUPABASE_URL");
   const serviceRoleKey =
     getEnv("PROJECT_SECRET_KEY") ||
-    getEnv("SUPABASE_SERVICE_ROLE_KEY") ||
-    getEnv("VITE_PROJECT_SECRET_KEY") ||
-    getEnv("VITE_SUPABASE_SERVICE_ROLE_KEY");
+    getEnv("SUPABASE_SERVICE_ROLE_KEY");
 
   logExtraction("service_client_config_checked", {
     has_supabase_url: Boolean(supabaseUrl),
     has_project_secret_key: Boolean(getEnv("PROJECT_SECRET_KEY")),
     has_service_role_key: Boolean(getEnv("SUPABASE_SERVICE_ROLE_KEY")),
-    has_vite_project_secret_key: Boolean(getEnv("VITE_PROJECT_SECRET_KEY")),
-    has_vite_service_role_key: Boolean(getEnv("VITE_SUPABASE_SERVICE_ROLE_KEY")),
   });
 
   if (!supabaseUrl || !serviceRoleKey) {
@@ -134,6 +134,30 @@ const getServiceClient = (): SupabaseClient => {
   }
 
   return createClient(supabaseUrl, serviceRoleKey);
+};
+
+const fetchWithTimeout = async (
+  input: string | URL,
+  init?: RequestInit,
+): Promise<Response> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), EXTERNAL_FETCH_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(
+        `External request timed out after ${EXTERNAL_FETCH_TIMEOUT_MS}ms.`,
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 };
 
 const getAuthenticatedUser = async (
@@ -240,7 +264,7 @@ const convertOfficeDocumentToPdf = async (
     byte_length: fileBytes.byteLength,
   });
 
-  const convertResponse = await fetch(
+  const convertResponse = await fetchWithTimeout(
     `https://v2.convertapi.com/convert/${fileExt}/to/pdf`,
     {
       method: "POST",
@@ -286,7 +310,7 @@ const convertOfficeDocumentToPdf = async (
     throw new Error("ConvertAPI did not return a downloadable PDF URL.");
   }
 
-  const pdfResponse = await fetch(pdfUrl);
+  const pdfResponse = await fetchWithTimeout(pdfUrl);
   if (!pdfResponse.ok) {
     throw new Error(`Failed to download converted PDF (${pdfResponse.status}).`);
   }

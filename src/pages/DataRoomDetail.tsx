@@ -521,6 +521,7 @@ function DataRoomDetail() {
         scope_id: room.id,
         scope_label: room.name,
       });
+      if (!result) return;
 
       if (result.status === "quota_limited" && result.usage.quota?.nextAction === "upgrade") {
         setShowUpgradeModal(true);
@@ -538,6 +539,7 @@ function DataRoomDetail() {
         scope_id: folder.id,
         scope_label: folder.name,
       });
+      if (!result) return;
 
       if (result.status === "quota_limited" && result.usage.quota?.nextAction === "upgrade") {
         setShowUpgradeModal(true);
@@ -772,7 +774,6 @@ function DataRoomDetail() {
         summaryMeta={aiSummary.state.summaryMeta}
         summaryNotice={aiSummary.state.summaryNotice}
         summaryNoticeTone={aiSummary.state.summaryNoticeTone}
-        onResummarize={aiSummary.resummarizeCurrent}
         chatMessages={aiSummary.state.chatMessages}
         chatInputValue={aiSummary.state.chatInputValue}
         onChatInputChange={aiSummary.setChatInputValue}

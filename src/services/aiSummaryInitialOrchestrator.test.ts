@@ -92,6 +92,7 @@ describe("aiSummaryInitialOrchestrator", () => {
     const orchestrator = createAiSummaryInitialOrchestrator({
       resolveScope,
       lookupCache,
+      claimCache: vi.fn(),
       writeCache: vi.fn(),
       getUsageCount,
       generateSummary,
@@ -170,6 +171,7 @@ describe("aiSummaryInitialOrchestrator", () => {
           },
         }),
       ),
+      claimCache: vi.fn(),
       writeCache,
       getUsageCount,
       generateSummary,
@@ -223,6 +225,7 @@ describe("aiSummaryInitialOrchestrator", () => {
         }),
       ),
       lookupCache: vi.fn(async () => createCacheLookup({ state: "miss" })),
+      claimCache: vi.fn(),
       writeCache,
       getUsageCount: vi.fn(async () => 2),
       generateSummary,
@@ -331,6 +334,7 @@ describe("aiSummaryInitialOrchestrator", () => {
     const orchestrator = createAiSummaryInitialOrchestrator({
       resolveScope: vi.fn(async () => resolution),
       lookupCache: vi.fn(async () => createCacheLookup({ state: "miss" })),
+      claimCache: vi.fn(async () => true),
       writeCache,
       getUsageCount: vi.fn(async () => 0),
       generateSummary,
@@ -363,5 +367,121 @@ describe("aiSummaryInitialOrchestrator", () => {
       3,
       expect.objectContaining({ mode: "aggregate" }),
     );
+  });
+
+  it("keeps completed summaries ready when usage recording fails", async () => {
+    const writeCache = vi.fn().mockResolvedValue(
+      createCacheLookup({
+        state: "cached",
+        cached_reopen: false,
+        summary_text: "Fresh summary",
+        summary_metadata: { strategy: "one_shot" },
+        cache_row: {
+          id: "cache-ready",
+          scope_type: "deck",
+          scope_id: "deck-1",
+          content_hash: "hash-1",
+          model_identifier: "gpt-4o-mini",
+          model_version: "v1",
+          status: "ready",
+          summary_text: "Fresh summary",
+          summary_metadata: { strategy: "one_shot" },
+          error_message: null,
+          expires_at: "2026-05-03T12:00:00.000Z",
+          generated_at: "2026-05-02T12:00:00.000Z",
+          last_accessed_at: null,
+          created_at: "2026-05-02T12:00:00.000Z",
+          updated_at: "2026-05-02T12:00:00.000Z",
+        },
+      }),
+    );
+    const recordUsage = vi.fn().mockRejectedValue(new Error("quota write failed"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const orchestrator = createAiSummaryInitialOrchestrator({
+      resolveScope: vi.fn(async () => createResolution()),
+      lookupCache: vi.fn(async () => createCacheLookup({ state: "miss" })),
+      claimCache: vi.fn(async () => true),
+      writeCache,
+      getUsageCount: vi.fn(async () => 0),
+      generateSummary: vi.fn(async () => ({ summary_text: "Fresh summary" })),
+      recordUsage,
+    });
+
+    await expect(
+      orchestrator.summarize({
+        scope_type: "deck",
+        scope_id: "deck-1",
+        actor: {
+          type: "signed_in",
+          user_id: "user-1",
+          tier: "FREE",
+        },
+        now: new Date("2026-05-02T12:00:00.000Z"),
+      }),
+    ).resolves.toMatchObject({
+      status: "completed",
+      summary_text: "Fresh summary",
+    });
+
+    expect(recordUsage).toHaveBeenCalledTimes(1);
+    expect(writeCache).toHaveBeenCalledTimes(1);
+    expect(writeCache).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "ready",
+        summary_text: "Fresh summary",
+      }),
+    );
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Failed to record AI summary usage.",
+      expect.objectContaining({
+        actorType: "signed_in",
+        scopeType: "deck",
+        scopeId: "deck-1",
+      }),
+    );
+
+    errorSpy.mockRestore();
+  });
+
+  it("returns generating when another worker already claimed the cache row", async () => {
+    const lookupCache = vi
+      .fn()
+      .mockResolvedValueOnce(createCacheLookup({ state: "miss" }))
+      .mockResolvedValueOnce(
+        createCacheLookup({
+          state: "generating",
+          should_regenerate: false,
+        }),
+      );
+    const claimCache = vi.fn(async () => false);
+    const writeCache = vi.fn();
+    const generateSummary = vi.fn();
+
+    const orchestrator = createAiSummaryInitialOrchestrator({
+      resolveScope: vi.fn(async () => createResolution()),
+      lookupCache,
+      claimCache,
+      writeCache,
+      getUsageCount: vi.fn(async () => 0),
+      generateSummary,
+    });
+
+    const result = await orchestrator.summarize({
+      scope_type: "deck",
+      scope_id: "deck-1",
+      actor: {
+        type: "signed_in",
+        user_id: "user-1",
+        tier: "PRO",
+      },
+      now: new Date("2026-05-02T12:00:00.000Z"),
+    });
+
+    expect(result.status).toBe("generating");
+    expect(lookupCache).toHaveBeenCalledTimes(2);
+    expect(claimCache).toHaveBeenCalledTimes(1);
+    expect(writeCache).not.toHaveBeenCalled();
+    expect(generateSummary).not.toHaveBeenCalled();
   });
 });
