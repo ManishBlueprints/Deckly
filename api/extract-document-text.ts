@@ -875,6 +875,10 @@ const extractScopeDocuments = async (
   return result;
 };
 
+export async function POST(request: Request) {
+  return handler(request);
+}
+
 export default async function handler(request: Request) {
   logExtraction("request_received", {
     method: request.method,
