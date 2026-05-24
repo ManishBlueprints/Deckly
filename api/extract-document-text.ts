@@ -1,7 +1,16 @@
 /// <reference types="node" />
 
+if (typeof (globalThis as Record<string, unknown>).DOMMatrix === "undefined") {
+  (globalThis as Record<string, unknown>).DOMMatrix = class DOMMatrix {};
+}
+if (typeof (globalThis as Record<string, unknown>).ImageData === "undefined") {
+  (globalThis as Record<string, unknown>).ImageData = class ImageData {};
+}
+if (typeof (globalThis as Record<string, unknown>).Path2D === "undefined") {
+  (globalThis as Record<string, unknown>).Path2D = class Path2D {};
+}
+
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { PDFParse } from "pdf-parse";
 import type { AiScopeDocumentRecord, AiScopeReference } from "../src/services/aiScopeResolutionBuilder.ts";
 
 const stripTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
@@ -313,9 +322,13 @@ const canonicalQueryString = (url: URL): string => {
   const pairs = Array.from(url.searchParams.entries())
     .filter(([key]) => key !== "X-Amz-Signature")
     .map(([key, value]) => [encodePathSegment(key), encodePathSegment(value)] as const)
-    .sort(([aKey, aValue], [bKey, bValue]) =>
-      aKey === bKey ? aValue.localeCompare(bValue) : aKey.localeCompare(bKey)
-    );
+    .sort(([aKey, aValue], [bKey, bValue]) => {
+      if (aKey < bKey) return -1;
+      if (aKey > bKey) return 1;
+      if (aValue < bValue) return -1;
+      if (aValue > bValue) return 1;
+      return 0;
+    });
 
   return pairs.map(([key, value]) => `${key}=${value}`).join("&");
 };
@@ -488,6 +501,7 @@ const extractPdfText = async (pdfBytes: Uint8Array): Promise<string | null> => {
   logExtraction("pdf_text_extraction_started", {
     byte_length: pdfBytes.byteLength,
   });
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: Buffer.from(pdfBytes) });
 
   try {

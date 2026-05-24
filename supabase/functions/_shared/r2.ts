@@ -166,9 +166,13 @@ function canonicalQueryString(url: URL): string {
   const pairs = Array.from(url.searchParams.entries())
     .filter(([key]) => key !== "X-Amz-Signature")
     .map(([key, value]) => [encodePathSegment(key), encodePathSegment(value)] as const)
-    .sort(([aKey, aValue], [bKey, bValue]) =>
-      aKey === bKey ? aValue.localeCompare(bValue) : aKey.localeCompare(bKey)
-    );
+    .sort(([aKey, aValue], [bKey, bValue]) => {
+      if (aKey < bKey) return -1;
+      if (aKey > bKey) return 1;
+      if (aValue < bValue) return -1;
+      if (aValue > bValue) return 1;
+      return 0;
+    });
 
   return pairs.map(([key, value]) => `${key}=${value}`).join("&");
 }
@@ -334,36 +338,37 @@ export async function deleteObjects(
 }
 
 function parseListObjectsXml(xml: string): ListObjectsPage {
-  const parser = new DOMParser();
-  const document = parser.parseFromString(xml, "application/xml");
-  if (!document) {
-    throw new Error("Failed to parse R2 list response");
+  const isTruncatedMatch = xml.match(/<IsTruncated>(true|false)<\/IsTruncated>/i);
+  const isTruncated = isTruncatedMatch ? isTruncatedMatch[1].toLowerCase() === "true" : false;
+
+  const tokenMatch = xml.match(/<NextContinuationToken>([^<]+)<\/NextContinuationToken>/i);
+  const nextContinuationToken = tokenMatch ? tokenMatch[1] : null;
+
+  const items: StorageListItem[] = [];
+  const contentsRegex = /<Contents>([\s\S]*?)<\/Contents>/g;
+  let match;
+
+  while ((match = contentsRegex.exec(xml)) !== null) {
+    const contentBody = match[1];
+    const keyMatch = contentBody.match(/<Key>([^<]+)<\/Key>/i);
+    const key = keyMatch ? keyMatch[1] : "";
+
+    if (key) {
+      const lastModifiedMatch = contentBody.match(/<LastModified>([^<]+)<\/LastModified>/i);
+      const lastModified = lastModifiedMatch ? lastModifiedMatch[1] : null;
+
+      const sizeMatch = contentBody.match(/<Size>(\d+)<\/Size>/i);
+      const sizeText = sizeMatch ? sizeMatch[1] : "";
+      const size = sizeText ? Number(sizeText) : undefined;
+
+      items.push({
+        name: key,
+        updated_at: lastModified,
+        created_at: lastModified,
+        metadata: typeof size === "number" && Number.isFinite(size) ? { size } : null,
+      });
+    }
   }
-
-  const parserError = document.querySelector("parsererror");
-  if (parserError) {
-    throw new Error(parserError.textContent ?? "Failed to parse R2 list response");
-  }
-
-  const itemNodes = Array.from(document.getElementsByTagName("Contents"));
-  const items = itemNodes.map((node) => {
-    const key = node.getElementsByTagName("Key")[0]?.textContent ?? "";
-    const lastModified = node.getElementsByTagName("LastModified")[0]?.textContent ?? null;
-    const sizeText = node.getElementsByTagName("Size")[0]?.textContent ?? "";
-    const size = sizeText ? Number(sizeText) : undefined;
-
-    return {
-      name: key,
-      updated_at: lastModified,
-      created_at: lastModified,
-      metadata: Number.isFinite(size) ? { size } : null,
-    };
-  }).filter((item) => item.name.length > 0);
-
-  const isTruncated =
-    document.getElementsByTagName("IsTruncated")[0]?.textContent === "true";
-  const nextContinuationToken =
-    document.getElementsByTagName("NextContinuationToken")[0]?.textContent ?? null;
 
   return { items, isTruncated, nextContinuationToken };
 }
@@ -386,6 +391,8 @@ export async function listObjects(
   const signedUrl = await presignUrl("GET", bucket, "", { query: params, expiresInSeconds: 60 });
   const response = await fetch(signedUrl);
   if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    console.error(`[r2.ts] R2 list failed (${response.status}):`, text);
     throw new Error(`R2 list failed (${response.status})`);
   }
 
