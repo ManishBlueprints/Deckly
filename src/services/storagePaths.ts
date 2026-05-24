@@ -50,6 +50,13 @@ export function extractStoragePath(
     return normalized;
   }
 
+  let normalizedUrl: URL;
+  try {
+    normalizedUrl = new URL(normalized);
+  } catch {
+    return null;
+  }
+
   const supabasePattern = new RegExp(
     `/storage/v1/object/(?:public|sign|authenticated)/${bucket}/([^?#]+)`,
     "i",
@@ -65,9 +72,26 @@ export function extractStoragePath(
     .map(stripTrailingSlash) ?? [];
 
   for (const baseUrl of [...publicBaseUrls, ...getConfiguredBaseUrls(bucket)]) {
-    if (!normalized.startsWith(baseUrl)) continue;
+    let baseUrlObject: URL;
+    try {
+      baseUrlObject = new URL(baseUrl);
+    } catch {
+      continue;
+    }
 
-    const path = normalized.slice(baseUrl.length).replace(/^\/+/, "");
+    if (normalizedUrl.origin !== baseUrlObject.origin) continue;
+
+    const basePathname = stripTrailingSlash(baseUrlObject.pathname);
+    const pathname = normalizedUrl.pathname;
+    const hasMatchingPathPrefix = basePathname
+      ? pathname === basePathname || pathname.startsWith(`${basePathname}/`)
+      : true;
+
+    if (!hasMatchingPathPrefix) continue;
+
+    const path = pathname
+      .slice(basePathname.length)
+      .replace(/^\/+/, "");
     return path ? decodeURIComponent(path) : null;
   }
 

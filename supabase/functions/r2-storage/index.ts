@@ -3,7 +3,7 @@ import {
   buildStoragePublicUrl,
   createSignedUrls,
   deleteObjects,
-  listAllObjects,
+  listObjects,
   presignPutUrl,
   StorageBucket,
 } from "../_shared/r2.ts";
@@ -24,6 +24,20 @@ function asString(value: unknown): string | null {
 
 function userPrefixIsAllowed(userId: string, key: string): boolean {
   return key === userId || key.startsWith(`${userId}/`);
+}
+
+const responseHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+};
+
+function buildJsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: responseHeaders,
+  });
 }
 
 async function getCurrentUser(req: Request) {
@@ -51,20 +65,14 @@ async function getCurrentUser(req: Request) {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
+      headers: responseHeaders,
     });
   }
 
   try {
     const currentUser = await getCurrentUser(req);
     if (!currentUser) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return buildJsonResponse({ error: "Unauthorized" }, 401);
     }
 
     const body = await req.json().catch(() => ({}));
@@ -72,127 +80,99 @@ Deno.serve(async (req: Request) => {
     const bucket = asBucket(body.bucket) ?? "decks";
 
     if (!action) {
-      return new Response(JSON.stringify({ error: "Invalid action" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return buildJsonResponse({ error: "Invalid action" }, 400);
     }
 
     if (action === "presign-upload") {
       const key = asString(body.key);
       if (!key) {
-        return new Response(JSON.stringify({ error: "Missing key" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
+        return buildJsonResponse({ error: "Missing key" }, 400);
       }
 
       if (!userPrefixIsAllowed(currentUser.user.id, key)) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403,
-          headers: { "Content-Type": "application/json" },
-        });
+        return buildJsonResponse({ error: "Forbidden" }, 403);
       }
 
       const uploadUrl = await presignPutUrl(bucket, key, 900);
-      return new Response(
-        JSON.stringify({
-          uploadUrl,
-          key,
-          publicUrl: buildStoragePublicUrl(bucket, key),
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-        },
-      );
+      return buildJsonResponse({
+        uploadUrl,
+        key,
+        publicUrl: buildStoragePublicUrl(bucket, key),
+      });
     }
 
     if (action === "remove") {
       const keys = Array.isArray(body.keys)
-        ? body.keys.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+        ? body.keys.filter((value: unknown): value is string =>
+          typeof value === "string" && value.trim().length > 0
+        )
         : [];
 
       if (keys.length === 0) {
-        return new Response(JSON.stringify({ error: "Missing keys" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
+        return buildJsonResponse({ error: "Missing keys" }, 400);
       }
 
       for (const key of keys) {
         if (!userPrefixIsAllowed(currentUser.user.id, key)) {
-          return new Response(JSON.stringify({ error: "Forbidden" }), {
-            status: 403,
-            headers: { "Content-Type": "application/json" },
-          });
+          return buildJsonResponse({ error: "Forbidden" }, 403);
         }
       }
 
       await deleteObjects(bucket, keys);
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      });
+      return buildJsonResponse({ success: true });
     }
 
     if (action === "list") {
       const prefix = asString(body.prefix) ?? "";
       if (!prefix || !userPrefixIsAllowed(currentUser.user.id, prefix)) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403,
-          headers: { "Content-Type": "application/json" },
-        });
+        return buildJsonResponse({ error: "Forbidden" }, 403);
       }
 
-      const items = await listAllObjects(bucket, prefix);
-      return new Response(JSON.stringify({ data: items }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      const limit =
+        typeof body.limit === "number" && Number.isFinite(body.limit)
+          ? Math.max(1, Math.min(Math.floor(body.limit), 1000))
+          : 1000;
+      const continuationToken =
+        typeof body.continuationToken === "string" && body.continuationToken.trim().length > 0
+          ? body.continuationToken.trim()
+          : null;
+
+      const page = await listObjects(bucket, prefix, {
+        limit,
+        continuationToken,
+      });
+
+      return buildJsonResponse({
+        data: page.items,
+        nextToken: page.nextContinuationToken,
       });
     }
 
     if (action === "create-signed-urls") {
       const paths = Array.isArray(body.paths)
-        ? body.paths.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+        ? body.paths.filter((value: unknown): value is string =>
+          typeof value === "string" && value.trim().length > 0
+        )
         : [];
       const expiresInSeconds = typeof body.expiresInSeconds === "number" ? body.expiresInSeconds : 3600;
 
       if (paths.length === 0) {
-        return new Response(JSON.stringify({ error: "Missing paths" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        });
+        return buildJsonResponse({ error: "Missing paths" }, 400);
       }
 
       for (const key of paths) {
         if (!userPrefixIsAllowed(currentUser.user.id, key)) {
-          return new Response(JSON.stringify({ error: "Forbidden" }), {
-            status: 403,
-            headers: { "Content-Type": "application/json" },
-          });
+          return buildJsonResponse({ error: "Forbidden" }, 403);
         }
       }
 
       const data = await createSignedUrls(bucket, paths, expiresInSeconds);
-      return new Response(JSON.stringify({ data }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      });
+      return buildJsonResponse({ data });
     }
 
-    return new Response(JSON.stringify({ error: "Unsupported action" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return buildJsonResponse({ error: "Unsupported action" }, 400);
   } catch (err) {
     console.error("[r2-storage] error", err);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      },
-    );
+    return buildJsonResponse({ error: "Internal server error" }, 500);
   }
 });

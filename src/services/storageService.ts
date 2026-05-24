@@ -14,6 +14,11 @@ type StorageListItem = {
   metadata: { size?: number } | null;
 };
 
+type StorageListPage = {
+  items: StorageListItem[];
+  nextToken: string | null;
+};
+
 type ImportMetaEnvShape = {
   VITE_R2_PUBLIC_ASSET_BASE_URL?: string;
   VITE_R2_PRIVATE_GATEWAY_BASE_URL?: string;
@@ -95,18 +100,24 @@ export const storageService = {
   async list(
     bucket: StorageBucket,
     prefix: string,
-    options?: { limit?: number; offset?: number },
-  ): Promise<StorageServiceResponse<StorageListItem[]>> {
+    options?: { limit?: number; continuationToken?: string | null },
+  ): Promise<StorageServiceResponse<StorageListPage>> {
     try {
-      const response = await callStorageFunction<{ data: StorageListItem[] }>({
+      const response = await callStorageFunction<{ data: StorageListItem[]; nextToken?: string | null }>({
         action: "list",
         bucket,
         prefix,
         limit: options?.limit,
-        offset: options?.offset,
+        continuationToken: options?.continuationToken ?? null,
       });
 
-      return { data: response.data ?? [], error: null };
+      return {
+        data: {
+          items: response.data ?? [],
+          nextToken: response.nextToken ?? null,
+        },
+        error: null,
+      };
     } catch (error) {
       return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
     }

@@ -109,21 +109,35 @@ export const deckStorageService = {
 
     await withRetry(async () => {
       const safeSlug = sanitizeStorageSlug(slug);
-      const { data, error } = await storageService.list(
-        "decks",
-        `${userId}/deck-images/${safeSlug}`,
-      );
+      const prefix = `${userId}/deck-images/${safeSlug}`;
+      const allFilesToDelete: string[] = [];
+      let continuationToken: string | null = null;
 
-      if (error) {
-        if (!error.message?.toLowerCase().includes("not found")) {
-          throw error;
+      while (true) {
+        const { data, error } = await storageService.list(
+          "decks",
+          prefix,
+          { continuationToken },
+        );
+
+        if (error) {
+          if (!error.message?.toLowerCase().includes("not found")) {
+            throw error;
+          }
+          return;
         }
-        return;
-      }
 
-      const allFilesToDelete = (data || [])
-        .map((item) => item.name)
-        .filter((name) => name.startsWith(`${userId}/deck-images/${safeSlug}`));
+        allFilesToDelete.push(
+          ...((data?.items || [])
+            .map((item) => item.name)
+            .filter((name) => name.startsWith(prefix))),
+        );
+
+        continuationToken = data?.nextToken ?? null;
+        if (!continuationToken) {
+          break;
+        }
+      }
 
       if (allFilesToDelete.length > 0) {
         // supabase remove has a limit depending on the payload length, but usually accepts a lot. Let's chunk if necessary, or pass all.
