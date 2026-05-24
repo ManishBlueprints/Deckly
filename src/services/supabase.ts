@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 type ImportMetaEnvShape = {
   VITE_SUPABASE_URL?: string
@@ -22,8 +22,29 @@ const supabasePublishableKey =
   denoEnv?.get('SUPABASE_PUBLISHABLE_KEY') ??
   ''
 
-if (!supabaseUrl || !supabasePublishableKey) {
-  throw new Error('Missing Supabase environment variables')
+let cachedSupabase: SupabaseClient | null = null
+
+export function getSupabase(): SupabaseClient {
+  if (!supabaseUrl || !supabasePublishableKey) {
+    throw new Error('Missing Supabase environment variables')
+  }
+
+  if (!cachedSupabase) {
+    cachedSupabase = createClient(supabaseUrl, supabasePublishableKey)
+  }
+
+  return cachedSupabase
 }
 
-export const supabase = createClient(supabaseUrl, supabasePublishableKey)
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop, receiver) {
+    const client = getSupabase()
+    const value = Reflect.get(client, prop, receiver)
+
+    if (typeof value === 'function') {
+      return value.bind(client)
+    }
+
+    return value
+  },
+}) as SupabaseClient

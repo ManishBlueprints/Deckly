@@ -338,6 +338,24 @@ export const createAiSummaryInitialOrchestrator = (
 
     const usageCount = await dependencies.getUsageCount(request.actor, now);
     const quotaDecision = buildQuotaDecision(request.actor, usageCount, now);
+    const recordChargeableUsage = async (): Promise<boolean> => {
+      if (!quotaDecision.chargeable || !dependencies.recordUsage) {
+        return false;
+      }
+
+      try {
+        await dependencies.recordUsage(request.actor, cacheKey, now);
+        return true;
+      } catch (error) {
+        console.error("Failed to record AI summary usage.", {
+          actorType: request.actor.type,
+          scopeType: request.scope_type,
+          scopeId: request.scope_id,
+          error,
+        });
+        return false;
+      }
+    };
 
     if (!quotaDecision.allowed) {
       return buildResult({
@@ -374,6 +392,7 @@ export const createAiSummaryInitialOrchestrator = (
         summary_metadata: summaryMetadata,
         now,
       });
+      const usageRecorded = await recordChargeableUsage();
 
       return buildResult({
         status: "no_content",
@@ -385,7 +404,7 @@ export const createAiSummaryInitialOrchestrator = (
         summaryMetadata,
         usage: {
           quota: quotaDecision,
-          usage_count: usageCount,
+          usage_count: usageRecorded ? usageCount + 1 : usageCount,
         },
         freshness: {
           state: "fresh",
@@ -512,19 +531,7 @@ export const createAiSummaryInitialOrchestrator = (
         summary_metadata: summaryMetadata,
         now,
       });
-
-      if (quotaDecision.chargeable) {
-        try {
-          await dependencies.recordUsage?.(request.actor, cacheKey, now);
-        } catch (error) {
-          console.error("Failed to record AI summary usage.", {
-            actorType: request.actor.type,
-            scopeType: request.scope_type,
-            scopeId: request.scope_id,
-            error,
-          });
-        }
-      }
+      const usageRecorded = await recordChargeableUsage();
 
       return buildResult({
         status: "completed",
@@ -536,7 +543,7 @@ export const createAiSummaryInitialOrchestrator = (
         summaryMetadata,
         usage: {
           quota: quotaDecision,
-          usage_count: usageCount,
+          usage_count: usageRecorded ? usageCount + 1 : usageCount,
         },
         freshness: {
           state: "fresh",
@@ -545,20 +552,33 @@ export const createAiSummaryInitialOrchestrator = (
         },
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      await dependencies.writeCache({
-        ...cacheKey,
-        status: "error",
-        summary_text: null,
-        error_message: errorMessage,
-        summary_metadata: buildSummaryMetadata({
-          resolution,
-          strategy,
-          generation_mode: "generated",
-        }),
-        now,
-      });
-      throw error;
+      const originalError = error instanceof Error ? error : new Error(String(error));
+      const errorMessage = originalError.message;
+
+      try {
+        await dependencies.writeCache({
+          ...cacheKey,
+          status: "error",
+          summary_text: null,
+          error_message: errorMessage,
+          summary_metadata: buildSummaryMetadata({
+            resolution,
+            strategy,
+            generation_mode: "generated",
+          }),
+          now,
+        });
+      } catch (writeCacheError) {
+        console.error("Failed to write AI summary error cache.", {
+          actorType: request.actor.type,
+          scopeType: request.scope_type,
+          scopeId: request.scope_id,
+          originalError,
+          writeCacheError,
+        });
+      }
+
+      throw originalError;
     }
   },
 });

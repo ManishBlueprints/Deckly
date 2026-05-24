@@ -1,6 +1,6 @@
-import { supabase } from "./supabase.ts";
 import { withRetry } from "../utils/resilience.ts";
 import { AI_EMBEDDING_VECTOR_DIMENSIONS } from "./aiConfig.ts";
+import { getSupabase } from "./supabase.ts";
 import type {
   AiIncludedSource,
   AiNoContentReason,
@@ -251,6 +251,7 @@ export const buildAiChunkEmbeddingRows = (
 
 const defaultDependencies: AiChunkIndexingDependencies = {
   async getLatestContentHash(scope) {
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("ai_chunk_embeddings")
       .select("content_hash, updated_at")
@@ -269,6 +270,7 @@ const defaultDependencies: AiChunkIndexingDependencies = {
   },
 
   async deleteChunksForScopeModel(scope) {
+    const supabase = getSupabase();
     const { error } = await supabase
       .from("ai_chunk_embeddings")
       .delete()
@@ -281,6 +283,7 @@ const defaultDependencies: AiChunkIndexingDependencies = {
   },
 
   async replaceScopeChunksAtomically(rows, key) {
+    const supabase = getSupabase();
     const payload = rows.map((row) => ({
       chunk_index: row.chunk_index,
       source_label: row.source_label,

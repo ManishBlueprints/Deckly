@@ -109,7 +109,7 @@ export const deckStorageService = {
 
     await withRetry(async () => {
       const safeSlug = sanitizeStorageSlug(slug);
-      const prefix = `${userId}/deck-images/${safeSlug}`;
+      const prefix = `${userId}/deck-images/${safeSlug}/`;
       const allFilesToDelete: string[] = [];
       let continuationToken: string | null = null;
 

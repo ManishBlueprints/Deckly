@@ -1,7 +1,7 @@
-import { supabase } from "./supabase.ts";
 import { withRetry } from "../utils/resilience.ts";
 import type { AiChunkMetadata } from "./aiChunkIndexingService.ts";
 import type { AiScopeReference, AiScopeType } from "./aiScopeResolutionBuilder.ts";
+import { getSupabase } from "./supabase.ts";
 
 export const AI_RETRIEVAL_MAX_RESULTS = 6;
 export const AI_RETRIEVAL_MAX_CHARACTERS = 3600;
@@ -91,9 +91,14 @@ interface AiRankedChunk extends AiRetrievalChunkRow {
   ranking: AiRetrievalRankingMetadata;
 }
 
-const clampInteger = (value: number | undefined, fallback: number, minimum: number): number => {
+const clampInteger = (
+  value: number | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number => {
   if (!Number.isFinite(value)) return fallback;
-  return Math.max(minimum, Math.floor(value as number));
+  return Math.min(maximum, Math.max(minimum, Math.floor(value as number)));
 };
 
 const normalizeSearchText = (value: string): string =>
@@ -351,6 +356,7 @@ const asChunkRow = (value: unknown): AiRetrievalChunkRow | null => {
 
 const defaultDependencies: AiRetrievalDependencies = {
   async getLatestContentHash(scope) {
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("ai_chunk_embeddings")
       .select("content_hash, updated_at")
@@ -370,6 +376,7 @@ const defaultDependencies: AiRetrievalDependencies = {
   },
 
   async getScopeChunks(scope, options) {
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("ai_chunk_embeddings")
       .select("id, scope_type, scope_id, content_hash, chunk_index, source_label, chunk_text, metadata, repository_score")
@@ -407,16 +414,23 @@ export const createAiRetrievalQueryService = (
           throw new Error("AI retrieval query cannot be empty.");
         }
 
-        const maxResults = clampInteger(request.max_results, AI_RETRIEVAL_MAX_RESULTS, 1);
+        const maxResults = clampInteger(
+          request.max_results,
+          AI_RETRIEVAL_MAX_RESULTS,
+          1,
+          AI_RETRIEVAL_MAX_RESULTS,
+        );
         const maxCharacters = clampInteger(
           request.max_characters,
           AI_RETRIEVAL_MAX_CHARACTERS,
           1,
+          AI_RETRIEVAL_MAX_CHARACTERS,
         );
         const maxCandidates = clampInteger(
           request.max_candidates,
           AI_RETRIEVAL_MAX_CANDIDATES,
           maxResults,
+          AI_RETRIEVAL_MAX_CANDIDATES,
         );
 
         const providedContentHash = request.content_hash?.trim() || null;

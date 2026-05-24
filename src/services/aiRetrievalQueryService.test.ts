@@ -201,4 +201,36 @@ describe("aiRetrievalQueryService", () => {
       content_hash: "room-hash-1",
     });
   });
+
+  it("caps oversized retrieval budgets at the configured hard limits", async () => {
+    const getLatestContentHash = vi.fn(async () => "hash-folder-1");
+    const getScopeChunks = vi.fn(async () => []);
+    const service = createAiRetrievalQueryService({
+      getLatestContentHash,
+      getScopeChunks,
+    });
+
+    const result = await service.retrieveSnippets({
+      scope_type: "folder",
+      scope_id: "folder-1",
+      query: "revenue growth",
+      max_results: 999,
+      max_characters: 999999,
+      max_candidates: 9999,
+      ...MODEL,
+    });
+
+    expect(getScopeChunks).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope_type: "folder",
+        scope_id: "folder-1",
+        content_hash: "hash-folder-1",
+        ...MODEL,
+      }),
+      expect.objectContaining({ max_candidates: 40 }),
+    );
+    expect(result.metadata.max_results).toBe(6);
+    expect(result.metadata.max_characters).toBe(3600);
+    expect(result.metadata.max_candidates).toBe(40);
+  });
 });

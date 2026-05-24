@@ -833,11 +833,10 @@ export default async function handler(request: Request) {
       error: formattedError,
       stack: error instanceof Error ? error.stack ?? null : null,
     });
-    const isDevelopment = process.env.NODE_ENV !== "production";
     return json(
       {
         error: true,
-        message: isDevelopment ? formattedError : INTERNAL_ERROR_MESSAGE,
+        message: INTERNAL_ERROR_MESSAGE,
       },
       500,
     );

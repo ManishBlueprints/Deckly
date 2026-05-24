@@ -47,7 +47,19 @@ const getAuthHeaders = async (): Promise<Record<string, string>> => {
   };
 };
 
-const parseJson = <T,>(value: unknown): T => value as T;
+const parseJson = <T,>(value: unknown, context: string): T => {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${context} response body to be a JSON object, received empty payload.`);
+  }
+
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(
+      `Expected ${context} response body to be a JSON object, received ${Array.isArray(value) ? "an array" : typeof value}.`,
+    );
+  }
+
+  return value as T;
+};
 
 const buildRequestError = (
   fallbackMessage: string,
@@ -112,7 +124,7 @@ const ensureExtractableText = async (
     );
   }
 
-  return parseJson<AiExtractionResult>(data);
+  return parseJson<AiExtractionResult>(data, "AI extraction");
 };
 
 export const aiSummaryService = {
@@ -137,7 +149,7 @@ export const aiSummaryService = {
       throw buildRequestError("Failed to load AI summary.", response, data);
     }
 
-    return parseJson<AiSummaryInitialResult>(data);
+    return parseJson<AiSummaryInitialResult>(data, "AI summary");
   },
 
   async sendChatMessage(request: AiSummaryChatRequest): Promise<AiSummaryChatResult> {
@@ -159,6 +171,6 @@ export const aiSummaryService = {
       throw buildRequestError("Failed to send AI chat message.", response, data);
     }
 
-    return parseJson<AiSummaryChatResult>(data);
+    return parseJson<AiSummaryChatResult>(data, "AI chat");
   },
 };

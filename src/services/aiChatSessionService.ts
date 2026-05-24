@@ -1,6 +1,4 @@
-import { supabase } from "./supabase.ts";
 import { withRetry } from "../utils/resilience.ts";
-import { aiRetrievalQueryService } from "./aiRetrievalQueryService.ts";
 import {
   AI_CHAT_MODEL_IDENTIFIER,
   AI_CHAT_MODEL_VERSION,
@@ -191,120 +189,6 @@ export interface AiChatSessionServiceDependencies {
   retrieveSnippets: (request: AiRetrievalRequest) => Promise<AiRetrievalResult>;
 }
 
-const asRecord = (value: unknown): Record<string, unknown> | null =>
-  value && typeof value === "object" ? (value as Record<string, unknown>) : null;
-
-const asString = (value: unknown): string | null =>
-  typeof value === "string" && value.trim() ? value : null;
-
-const asNullableString = (value: unknown): string | null =>
-  value === null || value === undefined ? null : asString(value);
-
-const asInteger = (value: unknown): number | null =>
-  typeof value === "number" && Number.isFinite(value) ? Math.floor(value) : null;
-
-const asChatSessionStatus = (value: unknown): AiChatSessionStoredStatus | null => {
-  if (value === "active" || value === "closed" || value === "archived") {
-    return value;
-  }
-
-  return null;
-};
-
-const asChatMessageRole = (value: unknown): AiChatMessageRole | null => {
-  if (value === "system" || value === "user" || value === "assistant" || value === "tool") {
-    return value;
-  }
-
-  return null;
-};
-
-const asObjectArray = (value: unknown): Record<string, unknown>[] =>
-  Array.isArray(value)
-    ? value.filter((entry): entry is Record<string, unknown> => Boolean(asRecord(entry)))
-    : [];
-
-const asRetrievedSnippetArray = (value: unknown): AiRetrievedSnippet[] =>
-  Array.isArray(value) ? (value as AiRetrievedSnippet[]) : [];
-
-const asSessionRow = (value: unknown): AiChatSessionRow | null => {
-  const raw = asRecord(value);
-  if (!raw) return null;
-
-  const id = asString(raw.id);
-  const userId = asString(raw.user_id);
-  const scopeType = raw.scope_type;
-  const scopeId = asString(raw.scope_id);
-  const contentHash = asString(raw.content_hash);
-  const modelIdentifier = asString(raw.model_identifier);
-  const modelVersion = asString(raw.model_version);
-  const sessionStatus = asChatSessionStatus(raw.session_status);
-  const createdAt = asString(raw.created_at);
-  const updatedAt = asString(raw.updated_at);
-
-  if (
-    !id ||
-    !userId ||
-    !scopeId ||
-    !contentHash ||
-    !modelIdentifier ||
-    !modelVersion ||
-    !sessionStatus ||
-    !createdAt ||
-    !updatedAt ||
-    (scopeType !== "deck" && scopeType !== "folder" && scopeType !== "data_room")
-  ) {
-    return null;
-  }
-
-  return {
-    id,
-    user_id: userId,
-    scope_type: scopeType,
-    scope_id: scopeId,
-    content_hash: contentHash,
-    summary_cache_id: asNullableString(raw.summary_cache_id),
-    model_identifier: modelIdentifier,
-    model_version: modelVersion,
-    session_status: sessionStatus,
-    title: asNullableString(raw.title),
-    last_message_at: asNullableString(raw.last_message_at),
-    closed_at: asNullableString(raw.closed_at),
-    created_at: createdAt,
-    updated_at: updatedAt,
-  };
-};
-
-const asMessageRow = (value: unknown): AiChatMessageRow | null => {
-  const raw = asRecord(value);
-  if (!raw) return null;
-
-  const id = asString(raw.id);
-  const sessionId = asString(raw.session_id);
-  const messageIndex = asInteger(raw.message_index);
-  const role = asChatMessageRole(raw.role);
-  const content = asString(raw.content);
-  const createdAt = asString(raw.created_at);
-
-  if (!id || !sessionId || messageIndex === null || !role || !content || !createdAt) {
-    return null;
-  }
-
-  return {
-    id,
-    session_id: sessionId,
-    message_index: messageIndex,
-    role,
-    content,
-    citations: asObjectArray(raw.citations),
-    retrieval_context: asRetrievedSnippetArray(raw.retrieval_context),
-    token_count: asInteger(raw.token_count),
-    model_identifier: asNullableString(raw.model_identifier),
-    model_version: asNullableString(raw.model_version),
-    created_at: createdAt,
-  };
-};
-
 const normalizeSummaryContext = (
   summaryContext: Partial<AiChatSummaryContext> | null | undefined,
 ): AiChatSummaryContext => ({
@@ -366,135 +250,8 @@ export const serializeAiChatSessionKey = (key: AiChatSessionKey): string =>
     key.model_version,
   ].join(":");
 
-const defaultDependencies: AiChatSessionServiceDependencies = {
-  async getExactSession(key) {
-    const { data, error } = await supabase
-      .from("ai_chat_sessions")
-      .select("*")
-      .eq("user_id", key.user_id)
-      .eq("scope_type", key.scope_type)
-      .eq("scope_id", key.scope_id)
-      .eq("content_hash", key.content_hash)
-      .eq("model_identifier", key.model_identifier)
-      .eq("model_version", key.model_version)
-      .eq("session_status", "active")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) throw error;
-    return asSessionRow(data);
-  },
-
-  async getLatestScopedSession(key) {
-    const { data, error } = await supabase
-      .from("ai_chat_sessions")
-      .select("*")
-      .eq("user_id", key.user_id)
-      .eq("scope_type", key.scope_type)
-      .eq("scope_id", key.scope_id)
-      .eq("model_identifier", key.model_identifier)
-      .eq("model_version", key.model_version)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) throw error;
-    return asSessionRow(data);
-  },
-
-  async closeScopedSessionsForOtherHashes(key) {
-    const { error } = await supabase
-      .from("ai_chat_sessions")
-      .update({
-        session_status: "closed",
-        closed_at: key.closed_at,
-        updated_at: key.closed_at,
-      })
-      .eq("user_id", key.user_id)
-      .eq("scope_type", key.scope_type)
-      .eq("scope_id", key.scope_id)
-      .eq("model_identifier", key.model_identifier)
-      .eq("model_version", key.model_version)
-      .eq("session_status", "active")
-      .neq("content_hash", key.content_hash);
-
-    if (error) throw error;
-  },
-
-  async createSession(input) {
-    const nowIso = input.now.toISOString();
-    const { data, error } = await supabase
-      .from("ai_chat_sessions")
-      .insert({
-        user_id: input.user_id,
-        scope_type: input.scope_type,
-        scope_id: input.scope_id,
-        content_hash: input.content_hash,
-        summary_cache_id: input.summary_cache_id,
-        model_identifier: input.model_identifier,
-        model_version: input.model_version,
-        session_status: "active",
-        title: input.title,
-        created_at: nowIso,
-        updated_at: nowIso,
-      })
-      .select("*")
-      .single();
-
-    if (error) throw error;
-    const row = asSessionRow(data);
-    if (!row) {
-      throw new Error("Failed to persist AI chat session.");
-    }
-
-    return row;
-  },
-
-  async getMessages(session_id) {
-    const { data, error } = await supabase
-      .from("ai_chat_messages")
-      .select("*")
-      .eq("session_id", session_id)
-      .order("message_index", { ascending: true })
-      .order("created_at", { ascending: true });
-
-    if (error) throw error;
-    return ((data ?? []) as unknown[])
-      .map((row) => asMessageRow(row))
-      .filter((row): row is AiChatMessageRow => Boolean(row));
-  },
-
-  async appendMessageAtomically(input) {
-    const { data, error } = await supabase.rpc("append_ai_chat_message", {
-      p_message_id: input.message_id,
-      p_session_id: input.session_id,
-      p_role: input.role,
-      p_content: input.content,
-      p_citations: input.citations,
-      p_retrieval_context: input.retrieval_context,
-      p_token_count: input.token_count,
-      p_model_identifier: input.model_identifier,
-      p_model_version: input.model_version,
-      p_created_at: input.created_at,
-    });
-
-    if (error) throw error;
-    const row = asMessageRow(data);
-    if (!row) {
-      throw new Error("Failed to persist AI chat message.");
-    }
-
-    return row;
-  },
-
-  async retrieveSnippets(request) {
-    return aiRetrievalQueryService.retrieveSnippets(request);
-  },
-};
-
 export const createAiChatSessionService = (
-  dependencies: AiChatSessionServiceDependencies = defaultDependencies,
+  dependencies: AiChatSessionServiceDependencies,
 ) => {
   const service = {
   buildSessionKey(request: {
@@ -521,105 +278,112 @@ export const createAiChatSessionService = (
   async ensureSession(
     request: AiEnsureChatSessionRequest,
   ): Promise<{ session: AiManagedChatSession; summary_context: AiChatSummaryContext }> {
-    return withRetry(async () => {
-      const contentHash = request.content_hash.trim();
-      if (!contentHash) {
-        throw new Error("AI chat sessions require a content hash.");
-      }
+    const contentHash = request.content_hash.trim();
+    if (!contentHash) {
+      throw new Error("AI chat sessions require a content hash.");
+    }
 
-      const modelIdentifier = resolveModelIdentifier(request.model_identifier);
-      const modelVersion = resolveModelVersion(request.model_version);
-      const summaryContext = normalizeSummaryContext(request.summary_context);
-      const key: AiChatSessionKey = {
-        auth_state: request.actor.auth_state,
-        user_id: request.actor.auth_state === "signed_in" ? request.actor.user_id : null,
-        scope_type: request.scope_type,
-        scope_id: request.scope_id,
-        content_hash: contentHash,
-        model_identifier: modelIdentifier,
-        model_version: modelVersion,
-      };
+    const modelIdentifier = resolveModelIdentifier(request.model_identifier);
+    const modelVersion = resolveModelVersion(request.model_version);
+    const summaryContext = normalizeSummaryContext(request.summary_context);
+    const signedInUserId = request.actor.auth_state === "signed_in"
+      ? request.actor.user_id
+      : null;
+    const key: AiChatSessionKey = {
+      auth_state: request.actor.auth_state,
+      user_id: signedInUserId,
+      scope_type: request.scope_type,
+      scope_id: request.scope_id,
+      content_hash: contentHash,
+      model_identifier: modelIdentifier,
+      model_version: modelVersion,
+    };
 
-      if (request.actor.auth_state === "guest") {
-        return {
-          session: buildManagedSession(null, key, {
-            summary_cache_id: summaryContext.summary_cache_id,
-            title: request.title?.trim() || null,
-            persistence: "ephemeral",
-            reused: false,
-            transition: "guest_locked",
-          }),
-          summary_context: summaryContext,
-        };
-      }
-
-      const exactSession = await dependencies.getExactSession(key);
-      if (exactSession) {
-        return {
-          session: buildManagedSession(exactSession, key, {
-            summary_cache_id: summaryContext.summary_cache_id ?? exactSession.summary_cache_id,
-            title: request.title?.trim() || exactSession.title,
-            persistence: "database",
-            reused: true,
-            transition: "reused_existing",
-          }),
-          summary_context: {
-            ...summaryContext,
-            summary_cache_id: summaryContext.summary_cache_id ?? exactSession.summary_cache_id,
-          },
-        };
-      }
-
-      const latestSession = await dependencies.getLatestScopedSession({
-        auth_state: "signed_in",
-        user_id: request.actor.user_id,
-        scope_type: request.scope_type,
-        scope_id: request.scope_id,
-        model_identifier: modelIdentifier,
-        model_version: modelVersion,
-      });
-      const hashChanged = Boolean(latestSession && latestSession.content_hash !== contentHash);
-      const now = request.now ?? new Date();
-
-      if (hashChanged) {
-        await dependencies.closeScopedSessionsForOtherHashes({
-          user_id: request.actor.user_id,
-          scope_type: request.scope_type,
-          scope_id: request.scope_id,
-          content_hash: contentHash,
-          model_identifier: modelIdentifier,
-          model_version: modelVersion,
-          closed_at: now.toISOString(),
-        });
-      }
-
-      const createdSession = await dependencies.createSession({
-        user_id: request.actor.user_id,
-        scope_type: request.scope_type,
-        scope_id: request.scope_id,
-        content_hash: contentHash,
-        summary_cache_id: summaryContext.summary_cache_id,
-        model_identifier: modelIdentifier,
-        model_version: modelVersion,
-        title: request.title?.trim() || latestSession?.title || null,
-        now,
-      });
-
+    if (request.actor.auth_state === "guest") {
       return {
-        session: buildManagedSession(createdSession, key, {
-          summary_cache_id: summaryContext.summary_cache_id ?? createdSession.summary_cache_id,
-          title: createdSession.title,
-          persistence: "database",
+        session: buildManagedSession(null, key, {
+          summary_cache_id: summaryContext.summary_cache_id,
+          title: request.title?.trim() || null,
+          persistence: "ephemeral",
           reused: false,
-          transition: hashChanged
-            ? request.hash_change_strategy === "reset"
-              ? "reset_for_hash"
-              : "forked_for_hash"
-            : "created_new",
+          transition: "guest_locked",
         }),
         summary_context: summaryContext,
       };
+    }
+
+    const exactSession = await withRetry(async () => dependencies.getExactSession(key));
+    if (exactSession) {
+      return {
+        session: buildManagedSession(exactSession, key, {
+          summary_cache_id: summaryContext.summary_cache_id ?? exactSession.summary_cache_id,
+          title: request.title?.trim() || exactSession.title,
+          persistence: "database",
+          reused: true,
+          transition: "reused_existing",
+        }),
+        summary_context: {
+          ...summaryContext,
+          summary_cache_id: summaryContext.summary_cache_id ?? exactSession.summary_cache_id,
+        },
+      };
+    }
+
+    if (!signedInUserId) {
+      throw new Error("AI chat sessions require a signed-in user.");
+    }
+
+    const latestSession = await withRetry(async () =>
+      dependencies.getLatestScopedSession({
+        auth_state: "signed_in",
+        user_id: signedInUserId,
+        scope_type: request.scope_type,
+        scope_id: request.scope_id,
+        model_identifier: modelIdentifier,
+        model_version: modelVersion,
+      }),
+    );
+    const hashChanged = Boolean(latestSession && latestSession.content_hash !== contentHash);
+    const now = request.now ?? new Date();
+
+    if (hashChanged) {
+      await dependencies.closeScopedSessionsForOtherHashes({
+        user_id: signedInUserId,
+        scope_type: request.scope_type,
+        scope_id: request.scope_id,
+        content_hash: contentHash,
+        model_identifier: modelIdentifier,
+        model_version: modelVersion,
+        closed_at: now.toISOString(),
+      });
+    }
+
+    const createdSession = await dependencies.createSession({
+      user_id: signedInUserId,
+      scope_type: request.scope_type,
+      scope_id: request.scope_id,
+      content_hash: contentHash,
+      summary_cache_id: summaryContext.summary_cache_id,
+      model_identifier: modelIdentifier,
+      model_version: modelVersion,
+      title: request.title?.trim() || latestSession?.title || null,
+      now,
     });
+
+    return {
+      session: buildManagedSession(createdSession, key, {
+        summary_cache_id: summaryContext.summary_cache_id ?? createdSession.summary_cache_id,
+        title: createdSession.title,
+        persistence: "database",
+        reused: false,
+        transition: hashChanged
+          ? request.hash_change_strategy === "reset"
+            ? "reset_for_hash"
+            : "forked_for_hash"
+          : "created_new",
+      }),
+      summary_context: summaryContext,
+    };
   },
 
   async listMessages(session_id: string): Promise<AiChatMessageRow[]> {
@@ -708,5 +472,3 @@ export const createAiChatSessionService = (
 
   return service;
 };
-
-export const aiChatSessionService = createAiChatSessionService();

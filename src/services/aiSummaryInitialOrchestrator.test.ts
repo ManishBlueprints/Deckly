@@ -199,6 +199,85 @@ describe("aiSummaryInitialOrchestrator", () => {
     expect(generateSummary).not.toHaveBeenCalled();
   });
 
+  it("records usage for fresh chargeable no-content summaries", async () => {
+    const writeCache = vi.fn().mockResolvedValue(
+      createCacheLookup({
+        state: "no_content",
+        cached_reopen: false,
+        should_regenerate: false,
+        summary_text: null,
+        summary_metadata: { generation_mode: "no_content" },
+        cache_row: {
+          id: "cache-empty",
+          scope_type: "deck",
+          scope_id: "deck-1",
+          content_hash: "no-content-hash",
+          model_identifier: "gpt-4o-mini",
+          model_version: "v1",
+          status: "no_content",
+          summary_text: null,
+          summary_metadata: { generation_mode: "no_content" },
+          error_message: null,
+          expires_at: "2026-05-03T12:00:00.000Z",
+          generated_at: "2026-05-02T12:00:00.000Z",
+          last_accessed_at: null,
+          created_at: "2026-05-02T12:00:00.000Z",
+          updated_at: "2026-05-02T12:00:00.000Z",
+        },
+      }),
+    );
+    const recordUsage = vi.fn().mockResolvedValue(undefined);
+
+    const orchestrator = createAiSummaryInitialOrchestrator({
+      resolveScope: vi.fn(async () =>
+        createResolution({
+          content_hash: null,
+          normalized_content: "",
+          included_sources: [],
+          metadata: {
+            scope_type: "deck",
+            scope_id: "deck-1",
+            scope_label: "Deck One",
+            partial_data: false,
+            no_content: true,
+            no_content_reason: "unsupported_files_only",
+            total_sources: 1,
+            included_sources: 0,
+            excluded_sources: 1,
+            unsupported_sources: 1,
+            missing_text_sources: 0,
+          },
+        }),
+      ),
+      lookupCache: vi.fn(async () => createCacheLookup({ state: "miss" })),
+      claimCache: vi.fn(),
+      writeCache,
+      getUsageCount: vi.fn(async () => 0),
+      generateSummary: vi.fn(),
+      recordUsage,
+    });
+
+    const result = await orchestrator.summarize({
+      scope_type: "deck",
+      scope_id: "deck-1",
+      actor: {
+        type: "signed_in",
+        user_id: "user-1",
+        tier: "FREE",
+      },
+      now: new Date("2026-05-02T12:00:00.000Z"),
+    });
+
+    expect(result.status).toBe("no_content");
+    expect(recordUsage).toHaveBeenCalledTimes(1);
+    expect(result.usage.quota).toMatchObject({
+      allowed: true,
+      chargeable: true,
+      reason: "allowed",
+    });
+    expect(result.usage.usage_count).toBe(1);
+  });
+
   it("blocks fresh no-content results when quota is exhausted", async () => {
     const writeCache = vi.fn();
     const generateSummary = vi.fn();
@@ -444,6 +523,38 @@ describe("aiSummaryInitialOrchestrator", () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+
+  it("preserves the original generation error when error-cache write fails", async () => {
+    const writeCache = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("error cache write failed"));
+
+    const orchestrator = createAiSummaryInitialOrchestrator({
+      resolveScope: vi.fn(async () => createResolution()),
+      lookupCache: vi.fn(async () => createCacheLookup({ state: "miss" })),
+      claimCache: vi.fn(async () => true),
+      writeCache,
+      getUsageCount: vi.fn(async () => 0),
+      generateSummary: vi.fn(async () => {
+        throw new Error("generation failed");
+      }),
+    });
+
+    await expect(
+      orchestrator.summarize({
+        scope_type: "deck",
+        scope_id: "deck-1",
+        actor: {
+          type: "signed_in",
+          user_id: "user-1",
+          tier: "FREE",
+        },
+        now: new Date("2026-05-02T12:00:00.000Z"),
+      }),
+    ).rejects.toThrow("generation failed");
+
+    expect(writeCache).toHaveBeenCalledTimes(1);
   });
 
   it("returns generating when another worker already claimed the cache row", async () => {
