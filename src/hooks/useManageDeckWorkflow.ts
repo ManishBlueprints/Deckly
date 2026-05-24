@@ -3,6 +3,7 @@ import { useCallback, useEffect } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { deckService } from "../services/deckService";
 import { deckStorageService } from "../services/deckStorageService";
+import { storageService } from "../services/storageService";
 import { supabase } from "../services/supabase";
 import { userService } from "../services/userService";
 import { dataRoomService } from "../services/dataRoomService";
@@ -226,9 +227,7 @@ export function useManageDeckWorkflow({
         setProgressPercent(95);
         const tempPath = `${userId}/temp/${targetDeckId}.pdf`;
         try {
-          const { error: cleanupError } = await supabase.storage
-            .from("decks")
-            .remove([tempPath]);
+          const { error: cleanupError } = await storageService.remove("decks", [tempPath]);
           if (cleanupError) {
             console.warn(
               `[WARNING] Cleanup failed for ${tempPath}:`,
@@ -347,21 +346,8 @@ export function useManageDeckWorkflow({
         if (file) {
           setProgress("Uploading document...");
           setProgressPercent(5);
-          const fileExt = file.name.includes(".")
-            ? file.name.split(".").pop()
-            : "";
-          const fileName = `${userId}/decks/${slug}-${Date.now()}${
-            fileExt ? "." + fileExt : ""
-          }`;
-          const { error: uploadError } = await supabase.storage
-            .from("decks")
-            .upload(fileName, file);
-          if (uploadError) throw uploadError;
-
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from("decks").getPublicUrl(fileName);
-          finalFileUrl = publicUrl;
+          const upload = await deckStorageService.uploadDeckFile(file, slug, userId);
+          finalFileUrl = upload.publicUrl;
 
           if (editId && existingDeck) {
              const previousPages = existingDeck.pages || [];
@@ -412,6 +398,7 @@ export function useManageDeckWorkflow({
             display_mode: existingDeck?.display_mode,
             file_size: existingDeck?.file_size,
             file_type: existingDeck?.file_type,
+            extracted_text: existingDeck?.extracted_text ?? null,
             require_email: existingDeck?.require_email,
             require_password: existingDeck?.require_password,
             view_password: existingDeck?.view_password,
@@ -429,6 +416,7 @@ export function useManageDeckWorkflow({
               display_mode: conversionMode,
               file_size: file ? file.size : existingDeck?.file_size,
               file_type: finalFileType,
+              ...(file ? { extracted_text: null } : {}),
               require_email: requireEmail,
               require_password: requirePassword,
               view_password: finalViewPassword,
@@ -479,7 +467,7 @@ export function useManageDeckWorkflow({
                   .filter((path): path is string => !!path);
 
                 if (paths.length > 0) {
-                  await supabase.storage.from("decks").remove(paths).catch(
+                  await storageService.remove("decks", paths).catch(
                     (err) =>
                       console.error(
                         "Storage cleanup failed during rollback:",
@@ -492,7 +480,7 @@ export function useManageDeckWorkflow({
               if (finalFileUrl && finalFileUrl !== previousValues.file_url) {
                 const newDocPath = extractStoragePath(finalFileUrl, "decks");
                 if (newDocPath) {
-                  await supabase.storage.from("decks").remove([newDocPath])
+                  await storageService.remove("decks", [newDocPath])
                     .catch(
                       (err) =>
                         console.error(
@@ -514,6 +502,7 @@ export function useManageDeckWorkflow({
                   display_mode: previousValues.display_mode,
                   file_size: previousValues.file_size,
                   file_type: previousValues.file_type,
+                  extracted_text: previousValues.extracted_text,
                   require_email: previousValues.require_email,
                   require_password: previousValues.require_password,
                   view_password: previousValues.view_password,

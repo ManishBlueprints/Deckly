@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { extractStoragePath } from "../../../src/services/storagePaths.ts";
+import { createSignedUrls } from "../_shared/r2.ts";
 
 /**
  * sign-deck-url
@@ -113,9 +115,8 @@ Deno.serve(async (req: Request) => {
           (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
             const url = typeof page === 'string' ? page : page.image_url;
             if (url && typeof url === 'string') {
-              // Match all supported storage URL variants: /public/, /sign/, /authenticated/
-              const match = url.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/decks\/(.+)/);
-              if (match) validPaths.add(match[1]);
+              const path = extractStoragePath(url, "decks");
+              if (path) validPaths.add(path);
             }
           });
         });
@@ -150,9 +151,8 @@ Deno.serve(async (req: Request) => {
         (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
           const url = typeof page === 'string' ? page : page.image_url;
           if (url && typeof url === 'string') {
-            // Match all supported storage URL variants: /public/, /sign/, /authenticated/
-            const match = url.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/decks\/(.+)/);
-            if (match) validPaths.add(match[1]);
+            const path = extractStoragePath(url, "decks");
+            if (path) validPaths.add(path);
           }
         });
       }
@@ -200,58 +200,13 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "No valid paths to sign" }), { status: 400, headers: { "Content-Type": "application/json" } });
     }
 
-    const supabaseSecretKey = Deno.env.get("PROJECT_SECRET_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    if (!supabaseSecretKey) {
-      console.error("Missing PROJECT_SECRET_KEY");
-      return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    const adminClient = createClient(supabaseUrl, supabaseSecretKey);
     const EXPIRES_IN_SECONDS = 21600; // 6 hours
+    const signedData = await createSignedUrls("decks", finalRequestedPaths, EXPIRES_IN_SECONDS);
 
-    // Using plural createSignedUrls for better efficiency
-    const { data: signedData, error: signError } = await adminClient.storage
-      .from("decks")
-      .createSignedUrls(finalRequestedPaths, EXPIRES_IN_SECONDS);
-
-    if (signError || !signedData) {
-      console.error("Failed to create signed URLs", signError);
-      return new Response(
-        JSON.stringify({ error: "Failed to generate signed URLs" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    const transformUrl = (url: string | null | undefined) => {
-      if (!url) return url;
-      try {
-        const urlObj = new URL(url);
-        const isInternalHost = urlObj.hostname === "kong" || 
-                              urlObj.hostname.includes("supabase_") || 
-                              urlObj.hostname.includes("storage");
-
-        if (isInternalHost || supabaseUrl.includes("127.0.0.1") || supabaseUrl.includes("localhost") || supabaseUrl.includes("kong")) {
-          const original = url;
-          urlObj.protocol = "http:";
-          urlObj.hostname = "localhost";
-          urlObj.port = "54321";
-          const transformed = urlObj.toString();
-          console.log(`[Local Rewrite] ${original} -> ${transformed}`);
-          return transformed;
-        }
-      } catch (e) {
-        console.error("Failed to parse signed URL:", e);
-      }
-      return url;
-    };
-
-    const signedMain = storagePath ? transformUrl(signedData.find(d => d.path === storagePath)?.signedUrl) : null;
+    const signedMain = storagePath ? signedData.find((d) => d.path === storagePath)?.signedUrl ?? null : null;
     const signedImages = (image_paths as string[]).map((path: string) => ({
       path,
-      signedUrl: transformUrl(signedData.find(d => d.path === path)?.signedUrl) || null,
+      signedUrl: signedData.find((d) => d.path === path)?.signedUrl || null,
     }));
 
     return new Response(

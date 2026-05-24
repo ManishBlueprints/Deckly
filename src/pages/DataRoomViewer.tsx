@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -9,11 +9,14 @@ import {
   Check,
   FileText,
   MessageSquareText,
+  Sparkles,
 } from "lucide-react";
 import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
 import DeckViewer from "../components/viewer/DeckViewer";
 import AccessGate from "../components/viewer/AccessGate";
 import { AuthModal } from "../components/auth/AuthModal";
+import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
+import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { DataRoomSidebar } from "../components/viewer/DataRoomSidebar";
 import { buildDataRoomSidebarSections } from "../components/viewer/dataRoomSidebarUtils";
 import { RoomNotesSidebar } from "../components/viewer/RoomNotesSidebar";
@@ -23,7 +26,9 @@ import { dataRoomLibraryService } from "../services/dataRoomLibraryService";
 import { analyticsService } from "../services/analyticsService";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { DataRoom, DataRoomDocument, Deck } from "../types";
+import type { Tier } from "../constants/tiers";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -33,7 +38,8 @@ import {
 
 function DataRoomViewer() {
   const { handle, slug } = useParams<{ handle: string; slug: string }>();
-  const { session } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { session, profile } = useAuth();
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
   const [folderGroups, setFolderGroups] = useState<{ id: string; name: string }[]>([]);
@@ -45,12 +51,22 @@ function DataRoomViewer() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMessage, setAuthModalMessage] = useState<string | undefined>();
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"save" | "notes" | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const { data: isSaved = false } = useIsDataRoomSaved(room?.id, session?.user?.id);
   const saveToLibraryMutation = useSaveDataRoomToLibraryMutation(session?.user?.id);
+  const aiSummary = useAiSummaryPanel({
+    onRequireAuth: () => {
+      setAuthModalMessage("Sign in to keep chatting with the AI summary.");
+      setShowAuthModal(true);
+    },
+    isGuest: !session,
+    tier: (profile?.tier as Tier) || "FREE",
+  });
 
   // Handle responsive sidebar and screen size
   useEffect(() => {
@@ -289,6 +305,58 @@ function DataRoomViewer() {
     setIsNotesOpen(true);
   }, [room, session]);
 
+  const handleSummarizeSelectedDeck = useCallback(async () => {
+    if (!selectedDeck) return;
+
+    try {
+      const result = await aiSummary.requestSummary({
+        scope_type: "deck",
+        scope_id: selectedDeck.id,
+        scope_label: selectedDeck.title,
+      });
+      if (!result) return;
+
+      if (result.status === "quota_limited") {
+        if (result.usage.quota?.scope === "guest") {
+          setAuthModalMessage(
+            "You’ve used today’s AI summary from this device. Sign in to keep exploring and unlock more summaries.",
+          );
+          setShowAuthModal(true);
+        } else if (result.usage.quota?.nextAction === "upgrade") {
+          setShowUpgradeModal(true);
+        }
+      }
+    } catch (error) {
+      const status = (error as { status?: number } | undefined)?.status;
+      if (status === 401 || status === 403) {
+        setAuthModalMessage("Sign in to keep chatting with the AI summary.");
+        setShowAuthModal(true);
+        return;
+      }
+
+      console.error("Failed to load AI summary", error);
+      toast.error("Failed to load the AI summary. Please try again.");
+    }
+  }, [aiSummary, selectedDeck]);
+
+  useEffect(() => {
+    if (!isUnlocked || !selectedDeck) return;
+    if (searchParams.get("ai") !== "summary") return;
+
+    void handleSummarizeSelectedDeck();
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("ai");
+      return next;
+    }, { replace: true });
+  }, [
+    handleSummarizeSelectedDeck,
+    isUnlocked,
+    searchParams,
+    selectedDeck,
+    setSearchParams,
+  ]);
+
   const sidebarSections = useMemo(
     () => buildDataRoomSidebarSections(documents, folderGroups),
     [documents, folderGroups],
@@ -477,6 +545,15 @@ function DataRoomViewer() {
                 <MessageSquareText size={16} />
                 <span className="text-xs font-semibold">Notes</span>
               </button>
+
+              <button
+                onClick={() => void handleSummarizeSelectedDeck()}
+                disabled={!selectedDeck}
+                className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-deckly-primary/20 text-deckly-primary hover:text-white hover:border-deckly-primary/40 transition-all rounded-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Sparkles size={16} />
+                <span className="text-xs font-semibold">Summarize</span>
+              </button>
             </div>
 
               <div className="flex-1 w-full h-full relative">
@@ -507,9 +584,42 @@ function DataRoomViewer() {
 
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        message="Sign up to save rooms or keep private room notes."
+        onClose={() => {
+          setShowAuthModal(false);
+          setAuthModalMessage(undefined);
+        }}
+        message={authModalMessage ?? "Sign up to save rooms or keep private room notes."}
         redirectTo={window.location.href}
+      />
+
+      <AiSummarySidebar
+        isOpen={aiSummary.state.isOpen}
+        onClose={aiSummary.close}
+        onRequireAuth={() => {
+          setAuthModalMessage("Sign in to unlock AI follow-up chat.");
+          setShowAuthModal(true);
+        }}
+        title="AI Summary"
+        privacyLabel={session ? "Signed-in view" : "Investor view"}
+        description="Quick overview plus follow-up chat for the selected deck."
+        summary={aiSummary.state.summary}
+        isSummaryLoading={aiSummary.state.isSummaryLoading}
+        summaryEmptyMessage="Summary will appear here when available."
+        summaryMeta={aiSummary.state.summaryMeta}
+        summaryNotice={aiSummary.state.summaryNotice}
+        summaryNoticeTone={aiSummary.state.summaryNoticeTone}
+        chatMessages={aiSummary.state.chatMessages}
+        chatInputValue={aiSummary.state.chatInputValue}
+        onChatInputChange={aiSummary.setChatInputValue}
+        onChatSubmit={aiSummary.submitChat}
+        isChatLoading={aiSummary.state.isChatLoading}
+        isChatLocked={aiSummary.state.isChatLocked}
+      />
+
+      <TierUpsellModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureName="AI summaries"
       />
 
       {room && (

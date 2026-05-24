@@ -1,5 +1,5 @@
-import { supabase } from "./supabase";
-import { getRequiredSessionUserId, getSessionUserId } from "./authSession";
+import { supabase } from "./supabase.ts";
+import { getRequiredSessionUserId, getSessionUserId } from "./authSession.ts";
 import {
   DataRoom,
   DataRoomDocument,
@@ -7,8 +7,9 @@ import {
   DataRoomTag,
   Deck,
 } from "../types";
-import { withRetry } from "../utils/resilience";
-import { extractStoragePath } from "./deckService.shared";
+import { withRetry } from "../utils/resilience.ts";
+import { storageService } from "./storageService.ts";
+import { extractStoragePath } from "./deckService.shared.ts";
 
 const normalizeDataRoomTag = (
   tag: DataRoomTag | null | undefined,
@@ -283,9 +284,11 @@ export const dataRoomService = {
         });
 
         if (allPaths.length > 0) {
-          const { data: signedUrls, error: signError } = await supabase.storage
-            .from("decks")
-            .createSignedUrls(allPaths, 3600);
+          const { data: signedUrls, error: signError } = await storageService.createSignedUrls(
+            "decks",
+            allPaths,
+            3600,
+          );
           
           if (signError) {
             console.error("[dataRoomService] Failed to sign URLs for owner:", signError);
@@ -381,14 +384,11 @@ export const dataRoomService = {
     const fileExt = file.name.split(".").pop();
     const fileName = `${userId}/room-icons/icon-${Date.now()}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("assets")
-      .upload(fileName, file);
+    const { error: uploadError } = await storageService.upload("assets", fileName, file);
 
     if (uploadError) throw uploadError;
 
-    const { data } = supabase.storage.from("assets").getPublicUrl(fileName);
-    return data.publicUrl;
+    return storageService.getPublicUrl("assets", fileName);
   },
 
   // ── ANALYTICS DASHBOARD ───────────────────────────────────────────

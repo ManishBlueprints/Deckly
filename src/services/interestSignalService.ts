@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase } from "./supabase.ts";
 
 // Signal labels — neutral, factual language
 export type SignalLabel =

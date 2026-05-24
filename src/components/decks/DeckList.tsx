@@ -14,9 +14,12 @@ import {
   RotateCcw,
   LogOut,
   BarChart3,
+  Sparkles,
 } from "lucide-react";
 import { deckService } from "../../services/deckService";
+import { storageService } from "../../services/storageService";
 import { supabase } from "../../services/supabase";
+import { extractStoragePath } from "../../services/storagePaths";
 import defaultBanner from "../../assets/banner.png";
 import AnalyticsModal from "../dashboard/AnalyticsModal";
 import DeckDetailPanel from "./DeckDetailPanel";
@@ -71,6 +74,8 @@ function DeckList({
   const { profile, isPro } = useAuth();
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [signedBanner, setSignedBanner] = useState<string | null>(null);
+  const bannerBackground =
+    signedBanner || (branding.banner_url?.startsWith("http") ? branding.banner_url : defaultBanner);
 
   useEffect(() => {
     setBranding(initialBranding);
@@ -92,11 +97,8 @@ function DeckList({
         //    Run this regardless of whether decks is empty — the banner
         //    belongs to the owner's branding and should always be resolved.
         //    Handle all supported storage URL variants: /public/, /sign/, /authenticated/
-        const bannerMatch = initialBranding.banner_url?.match(
-          /\/storage\/v1\/object\/(?:public|sign|authenticated)\/decks\/(.+)/,
-        );
-        if (bannerMatch) {
-          const bannerPath = bannerMatch[1];
+        const bannerPath = extractStoragePath(initialBranding.banner_url, "decks");
+        if (bannerPath) {
           // Pass the current session token so the Edge Function can exercise
           // owner-mode auth and sign private-bucket paths.
           const {
@@ -195,22 +197,19 @@ function DeckList({
         lastDotIndex !== -1 ? file.name.slice(lastDotIndex + 1) : "";
       const fileName = `${userId}/branding/banner-${Date.now()}${fileExt ? `.${fileExt}` : ""}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("decks")
-        .upload(fileName, file, { cacheControl: "3600", upsert: true });
+      const { error: uploadError } = await storageService.upload("decks", fileName, file, {
+        upsert: true,
+      });
 
       if (uploadError) throw uploadError;
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("decks").getPublicUrl(fileName);
-
       await deckService.updateBrandingSettings(
-        { banner_url: publicUrl },
+        { banner_url: storageService.getPublicUrl("decks", fileName) },
         profile?.id,
       );
-      setBranding((prev) => ({ ...prev, banner_url: publicUrl }));
-      onBrandingUpdate({ banner_url: publicUrl });
+      const bannerUrl = storageService.getPublicUrl("decks", fileName);
+      setBranding((prev) => ({ ...prev, banner_url: bannerUrl }));
+      onBrandingUpdate({ banner_url: bannerUrl });
     } catch (err: unknown) {
       setError(
         "Failed to upload banner: " +
@@ -251,7 +250,7 @@ function DeckList({
       <header
         className="relative w-full h-[300px] flex items-center justify-center text-center border-b border-white/5"
         style={{
-          backgroundImage: `url(${signedBanner || branding.banner_url || defaultBanner})`,
+          backgroundImage: `url(${bannerBackground})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -639,6 +638,25 @@ function DeckList({
                           title="Manage Links"
                         >
                           <Share2
+                            size={18}
+                            strokeWidth={3}
+                            className="text-white flex-shrink-0"
+                          />
+                        </ActionButton>
+                        <ActionButton
+                          onClick={(e: React.MouseEvent) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.open(
+                              `${getDeckPreviewPath(deck.id)}?ai=summary`,
+                              "_blank",
+                              "noopener,noreferrer",
+                            );
+                          }}
+                          title="Summarize with AI"
+                          color="secondary"
+                        >
+                          <Sparkles
                             size={18}
                             strokeWidth={3}
                             className="text-white flex-shrink-0"

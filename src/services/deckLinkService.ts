@@ -1,10 +1,10 @@
 import { DeckLink } from "../types";
-import { getDeckLinkShareUrl } from "../utils/url";
-import { normalizeSlug } from "../utils/slug";
-import { supabase } from "./supabase";
-import { getRequiredDeckUserId } from "./deckService.shared";
-import { userService } from "./userService";
-import { withRetry } from "../utils/resilience";
+import { getDeckLinkShareUrl } from "../utils/url.ts";
+import { normalizeSlug } from "../utils/slug.ts";
+import { supabase } from "./supabase.ts";
+import { getRequiredDeckUserId } from "./deckService.shared.ts";
+import { userService } from "./userService.ts";
+import { withRetry } from "../utils/resilience.ts";
 
 type DeckOwnerMeta = {
   deckId: string;

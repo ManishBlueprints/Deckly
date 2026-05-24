@@ -1,7 +1,8 @@
-import { supabase } from "./supabase";
+import { supabase } from "./supabase.ts";
 import { BrandingSettings } from "../types";
-import { withRetry } from "../utils/resilience";
-import { extractStoragePath, getRequiredDeckUserId } from "./deckService.shared";
+import { withRetry } from "../utils/resilience.ts";
+import { extractStoragePath, getRequiredDeckUserId } from "./deckService.shared.ts";
+import { storageService } from "./storageService.ts";
 
 const ALLOWED_LOGO_MIME_TYPES = new Set([
   "image/png",
@@ -102,15 +103,11 @@ export const deckBrandingService = {
     const oldLogoUrl = currentBranding?.logo_url;
 
     // 2. Upload new logo
-    const { error: uploadError } = await supabase.storage
-      .from("assets")
-      .upload(fileName, file);
+    const { error: uploadError } = await storageService.upload("assets", fileName, file);
 
     if (uploadError) throw uploadError;
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("assets").getPublicUrl(fileName);
+    const publicUrl = storageService.getPublicUrl("assets", fileName);
 
     // 3. Update branding record atomically
     const { error: updateError } = await supabase
@@ -131,9 +128,10 @@ export const deckBrandingService = {
       );
       // Cleanup the newly uploaded file to avoid an orphan asset in storage
       if (fileName) {
-        await supabase.storage.from("assets").remove([fileName]).catch((err) =>
-          console.warn("Failed to clean up newly uploaded logo on DB error:", err)
-        );
+        const { error: cleanupError } = await storageService.remove("assets", [fileName]);
+        if (cleanupError) {
+          console.warn("Failed to clean up newly uploaded logo on DB error:", cleanupError);
+        }
       }
       throw updateError;
     }
@@ -143,9 +141,7 @@ export const deckBrandingService = {
       const oldPath = extractStoragePath(oldLogoUrl, "assets");
 
       if (oldPath && oldPath.startsWith(`${userId}/branding/logo-`)) {
-        const { error: removeError } = await supabase.storage
-          .from("assets")
-          .remove([oldPath]);
+        const { error: removeError } = await storageService.remove("assets", [oldPath]);
 
         if (removeError) {
           console.warn("Failed to clean up specific old logo asset:", {

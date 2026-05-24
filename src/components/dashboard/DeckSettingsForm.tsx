@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { deckService } from "../../services/deckService";
 import { deckStorageService } from "../../services/deckStorageService";
+import { storageService } from "../../services/storageService";
 import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
 import { normalizeSlug } from "../../utils/slug";
@@ -116,25 +117,16 @@ export function DeckSettingsForm({
 
       if (newFile) {
         setUploadProgress("Uploading source...");
-        const fileExt = newFile.name.split(".").pop();
-        uploadedFileName = `${userId}/decks/${slug}-${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from("decks")
-          .upload(uploadedFileName, newFile);
-        if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("decks").getPublicUrl(uploadedFileName);
-        finalFileUrl = publicUrl;
+        const upload = await deckStorageService.uploadDeckFile(newFile, slug, userId);
+        uploadedFileName = upload.fileName;
+        finalFileUrl = upload.publicUrl;
         fileSize = newFile.size;
 
         const imageAssets = await processUploadedPdf(newFile);
         if (!imageAssets) {
           // Clean up the orphaned uploaded source file before aborting
-          await supabase.storage
-            .from("decks")
-            .remove([uploadedFileName])
+          await storageService
+            .remove("decks", [uploadedFileName])
             .catch((err) =>
               console.error(
                 "Failed to remove orphaned upload after PDF processing failure:",
@@ -168,6 +160,7 @@ export function DeckSettingsForm({
         file_url: finalFileUrl,
         pages: finalPages,
         file_size: fileSize,
+        ...(newFile ? { extracted_text: null } : {}),
         require_email: requireEmail,
         require_password: requirePassword,
         view_password: finalViewPassword ?? undefined,
@@ -184,9 +177,8 @@ export function DeckSettingsForm({
       if (newFile && deck.file_url) {
         const prevDocPath = extractStoragePath(deck.file_url, "decks");
         if (prevDocPath && prevDocPath !== uploadedFileName) {
-          await supabase.storage
-            .from("decks")
-            .remove([prevDocPath])
+          await storageService
+            .remove("decks", [prevDocPath])
             .catch((cleanupErr) =>
               console.warn("Failed to clean up old document:", cleanupErr),
             );
@@ -226,9 +218,8 @@ export function DeckSettingsForm({
       console.error("Sync error:", err);
       // Clean up the uploaded source file if a post-upload step failed
       if (uploadedFileName) {
-        await supabase.storage
-          .from("decks")
-          .remove([uploadedFileName])
+        await storageService
+          .remove("decks", [uploadedFileName])
           .catch((removeErr) =>
             console.error(
               "Failed to remove orphaned upload during error recovery:",

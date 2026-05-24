@@ -15,8 +15,8 @@ import {
   BarChart3,
 } from "lucide-react";
 import { deckService } from "../../services/deckService";
+import { deckStorageService } from "../../services/deckStorageService";
 import { analyticsService } from "../../services/analyticsService";
-import { supabase } from "../../services/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -187,17 +187,8 @@ function DeckDetailPanel({
 
       if (newFile) {
         setUploadProgress("Uploading new PDF...");
-        const fileExt = newFile.name.split(".").pop();
-        const fileName = `${userId}/decks/${editValues.slug}-${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from("decks")
-          .upload(fileName, newFile);
-        if (uploadError) throw uploadError;
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("decks").getPublicUrl(fileName);
-        finalFileUrl = publicUrl;
+        const upload = await deckStorageService.uploadDeckFile(newFile, editValues.slug, userId);
+        finalFileUrl = upload.publicUrl;
         fileSize = newFile.size;
 
         const imageBlobs = await processPdfToImages(newFile);
@@ -219,6 +210,7 @@ function DeckDetailPanel({
         file_url: finalFileUrl,
         pages: finalPages,
         file_size: fileSize,
+        ...(newFile ? { extracted_text: null } : {}),
         require_email: requireEmail,
         require_password: requirePassword,
         view_password: finalViewPassword ?? undefined,

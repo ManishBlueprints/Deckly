@@ -1,7 +1,7 @@
-import { supabase } from "./supabase";
+import { supabase } from "./supabase.ts";
 import { UserProfile } from "../types";
-import { withRetry } from "../utils/resilience";
-import { normalizeHandle } from "../utils/slug";
+import { withRetry } from "../utils/resilience.ts";
+import { normalizeHandle } from "../utils/slug.ts";
 
 export const userService = {
   async getProfile(userId: string): Promise<UserProfile | null> {

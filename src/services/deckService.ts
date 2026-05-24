@@ -1,12 +1,12 @@
-import { supabase } from "./supabase";
-import { deckBrandingService } from "./deckBrandingService";
-import { deckLibraryService } from "./deckLibraryService";
-import { deckStorageService } from "./deckStorageService";
+import { supabase } from "./supabase.ts";
+import { deckBrandingService } from "./deckBrandingService.ts";
+import { deckLibraryService } from "./deckLibraryService.ts";
+import { deckStorageService } from "./deckStorageService.ts";
 import {
   getDeckSession,
   getRequiredDeckUserId,
   extractStoragePath,
-} from "./deckService.shared";
+} from "./deckService.shared.ts";
 import {
   BrandingSettings,
   Deck,
@@ -15,8 +15,9 @@ import {
   SavedDeck,
   SlidePage,
 } from "../types";
-import { globalTagService } from "./globalTagService";
-import { withRetry } from "../utils/resilience";
+import { globalTagService } from "./globalTagService.ts";
+import { withRetry } from "../utils/resilience.ts";
+import { storageService } from "./storageService.ts";
 
 const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | null => {
   if (!tag) return null;
@@ -44,9 +45,11 @@ const hydrateSignedDeckUrls = async (decks: Deck[]): Promise<Deck[]> => {
     return decks;
   }
 
-  const { data: signedData, error: signError } = await supabase.storage
-    .from("decks")
-    .createSignedUrls(Array.from(pathsToSign), 3600);
+  const { data: signedData, error: signError } = await storageService.createSignedUrls(
+    "decks",
+    Array.from(pathsToSign),
+    3600,
+  );
 
   if (signError || !signedData) {
     return decks;

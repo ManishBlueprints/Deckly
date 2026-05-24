@@ -13,6 +13,7 @@ interface DataRoomFolderStripProps {
   onEditFolder: (folder: DataRoomFolderWithTags) => void;
   onUpdateFolderTags: (folder: DataRoomFolderWithTags, tagIds: string[]) => Promise<void> | void;
   onDeleteFolder: (folder: DataRoomFolderWithTags) => void;
+  onSummarizeFolder: (folder: DataRoomFolderWithTags) => void;
 }
 
 export function DataRoomFolderStrip({
@@ -26,6 +27,7 @@ export function DataRoomFolderStrip({
   onEditFolder,
   onUpdateFolderTags,
   onDeleteFolder,
+  onSummarizeFolder,
 }: DataRoomFolderStripProps) {
   return (
     <div className="space-y-4">
@@ -56,6 +58,7 @@ export function DataRoomFolderStrip({
               }
               onEdit={onEditFolder}
               onDelete={onDeleteFolder}
+              onSummarize={onSummarizeFolder}
             />
           ))}
           <button
