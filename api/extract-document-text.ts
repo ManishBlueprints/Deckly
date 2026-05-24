@@ -2,8 +2,92 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { PDFParse } from "pdf-parse";
-import { extractStoragePath } from "../src/services/storagePaths.ts";
 import type { AiScopeDocumentRecord, AiScopeReference } from "../src/services/aiScopeResolutionBuilder.ts";
+
+const stripTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
+const isUrl = (value: string): boolean => /^https?:\/\//i.test(value);
+
+function readEnv(...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function getConfiguredBaseUrls(bucket: "decks" | "assets"): string[] {
+  if (bucket === "assets") {
+    return [
+      readEnv("VITE_R2_PUBLIC_ASSET_BASE_URL", "R2_PUBLIC_ASSET_BASE_URL"),
+    ].filter((value): value is string => Boolean(value));
+  }
+
+  return [
+    readEnv("VITE_R2_PRIVATE_GATEWAY_BASE_URL", "R2_PRIVATE_GATEWAY_BASE_URL"),
+  ].filter((value): value is string => Boolean(value));
+}
+
+function extractStoragePath(
+  storedValue: string,
+  bucket: "decks" | "assets",
+  options: { publicBaseUrls?: string[] } = {},
+): string | null {
+  const normalized = storedValue.trim();
+  if (!normalized) return null;
+
+  if (!isUrl(normalized)) {
+    return normalized;
+  }
+
+  let normalizedUrl: URL;
+  try {
+    normalizedUrl = new URL(normalized);
+  } catch {
+    return null;
+  }
+
+  const supabasePattern = new RegExp(
+    `/storage/v1/object/(?:public|sign|authenticated)/${bucket}/([^?#]+)`,
+    "i",
+  );
+  const match = normalized.match(supabasePattern);
+  if (match?.[1]) {
+    return decodeURIComponent(match[1]);
+  }
+
+  const publicBaseUrls = options.publicBaseUrls
+    ?.map((baseUrl) => baseUrl.trim())
+    .filter(Boolean)
+    .map(stripTrailingSlash) ?? [];
+
+  for (const baseUrl of [...publicBaseUrls, ...getConfiguredBaseUrls(bucket)]) {
+    let baseUrlObject: URL;
+    try {
+      baseUrlObject = new URL(baseUrl);
+    } catch {
+      continue;
+    }
+
+    if (normalizedUrl.origin !== baseUrlObject.origin) continue;
+
+    const basePathname = stripTrailingSlash(baseUrlObject.pathname);
+    const pathname = normalizedUrl.pathname;
+    const hasMatchingPathPrefix = basePathname
+      ? pathname === basePathname || pathname.startsWith(`${basePathname}/`)
+      : true;
+
+    if (!hasMatchingPathPrefix) continue;
+
+    const path = pathname
+      .slice(basePathname.length)
+      .replace(/^\/+/, "");
+    return path ? decodeURIComponent(path) : null;
+  }
+
+  return null;
+}
 
 type ExtractionResponse = {
   scope_type: AiScopeReference["scope_type"];
