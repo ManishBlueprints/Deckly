@@ -19,17 +19,12 @@ describe("aiSummaryService", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("rejects empty extraction payloads instead of casting them", async () => {
-    const env = import.meta as ImportMeta & {
-      env: Record<string, unknown>;
-    };
-    env.env = {
-      ...(env.env ?? {}),
-      VITE_SUPABASE_URL: "http://localhost",
-      VITE_SUPABASE_PUBLISHABLE_KEY: "anon-key",
-    };
+    vi.stubEnv("VITE_SUPABASE_URL", "http://localhost");
+    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "anon-key");
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
