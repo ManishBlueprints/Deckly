@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
+import { Sparkles } from "lucide-react";
 import { LibraryFolder, LibraryTag } from "../../types";
 import { cn } from "../../utils/cn";
 import { getFolderColorHex } from "../../constants/folderColors";
@@ -38,6 +39,8 @@ interface LibraryActionMenuProps {
   tags: LibraryTag[];
   openLabel: string;
   openAction: () => void;
+  summarizeLabel?: string;
+  onSummarize?: () => void;
   unsaveLabel: string;
   unsaveDescription: string;
   onMoveToFolder: (folderId: string | null) => void;
@@ -51,6 +54,8 @@ export function LibraryActionMenu({
   tags,
   openLabel,
   openAction,
+  summarizeLabel,
+  onSummarize,
   unsaveLabel,
   unsaveDescription,
   onMoveToFolder,
@@ -88,6 +93,21 @@ export function LibraryActionMenu({
             </span>
             <span className="font-bold text-sm">{openLabel}</span>
           </DropdownMenuItem>
+
+          {onSummarize ? (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                onSummarize();
+              }}
+              className="text-[#54e98a] data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] cursor-pointer px-4 py-3 transition-colors flex items-center gap-3"
+            >
+              <Sparkles size={16} className="opacity-60" />
+              <span className="font-bold text-sm">
+                {summarizeLabel ?? "Summarize with AI"}
+              </span>
+            </DropdownMenuItem>
+          ) : null}
 
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="text-[#e5e2e1] data-[highlighted]:bg-[#54e98a]/10 data-[highlighted]:text-[#54e98a] data-[state=open]:bg-[#54e98a]/10 cursor-pointer px-4 py-3 transition-colors flex items-center gap-3">

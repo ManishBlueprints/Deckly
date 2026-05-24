@@ -1,7 +1,7 @@
-import { supabase } from "./supabase";
+import { supabase } from "./supabase.ts";
 import { Deck, SavedDeck } from "../types";
-import { withRetry } from "../utils/resilience";
-import { getDeckSession } from "./deckService.shared";
+import { withRetry } from "../utils/resilience.ts";
+import { getDeckSession } from "./deckService.shared.ts";
 
 export const deckLibraryService = {
   async saveToLibrary(deckId: string): Promise<void> {

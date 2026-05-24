@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase } from "./supabase.ts";
 
 export async function getDeckSession() {
   const {
@@ -8,7 +8,7 @@ export async function getDeckSession() {
   return session;
 }
 
-export { getRequiredSessionUserId as getRequiredDeckUserId } from "./authSession";
+export { getRequiredSessionUserId as getRequiredDeckUserId } from "./authSession.ts";
 
 export function extractStoragePath(publicUrl: string, bucket: string): string | null {
   const marker = `/storage/v1/object/public/${bucket}/`;

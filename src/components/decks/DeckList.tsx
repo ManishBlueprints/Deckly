@@ -14,6 +14,7 @@ import {
   RotateCcw,
   LogOut,
   BarChart3,
+  Sparkles,
 } from "lucide-react";
 import { deckService } from "../../services/deckService";
 import { supabase } from "../../services/supabase";
@@ -639,6 +640,25 @@ function DeckList({
                           title="Manage Links"
                         >
                           <Share2
+                            size={18}
+                            strokeWidth={3}
+                            className="text-white flex-shrink-0"
+                          />
+                        </ActionButton>
+                        <ActionButton
+                          onClick={(e: React.MouseEvent) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.open(
+                              `${getDeckPreviewPath(deck.id)}?ai=summary`,
+                              "_blank",
+                              "noopener,noreferrer",
+                            );
+                          }}
+                          title="Summarize with AI"
+                          color="secondary"
+                        >
+                          <Sparkles
                             size={18}
                             strokeWidth={3}
                             className="text-white flex-shrink-0"

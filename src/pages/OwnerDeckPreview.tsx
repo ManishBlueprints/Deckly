@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   AlertCircle,
@@ -8,15 +9,20 @@ import {
   BookmarkCheck,
   Check,
   MessageSquareText,
+  Sparkles,
 } from "lucide-react";
 import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
 import DeckViewer from "../components/viewer/DeckViewer";
 import { AuthModal } from "../components/auth/AuthModal";
 import { NotesSidebar } from "../components/viewer/NotesSidebar";
+import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
+import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { deckService } from "../services/deckService";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { Deck } from "../types";
+import type { Tier } from "../constants/tiers";
 import {
   useIsDeckSaved,
   useSaveToLibraryMutation,
@@ -24,7 +30,8 @@ import {
 
 function OwnerDeckPreview() {
   const { deckId } = useParams<{ deckId: string }>();
-  const { session } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { session, profile } = useAuth();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [viewerEmail, setViewerEmail] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
@@ -33,6 +40,7 @@ function OwnerDeckPreview() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     if (session?.user?.email) {
@@ -98,6 +106,13 @@ function OwnerDeckPreview() {
 
   const { data: isSaved = false } = useIsDeckSaved(deck?.id, session?.user?.id);
   const saveToLibraryMutation = useSaveToLibraryMutation(session?.user?.id);
+  const aiSummary = useAiSummaryPanel({
+    onRequireAuth: () => {
+      setShowAuthModal(true);
+    },
+    isGuest: !session,
+    tier: (profile?.tier as Tier) || "FREE",
+  });
 
   useEffect(() => {
     if (session && deck) {
@@ -117,6 +132,44 @@ function OwnerDeckPreview() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, deck?.id, isSaved]);
+
+  const handleSummarize = useCallback(async () => {
+    if (!deck) return;
+
+    try {
+      const result = await aiSummary.requestSummary({
+        scope_type: "deck",
+        scope_id: deck.id,
+        scope_label: deck.title,
+      });
+      if (!result) return;
+
+      if (result.status === "quota_limited" && result.usage.quota?.nextAction === "upgrade") {
+        setShowUpgradeModal(true);
+      }
+    } catch (error) {
+      const status = (error as { status?: number } | undefined)?.status;
+      if (status === 401 || status === 403) {
+        setShowAuthModal(true);
+        return;
+      }
+
+      console.error("Failed to load AI summary", error);
+      toast.error("Failed to load the AI summary. Please try again.");
+    }
+  }, [aiSummary, deck]);
+
+  useEffect(() => {
+    if (!deck) return;
+    if (searchParams.get("ai") !== "summary") return;
+
+    void handleSummarize();
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("ai");
+      return next;
+    }, { replace: true });
+  }, [deck, handleSummarize, searchParams, setSearchParams]);
 
   const handleSave = async () => {
     if (!deck) return;
@@ -222,6 +275,14 @@ function OwnerDeckPreview() {
                 <MessageSquareText size={16} />
                 <span className="text-xs font-semibold">Notes</span>
               </button>
+
+              <button
+                onClick={() => void handleSummarize()}
+                className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-deckly-primary/20 text-deckly-primary hover:text-white hover:border-deckly-primary/40 transition-all rounded-md active:scale-95"
+              >
+                <Sparkles size={16} />
+                <span className="text-xs font-semibold">Summarize</span>
+              </button>
             </div>
 
             <div className="flex-1 w-full relative min-h-0">
@@ -250,6 +311,33 @@ function OwnerDeckPreview() {
       </AnimatePresence>
 
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} redirectTo={window.location.href} />
+
+      <AiSummarySidebar
+        isOpen={aiSummary.state.isOpen}
+        onClose={aiSummary.close}
+        onRequireAuth={() => setShowAuthModal(true)}
+        title="AI Summary"
+        privacyLabel={isOwner ? "Owner view" : "Investor view"}
+        description="Quick overview plus follow-up chat for this deck."
+        summary={aiSummary.state.summary}
+        isSummaryLoading={aiSummary.state.isSummaryLoading}
+        summaryEmptyMessage="Summary will appear here when available."
+        summaryMeta={aiSummary.state.summaryMeta}
+        summaryNotice={aiSummary.state.summaryNotice}
+        summaryNoticeTone={aiSummary.state.summaryNoticeTone}
+        chatMessages={aiSummary.state.chatMessages}
+        chatInputValue={aiSummary.state.chatInputValue}
+        onChatInputChange={aiSummary.setChatInputValue}
+        onChatSubmit={aiSummary.submitChat}
+        isChatLoading={aiSummary.state.isChatLoading}
+        isChatLocked={aiSummary.state.isChatLocked}
+      />
+
+      <TierUpsellModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        featureName="AI summaries"
+      />
 
       {deck && (
         <NotesSidebar
