@@ -2,7 +2,8 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { PDFParse } from "pdf-parse";
-import type { AiScopeDocumentRecord, AiScopeReference } from "../src/services/aiScopeResolutionBuilder";
+import { extractStoragePath } from "../src/services/storagePaths.ts";
+import type { AiScopeDocumentRecord, AiScopeReference } from "../src/services/aiScopeResolutionBuilder.ts";
 
 type ExtractionResponse = {
   scope_type: AiScopeReference["scope_type"];
@@ -103,6 +104,200 @@ const formatUnknownError = (error: unknown): string => {
 
 const getEnv = (key: string): string =>
   process.env[key]?.trim() ?? "";
+
+type R2Config = {
+  endpoint: URL;
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  decksBucket: string;
+};
+
+const getR2EndpointUrl = (): URL => {
+  const configured = getEnv("R2_S3_ENDPOINT");
+  if (configured) return new URL(configured);
+
+  const accountId = getEnv("CLOUDFLARE_ACCOUNT_ID");
+  if (!accountId) {
+    throw new Error("Missing R2_S3_ENDPOINT or CLOUDFLARE_ACCOUNT_ID.");
+  }
+
+  return new URL(`https://${accountId}.r2.cloudflarestorage.com`);
+};
+
+const getR2Config = (): R2Config => {
+  const accessKeyId = getEnv("R2_ACCESS_KEY_ID");
+  const secretAccessKey = getEnv("R2_SECRET_ACCESS_KEY");
+
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error("Missing R2_ACCESS_KEY_ID or R2_SECRET_ACCESS_KEY.");
+  }
+
+  return {
+    endpoint: getR2EndpointUrl(),
+    region: getEnv("R2_REGION") || "auto",
+    accessKeyId,
+    secretAccessKey,
+    decksBucket: getEnv("R2_DECKS_BUCKET") || "decks",
+  };
+};
+
+const encodePathSegment = (value: string): string =>
+  encodeURIComponent(value).replace(/[!'()*]/g, (char) =>
+    `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+
+const encodeKey = (key: string): string =>
+  key
+    .split("/")
+    .map((segment) => encodePathSegment(segment))
+    .join("/");
+
+const toHex = (bytes: ArrayBuffer | Uint8Array): string => {
+  const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  return Array.from(view).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+};
+
+const sha256Hex = async (message: string): Promise<string> => {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(message));
+  return toHex(digest);
+};
+
+const hmacSha256 = async (key: CryptoKey, message: string): Promise<ArrayBuffer> => {
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return signature;
+};
+
+const deriveSigningKey = async (
+  secretAccessKey: string,
+  dateStamp: string,
+  region: string,
+  service: string,
+): Promise<CryptoKey> => {
+  const signingKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(`AWS4${secretAccessKey}`),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  const dateKeyBytes = await hmacSha256(signingKey, dateStamp);
+  const dateKey = await crypto.subtle.importKey(
+    "raw",
+    dateKeyBytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  const regionKeyBytes = await hmacSha256(dateKey, region);
+  const regionKey = await crypto.subtle.importKey(
+    "raw",
+    regionKeyBytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  const serviceKeyBytes = await hmacSha256(regionKey, service);
+  const serviceKey = await crypto.subtle.importKey(
+    "raw",
+    serviceKeyBytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  const signingKeyBytes = await hmacSha256(serviceKey, "aws4_request");
+  return crypto.subtle.importKey(
+    "raw",
+    signingKeyBytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+};
+
+const formatAmzDate = (date: Date): string =>
+  date.toISOString().replace(/[:-]|\.\d{3}/g, "");
+
+const formatDateStamp = (date: Date): string =>
+  date.toISOString().slice(0, 10).replace(/-/g, "");
+
+const canonicalQueryString = (url: URL): string => {
+  const pairs = Array.from(url.searchParams.entries())
+    .filter(([key]) => key !== "X-Amz-Signature")
+    .map(([key, value]) => [encodePathSegment(key), encodePathSegment(value)] as const)
+    .sort(([aKey, aValue], [bKey, bValue]) =>
+      aKey === bKey ? aValue.localeCompare(bValue) : aKey.localeCompare(bKey)
+    );
+
+  return pairs.map(([key, value]) => `${key}=${value}`).join("&");
+};
+
+const presignGetUrl = async (key: string): Promise<string> => {
+  const config = getR2Config();
+  const url = new URL(config.endpoint.toString());
+  url.pathname = `/${config.decksBucket}/${encodeKey(key)}`;
+  url.search = "";
+
+  const now = new Date();
+  const amzDate = formatAmzDate(now);
+  const dateStamp = formatDateStamp(now);
+  const credentialScope = `${dateStamp}/${config.region}/s3/aws4_request`;
+  const expiresInSeconds = 300;
+
+  url.searchParams.set("X-Amz-Algorithm", "AWS4-HMAC-SHA256");
+  url.searchParams.set("X-Amz-Credential", `${config.accessKeyId}/${credentialScope}`);
+  url.searchParams.set("X-Amz-Date", amzDate);
+  url.searchParams.set("X-Amz-Expires", String(expiresInSeconds));
+  url.searchParams.set("X-Amz-SignedHeaders", "host");
+
+  const canonicalUri = url.pathname
+    .split("/")
+    .map((segment) => encodePathSegment(decodeURIComponent(segment)))
+    .join("/")
+    .replace(/%2F/g, "/");
+  const canonicalHeaders = `host:${url.host}\n`;
+  const payloadHash = "UNSIGNED-PAYLOAD";
+  const canonicalRequest = [
+    "GET",
+    canonicalUri,
+    canonicalQueryString(url),
+    canonicalHeaders,
+    "host",
+    payloadHash,
+  ].join("\n");
+
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    await sha256Hex(canonicalRequest),
+  ].join("\n");
+
+  const signingKey = await deriveSigningKey(
+    config.secretAccessKey,
+    dateStamp,
+    config.region,
+    "s3",
+  );
+  const signature = toHex(await hmacSha256(signingKey, stringToSign));
+  url.searchParams.set("X-Amz-Signature", signature);
+  return url.toString();
+};
+
+const downloadDeckObject = async (storagePath: string): Promise<Uint8Array> => {
+  const signedUrl = await presignGetUrl(storagePath);
+  const response = await fetchWithTimeout(signedUrl);
+
+  if (!response.ok) {
+    throw new Error(`R2 download failed (${response.status}).`);
+  }
+
+  return new Uint8Array(await response.arrayBuffer());
+};
 
 const normalizeExtractedText = (value: string): string =>
   value
@@ -205,26 +400,6 @@ const getDocumentFileType = (record: AiScopeDocumentRecord): string | null => {
   return extension ? extension.toLowerCase() : null;
 };
 
-const getDeckStoragePath = (
-  supabaseUrl: string,
-  fileUrl: string,
-): string | null => {
-  const publicPrefix = `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/decks/`;
-  if (fileUrl.startsWith(publicPrefix)) {
-    return decodeURIComponent((fileUrl.slice(publicPrefix.length).split("?")[0] ?? "").trim());
-  }
-
-  try {
-    const parsed = new URL(fileUrl);
-    const marker = "/storage/v1/object/public/decks/";
-    const markerIndex = parsed.pathname.indexOf(marker);
-    if (markerIndex < 0) return null;
-    return decodeURIComponent(parsed.pathname.slice(markerIndex + marker.length));
-  } catch {
-    return null;
-  }
-};
-
 const extractPdfText = async (pdfBytes: Uint8Array): Promise<string | null> => {
   logExtraction("pdf_text_extraction_started", {
     byte_length: pdfBytes.byteLength,
@@ -325,8 +500,6 @@ const convertOfficeDocumentToPdf = async (
 };
 
 const extractTextFromRecord = async (
-  supabaseClient: SupabaseClient,
-  supabaseUrl: string,
   record: AiScopeDocumentRecord,
 ): Promise<string | null> => {
   const fileType = getDocumentFileType(record);
@@ -341,7 +514,7 @@ const extractTextFromRecord = async (
   const fileUrl = asNonEmptyString(record.file_url);
   if (!fileUrl) return null;
 
-  const storagePath = getDeckStoragePath(supabaseUrl, fileUrl);
+  const storagePath = extractStoragePath(fileUrl, "decks");
   if (!storagePath) {
     logExtraction("record_skipped_missing_storage_path", {
       deck_id: String(record.deck_id ?? record.id),
@@ -357,16 +530,18 @@ const extractTextFromRecord = async (
     storage_path: storagePath,
   });
 
-  const { data: fileBlob, error: downloadError } = await supabaseClient
-    .storage
-    .from("decks")
-    .download(storagePath);
-
-  if (downloadError || !fileBlob) {
-    throw new Error(`Failed to download deck source file: ${downloadError?.message ?? "missing blob"}`);
+  let fileBytes: Uint8Array;
+  try {
+    fileBytes = await downloadDeckObject(storagePath);
+  } catch (error) {
+    logExtraction("record_download_failed", {
+      deck_id: String(record.deck_id ?? record.id),
+      storage_path: storagePath,
+      error: formatUnknownError(error),
+    });
+    throw error;
   }
 
-  const fileBytes = new Uint8Array(await fileBlob.arrayBuffer());
   if (fileType === "pdf") {
     return extractPdfText(fileBytes);
   }
@@ -549,7 +724,6 @@ const resolveRecordsForScope = async (
 
 const extractScopeDocuments = async (
   supabaseClient: SupabaseClient,
-  supabaseUrl: string,
   reference: AiScopeReference,
   userId: string | null,
 ): Promise<ExtractionResponse> => {
@@ -577,7 +751,7 @@ const extractScopeDocuments = async (
       continue;
     }
 
-    const extractedText = await extractTextFromRecord(supabaseClient, supabaseUrl, record);
+    const extractedText = await extractTextFromRecord(record);
     if (!extractedText) {
       logExtraction("record_skipped_no_text_extracted", {
         deck_id: deckId,
@@ -630,8 +804,6 @@ export default async function handler(request: Request) {
     }
 
     const supabaseClient = getServiceClient();
-    const supabaseUrl =
-      getEnv("SUPABASE_URL") || getEnv("VITE_SUPABASE_URL");
     const authenticatedUser = await getAuthenticatedUser(supabaseClient, request);
 
     if (!authenticatedUser && scopeType !== "deck") {
@@ -647,7 +819,6 @@ export default async function handler(request: Request) {
 
     const result = await extractScopeDocuments(
       supabaseClient,
-      supabaseUrl,
       {
         scope_type: scopeType as AiScopeReference["scope_type"],
         scope_id: scopeId,
@@ -662,10 +833,11 @@ export default async function handler(request: Request) {
       error: formattedError,
       stack: error instanceof Error ? error.stack ?? null : null,
     });
+    const isDevelopment = process.env.NODE_ENV !== "production";
     return json(
       {
         error: true,
-        message: INTERNAL_ERROR_MESSAGE,
+        message: isDevelopment ? formattedError : INTERNAL_ERROR_MESSAGE,
       },
       500,
     );
