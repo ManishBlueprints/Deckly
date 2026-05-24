@@ -1,5 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { decodeBase64 } from "@std/encoding/base64";
+import { extractStoragePath } from "../../../src/services/storagePaths.ts";
+import {
+  createSignedUrls,
+  downloadObject,
+  uploadObject,
+} from "../_shared/r2.ts";
 
 // document-processor Edge Function
 // Converts PPTX, DOCX, XLSX to PDF and returns a signed URL
@@ -102,30 +108,17 @@ Deno.serve(async (req: Request) => {
       throw new Error("CONVERT_API_SECRET is not set in Supabase Secrets.");
     }
 
-    // Extract file path from URL
-    const storageBaseUrl = `${supabaseUrl}/storage/v1/object/public/decks/`;
-    if (!deck.file_url.startsWith(storageBaseUrl)) {
+    const filePath = extractStoragePath(deck.file_url, "decks");
+    if (!filePath) {
       throw new Error(
         `[SECURITY] Deck ${deckId} file_url "${deck.file_url}" is external or invalid. Processing rejected.`,
       );
     }
-    const filePath = deck.file_url.replace(storageBaseUrl, "");
-
-    if (!filePath) throw new Error("Could not parse storage path from file_url");
     const fileName = filePath.split("/").pop() || "document.pptx";
     console.log(`[Step 2] Downloading file: ${filePath}`);
 
-    // Download the file from Supabase Storage
-    const { data: fileData, error: downloadError } = await supabaseClient
-      .storage
-      .from("decks")
-      .download(filePath);
-
-    if (downloadError) {
-      throw new Error(`Storage download error: ${downloadError.message}`);
-    }
-    if (!fileData) throw new Error("File data is empty after download");
-    console.log(`[Step 2 OK] Downloaded ${fileData.size} bytes`);
+    const fileBuffer = await downloadObject("decks", filePath);
+    console.log(`[Step 2 OK] Downloaded ${fileBuffer.byteLength} bytes`);
 
     const fileExt = fileName.split(".").pop()?.toLowerCase() || "pdf";
 
@@ -135,7 +128,7 @@ Deno.serve(async (req: Request) => {
 
     const formData = new FormData();
     // We use a clean fileName without path slashes for the API
-    formData.append("File", fileData, fileName);
+    formData.append("File", new Blob([fileBuffer]), fileName);
 
     const convertResponse = await fetch(convertUrl, {
       method: "POST",
@@ -201,27 +194,15 @@ Deno.serve(async (req: Request) => {
     const tempPath = `${deck.user_id}/temp/${deck.id}.pdf`;
     console.log(`[Step 5] Uploading temp PDF to: ${tempPath}`);
 
-    const { error: uploadError } = await supabaseClient.storage
-      .from("decks")
-      .upload(tempPath, pdfBuffer, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-
-    if (uploadError) {
-      throw new Error(`Temp PDF upload error: ${uploadError.message}`);
-    }
+    await uploadObject("decks", tempPath, pdfBuffer, {
+      contentType: "application/pdf",
+      expiresInSeconds: 300,
+    });
 
     // Create signed URL with 5 min TTL (NOT public URL for security)
-    const { data: signedUrlData, error: signedUrlError } =
-      await supabaseClient.storage
-        .from("decks")
-        .createSignedUrl(tempPath, 300); // 5 min TTL
-
-    if (signedUrlError || !signedUrlData) {
-      throw new Error(
-        `Failed to create signed URL: ${signedUrlError?.message}`,
-      );
+    const [signedUrlData] = await createSignedUrls("decks", [tempPath], 300);
+    if (!signedUrlData?.signedUrl) {
+      throw new Error("Failed to create signed URL");
     }
 
     console.log(`[Step 5 OK] Temp PDF uploaded, signed URL created`);
@@ -243,10 +224,10 @@ Deno.serve(async (req: Request) => {
     // Return signed PDF URL - client will handle PDF→images + link extraction
     console.log("--- Function Successful ---");
     return new Response(
-      JSON.stringify({
-        success: true,
-        pdf_url: signedUrlData.signedUrl,
-      }),
+        JSON.stringify({
+          success: true,
+          pdf_url: signedUrlData.signedUrl,
+        }),
       {
         headers: {
           "Content-Type": "application/json",
