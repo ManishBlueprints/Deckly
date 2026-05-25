@@ -151,8 +151,9 @@ const logExtraction = (event: string, payload: Record<string, unknown>) => {
 };
 
 const EXTERNAL_FETCH_TIMEOUT_MS = Number(
-  process.env.EXTERNAL_FETCH_TIMEOUT_MS?.trim() || "10000",
+  process.env.EXTERNAL_FETCH_TIMEOUT_MS?.trim() || "8000",
 );
+
 const INTERNAL_ERROR_MESSAGE = "An internal error occurred.";
 
 const formatUnknownError = (error: unknown): string => {
@@ -497,25 +498,81 @@ const getDocumentFileType = (record: AiScopeDocumentRecord): string | null => {
   return extension ? extension.toLowerCase() : null;
 };
 
+// Resolve pdfjs worker path once at module load time.
+// We derive it relative to where pdf.mjs lives on disk so it works
+// correctly whether running locally or inside a Vercel node_modules tree.
+const _initPdfjsWorker = async (): Promise<void> => {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  if (pdfjs.GlobalWorkerOptions.workerSrc) return; // already set
+
+  const { createRequire } = await import("module");
+  const req = createRequire(import.meta.url);
+  const pdfMainPath: string = req.resolve("pdfjs-dist/legacy/build/pdf.mjs");
+  // Resolve pdf.worker.mjs next to pdf.mjs on disk
+  const workerSrc = new URL(
+    "./pdf.worker.mjs",
+    `file:///${pdfMainPath.replace(/\\/g, "/")}`,
+  ).href;
+  pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+};
+
 const extractPdfText = async (pdfBytes: Uint8Array): Promise<string | null> => {
   logExtraction("pdf_text_extraction_started", {
     byte_length: pdfBytes.byteLength,
   });
-  const { PDFParse } = await import("pdf-parse");
-  const parser = new PDFParse({ data: Buffer.from(pdfBytes) });
+
+  // Use pdfjs-dist directly for text extraction.
+  // We intentionally do NOT use pdf-parse (v2) here because it depends on
+  // @napi-rs/canvas, a native addon (.node binary). The Windows build is
+  // present locally but the Linux build required by Vercel is absent, so the
+  // canvas factory fails to initialise and the PDF load hangs indefinitely.
+  // pdfjs-dist alone is pure JS and needs no canvas for plain-text extraction.
+  await _initPdfjsWorker();
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+  // Create a dedicated PDFWorker per invocation so concurrent calls don't
+  // race on the same worker thread (which would throw "Cannot transfer object
+  // of unsupported type" when the same ArrayBuffer is sent twice).
+  const worker = new pdfjs.PDFWorker();
+
+  const loadingTask = pdfjs.getDocument({
+    data: pdfBytes.slice(), // slice() copies the buffer so transfer is safe
+    worker,
+    verbosity: 0, // suppress pdfjs console noise
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  });
+
+  const doc = await loadingTask.promise;
+  const numPages = doc.numPages;
+  const pageTexts: string[] = [];
 
   try {
-    const result = await parser.getText();
-    const normalized = normalizeExtractedText(result.text ?? "");
-    logExtraction("pdf_text_extraction_completed", {
-      total_pages: result.total,
-      extracted_characters: normalized.length,
-      has_text: Boolean(normalized),
-    });
-    return normalized || null;
+    for (let i = 1; i <= numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item) => ("str" in item ? item.str : ""))
+        .join(" ");
+      pageTexts.push(pageText);
+      page.cleanup();
+    }
   } finally {
-    await parser.destroy().catch(() => undefined);
+    await doc.destroy();
+    worker.destroy();
   }
+
+  const rawText = pageTexts.join("\n");
+  const normalized = normalizeExtractedText(rawText);
+
+  logExtraction("pdf_text_extraction_completed", {
+    total_pages: numPages,
+    extracted_characters: normalized.length,
+    has_text: Boolean(normalized),
+  });
+
+  return normalized || null;
 };
 
 const convertOfficeDocumentToPdf = async (
@@ -820,53 +877,101 @@ const resolveRecordsForScope = async (
   return roomDocuments;
 };
 
+// Per-document timeout so one slow PDF cannot exhaust the whole 60-second
+// Vercel Hobby budget and starve every other document in the same request.
+const PER_DOC_TIMEOUT_MS = Number(
+  process.env.PER_DOC_TIMEOUT_MS?.trim() || "45000",
+);
+
+const withTimeout = <T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const id = setTimeout(
+      () => reject(new Error(`Timed out after ${ms}ms: ${label}`)),
+      ms,
+    );
+    promise.then(
+      (value) => { clearTimeout(id); resolve(value); },
+      (err: unknown) => { clearTimeout(id); reject(err); },
+    );
+  });
+};
+
 const extractScopeDocuments = async (
   supabaseClient: SupabaseClient,
   reference: AiScopeReference,
   userId: string | null,
 ): Promise<ExtractionResponse> => {
   const records = await resolveRecordsForScope(supabaseClient, reference, userId);
-  let extractedDocuments = 0;
-  let skippedDocuments = 0;
-  const processedDeckIds = new Set<string>();
+
+  // De-duplicate by deckId up-front.
+  const uniqueRecords = records.filter((record, index, self) => {
+    const deckId = String(record.deck_id ?? record.id);
+    return self.findIndex((r) => String(r.deck_id ?? r.id) === deckId) === index;
+  });
 
   logExtraction("scope_extraction_started", {
     scope_type: reference.scope_type,
     scope_id: reference.scope_id,
-    record_count: records.length,
+    record_count: uniqueRecords.length,
   });
 
-  for (const record of records) {
-    const deckId = String(record.deck_id ?? record.id);
-    if (processedDeckIds.has(deckId)) continue;
-    processedDeckIds.add(deckId);
+  type DocResult = { status: "extracted" | "skipped" | "failed"; deckId: string };
 
-    if (asNonEmptyString(record.extracted_text)) {
-      logExtraction("record_skipped_existing_text", {
-        deck_id: deckId,
+  // Process all documents concurrently — each is fully independent.
+  const settlements = await Promise.allSettled(
+    uniqueRecords.map(async (record): Promise<DocResult> => {
+      const deckId = String(record.deck_id ?? record.id);
+
+      if (asNonEmptyString(record.extracted_text)) {
+        logExtraction("record_skipped_existing_text", { deck_id: deckId });
+        return { status: "skipped", deckId };
+      }
+
+      const extractedText = await withTimeout(
+        extractTextFromRecord(record),
+        PER_DOC_TIMEOUT_MS,
+        `extractTextFromRecord(${deckId})`,
+      );
+
+      if (!extractedText) {
+        logExtraction("record_skipped_no_text_extracted", {
+          deck_id: deckId,
+          file_type: getDocumentFileType(record),
+        });
+        return { status: "skipped", deckId };
+      }
+
+      await persistDeckExtractedText(supabaseClient, deckId, extractedText);
+      return { status: "extracted", deckId };
+    }),
+  );
+
+  let extractedDocuments = 0;
+  let skippedDocuments = 0;
+
+  for (const settlement of settlements) {
+    if (settlement.status === "rejected") {
+      logExtraction("record_extraction_failed", {
+        error: formatUnknownError(settlement.reason),
       });
       skippedDocuments += 1;
       continue;
     }
-
-    const extractedText = await extractTextFromRecord(record);
-    if (!extractedText) {
-      logExtraction("record_skipped_no_text_extracted", {
-        deck_id: deckId,
-        file_type: getDocumentFileType(record),
-      });
+    if (settlement.value.status === "extracted") {
+      extractedDocuments += 1;
+    } else {
       skippedDocuments += 1;
-      continue;
     }
-
-    await persistDeckExtractedText(supabaseClient, deckId, extractedText);
-    extractedDocuments += 1;
   }
 
   const result = {
     scope_type: reference.scope_type,
     scope_id: reference.scope_id,
-    processed_documents: processedDeckIds.size,
+    processed_documents: uniqueRecords.length,
     extracted_documents: extractedDocuments,
     skipped_documents: skippedDocuments,
   };
@@ -876,10 +981,6 @@ const extractScopeDocuments = async (
 };
 
 export async function POST(request: Request) {
-  return handler(request);
-}
-
-export default async function handler(request: Request) {
   logExtraction("request_received", {
     method: request.method,
   });
