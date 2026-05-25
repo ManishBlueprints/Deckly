@@ -123,7 +123,7 @@ const apiDevBridge = () => ({
           path.resolve(__dirname, "api/extract-document-text.ts"),
         ).href}?t=${Date.now()}`;
         const routeModule = await import(moduleUrl);
-        const handler = routeModule.default as (request: Request) => Promise<Response>;
+        const handler = (routeModule.POST || routeModule.default) as (request: Request) => Promise<Response>;
 
         const body = await readRequestBody(req);
         const request = new Request(`http://localhost:5173${requestUrl}`, {
