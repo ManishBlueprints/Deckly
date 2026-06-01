@@ -18,6 +18,20 @@ const GEO_CACHE_TTL_MS = 30 * 60 * 1000;
 let geoCache: GeoLocation | null = null;
 let geoCacheExpiresAt: number | null = null;
 
+const assertDeckOwnership = async (deckId: string, userId: string): Promise<void> => {
+  const { data, error } = await supabase
+    .from("decks")
+    .select("id")
+    .eq("id", deckId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) {
+    throw new Error("Unauthorized");
+  }
+};
+
 type StoredGeoLocation = GeoLocation & {
   cached_at: number;
 };
@@ -536,7 +550,9 @@ export const analyticsService = {
 
   // Get unique visitor count for a deck (distinct people, not slide views)
   // Uses SQL COUNT(DISTINCT) via RPC for efficiency
-  async getUniqueVisitorCount(deckId: string): Promise<number> {
+  async getUniqueVisitorCount(deckId: string, ownerUserId: string): Promise<number> {
+    await assertDeckOwnership(deckId, ownerUserId);
+
     try {
       // Try RPC first (requires count_unique_visitors function in Supabase)
       const { data, error } = await supabase.rpc("count_unique_visitors", {
@@ -570,7 +586,9 @@ export const analyticsService = {
   },
 
   // Get detailed bookmarks for a deck
-  async getDeckBookmarks(deckId: string) {
+  async getDeckBookmarks(deckId: string, ownerUserId: string) {
+    await assertDeckOwnership(deckId, ownerUserId);
+
     // Attempt with join first
     const { data, error } = await supabase
       .from("investor_library")
@@ -628,7 +646,9 @@ export const analyticsService = {
 
   // Get aggregated location stats for a deck
   // Uses SQL GROUP BY via RPC for efficiency
-  async getDeckLocations(deckId: string) {
+  async getDeckLocations(deckId: string, ownerUserId: string) {
+    await assertDeckOwnership(deckId, ownerUserId);
+
     try {
       // Try RPC first (requires get_deck_locations function in Supabase)
       const { data, error } = await supabase.rpc("get_deck_locations", {

@@ -64,6 +64,7 @@ export default function DeckAnalytics() {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
   const { session, isPro } = useAuth();
+  const ownerUserId = session?.user?.id;
   const [activeTab, setActiveTab] = useState<
     "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION"
   >("VISITS");
@@ -73,28 +74,32 @@ export default function DeckAnalytics() {
   const {
     data: deck,
     isLoading: deckLoading,
-    error: deckError,
   } = useDeck(deckId, session?.user?.id);
+  const canViewAnalytics = Boolean(deck && ownerUserId && deck.user_id === ownerUserId);
   const {
     data: stats = [],
     isLoading: statsLoading,
     isFetching: statsFetching,
-  } = useDeckStats(deckId, !!isPro, session?.user?.id);
+  } = useDeckStats(deckId, !!isPro, ownerUserId, canViewAnalytics);
   const { data: bookmarks = [], isFetching: bookmarksFetching } =
-    useDeckBookmarks(deckId);
+    useDeckBookmarks(deckId, ownerUserId, canViewAnalytics);
   const {
     data: visitorSignals = [],
     isLoading: signalsLoading,
     isFetching: signalsFetching,
-  } = useVisitorSignals(deckId);
+  } = useVisitorSignals(deckId, ownerUserId, canViewAnalytics);
   const { data: uniqueVisitors = 0, isFetching: uniqueFetching } =
-    useUniqueVisitorCount(deckId);
-  const { data: locationData, isFetching: locationsFetching } = useDeckLocations(deckId);
+    useUniqueVisitorCount(deckId, ownerUserId, canViewAnalytics);
+  const { data: locationData, isFetching: locationsFetching } = useDeckLocations(
+    deckId,
+    ownerUserId,
+    canViewAnalytics,
+  );
 
-  const loading = deckLoading || (stats.length === 0 && statsLoading);
+  const accessRestricted = !deckLoading && (!deck || !canViewAnalytics);
+  const loading = deckLoading || (canViewAnalytics && stats.length === 0 && statsLoading);
   const isRefreshing =
-    statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching;
-  const error = deckError ? "Failed to load analytics data." : null;
+    canViewAnalytics && (statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching);
   const totalSaves = bookmarks.length;
 
   // Derived Stats
@@ -165,7 +170,7 @@ export default function DeckAnalytics() {
     );
   }
 
-  if (error || !deck) {
+  if (accessRestricted) {
     return (
       <DashboardLayout title="Deck Analytics">
         <div className="flex-1 flex items-center justify-center p-6">
@@ -174,11 +179,10 @@ export default function DeckAnalytics() {
               <AlertCircle size={40} />
             </div>
             <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-4">
-              {error ? "Loading Error" : "Access Restricted"}
+              Access Restricted
             </h2>
             <p className="text-slate-500 font-medium leading-relaxed mb-10">
-              {error ||
-                "The analytics for this deck could not be loaded or you don't have permission to view them."}
+              The analytics for this deck could not be loaded or you don't have permission to view them.
             </p>
             <Button
               size="lg"
@@ -192,7 +196,6 @@ export default function DeckAnalytics() {
       </DashboardLayout>
     );
   }
-
 
   return (
     <DashboardLayout title={`${deck?.title || "Deck"} Analytics`}>

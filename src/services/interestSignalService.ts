@@ -43,6 +43,20 @@ interface PageViewRow {
   data_room_id?: string | null;
 }
 
+const assertDeckOwnership = async (deckId: string, userId: string): Promise<void> => {
+  const { data, error } = await supabase
+    .from("decks")
+    .select("id")
+    .eq("id", deckId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) {
+    throw new Error("Unauthorized");
+  }
+};
+
 /**
  * Compute investor interest signals for a specific deck.
  * All signals are derived from existing `deck_page_views` data.
@@ -50,7 +64,10 @@ interface PageViewRow {
  */
 export async function getVisitorSignals(
   deckId: string,
+  ownerUserId: string,
 ): Promise<VisitorSignal[]> {
+  await assertDeckOwnership(deckId, ownerUserId);
+
   const { data, error } = await supabase
     .from("deck_page_views")
     .select("visitor_id, page_number, viewed_at, time_spent, viewer_email")
@@ -177,8 +194,9 @@ export async function getVisitorSignals(
  */
 export async function getDeckSignalCount(
   deckId: string,
+  ownerUserId: string,
 ): Promise<number> {
-  const signals = await getVisitorSignals(deckId);
+  const signals = await getVisitorSignals(deckId, ownerUserId);
   return signals.length;
 }
 
