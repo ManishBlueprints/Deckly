@@ -1461,29 +1461,62 @@ $$;
 -- 1. Count unique visitors (Highly Efficient)
 CREATE OR REPLACE FUNCTION public.count_unique_visitors(p_deck_id UUID)
 RETURNS INTEGER
-LANGUAGE sql
-SECURITY INVOKER
+LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.decks d
+    WHERE d.id = p_deck_id
+      AND d.user_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
   SELECT COUNT(DISTINCT visitor_id)::INTEGER
+  INTO v_count
   FROM public.deck_page_views
   WHERE deck_id = p_deck_id;
+
+  RETURN v_count;
+END;
 $$;
 
 -- 2. Get aggregated location stats (Returns exact structure for frontend)
 CREATE OR REPLACE FUNCTION public.get_deck_locations(p_deck_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.decks d
+    WHERE d.id = p_deck_id
+      AND d.user_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
   RETURN jsonb_build_object(
     'countries', COALESCE((
       SELECT jsonb_agg(t) FROM (
         SELECT 
           COALESCE(country, 'Unknown') as name, 
-          COALESCE(country_code, 'US') as code, 
+          country_code as code, 
           COUNT(*)::INTEGER as count
         FROM public.deck_page_views
         WHERE deck_id = p_deck_id
