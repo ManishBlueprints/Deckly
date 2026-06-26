@@ -54,6 +54,7 @@ const sanitizeImageUrl = (
   fallback: string,
 ): string => {
   if (typeof value !== "string") return fallback;
+  // eslint-disable-next-line no-control-regex
   const trimmed = value.replace(/[\x00-\x1F\x7F]/g, "").trim();
   if (!trimmed) return fallback;
 
