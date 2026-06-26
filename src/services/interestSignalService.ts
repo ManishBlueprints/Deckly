@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.ts";
+import { assertDeckOwnership } from "./deckService.shared.ts";
 
 // Signal labels — neutral, factual language
 export type SignalLabel =
@@ -43,6 +44,7 @@ interface PageViewRow {
   data_room_id?: string | null;
 }
 
+
 /**
  * Compute investor interest signals for a specific deck.
  * All signals are derived from existing `deck_page_views` data.
@@ -50,7 +52,10 @@ interface PageViewRow {
  */
 export async function getVisitorSignals(
   deckId: string,
+  ownerUserId: string,
 ): Promise<VisitorSignal[]> {
+  await assertDeckOwnership(deckId, ownerUserId);
+
   const { data, error } = await supabase
     .from("deck_page_views")
     .select("visitor_id, page_number, viewed_at, time_spent, viewer_email")
@@ -177,8 +182,9 @@ export async function getVisitorSignals(
  */
 export async function getDeckSignalCount(
   deckId: string,
+  ownerUserId: string,
 ): Promise<number> {
-  const signals = await getVisitorSignals(deckId);
+  const signals = await getVisitorSignals(deckId, ownerUserId);
   return signals.length;
 }
 

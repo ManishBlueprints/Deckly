@@ -14,47 +14,64 @@ export function useDeckStats(
     deckId: string | undefined,
     isPro: boolean,
     userId: string | undefined,
+    enabled = true,
 ) {
     return useQuery({
-        queryKey: ["deck-stats", deckId],
+        queryKey: ["deck-stats", deckId, isPro, userId],
         queryFn: () => analyticsService.getDeckStats(deckId!, isPro, userId!),
-        enabled: !!deckId && !!userId,
+        enabled: enabled && !!deckId && !!userId,
         ...ANALYTICS_QUERY_CONFIG,
     });
 }
 
-export function useDeckBookmarks(deckId: string | undefined) {
+export function useDeckBookmarks(
+    deckId: string | undefined,
+    ownerUserId: string | undefined,
+    enabled = true,
+) {
     return useQuery({
-        queryKey: ["deck-bookmarks", deckId],
-        queryFn: () => analyticsService.getDeckBookmarks(deckId!),
-        enabled: !!deckId,
+        queryKey: ["deck-bookmarks", deckId, ownerUserId],
+        queryFn: () => analyticsService.getDeckBookmarks(deckId!, ownerUserId!),
+        enabled: enabled && !!deckId && !!ownerUserId,
         ...ANALYTICS_QUERY_CONFIG,
     });
 }
 
-export function useVisitorSignals(deckId: string | undefined) {
+export function useVisitorSignals(
+    deckId: string | undefined,
+    ownerUserId: string | undefined,
+    enabled = true,
+) {
     return useQuery({
-        queryKey: ["visitor-signals", deckId],
-        queryFn: () => getVisitorSignals(deckId!),
-        enabled: !!deckId,
+        queryKey: ["visitor-signals", deckId, ownerUserId],
+        queryFn: () => getVisitorSignals(deckId!, ownerUserId!),
+        enabled: enabled && !!deckId && !!ownerUserId,
         ...ANALYTICS_QUERY_CONFIG,
     });
 }
 
-export function useUniqueVisitorCount(deckId: string | undefined) {
+export function useUniqueVisitorCount(
+    deckId: string | undefined,
+    ownerUserId: string | undefined,
+    enabled = true,
+) {
     return useQuery({
-        queryKey: ["unique-visitor-count", deckId],
-        queryFn: () => analyticsService.getUniqueVisitorCount(deckId!),
-        enabled: !!deckId,
+        queryKey: ["unique-visitor-count", deckId, ownerUserId],
+        queryFn: () => analyticsService.getUniqueVisitorCount(deckId!, ownerUserId!),
+        enabled: enabled && !!deckId && !!ownerUserId,
         ...ANALYTICS_QUERY_CONFIG,
     });
 }
 
-export function useDeckLocations(deckId: string | undefined) {
+export function useDeckLocations(
+    deckId: string | undefined,
+    ownerUserId: string | undefined,
+    enabled = true,
+) {
     return useQuery({
-        queryKey: ["deck-locations", deckId],
-        queryFn: () => analyticsService.getDeckLocations(deckId!),
-        enabled: !!deckId,
+        queryKey: ["deck-locations", deckId, ownerUserId],
+        queryFn: () => analyticsService.getDeckLocations(deckId!, ownerUserId!),
+        enabled: enabled && !!deckId && !!ownerUserId,
         // Locations change less frequently, use longer intervals
         staleTime: 60000,
         gcTime: 600000, // 10 minutes
