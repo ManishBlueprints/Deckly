@@ -67,6 +67,7 @@ const sanitizeImageUrl = (
     return fallback;
   }
 
+  if (trimmed.startsWith("//")) return fallback;
   if (trimmed.startsWith("/")) return trimmed;
 
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
@@ -227,8 +228,9 @@ function DeckList({
 
     try {
       const lastDotIndex = file.name.lastIndexOf(".");
-      const fileExt =
+      const rawFileExt =
         lastDotIndex !== -1 ? file.name.slice(lastDotIndex + 1) : "";
+      const fileExt = rawFileExt.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16);
       const fileName = `${userId}/branding/banner-${Date.now()}${fileExt ? `.${fileExt}` : ""}`;
 
       const { error: uploadError } = await storageService.upload("decks", fileName, file, {

@@ -29,6 +29,14 @@ const STORAGE_FUNCTION_NAME = "r2-storage";
 
 const stripTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
 
+const sanitizeStorageKey = (key: string): string => {
+  return key
+    .split("/")
+    .filter((segment) => segment !== "" && segment !== "." && segment !== "..")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+};
+
 async function callStorageFunction<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(STORAGE_FUNCTION_NAME, { body });
 
@@ -72,12 +80,14 @@ export const storageService = {
   },
 
   getPublicUrl(bucket: StorageBucket, key: string): string {
+    const safeKey = sanitizeStorageKey(key);
+
     if (bucket === "assets") {
       const baseUrl = viteEnv?.VITE_R2_PUBLIC_ASSET_BASE_URL;
-      return baseUrl ? `${stripTrailingSlash(baseUrl)}/${key}` : key;
+      return baseUrl ? `${stripTrailingSlash(baseUrl)}/${safeKey}` : safeKey;
     }
 
-    return key;
+    return safeKey;
   },
 
   async remove(

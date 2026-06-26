@@ -36,7 +36,7 @@ export function useTopPerformingDecks(userId: string | undefined) {
 
 export function useDeckSignalCounts(deckIds: string[], ownerUserId?: string) {
     return useQuery({
-        queryKey: ["deck-signal-counts", ...deckIds],
+        queryKey: ["deck-signal-counts", ownerUserId, ...deckIds],
         queryFn: async () => {
             if (!deckIds.length || !ownerUserId) return {};
 
@@ -49,6 +49,6 @@ export function useDeckSignalCounts(deckIds: string[], ownerUserId?: string) {
 
             return counts;
         },
-        enabled: deckIds.length > 0,
+        enabled: deckIds.length > 0 && !!ownerUserId,
     });
 }

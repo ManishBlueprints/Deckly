@@ -74,6 +74,7 @@ export default function DeckAnalytics() {
   const {
     data: deck,
     isLoading: deckLoading,
+    error: deckError,
   } = useDeck(deckId, session?.user?.id);
   const canViewAnalytics = Boolean(deck && ownerUserId && deck.user_id === ownerUserId);
   const {
@@ -96,7 +97,21 @@ export default function DeckAnalytics() {
     canViewAnalytics,
   );
 
-  const accessRestricted = !deckLoading && (!deck || !canViewAnalytics);
+  const isAuthOrNotFoundError = deckError && (
+    deckError.message.includes("Not authenticated") ||
+    deckError.message.includes("Unauthorized") ||
+    deckError.message.includes("not found") ||
+    deckError.message.includes("PGRST116")
+  );
+
+  const accessRestricted = !deckLoading && (
+    (!deck && !deckError) || 
+    isAuthOrNotFoundError || 
+    (deck && !canViewAnalytics)
+  );
+
+  const hasLoadingError = !deckLoading && deckError && !isAuthOrNotFoundError;
+
   const loading = deckLoading || (canViewAnalytics && stats.length === 0 && statsLoading);
   const isRefreshing =
     canViewAnalytics && (statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching);
@@ -165,6 +180,43 @@ export default function DeckAnalytics() {
           <p className="font-medium font-bold uppercase tracking-widest text-[10px]">
             Gathering Insights...
           </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (hasLoadingError) {
+    return (
+      <DashboardLayout title="Deck Analytics">
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white border border-slate-200 rounded-[40px] p-12 text-center shadow-sm">
+            <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500 mx-auto mb-8">
+              <AlertCircle size={40} />
+            </div>
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-4">
+              Loading Error
+            </h2>
+            <p className="text-slate-500 font-medium leading-relaxed mb-10">
+              There was a problem communicating with the server: {deckError?.message || "Unknown error"}.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button
+                size="lg"
+                className="w-full"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full"
+                onClick={() => navigate("/content")}
+              >
+                Return to Content
+              </Button>
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     );
