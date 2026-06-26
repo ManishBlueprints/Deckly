@@ -601,9 +601,16 @@ function DeckList({
                         imgSrc = branding.banner_url || defaultBanner;
                       }
 
+                      // Prevent javascript: URLs to mitigate XSS (CodeQL js/xss-through-dom)
+                      const safeImgSrc =
+                        typeof imgSrc === "string" &&
+                        imgSrc.trim().toLowerCase().startsWith("javascript:")
+                          ? defaultBanner
+                          : imgSrc;
+
                       return (
                         <img
-                          src={imgSrc}
+                          src={safeImgSrc}
                           alt={deck.title}
                           referrerPolicy="no-referrer"
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -613,7 +620,12 @@ function DeckList({
                             const target = e.currentTarget;
                             if (!target.dataset.triedFallback) {
                               target.dataset.triedFallback = "true";
-                              target.src = branding.banner_url || defaultBanner;
+                              const fallbackUrl = branding.banner_url || defaultBanner;
+                              target.src =
+                                typeof fallbackUrl === "string" &&
+                                fallbackUrl.trim().toLowerCase().startsWith("javascript:")
+                                  ? defaultBanner
+                                  : fallbackUrl;
                             }
                           }}
                         />
