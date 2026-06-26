@@ -1,6 +1,7 @@
 import posthog from "posthog-js";
 import { withRetry } from "../utils/resilience.ts";
 import { supabase } from "./supabase.ts";
+import { assertDeckOwnership } from "./deckService.shared.ts";
 import { Deck, DeckPageStats } from "../types";
 import { getTierConfig } from "../constants/tiers.ts";
 import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
@@ -17,20 +18,6 @@ const GEO_CACHE_KEY = "deckly_geo_cache";
 const GEO_CACHE_TTL_MS = 30 * 60 * 1000;
 let geoCache: GeoLocation | null = null;
 let geoCacheExpiresAt: number | null = null;
-
-const assertDeckOwnership = async (deckId: string, userId: string): Promise<void> => {
-  const { data, error } = await supabase
-    .from("decks")
-    .select("id")
-    .eq("id", deckId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) {
-    throw new Error("Unauthorized");
-  }
-};
 
 type StoredGeoLocation = GeoLocation & {
   cached_at: number;

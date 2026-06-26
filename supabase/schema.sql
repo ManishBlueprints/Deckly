@@ -1516,7 +1516,7 @@ BEGIN
       SELECT jsonb_agg(t) FROM (
         SELECT 
           COALESCE(country, 'Unknown') as name, 
-          COALESCE(country_code, 'US') as code, 
+          country_code as code, 
           COUNT(*)::INTEGER as count
         FROM public.deck_page_views
         WHERE deck_id = p_deck_id

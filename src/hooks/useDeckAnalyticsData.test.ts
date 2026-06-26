@@ -53,6 +53,7 @@ describe("useDeckAnalyticsData", () => {
   });
 
   it("enables queries only when both deck id and owner id are present", () => {
+    useDeckStats("deck-1", true, "user-1", true);
     useDeckBookmarks("deck-1", "user-1", true);
     useVisitorSignals("deck-1", "user-1", true);
     useUniqueVisitorCount("deck-1", "user-1", true);
@@ -62,6 +63,37 @@ describe("useDeckAnalyticsData", () => {
       expect(call[0]).toEqual(
         expect.objectContaining({
           enabled: true,
+        }),
+      );
+    }
+  });
+
+  it("keeps queries disabled even if enabled=true but deckId and/or ownerId is missing", () => {
+    // Missing deckId
+    useDeckStats(undefined, true, "user-1", true);
+    useDeckBookmarks(undefined, "user-1", true);
+    useVisitorSignals(undefined, "user-1", true);
+    useUniqueVisitorCount(undefined, "user-1", true);
+    useDeckLocations(undefined, "user-1", true);
+
+    // Missing ownerId/userId
+    useDeckStats("deck-1", true, undefined, true);
+    useDeckBookmarks("deck-1", undefined, true);
+    useVisitorSignals("deck-1", undefined, true);
+    useUniqueVisitorCount("deck-1", undefined, true);
+    useDeckLocations("deck-1", undefined, true);
+
+    // Missing both
+    useDeckStats(undefined, true, undefined, true);
+    useDeckBookmarks(undefined, undefined, true);
+    useVisitorSignals(undefined, undefined, true);
+    useUniqueVisitorCount(undefined, undefined, true);
+    useDeckLocations(undefined, undefined, true);
+
+    for (const call of useQueryMock.mock.calls) {
+      expect(call[0]).toEqual(
+        expect.objectContaining({
+          enabled: false,
         }),
       );
     }

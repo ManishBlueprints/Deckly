@@ -1,4 +1,5 @@
 import { supabase } from "./supabase.ts";
+import { assertDeckOwnership } from "./deckService.shared.ts";
 
 // Signal labels — neutral, factual language
 export type SignalLabel =
@@ -43,19 +44,6 @@ interface PageViewRow {
   data_room_id?: string | null;
 }
 
-const assertDeckOwnership = async (deckId: string, userId: string): Promise<void> => {
-  const { data, error } = await supabase
-    .from("decks")
-    .select("id")
-    .eq("id", deckId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) {
-    throw new Error("Unauthorized");
-  }
-};
 
 /**
  * Compute investor interest signals for a specific deck.
