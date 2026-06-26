@@ -97,11 +97,12 @@ export default function DeckAnalytics() {
     canViewAnalytics,
   );
 
+  const errorMsg = deckError?.message?.toLowerCase() || "";
   const isAuthOrNotFoundError = deckError && (
-    deckError.message.includes("Not authenticated") ||
-    deckError.message.includes("Unauthorized") ||
-    deckError.message.includes("not found") ||
-    deckError.message.includes("PGRST116")
+    errorMsg.includes("not authenticated") ||
+    errorMsg.includes("unauthorized") ||
+    errorMsg.includes("not found") ||
+    errorMsg.includes("pgrst116")
   );
 
   const accessRestricted = !deckLoading && (

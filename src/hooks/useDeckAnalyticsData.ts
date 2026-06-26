@@ -17,7 +17,7 @@ export function useDeckStats(
     enabled = true,
 ) {
     return useQuery({
-        queryKey: ["deck-stats", deckId],
+        queryKey: ["deck-stats", deckId, isPro, userId],
         queryFn: () => analyticsService.getDeckStats(deckId!, isPro, userId!),
         enabled: enabled && !!deckId && !!userId,
         ...ANALYTICS_QUERY_CONFIG,
@@ -30,7 +30,7 @@ export function useDeckBookmarks(
     enabled = true,
 ) {
     return useQuery({
-        queryKey: ["deck-bookmarks", deckId],
+        queryKey: ["deck-bookmarks", deckId, ownerUserId],
         queryFn: () => analyticsService.getDeckBookmarks(deckId!, ownerUserId!),
         enabled: enabled && !!deckId && !!ownerUserId,
         ...ANALYTICS_QUERY_CONFIG,
@@ -43,7 +43,7 @@ export function useVisitorSignals(
     enabled = true,
 ) {
     return useQuery({
-        queryKey: ["visitor-signals", deckId],
+        queryKey: ["visitor-signals", deckId, ownerUserId],
         queryFn: () => getVisitorSignals(deckId!, ownerUserId!),
         enabled: enabled && !!deckId && !!ownerUserId,
         ...ANALYTICS_QUERY_CONFIG,
@@ -56,7 +56,7 @@ export function useUniqueVisitorCount(
     enabled = true,
 ) {
     return useQuery({
-        queryKey: ["unique-visitor-count", deckId],
+        queryKey: ["unique-visitor-count", deckId, ownerUserId],
         queryFn: () => analyticsService.getUniqueVisitorCount(deckId!, ownerUserId!),
         enabled: enabled && !!deckId && !!ownerUserId,
         ...ANALYTICS_QUERY_CONFIG,
@@ -69,7 +69,7 @@ export function useDeckLocations(
     enabled = true,
 ) {
     return useQuery({
-        queryKey: ["deck-locations", deckId],
+        queryKey: ["deck-locations", deckId, ownerUserId],
         queryFn: () => analyticsService.getDeckLocations(deckId!, ownerUserId!),
         enabled: enabled && !!deckId && !!ownerUserId,
         // Locations change less frequently, use longer intervals

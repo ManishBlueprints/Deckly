@@ -54,7 +54,7 @@ const sanitizeImageUrl = (
   fallback: string,
 ): string => {
   if (typeof value !== "string") return fallback;
-  const trimmed = value.trim();
+  const trimmed = value.replace(/[\x00-\x1F\x7F]/g, "").trim();
   if (!trimmed) return fallback;
 
   const lower = trimmed.toLowerCase();
