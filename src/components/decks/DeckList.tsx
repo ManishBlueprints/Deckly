@@ -49,6 +49,40 @@ interface DeckListProps {
   onBrandingUpdate: (branding: Partial<BrandingSettings>) => void;
 }
 
+const sanitizeImageUrl = (
+  value: unknown,
+  fallback: string,
+): string => {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.startsWith("javascript:") ||
+    lower.startsWith("data:") ||
+    lower.startsWith("vbscript:") ||
+    lower.startsWith("file:")
+  ) {
+    return fallback;
+  }
+
+  if (trimmed.startsWith("/")) return trimmed;
+
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.protocol === "http:" || parsed.protocol === "https:"
+        ? trimmed
+        : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  return trimmed;
+};
+
 function DeckList({
   decks,
   branding: initialBranding,
@@ -203,11 +237,14 @@ function DeckList({
 
       if (uploadError) throw uploadError;
 
+      const bannerUrl = sanitizeImageUrl(
+        storageService.getPublicUrl("decks", fileName),
+        defaultBanner,
+      );
       await deckService.updateBrandingSettings(
-        { banner_url: storageService.getPublicUrl("decks", fileName) },
+        { banner_url: bannerUrl },
         profile?.id,
       );
-      const bannerUrl = storageService.getPublicUrl("decks", fileName);
       setBranding((prev) => ({ ...prev, banner_url: bannerUrl }));
       onBrandingUpdate({ banner_url: bannerUrl });
     } catch (err: unknown) {
@@ -601,12 +638,7 @@ function DeckList({
                         imgSrc = branding.banner_url || defaultBanner;
                       }
 
-                      // Prevent javascript: URLs to mitigate XSS (CodeQL js/xss-through-dom)
-                      const safeImgSrc =
-                        typeof imgSrc === "string" &&
-                        imgSrc.trim().toLowerCase().startsWith("javascript:")
-                          ? defaultBanner
-                          : imgSrc;
+                      const safeImgSrc = sanitizeImageUrl(imgSrc, defaultBanner);
 
                       return (
                         <img
@@ -621,11 +653,7 @@ function DeckList({
                             if (!target.dataset.triedFallback) {
                               target.dataset.triedFallback = "true";
                               const fallbackUrl = branding.banner_url || defaultBanner;
-                              target.src =
-                                typeof fallbackUrl === "string" &&
-                                fallbackUrl.trim().toLowerCase().startsWith("javascript:")
-                                  ? defaultBanner
-                                  : fallbackUrl;
+                              target.src = sanitizeImageUrl(fallbackUrl, defaultBanner);
                             }
                           }}
                         />
