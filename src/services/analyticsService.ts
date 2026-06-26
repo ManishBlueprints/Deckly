@@ -1,6 +1,7 @@
 import posthog from "posthog-js";
 import { withRetry } from "../utils/resilience.ts";
 import { supabase } from "./supabase.ts";
+import { assertDeckOwnership } from "./deckService.shared.ts";
 import { Deck, DeckPageStats } from "../types";
 import { getTierConfig } from "../constants/tiers.ts";
 import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
@@ -536,7 +537,9 @@ export const analyticsService = {
 
   // Get unique visitor count for a deck (distinct people, not slide views)
   // Uses SQL COUNT(DISTINCT) via RPC for efficiency
-  async getUniqueVisitorCount(deckId: string): Promise<number> {
+  async getUniqueVisitorCount(deckId: string, ownerUserId: string): Promise<number> {
+    await assertDeckOwnership(deckId, ownerUserId);
+
     try {
       // Try RPC first (requires count_unique_visitors function in Supabase)
       const { data, error } = await supabase.rpc("count_unique_visitors", {
@@ -570,7 +573,9 @@ export const analyticsService = {
   },
 
   // Get detailed bookmarks for a deck
-  async getDeckBookmarks(deckId: string) {
+  async getDeckBookmarks(deckId: string, ownerUserId: string) {
+    await assertDeckOwnership(deckId, ownerUserId);
+
     // Attempt with join first
     const { data, error } = await supabase
       .from("investor_library")
@@ -628,7 +633,9 @@ export const analyticsService = {
 
   // Get aggregated location stats for a deck
   // Uses SQL GROUP BY via RPC for efficiency
-  async getDeckLocations(deckId: string) {
+  async getDeckLocations(deckId: string, ownerUserId: string) {
+    await assertDeckOwnership(deckId, ownerUserId);
+
     try {
       // Try RPC first (requires get_deck_locations function in Supabase)
       const { data, error } = await supabase.rpc("get_deck_locations", {

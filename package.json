@@ -39,7 +39,7 @@
     "lucide-react": "^0.563.0",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^5.4.296",
-    "posthog-js": "^1.336.4",
+    "posthog-js": "1.318.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-joyride": "^3.0.2",
@@ -63,7 +63,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
     "globals": "^16.4.0",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.10",
     "supabase": "^2.93.1",
     "tailwindcss": "3.4",
     "typescript": "^5.9.3",
@@ -73,10 +73,10 @@
     "vitest": "^4.0.18"
   },
   "overrides": {
-    "protobufjs": "7.5.5",
-    "dompurify": "3.4.0"
+    "protobufjs": "^7.5.8",
+    "dompurify": "^3.1.12"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   }
 }

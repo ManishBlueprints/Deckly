@@ -49,6 +49,41 @@ interface DeckListProps {
   onBrandingUpdate: (branding: Partial<BrandingSettings>) => void;
 }
 
+const sanitizeImageUrl = (
+  value: unknown,
+  fallback: string,
+): string => {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.startsWith("javascript:") ||
+    lower.startsWith("data:") ||
+    lower.startsWith("vbscript:") ||
+    lower.startsWith("file:")
+  ) {
+    return fallback;
+  }
+
+  if (trimmed.startsWith("//")) return fallback;
+  if (trimmed.startsWith("/")) return trimmed;
+
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.protocol === "http:" || parsed.protocol === "https:"
+        ? trimmed
+        : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  return trimmed;
+};
+
 function DeckList({
   decks,
   branding: initialBranding,
@@ -193,8 +228,9 @@ function DeckList({
 
     try {
       const lastDotIndex = file.name.lastIndexOf(".");
-      const fileExt =
+      const rawFileExt =
         lastDotIndex !== -1 ? file.name.slice(lastDotIndex + 1) : "";
+      const fileExt = rawFileExt.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16);
       const fileName = `${userId}/branding/banner-${Date.now()}${fileExt ? `.${fileExt}` : ""}`;
 
       const { error: uploadError } = await storageService.upload("decks", fileName, file, {
@@ -203,11 +239,14 @@ function DeckList({
 
       if (uploadError) throw uploadError;
 
+      const bannerUrl = sanitizeImageUrl(
+        storageService.getPublicUrl("decks", fileName),
+        defaultBanner,
+      );
       await deckService.updateBrandingSettings(
-        { banner_url: storageService.getPublicUrl("decks", fileName) },
+        { banner_url: bannerUrl },
         profile?.id,
       );
-      const bannerUrl = storageService.getPublicUrl("decks", fileName);
       setBranding((prev) => ({ ...prev, banner_url: bannerUrl }));
       onBrandingUpdate({ banner_url: bannerUrl });
     } catch (err: unknown) {
@@ -601,9 +640,11 @@ function DeckList({
                         imgSrc = branding.banner_url || defaultBanner;
                       }
 
+                      const safeImgSrc = sanitizeImageUrl(imgSrc, defaultBanner);
+
                       return (
                         <img
-                          src={imgSrc}
+                          src={safeImgSrc}
                           alt={deck.title}
                           referrerPolicy="no-referrer"
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -613,7 +654,8 @@ function DeckList({
                             const target = e.currentTarget;
                             if (!target.dataset.triedFallback) {
                               target.dataset.triedFallback = "true";
-                              target.src = branding.banner_url || defaultBanner;
+                              const fallbackUrl = branding.banner_url || defaultBanner;
+                              target.src = sanitizeImageUrl(fallbackUrl, defaultBanner);
                             }
                           }}
                         />

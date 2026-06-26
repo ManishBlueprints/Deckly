@@ -34,21 +34,21 @@ export function useTopPerformingDecks(userId: string | undefined) {
     });
 }
 
-export function useDeckSignalCounts(deckIds: string[]) {
+export function useDeckSignalCounts(deckIds: string[], ownerUserId?: string) {
     return useQuery({
-        queryKey: ["deck-signal-counts", ...deckIds],
+        queryKey: ["deck-signal-counts", ownerUserId, ...deckIds],
         queryFn: async () => {
-            if (!deckIds.length) return {};
+            if (!deckIds.length || !ownerUserId) return {};
 
             const counts: Record<string, number> = {};
             await Promise.all(
                 deckIds.map(async (id) => {
-                    counts[id] = await getDeckSignalCount(id);
+                    counts[id] = await getDeckSignalCount(id, ownerUserId);
                 }),
             );
 
             return counts;
         },
-        enabled: deckIds.length > 0,
+        enabled: deckIds.length > 0 && !!ownerUserId,
     });
 }
