@@ -727,7 +727,7 @@ export const analyticsService = {
 
     data.forEach((row) => {
       const cName = row.country || "Unknown";
-      const cCode = row.country_code || "US";
+      const cCode = row.country_code || "XX";
       const cityName = row.city || "Unknown City";
 
       if (!countryMap.has(cName)) {
