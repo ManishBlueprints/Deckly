@@ -907,7 +907,32 @@ const callOpenAiSummary = async (
   let userContent: AiProviderMessageContent = userPrompt;
 
   const inputWithPages = input as AiSummaryGenerateInput & { pages?: Array<{ image_url?: string }> };
-  const validPages = (inputWithPages.pages || []).filter(p => p.image_url);
+  let validPages = (inputWithPages.pages || []).filter(p => p.image_url);
+
+  const MAX_IMAGES = 10;
+  if (input.scope.scope_type !== "deck") {
+    if (validPages.length > 0) {
+      console.log(`[AI-SUMMARY] Dropping ${validPages.length} images for non-deck scope '${input.scope.scope_type}'`);
+    }
+    validPages = [];
+  } else if (validPages.length > MAX_IMAGES) {
+    const originalCount = validPages.length;
+    // Strip first and last page as they are usually title/contact slides
+    const middlePages = validPages.slice(1, validPages.length - 1);
+    
+    if (middlePages.length > MAX_IMAGES) {
+      const step = (middlePages.length - 1) / (MAX_IMAGES - 1);
+      const sampled = [];
+      for (let i = 0; i < MAX_IMAGES; i++) {
+        sampled.push(middlePages[Math.round(i * step)]);
+      }
+      validPages = sampled;
+    } else {
+      validPages = middlePages;
+    }
+    console.log(`[AI-SUMMARY] Truncated ${originalCount} images down to ${validPages.length} using middle-sampling.`);
+  }
+
   if (validPages.length > 0) {
     userContent = [
       { type: "text", text: userPrompt },

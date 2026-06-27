@@ -7,19 +7,25 @@ function getRootDomain() {
     return '';
   }
 
-  // Extract root domain (e.g., 'deckly.space' from 'app.deckly.space')
-  const parts = hostname.split('.');
-  if (parts.length >= 2) {
-    return `.${parts.slice(-2).join('.')}`;
+  // Explicit allowlist for cross-subdomain sharing to prevent over-broadening
+  if (hostname.endsWith('deckly.space')) {
+    return '.deckly.space';
   }
+  
   return '';
 }
 
 export const cookieStorage = {
   getItem: (key: string): string | null => {
     if (typeof document === 'undefined') return null;
-    const match = document.cookie.match(new RegExp('(^| )' + key + '=([^;]+)'));
-    return match ? decodeURIComponent(match[2]) : null;
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.startsWith(key + '=')) {
+        return decodeURIComponent(cookie.substring(key.length + 1));
+      }
+    }
+    return null;
   },
   setItem: (key: string, value: string): void => {
     if (typeof document === 'undefined') return;
@@ -28,21 +34,24 @@ export const cookieStorage = {
     // Use an expiration of 1 year for auth tokens
     const expires = new Date();
     expires.setFullYear(expires.getFullYear() + 1);
-    document.cookie = `${key}=${encodeURIComponent(value)}; ${domainString}path=/; expires=${expires.toUTCString()}; SameSite=Lax; Secure`;
+    const secureString = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `${key}=${encodeURIComponent(value)}; ${domainString}path=/; expires=${expires.toUTCString()}; SameSite=Lax${secureString}`;
   },
   removeItem: (key: string): void => {
     if (typeof document === 'undefined') return;
     const domain = getRootDomain();
     const domainString = domain ? `domain=${domain}; ` : '';
-    document.cookie = `${key}=; ${domainString}path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`;
+    const secureString = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `${key}=; ${domainString}path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureString}`;
   },
 };
 
 // Migrate existing localStorage tokens to cookieStorage
-if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+if (typeof window !== 'undefined') {
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
+    if (typeof window.localStorage !== 'undefined') {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
       if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
         const value = localStorage.getItem(key);
         if (value) {
@@ -51,6 +60,7 @@ if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined')
           break;
         }
       }
+    }
     }
   } catch {
     // Ignore access errors
