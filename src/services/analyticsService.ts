@@ -213,13 +213,13 @@ export const analyticsService = {
       geoCache = {
         country: data.country || "Unknown",
         city: data.city || "Unknown City",
-        country_code: data.country_code || "US"
+        country_code: data.country_code || "Unknown"
       };
       writeGeoCacheToSession(geoCache);
       return geoCache!;
     } catch (err) {
       console.warn("Failed to fetch geolocation, falling back to defaults:", err);
-      return { country: "Unknown", city: "Unknown City", country_code: "US" };
+      return { country: "Unknown", city: "Unknown City", country_code: "Unknown" };
     }
   },
 
