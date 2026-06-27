@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { cookieStorage } from './cookieStorage'
 
 type ImportMetaEnvShape = {
   VITE_SUPABASE_URL?: string
@@ -30,7 +31,12 @@ export function getSupabase(): SupabaseClient {
   }
 
   if (!cachedSupabase) {
-    cachedSupabase = createClient(supabaseUrl, supabasePublishableKey)
+    cachedSupabase = createClient(supabaseUrl, supabasePublishableKey, {
+      auth: {
+        storage: cookieStorage,
+        storageKey: 'deckly-auth-token',
+      },
+    })
   }
 
   return cachedSupabase

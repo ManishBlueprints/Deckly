@@ -58,6 +58,7 @@ export interface AiSummaryGenerateInput {
   source_title?: string;
   source_index?: number;
   total_sources?: number;
+  pages?: Array<{ page_number: number; image_url?: string }>;
 }
 
 export interface AiSummaryInitialRequest extends AiScopeReference {
@@ -484,6 +485,7 @@ export const createAiSummaryInitialOrchestrator = (
           scope: resolution,
           content: resolution.normalized_content,
           total_sources: resolution.included_sources.length,
+          pages: resolution.included_sources.flatMap(s => s.pages || []),
         });
       } else {
         recursiveSourceSummaries = [];
@@ -496,6 +498,7 @@ export const createAiSummaryInitialOrchestrator = (
             source_title: source.title,
             source_index: index + 1,
             total_sources: resolution.included_sources.length,
+            pages: source.pages,
           });
 
           recursiveSourceSummaries.push(

@@ -219,7 +219,7 @@ export const analyticsService = {
       return geoCache!;
     } catch (err) {
       console.warn("Failed to fetch geolocation, falling back to defaults:", err);
-      return { country: "Unknown", city: "Unknown City", country_code: "US" };
+      return { country: "Unknown", city: "Unknown City", country_code: "Unknown" };
     }
   },
 
