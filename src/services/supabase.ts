@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { cookieStorage } from './cookieStorage'
+import { cookieStorage } from './cookieStorage.ts'
 
 type ImportMetaEnvShape = {
   VITE_SUPABASE_URL?: string

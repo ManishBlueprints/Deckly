@@ -906,7 +906,8 @@ const callOpenAiSummary = async (
 
   let userContent: AiProviderMessageContent = userPrompt;
 
-  const validPages = (input.pages || []).filter(p => p.image_url);
+  const inputWithPages = input as AiSummaryGenerateInput & { pages?: Array<{ image_url?: string }> };
+  const validPages = (inputWithPages.pages || []).filter(p => p.image_url);
   if (validPages.length > 0) {
     userContent = [
       { type: "text", text: userPrompt },
