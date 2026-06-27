@@ -8,7 +8,7 @@ function getRootDomain() {
   }
 
   // Explicit allowlist for cross-subdomain sharing to prevent over-broadening
-  if (hostname.endsWith('deckly.space')) {
+  if (hostname === 'deckly.space' || hostname.endsWith('.deckly.space')) {
     return '.deckly.space';
   }
   
@@ -56,7 +56,10 @@ if (typeof window !== 'undefined') {
         const value = localStorage.getItem(key);
         if (value) {
           cookieStorage.setItem('deckly-auth-token', value);
-          localStorage.removeItem(key);
+          // Only remove the localStorage token if the cookie was successfully written
+          if (cookieStorage.getItem('deckly-auth-token') === value) {
+            localStorage.removeItem(key);
+          }
           break;
         }
       }

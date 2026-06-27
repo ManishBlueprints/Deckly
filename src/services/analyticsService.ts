@@ -213,7 +213,7 @@ export const analyticsService = {
       geoCache = {
         country: data.country || "Unknown",
         city: data.city || "Unknown City",
-        country_code: data.country_code || "US"
+        country_code: data.country_code || "Unknown"
       };
       writeGeoCacheToSession(geoCache);
       return geoCache!;

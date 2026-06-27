@@ -480,12 +480,17 @@ export const createAiSummaryInitialOrchestrator = (
       let recursiveSourceSummaries: string[] | undefined;
 
       if (strategy === "one_shot") {
+        const sortedSources = [...resolution.included_sources].sort((left, right) => {
+          if (left.deck_id !== right.deck_id) return left.deck_id.localeCompare(right.deck_id);
+          return left.source_id.localeCompare(right.source_id);
+        });
+        
         providerResult = await dependencies.generateSummary({
           mode: "one_shot",
           scope: resolution,
           content: resolution.normalized_content,
           total_sources: resolution.included_sources.length,
-          pages: resolution.included_sources.flatMap(s => s.pages || []),
+          pages: sortedSources.flatMap(s => s.pages || []),
         });
       } else {
         recursiveSourceSummaries = [];
