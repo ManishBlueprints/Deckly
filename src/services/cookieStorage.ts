@@ -7,7 +7,10 @@ function getRootDomain() {
     return '';
   }
 
-  // Explicit allowlist for cross-subdomain sharing to prevent over-broadening
+  // SECURITY TRADEOFF: We explicitly allowlist .deckly.space to enable cross-subdomain SSO.
+  // Because this is used for Supabase client-side auth, it cannot be HttpOnly (JS needs to read it).
+  // This means any JS on any deckly.space subdomain can read the token. We accept this risk
+  // because all subdomains are fully trusted and controlled by us (no 3rd party custom domains).
   if (hostname === 'deckly.space' || hostname.endsWith('.deckly.space')) {
     return '.deckly.space';
   }
