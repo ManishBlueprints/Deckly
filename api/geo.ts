@@ -14,9 +14,9 @@ function safeDecodeURIComponent(encoded: string): string {
 
 export default async function handler(req: Request) {
   // Vercel automatically injects these headers on the Edge Network
-  const country_code = req.headers.get('x-vercel-ip-country') || 'Unknown';
+  const country_code = req.headers.get('x-vercel-ip-country') || 'XX';
   let country = country_code;
-  if (country_code !== 'Unknown') {
+  if (country_code !== 'XX') {
     try {
       const displayNames = new Intl.DisplayNames(['en'], { type: 'region' });
       country = displayNames.of(country_code) || country_code;

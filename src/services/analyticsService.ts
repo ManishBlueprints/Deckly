@@ -670,8 +670,8 @@ export const analyticsService = {
     const cityMap = new Map<string, { name: string; count: number; country: string }>();
 
     data.forEach((row) => {
-      const cName = row.country || "Unknown";
-      const cCode = row.country_code || "XX";
+      const cName = !row.country || row.country === "Unknown" ? "Unknown" : row.country;
+      const cCode = !row.country_code || row.country_code === "Unknown" ? "XX" : row.country_code;
       const cityName = row.city || "Unknown City";
 
       // Countries
@@ -726,8 +726,8 @@ export const analyticsService = {
     const cityMap = new Map<string, { name: string; count: number; country: string }>();
 
     data.forEach((row) => {
-      const cName = row.country || "Unknown";
-      const cCode = row.country_code || "XX";
+      const cName = !row.country || row.country === "Unknown" ? "Unknown" : row.country;
+      const cCode = !row.country_code || row.country_code === "Unknown" ? "XX" : row.country_code;
       const cityName = row.city || "Unknown City";
 
       if (!countryMap.has(cName)) {

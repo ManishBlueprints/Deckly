@@ -907,7 +907,7 @@ const callOpenAiSummary = async (
   let userContent: AiProviderMessageContent = userPrompt;
 
   const inputWithPages = input as AiSummaryGenerateInput & { pages?: Array<{ image_url?: string }> };
-  let validPages = (inputWithPages.pages || []).filter(p => p.image_url);
+  let validPages = (inputWithPages.pages || []).filter(p => p.image_url && (p.image_url.startsWith("http://") || p.image_url.startsWith("https://")));
 
   const MAX_IMAGES = 10;
   if (input.scope.scope_type !== "deck") {

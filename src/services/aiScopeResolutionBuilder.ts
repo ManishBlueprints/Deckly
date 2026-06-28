@@ -263,24 +263,43 @@ export const buildAiScopeResolution = async (
       continue;
     }
 
-    const normalizedText = getNormalizedExtractableText(record);
-    if (!normalizedText) {
-      excludedSources.push({
-        ...baseSource,
-        reason: "missing_extractable_text",
-      });
-      continue;
-    }
-
     const pages = Array.isArray(record.pages) 
       ? record.pages.map((p, index) => {
-          const obj = p && typeof p === "object" ? (p as Record<string, unknown>) : {};
+          let obj: Record<string, unknown> = {};
+          if (p && typeof p === "object") {
+            obj = p as Record<string, unknown>;
+          } else if (typeof p === "string") {
+            const trimmed = p.trim();
+            if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (parsed && typeof parsed === "object") {
+                  obj = parsed;
+                }
+              } catch (e) {
+                // Ignore parse errors
+              }
+            } else {
+              obj = { image_url: trimmed };
+            }
+          }
           return {
             page_number: typeof obj.page_number === "number" ? obj.page_number : index + 1,
             image_url: typeof obj.image_url === "string" ? obj.image_url : undefined,
           };
         }).filter(p => p.image_url) // Only include pages that have an image
       : undefined;
+
+    const normalizedText = getNormalizedExtractableText(record);
+    
+    // Exclude only if we have neither text nor image pages
+    if (!normalizedText && (!pages || pages.length === 0)) {
+      excludedSources.push({
+        ...baseSource,
+        reason: "missing_extractable_text",
+      });
+      continue;
+    }
 
     includedSources.push({
       ...baseSource,
