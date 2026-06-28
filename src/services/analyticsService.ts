@@ -213,13 +213,13 @@ export const analyticsService = {
       geoCache = {
         country: data.country || "Unknown",
         city: data.city || "Unknown City",
-        country_code: data.country_code || "US"
+        country_code: data.country_code || "XX"
       };
       writeGeoCacheToSession(geoCache);
       return geoCache!;
     } catch (err) {
       console.warn("Failed to fetch geolocation, falling back to defaults:", err);
-      return { country: "Unknown", city: "Unknown City", country_code: "US" };
+      return { country: "Unknown", city: "Unknown City", country_code: "XX" };
     }
   },
 
@@ -671,7 +671,7 @@ export const analyticsService = {
 
     data.forEach((row) => {
       const cName = row.country || "Unknown";
-      const cCode = row.country_code || "US";
+      const cCode = row.country_code || "XX";
       const cityName = row.city || "Unknown City";
 
       // Countries
@@ -727,7 +727,7 @@ export const analyticsService = {
 
     data.forEach((row) => {
       const cName = row.country || "Unknown";
-      const cCode = row.country_code || "US";
+      const cCode = row.country_code || "XX";
       const cityName = row.city || "Unknown City";
 
       if (!countryMap.has(cName)) {
