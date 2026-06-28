@@ -4,7 +4,7 @@
 -- 1. Backfill legacy null values in deck_page_views
 UPDATE public.deck_page_views
 SET country_code = 'XX'
-WHERE country_code IS NULL OR country_code = 'Unknown' OR country_code = 'US';
+WHERE country_code IS NULL OR country_code = 'Unknown' OR (country_code = 'US' AND country = 'Unknown');
 
 -- 2. Update get_deck_locations RPC
 CREATE OR REPLACE FUNCTION public.get_deck_locations(p_deck_id uuid)

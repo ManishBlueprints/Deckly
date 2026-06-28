@@ -671,7 +671,7 @@ export const analyticsService = {
 
     data.forEach((row) => {
       const cName = !row.country || row.country === "Unknown" ? "Unknown" : row.country;
-      const cCode = !row.country_code || row.country_code === "Unknown" ? "XX" : row.country_code;
+      const cCode = !row.country_code || row.country_code === "Unknown" || (row.country_code === "US" && cName === "Unknown") ? "XX" : row.country_code;
       const cityName = row.city || "Unknown City";
 
       // Countries
@@ -727,7 +727,7 @@ export const analyticsService = {
 
     data.forEach((row) => {
       const cName = !row.country || row.country === "Unknown" ? "Unknown" : row.country;
-      const cCode = !row.country_code || row.country_code === "Unknown" ? "XX" : row.country_code;
+      const cCode = !row.country_code || row.country_code === "Unknown" || (row.country_code === "US" && cName === "Unknown") ? "XX" : row.country_code;
       const cityName = row.city || "Unknown City";
 
       if (!countryMap.has(cName)) {

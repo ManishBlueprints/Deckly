@@ -28,7 +28,7 @@ function getSingleCookie(key: string): string | null {
     if (cookie.startsWith(key + '=')) {
       try {
         return decodeURIComponent(cookie.substring(key.length + 1));
-      } catch (err) {
+      } catch {
         return null;
       }
     }
@@ -60,6 +60,9 @@ export const cookieStorage = {
     
     if (manifest && manifest.startsWith('chunk-count:')) {
       const count = parseInt(manifest.substring('chunk-count:'.length), 10);
+      if (isNaN(count) || count < 1) {
+        return null; // Corrupted manifest
+      }
       let value = '';
       for (let i = 0; i < count; i++) {
         const chunk = getSingleCookie(`${key}.${i}`);
@@ -95,13 +98,17 @@ export const cookieStorage = {
     
     if (manifest && manifest.startsWith('chunk-count:')) {
       const count = parseInt(manifest.substring('chunk-count:'.length), 10);
-      for (let i = 0; i < count; i++) {
-        removeSingleCookie(`${key}.${i}`);
+      if (!isNaN(count) && count > 0) {
+        for (let i = 0; i < count; i++) {
+          removeSingleCookie(`${key}.${i}`);
+        }
+        return; // Successfully deleted manifest-based chunks
       }
-    } else {
-      // It might be a partially deleted chunked session or legacy unchunked, 
-      // let's do a best-effort cleanup of chunks just in case
-      let i = 0;
+    }
+    
+    // It might be a partially deleted chunked session, a corrupted manifest, or legacy unchunked.
+    // Let's do a best-effort cleanup of chunks just in case.
+    let i = 0;
       while (i < 100) { // arbitrary safe limit
         const chunk = getSingleCookie(`${key}.${i}`);
         if (chunk !== null) {
@@ -112,7 +119,6 @@ export const cookieStorage = {
         i++;
       }
     }
-  }
 };
 
 // Migrate existing localStorage tokens to cookieStorage
