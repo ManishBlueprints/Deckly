@@ -24,7 +24,7 @@ BEGIN
 
     RETURN jsonb_build_object(
         'countries', COALESCE((
-            SELECT jsonb_agg(t) FROM (
+            SELECT jsonb_agg(t ORDER BY t.count DESC) FROM (
                 SELECT COALESCE(country, 'Unknown') as name,
                        COALESCE(country_code, 'XX') as code,
                        COUNT(*)::INTEGER as count
@@ -33,7 +33,7 @@ BEGIN
             ) t
         ), '[]'::jsonb),
         'cities', COALESCE((
-            SELECT jsonb_agg(t) FROM (
+            SELECT jsonb_agg(t ORDER BY t.count DESC) FROM (
                 SELECT COALESCE(city, 'Unknown City') as name,
                        COALESCE(country, 'Unknown') as country,
                        COUNT(*)::INTEGER as count
@@ -55,7 +55,7 @@ AS $$
 BEGIN
   RETURN jsonb_build_object(
     'countries', COALESCE((
-      SELECT jsonb_agg(t)
+      SELECT jsonb_agg(t ORDER BY t.count DESC)
       FROM (
         SELECT
           COALESCE(dpv.country, 'Unknown') AS name,
@@ -71,7 +71,7 @@ BEGIN
       ) t
     ), '[]'::jsonb),
     'cities', COALESCE((
-      SELECT jsonb_agg(t)
+      SELECT jsonb_agg(t ORDER BY t.count DESC)
       FROM (
         SELECT
           COALESCE(dpv.city, 'Unknown City') AS name,
