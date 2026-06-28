@@ -276,7 +276,7 @@ export const buildAiScopeResolution = async (
                 if (parsed && typeof parsed === "object") {
                   obj = parsed;
                 }
-              } catch (e) {
+              } catch {
                 // Ignore parse errors
               }
             } else {
@@ -287,10 +287,13 @@ export const buildAiScopeResolution = async (
             page_number: typeof obj.page_number === "number" ? obj.page_number : index + 1,
             image_url: typeof obj.image_url === "string" ? obj.image_url : undefined,
           };
-        }).filter(p => p.image_url) // Only include pages that have an image
+        }).filter(p => p.image_url && 
+                        record.scope_type === "deck" && 
+                        (p.image_url.startsWith("http://") || p.image_url.startsWith("https://"))
+        ) // Only keep valid http(s) images for deck scopes
       : undefined;
 
-    const normalizedText = getNormalizedExtractableText(record);
+    const normalizedText = getNormalizedExtractableText(record) ?? "";
     
     // Exclude only if we have neither text nor image pages
     if (!normalizedText && (!pages || pages.length === 0)) {

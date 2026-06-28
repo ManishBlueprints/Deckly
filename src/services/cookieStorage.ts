@@ -56,44 +56,60 @@ function removeSingleCookie(key: string): void {
 
 export const cookieStorage = {
   getItem: (key: string): string | null => {
-    let value = '';
-    let i = 0;
-    while (true) {
-      const chunk = getSingleCookie(`${key}.${i}`);
-      if (chunk !== null) {
-        value += chunk;
-        i++;
-      } else {
-        break;
-      }
-    }
-    if (value) return value;
+    const manifest = getSingleCookie(key);
     
-    // Fallback to legacy unchunked key if chunk 0 doesn't exist
-    return getSingleCookie(key);
+    if (manifest && manifest.startsWith('chunk-count:')) {
+      const count = parseInt(manifest.substring('chunk-count:'.length), 10);
+      let value = '';
+      for (let i = 0; i < count; i++) {
+        const chunk = getSingleCookie(`${key}.${i}`);
+        if (chunk === null) {
+          return null; // Missing a chunk in the sequence, session is corrupted
+        }
+        value += chunk;
+      }
+      return value;
+    }
+    
+    // Legacy fallback (either legacy unchunked string, or null)
+    return manifest;
   },
   
   setItem: (key: string, value: string): void => {
     cookieStorage.removeItem(key); // Clear existing chunks and legacy key
     
+    const chunks: string[] = [];
     for (let i = 0; i < value.length; i += CHUNK_SIZE) {
-      setSingleCookie(`${key}.${i / CHUNK_SIZE}`, value.slice(i, i + CHUNK_SIZE));
+      chunks.push(value.slice(i, i + CHUNK_SIZE));
     }
+    
+    setSingleCookie(key, `chunk-count:${chunks.length}`);
+    chunks.forEach((chunk, i) => {
+      setSingleCookie(`${key}.${i}`, chunk);
+    });
   },
 
   removeItem: (key: string): void => {
-    // Remove legacy unchunked key just in case
-    removeSingleCookie(key);
+    const manifest = getSingleCookie(key);
+    removeSingleCookie(key); // Remove manifest or legacy string
     
-    // Remove all chunks until we hit one that doesn't exist
-    let i = 0;
-    while (true) {
-      const chunk = getSingleCookie(`${key}.${i}`);
-      if (chunk !== null) {
+    if (manifest && manifest.startsWith('chunk-count:')) {
+      const count = parseInt(manifest.substring('chunk-count:'.length), 10);
+      for (let i = 0; i < count; i++) {
         removeSingleCookie(`${key}.${i}`);
+      }
+    } else {
+      // It might be a partially deleted chunked session or legacy unchunked, 
+      // let's do a best-effort cleanup of chunks just in case
+      let i = 0;
+      while (i < 100) { // arbitrary safe limit
+        const chunk = getSingleCookie(`${key}.${i}`);
+        if (chunk !== null) {
+          removeSingleCookie(`${key}.${i}`);
+        } else {
+          break; // Stop at first missing chunk if we don't know the count
+        }
         i++;
-      } else {
-        break;
       }
     }
   }
