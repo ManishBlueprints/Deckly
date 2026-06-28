@@ -526,6 +526,7 @@ describe("aiSummaryInitialOrchestrator", () => {
   });
 
   it("preserves the original generation error when error-cache write fails", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const writeCache = vi
       .fn()
       .mockRejectedValueOnce(new Error("error cache write failed"));
@@ -541,20 +542,24 @@ describe("aiSummaryInitialOrchestrator", () => {
       }),
     });
 
-    await expect(
-      orchestrator.summarize({
-        scope_type: "deck",
-        scope_id: "deck-1",
-        actor: {
-          type: "signed_in",
-          user_id: "user-1",
-          tier: "FREE",
-        },
-        now: new Date("2026-05-02T12:00:00.000Z"),
-      }),
-    ).rejects.toThrow("generation failed");
+    try {
+      await expect(
+        orchestrator.summarize({
+          scope_type: "deck",
+          scope_id: "deck-1",
+          actor: {
+            type: "signed_in",
+            user_id: "user-1",
+            tier: "FREE",
+          },
+          now: new Date("2026-05-02T12:00:00.000Z"),
+        }),
+      ).rejects.toThrow("generation failed");
 
-    expect(writeCache).toHaveBeenCalledTimes(1);
+      expect(writeCache).toHaveBeenCalledTimes(1);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("returns generating when another worker already claimed the cache row", async () => {

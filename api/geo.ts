@@ -14,12 +14,20 @@ function safeDecodeURIComponent(encoded: string): string {
 
 export default async function handler(req: Request) {
   // Vercel automatically injects these headers on the Edge Network
-  // x-vercel-ip-country returns ISO 3166-1 country code (e.g., "US", "GB")
-  const country = req.headers.get('x-vercel-ip-country') || 'Unknown';
+  const country_code = req.headers.get('x-vercel-ip-country') || 'XX';
+  let country = country_code === 'XX' ? 'Unknown' : country_code;
+  if (country_code !== 'XX') {
+    try {
+      const displayNames = new Intl.DisplayNames(['en'], { type: 'region' });
+      country = displayNames.of(country_code) || country_code;
+    } catch {
+      // fallback to code
+    }
+  }
+
   // City names are URL-encoded by Vercel, need to decode safely
   const cityEncoded = req.headers.get('x-vercel-ip-city') || 'Unknown City';
   const city = safeDecodeURIComponent(cityEncoded);
-  const country_code = req.headers.get('x-vercel-ip-country') || 'Unknown';
 
   return new Response(
     JSON.stringify({ 

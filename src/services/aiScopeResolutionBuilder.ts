@@ -43,6 +43,7 @@ export interface AiIncludedSource {
   folder_name: string | null;
   normalized_text: string;
   text_length: number;
+  pages?: Array<{ page_number: number; image_url?: string }>;
 }
 
 export interface AiExcludedSource {
@@ -219,7 +220,12 @@ const getScopeNoContentReason = (args: {
 };
 
 export const createAiContentHash = async (
-  entries: Array<{ source_id: string; deck_id: string; normalized_text: string }>,
+  entries: Array<{ 
+    source_id: string; 
+    deck_id: string; 
+    normalized_text: string;
+    pages?: Array<{ page_number: number; image_url?: string }>;
+  }>,
 ): Promise<string> => {
   const digest = await globalThis.crypto.subtle.digest(
     "SHA-256",
@@ -257,8 +263,40 @@ export const buildAiScopeResolution = async (
       continue;
     }
 
-    const normalizedText = getNormalizedExtractableText(record);
-    if (!normalizedText) {
+    const pages = Array.isArray(record.pages) 
+      ? record.pages.map((p, index) => {
+          let obj: Record<string, unknown> = {};
+          if (p && typeof p === "object") {
+            obj = p as Record<string, unknown>;
+          } else if (typeof p === "string") {
+            const trimmed = p.trim();
+            if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (parsed && typeof parsed === "object") {
+                  obj = parsed;
+                }
+              } catch {
+                // Ignore parse errors
+              }
+            } else {
+              obj = { image_url: trimmed };
+            }
+          }
+          return {
+            page_number: typeof obj.page_number === "number" ? obj.page_number : index + 1,
+            image_url: typeof obj.image_url === "string" ? obj.image_url : undefined,
+          };
+        }).filter(p => p.image_url && 
+                        descriptor.scope_type === "deck" && 
+                        (p.image_url.startsWith("http://") || p.image_url.startsWith("https://"))
+        ) // Only keep valid http(s) images for deck scopes
+      : undefined;
+
+    const normalizedText = getNormalizedExtractableText(record) ?? "";
+    
+    // Exclude only if we have neither text nor image pages
+    if (!normalizedText && (!pages || pages.length === 0)) {
       excludedSources.push({
         ...baseSource,
         reason: "missing_extractable_text",
@@ -270,6 +308,7 @@ export const buildAiScopeResolution = async (
       ...baseSource,
       normalized_text: normalizedText,
       text_length: normalizedText.length,
+      pages: pages && pages.length > 0 ? pages : undefined,
     });
   }
 
@@ -278,6 +317,7 @@ export const buildAiScopeResolution = async (
       source_id: source.source_id,
       deck_id: source.deck_id,
       normalized_text: source.normalized_text,
+      pages: source.pages,
     }))
     .sort((left, right) => {
       if (left.deck_id !== right.deck_id) return left.deck_id.localeCompare(right.deck_id);
