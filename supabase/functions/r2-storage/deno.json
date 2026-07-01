@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@^2.100.1",
+    "@std/http": "jsr:@std/http@0.224.5",
+    "@std/encoding": "jsr:@std/encoding@0.224.3"
+  }
+}
