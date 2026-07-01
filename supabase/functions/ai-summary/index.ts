@@ -456,7 +456,7 @@ const resolveSignedInScope = async (
       .from("decks")
       .select("*")
       .eq("id", reference.scope_id)
-      .eq("user_id", userId)
+      .or(`user_id.eq.${userId},is_public.eq.true`)
       .maybeSingle();
 
     if (error) throw error;
