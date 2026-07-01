@@ -557,7 +557,7 @@ const authorizeScopeAccess = async (
       .from("decks")
       .select("id")
       .eq("id", scopeId)
-      .eq("user_id", userId)
+      .or(`user_id.eq.${userId},is_public.eq.true`)
       .maybeSingle();
 
     if (error) throw error;
