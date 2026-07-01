@@ -8,6 +8,7 @@ const analyticsServiceMock = vi.hoisted(() => ({
   getDeckBookmarks: vi.fn(),
   getUniqueVisitorCount: vi.fn(),
   getDeckLocations: vi.fn(),
+  getDeckLinkStats: vi.fn(),
 }));
 const getVisitorSignalsMock = vi.hoisted(() => vi.fn());
 
@@ -29,6 +30,7 @@ import {
   useDeckStats,
   useUniqueVisitorCount,
   useVisitorSignals,
+  useDeckLinkStats,
 } from "./useDeckAnalyticsData";
 
 describe("useDeckAnalyticsData", () => {
@@ -42,6 +44,7 @@ describe("useDeckAnalyticsData", () => {
     useVisitorSignals("deck-1", "user-1", false);
     useUniqueVisitorCount("deck-1", "user-1", false);
     useDeckLocations("deck-1", "user-1", false);
+    useDeckLinkStats("deck-1", "user-1", false);
 
     for (const call of useQueryMock.mock.calls) {
       expect(call[0]).toEqual(
@@ -58,6 +61,7 @@ describe("useDeckAnalyticsData", () => {
     useVisitorSignals("deck-1", "user-1", true);
     useUniqueVisitorCount("deck-1", "user-1", true);
     useDeckLocations("deck-1", "user-1", true);
+    useDeckLinkStats("deck-1", "user-1", true);
 
     for (const call of useQueryMock.mock.calls) {
       expect(call[0]).toEqual(
@@ -89,6 +93,7 @@ describe("useDeckAnalyticsData", () => {
     useVisitorSignals(undefined, undefined, true);
     useUniqueVisitorCount(undefined, undefined, true);
     useDeckLocations(undefined, undefined, true);
+    useDeckLinkStats(undefined, undefined, true);
 
     for (const call of useQueryMock.mock.calls) {
       expect(call[0]).toEqual(

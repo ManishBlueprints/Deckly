@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import {
   Eye,
   ArrowLeft,
@@ -15,6 +16,9 @@ import {
   Loader2,
   MapPin,
   Globe,
+  Link2,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -23,14 +27,16 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
 import { useDeck } from "../hooks/useDecks";
-import { DeckPageStats } from "../types";
+import { DeckPageStats, DeckLinkStats } from "../types";
 import {
   useDeckStats,
   useDeckBookmarks,
   useVisitorSignals,
   useUniqueVisitorCount,
   useDeckLocations,
+  useDeckLinkStats,
 } from "../hooks/useDeckAnalyticsData";
+import { getDeckLinkShareUrl } from "../utils/url";
 import {
   AnalyticsStatCard,
   AnalyticsTabs,
@@ -63,10 +69,10 @@ interface DropOffStat extends DeckPageStats {
 export default function DeckAnalytics() {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
-  const { session, isPro } = useAuth();
+  const { session, isPro, profile } = useAuth();
   const ownerUserId = session?.user?.id;
   const [activeTab, setActiveTab] = useState<
-    "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION"
+    "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION" | "LINKS"
   >("VISITS");
   const [expandedVisitor, setExpandedVisitor] = useState<string | null>(null);
 
@@ -96,6 +102,11 @@ export default function DeckAnalytics() {
     ownerUserId,
     canViewAnalytics,
   );
+  const { data: linkStats = [], isFetching: linksFetching } = useDeckLinkStats(
+    deckId,
+    ownerUserId,
+    canViewAnalytics,
+  );
 
   const errorMsg = deckError?.message?.toLowerCase() || "";
   const isAuthOrNotFoundError = deckError && (
@@ -115,7 +126,7 @@ export default function DeckAnalytics() {
 
   const loading = deckLoading || (canViewAnalytics && stats.length === 0 && statsLoading);
   const isRefreshing =
-    canViewAnalytics && (statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching);
+    canViewAnalytics && (statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching || linksFetching);
   const totalSaves = bookmarks.length;
 
   // Derived Stats
@@ -171,6 +182,7 @@ export default function DeckAnalytics() {
     { id: "DROPOFF", label: "Dropoff" },
     { id: "SAVES", label: "Saves", shortLabel: "Saved" },
     { id: "LOCATION", label: "Location" },
+    { id: "LINKS", label: "Links" },
   ];
 
   if (loading) {
@@ -357,7 +369,7 @@ export default function DeckAnalytics() {
                     value={activeTab}
                     onValueChange={(v) => {
                       const tab = tabs.find((t) => t.id === v);
-                      if (tab) setActiveTab(v as "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION");
+                      if (tab) setActiveTab(v as "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION" | "LINKS");
                     }}
                     className="w-full md:w-auto"
                     tabs={tabs.map((tab) => ({
@@ -417,6 +429,108 @@ export default function DeckAnalytics() {
                             </Badge>
                           </div>
                         </div>
+                        );
+                      })}
+                    </div>
+                  )
+                ) : activeTab === "LINKS" ? (
+                  linkStats.length === 0 ? (
+                    <div className="py-20 text-center space-y-6">
+                      <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
+                        <Link2 size={32} />
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                        No links created for this deck yet.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4">
+                      {linkStats.map((link: DeckLinkStats) => {
+                        const shareUrl = getDeckLinkShareUrl(
+                          profile?.handle || "",
+                          link.link_alias || deck?.slug || ""
+                        );
+                        const avgTime = link.total_views > 0
+                          ? (link.total_time_seconds / link.total_views).toFixed(1)
+                          : "0";
+
+                        const handleCopy = async () => {
+                          try {
+                            await navigator.clipboard.writeText(shareUrl);
+                            toast.success(`Copied link "${link.link_name}" to clipboard`);
+                          } catch {
+                            toast.error("Failed to copy link");
+                          }
+                        };
+
+                        return (
+                          <div
+                            key={link.link_id}
+                            className="flex flex-col md:flex-row md:items-center justify-between p-6 bg-surface-low rounded-md border border-[#222] hover:border-[#333] hover:bg-[#2a2a2a] transition-all duration-200 gap-6"
+                          >
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <h4 className="text-sm font-bold text-white tracking-wider truncate max-w-[200px]">
+                                  {link.link_name}
+                                </h4>
+                                <div className="flex items-center gap-1.5">
+                                  {link.is_primary && (
+                                    <Badge className="bg-deckly-primary/10 text-deckly-primary border border-deckly-primary/20 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5">
+                                      Primary
+                                    </Badge>
+                                  )}
+                                  {link.is_enabled ? (
+                                    <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5">
+                                      Active
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-red-500/10 text-red-400 border border-red-500/20 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5">
+                                      Disabled
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-xs text-slate-400 font-mono truncate max-w-md">
+                                {shareUrl}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-8 md:gap-12 flex-wrap shrink-0">
+                              <div className="space-y-1">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Total Views</p>
+                                <p className="text-sm font-bold text-white">{link.total_views.toLocaleString()}</p>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Visitors</p>
+                                <p className="text-sm font-bold text-white">{link.unique_visitors.toLocaleString()}</p>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Avg Duration</p>
+                                <p className="text-sm font-bold text-white">{avgTime}s</p>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="w-9 h-9 bg-[#111] border border-[#333] text-slate-400 hover:text-deckly-primary hover:bg-[#1a1a1a]"
+                                  onClick={handleCopy}
+                                  title="Copy URL"
+                                >
+                                  <Copy size={14} />
+                                </Button>
+                                <a
+                                  href={shareUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center w-9 h-9 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-deckly-primary hover:bg-[#1a1a1a] transition-all"
+                                  title="Open in new tab"
+                                >
+                                  <ExternalLink size={14} />
+                                </a>
+                              </div>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
