@@ -804,7 +804,7 @@ const resolveRecordsForScope = async (
       .eq("id", reference.scope_id);
 
     if (userId) {
-      query = query.eq("user_id", userId);
+      query = query.or(`user_id.eq.${userId},is_public.eq.true`);
     } else {
       query = query.eq("is_public", true);
     }
