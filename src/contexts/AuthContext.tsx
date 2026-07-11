@@ -8,9 +8,15 @@ import { userService } from "../services/userService";
 import { UserProfile, BrandingSettings } from "../types";
 import { useProfile, useBranding } from "../hooks/useAuthQueries";
 import posthog from "posthog-js";
+import {
+  captureSignupCompleted,
+  consumePendingOAuthSignup,
+} from "../services/signupAnalytics";
 
 interface AuthContextType {
   session: Session | null;
+  passwordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   profile: UserProfile | null;
   loading: boolean;
   isPro: boolean;
@@ -29,12 +35,22 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const PASSWORD_RECOVERY_STORAGE_KEY = "deckly.password_recovery";
+
+const readPasswordRecoveryState = () => {
+  try {
+    return window.sessionStorage.getItem(PASSWORD_RECOVERY_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
+  const [passwordRecovery, setPasswordRecovery] = useState(readPasswordRecoveryState);
   const [loading, setLoading] = useState(true);
   const [initializationError, setInitializationError] = useState<string | null>(
     null,
@@ -87,6 +103,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const clearPasswordRecovery = () => {
+    setPasswordRecovery(false);
+    try {
+      window.sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
+    } catch {
+      // Recovery state is only an in-browser guard; storage failures are non-fatal.
+    }
+  };
+
   const setBranding = (newBranding: BrandingSettings | null) => {
     if (session?.user) {
       queryClient.setQueryData(["branding", session.user.id], newBranding);
@@ -115,8 +140,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         setSession(session);
 
+        if (event === "PASSWORD_RECOVERY") {
+          setPasswordRecovery(true);
+          try {
+            window.sessionStorage.setItem(PASSWORD_RECOVERY_STORAGE_KEY, "true");
+          } catch {
+            // The active recovery session remains sufficient for this browser visit.
+          }
+        }
+
+        // OAuth returns through a full-page redirect, so the signup page cannot
+        // capture completion itself. Consume the intent exactly once when the
+        // authenticated session is restored.
+        if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+          const signupMethod = consumePendingOAuthSignup();
+          const createdAt = Date.parse(session.user.created_at);
+          const isRecentlyCreated =
+            Number.isFinite(createdAt) &&
+            Date.now() - createdAt <= 15 * 60 * 1000;
+          if (signupMethod && isRecentlyCreated) {
+            captureSignupCompleted(session.user, signupMethod);
+          }
+        }
+
         // Security: Automatically clear sensitive cache if session is signed out remotely
         if (event === "SIGNED_OUT") {
+          clearPasswordRecovery();
           queryClient.clear();
         }
 
@@ -185,6 +234,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     <AuthContext.Provider
       value={{
         session,
+        passwordRecovery,
+        clearPasswordRecovery,
         profile: profile || null,
         branding: branding || null,
         brandingLoading,

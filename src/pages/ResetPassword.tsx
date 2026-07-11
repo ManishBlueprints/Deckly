@@ -1,0 +1,155 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2, Lock } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { FormInput } from "../components/ui/form-input";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  getPasswordErrorMessage,
+  PASSWORD_REQUIREMENTS_MESSAGE,
+  updateAccountPassword,
+  validatePassword,
+} from "../services/passwordService";
+import { toast } from "sonner";
+import posthog from "posthog-js";
+
+export default function ResetPassword() {
+  const navigate = useNavigate();
+  const { session, loading, passwordRecovery, clearPasswordRecovery } = useAuth();
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [complete, setComplete] = useState(false);
+
+  useEffect(() => {
+    document.title = "Choose a New Password | Deckly";
+  }, []);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const validationError = validatePassword(password, confirmation);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const { error: updateError } = await updateAccountPassword(password);
+      if (updateError) throw updateError;
+
+      clearPasswordRecovery();
+      setComplete(true);
+      posthog.capture("password_reset_completed");
+      toast.success("Your password has been updated.");
+    } catch (updateError: unknown) {
+      const message = getPasswordErrorMessage(updateError);
+      setError(message);
+      posthog.capture("password_reset_failed", {
+        error_code:
+          updateError && typeof updateError === "object" && "code" in updateError
+            ? String((updateError as { code?: unknown }).code || "unknown")
+            : "unknown",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-deckly-background flex items-center justify-center">
+        <Loader2 className="animate-spin text-deckly-primary" size={24} />
+      </main>
+    );
+  }
+
+  if (!session || !passwordRecovery) {
+    return (
+      <main className="min-h-screen bg-deckly-background flex items-center justify-center p-6">
+        <section className="w-full max-w-md border border-border bg-surface-low p-6 md:p-8 space-y-5 text-center">
+          <KeyRound className="mx-auto text-deckly-primary" size={28} />
+          <h1 className="text-xl font-bold text-white">This reset link is invalid or expired</h1>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Request a new password reset email and use the most recent link.
+          </p>
+          <Button fullWidth onClick={() => navigate("/forgot-password")}>
+            Request a new link
+          </Button>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-deckly-background flex items-center justify-center p-6">
+      <section className="w-full max-w-md border border-border bg-surface-low p-6 md:p-8 space-y-6">
+        {complete ? (
+          <div className="space-y-5 text-center">
+            <CheckCircle2 className="mx-auto text-deckly-primary" size={32} />
+            <h1 className="text-xl font-bold text-white">Password updated</h1>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              We&apos;ve sent a confirmation email to your account.
+            </p>
+            <Button fullWidth onClick={() => navigate("/", { replace: true })}>
+              Continue to Deckly
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-white">Choose a new password</h1>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                {PASSWORD_REQUIREMENTS_MESSAGE}
+              </p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <FormInput
+                id="new-password"
+                label="New password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                icon={Lock}
+                required
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    className="text-slate-500 hover:text-slate-200 transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+              />
+              <FormInput
+                id="confirm-password"
+                label="Confirm new password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                value={confirmation}
+                onChange={(event) => setConfirmation(event.target.value)}
+                icon={Lock}
+                required
+                error={error}
+              />
+              <Button type="submit" fullWidth loading={saving} disabled={saving}>
+                Update password
+              </Button>
+            </form>
+          </>
+        )}
+        {!complete && (
+          <Link to="/login" className="block text-center text-xs font-semibold text-slate-400 hover:text-deckly-primary transition-colors">
+            Back to sign in
+          </Link>
+        )}
+      </section>
+    </main>
+  );
+}

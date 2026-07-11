@@ -95,8 +95,8 @@ This pushes your locally verified migrations to the linked production project.
    - `VITE_SUPABASE_URL`: Your Supabase project URL.
    - `VITE_SUPABASE_PUBLISHABLE_KEY`: Your Supabase publishable key (browser-safe).
    - `PROJECT_SECRET_KEY`: (Server-side/Edge Functions) Your project's service_role or secret key. Used by Edge Functions to authorize owner-mode operations (like signed URL generation) without exposing the key to the browser.
-   - `VITE_POSTHOG_KEY`: (Optional) Your PostHog project API key.
-   - `VITE_POSTHOG_HOST`: (Optional) Your PostHog host (e.g., `https://app.posthog.com`).
+   - `VITE_PUBLIC_POSTHOG_KEY`: (Optional) Your PostHog project API key.
+   - `VITE_PUBLIC_POSTHOG_HOST`: (Optional) Your PostHog host (e.g., `https://app.posthog.com`).
 
 > [!IMPORTANT]
 > Never commit your `.env.local` or any file containing secrets to version control.
