@@ -37,4 +37,19 @@ describe("interest-signal email webhook authentication", () => {
       "verify_jwt = false  # Database Webhook is authenticated in-function with EMAIL_WEBHOOK_SECRET",
     );
   });
+
+  it("uses the claimed event id as Resend's idempotency key", () => {
+    expect(functionSource).toContain(
+      '"Idempotency-Key": `interest-signal-email/${claimedEvent.id}`',
+    );
+  });
+
+  it("does not expose Resend failure details to webhook callers", () => {
+    expect(functionSource).toContain(
+      'return jsonResponse({ error: "Email delivery failed" }, 502);',
+    );
+    expect(functionSource).not.toContain(
+      'return jsonResponse({ error: "Email delivery failed", detail: message }, 502);',
+    );
+  });
 });

@@ -12,6 +12,10 @@ import {
   captureSignupCompleted,
   consumePendingOAuthSignup,
 } from "../services/signupAnalytics";
+import {
+  createPasswordRecoveryMarker,
+  isPasswordRecoveryMarkerActive,
+} from "../utils/passwordRecoveryState";
 
 interface AuthContextType {
   session: Session | null;
@@ -39,7 +43,9 @@ const PASSWORD_RECOVERY_STORAGE_KEY = "deckly.password_recovery";
 
 const readPasswordRecoveryState = () => {
   try {
-    return window.sessionStorage.getItem(PASSWORD_RECOVERY_STORAGE_KEY) === "true";
+    return isPasswordRecoveryMarkerActive(
+      window.sessionStorage.getItem(PASSWORD_RECOVERY_STORAGE_KEY),
+    );
   } catch {
     return false;
   }
@@ -143,10 +149,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (event === "PASSWORD_RECOVERY") {
           setPasswordRecovery(true);
           try {
-            window.sessionStorage.setItem(PASSWORD_RECOVERY_STORAGE_KEY, "true");
+            window.sessionStorage.setItem(
+              PASSWORD_RECOVERY_STORAGE_KEY,
+              createPasswordRecoveryMarker(),
+            );
           } catch {
             // The active recovery session remains sufficient for this browser visit.
           }
+        } else {
+          // PASSWORD_RECOVERY is the only Supabase event that proves the
+          // active session originated from a recovery link. Never let a
+          // previous recovery marker authorize a normal signed-in session.
+          clearPasswordRecovery();
         }
 
         // OAuth returns through a full-page redirect, so the signup page cannot

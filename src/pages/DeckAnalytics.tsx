@@ -102,11 +102,13 @@ export default function DeckAnalytics() {
     ownerUserId,
     canViewAnalytics,
   );
-  const { data: linkStats = [], isFetching: linksFetching } = useDeckLinkStats(
-    deckId,
-    ownerUserId,
-    canViewAnalytics,
-  );
+  const {
+    data: linkStats = [],
+    isLoading: linksLoading,
+    isFetching: linksFetching,
+    isError: linksError,
+    refetch: refetchLinkStats,
+  } = useDeckLinkStats(deckId, ownerUserId, canViewAnalytics);
 
   const errorMsg = deckError?.message?.toLowerCase() || "";
   const isAuthOrNotFoundError = deckError && (
@@ -434,7 +436,24 @@ export default function DeckAnalytics() {
                     </div>
                   )
                 ) : activeTab === "LINKS" ? (
-                  linkStats.length === 0 ? (
+                  linksLoading ? (
+                    <div className="py-20 text-center space-y-4">
+                      <Loader2 className="mx-auto h-8 w-8 animate-spin text-deckly-primary" />
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                        Loading link analytics...
+                      </p>
+                    </div>
+                  ) : linksError ? (
+                    <div className="py-20 text-center space-y-4">
+                      <AlertCircle className="mx-auto h-8 w-8 text-rose-400" />
+                      <p className="text-sm text-slate-400">
+                        We couldn&apos;t load link analytics. Please try again.
+                      </p>
+                      <Button variant="outline" onClick={() => void refetchLinkStats()}>
+                        Retry
+                      </Button>
+                    </div>
+                  ) : linkStats.length === 0 ? (
                     <div className="py-20 text-center space-y-6">
                       <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
                         <Link2 size={32} />

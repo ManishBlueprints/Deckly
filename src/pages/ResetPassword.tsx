@@ -6,6 +6,7 @@ import { FormInput } from "../components/ui/form-input";
 import { useAuth } from "../contexts/AuthContext";
 import {
   getPasswordErrorMessage,
+  isReauthenticationRequired,
   PASSWORD_REQUIREMENTS_MESSAGE,
   updateAccountPassword,
   validatePassword,
@@ -22,6 +23,7 @@ export default function ResetPassword() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
+  const [requiresNewRecoveryLink, setRequiresNewRecoveryLink] = useState(false);
 
   useEffect(() => {
     document.title = "Choose a New Password | Deckly";
@@ -46,6 +48,14 @@ export default function ResetPassword() {
       posthog.capture("password_reset_completed");
       toast.success("Your password has been updated.");
     } catch (updateError: unknown) {
+      if (isReauthenticationRequired(updateError)) {
+        clearPasswordRecovery();
+        setRequiresNewRecoveryLink(true);
+        setError(null);
+        posthog.capture("password_reset_reauthentication_required");
+        return;
+      }
+
       const message = getPasswordErrorMessage(updateError);
       setError(message);
       posthog.capture("password_reset_failed", {
@@ -96,6 +106,17 @@ export default function ResetPassword() {
             </p>
             <Button fullWidth onClick={() => navigate("/", { replace: true })}>
               Continue to Deckly
+            </Button>
+          </div>
+        ) : requiresNewRecoveryLink ? (
+          <div className="space-y-5 text-center">
+            <KeyRound className="mx-auto text-deckly-primary" size={32} />
+            <h1 className="text-xl font-bold text-white">Request a new reset link</h1>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              This reset session is no longer valid. Request a new link and use it right away.
+            </p>
+            <Button fullWidth onClick={() => navigate("/forgot-password", { replace: true })}>
+              Request a new link
             </Button>
           </div>
         ) : (

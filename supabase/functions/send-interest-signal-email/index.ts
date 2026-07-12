@@ -211,6 +211,7 @@ Deno.serve(async (request: Request) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${resendApiKey}`,
+        "Idempotency-Key": `interest-signal-email/${claimedEvent.id}`,
       },
       body: JSON.stringify({
         from: fromAddress,
@@ -231,7 +232,7 @@ Deno.serve(async (request: Request) => {
         .eq("id", event.id);
       if (markFailedError) console.error("[send-interest-signal-email] Failed to persist error:", markFailedError.message);
       console.error("[send-interest-signal-email] Resend failed:", message);
-      return jsonResponse({ error: "Email delivery failed", detail: message }, 502);
+      return jsonResponse({ error: "Email delivery failed" }, 502);
     }
 
     const resendMessageId =

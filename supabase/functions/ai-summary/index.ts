@@ -411,18 +411,40 @@ const getClientIpAddress = (request: Request): string => {
   return connectingIp?.trim() || realIp?.trim() || firstForwarded || "0.0.0.0";
 };
 
-const getScopeResolutionFromPublicDeck = async (
+const getAccessibleDeckForAi = async (
   supabaseClient: SupabaseClient,
   scopeId: string,
-): Promise<AiScopeResolution> => {
-  const { data, error } = await supabaseClient
+  userId?: string,
+) => {
+  if (userId) {
+    const { data: ownedDeck, error: ownedDeckError } = await supabaseClient
+      .from("decks")
+      .select("*")
+      .eq("id", scopeId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (ownedDeckError) throw ownedDeckError;
+    if (ownedDeck) return ownedDeck;
+  }
+
+  const { data: publicDeck, error: publicDeckError } = await supabaseClient
     .from("decks")
     .select("*")
     .eq("id", scopeId)
     .eq("is_public", true)
+    .eq("require_password", false)
     .maybeSingle();
 
-  if (error) throw error;
+  if (publicDeckError) throw publicDeckError;
+  return publicDeck;
+};
+
+const getScopeResolutionFromPublicDeck = async (
+  supabaseClient: SupabaseClient,
+  scopeId: string,
+): Promise<AiScopeResolution> => {
+  const data = await getAccessibleDeckForAi(supabaseClient, scopeId);
   if (!data) {
     throw new Error("Public deck scope not found.");
   }
@@ -452,14 +474,11 @@ const resolveSignedInScope = async (
   userId: string,
 ) => {
   if (reference.scope_type === "deck") {
-    const { data, error } = await supabaseClient
-      .from("decks")
-      .select("*")
-      .eq("id", reference.scope_id)
-      .or(`user_id.eq.${userId},is_public.eq.true`)
-      .maybeSingle();
-
-    if (error) throw error;
+    const data = await getAccessibleDeckForAi(
+      supabaseClient,
+      reference.scope_id,
+      userId,
+    );
     if (!data) throw new Error("Deck scope not found.");
 
     return buildAiScopeResolution(
@@ -553,15 +572,7 @@ const authorizeScopeAccess = async (
   scopeId: string,
 ): Promise<boolean> => {
   if (scopeType === "deck") {
-    const { data, error } = await supabaseClient
-      .from("decks")
-      .select("id")
-      .eq("id", scopeId)
-      .or(`user_id.eq.${userId},is_public.eq.true`)
-      .maybeSingle();
-
-    if (error) throw error;
-    return Boolean(data);
+    return Boolean(await getAccessibleDeckForAi(supabaseClient, scopeId, userId));
   }
 
   if (scopeType === "folder") {
