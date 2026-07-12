@@ -234,7 +234,7 @@ function Profile() {
                           : "bg-purple-600 text-white border-purple-500/50",
                     )}
                   >
-                    {TIER_CONFIG[tier].label}
+                    {TIER_CONFIG[tier].planLabel}
                   </span>
                 </div>
               </div>
