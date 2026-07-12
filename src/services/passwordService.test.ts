@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getPasswordResetRedirectUrl,
   getPasswordErrorMessage,
   isEmailPasswordSession,
   isReauthenticationRequired,
@@ -35,6 +36,15 @@ describe("password validation", () => {
 });
 
 describe("password change security helpers", () => {
+  it("returns to the requesting application origin after password recovery", () => {
+    expect(getPasswordResetRedirectUrl("https://app.deckly.space")).toBe(
+      "https://app.deckly.space/reset-password",
+    );
+    expect(getPasswordResetRedirectUrl("https://preview.example.com/")).toBe(
+      "https://preview.example.com/reset-password",
+    );
+  });
+
   it("recognizes Supabase's stale-session response", () => {
     expect(isReauthenticationRequired({ code: "reauthentication_needed" })).toBe(
       true,

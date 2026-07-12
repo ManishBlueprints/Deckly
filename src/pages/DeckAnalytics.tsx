@@ -36,7 +36,7 @@ import {
   useDeckLocations,
   useDeckLinkStats,
 } from "../hooks/useDeckAnalyticsData";
-import { getDeckLinkShareUrl } from "../utils/url";
+import { getReadyDeckLinkShareUrl } from "../utils/url";
 import {
   AnalyticsStatCard,
   AnalyticsTabs,
@@ -446,15 +446,19 @@ export default function DeckAnalytics() {
                   ) : (
                     <div className="grid gap-4">
                       {linkStats.map((link: DeckLinkStats) => {
-                        const shareUrl = getDeckLinkShareUrl(
-                          profile?.handle || "",
-                          link.link_alias || deck?.slug || ""
+                        const shareUrl = getReadyDeckLinkShareUrl(
+                          profile?.handle,
+                          link.link_alias || deck?.slug,
                         );
                         const avgTime = link.total_views > 0
                           ? (link.total_time_seconds / link.total_views).toFixed(1)
                           : "0";
 
                         const handleCopy = async () => {
+                          if (!shareUrl) {
+                            toast.error("The share link is still loading. Please try again.");
+                            return;
+                          }
                           try {
                             await navigator.clipboard.writeText(shareUrl);
                             toast.success(`Copied link "${link.link_name}" to clipboard`);
@@ -491,7 +495,7 @@ export default function DeckAnalytics() {
                                 </div>
                               </div>
                               <p className="text-xs text-slate-400 font-mono truncate max-w-md">
-                                {shareUrl}
+                                {shareUrl || "Share link is unavailable while details load."}
                               </p>
                             </div>
 
@@ -515,19 +519,33 @@ export default function DeckAnalytics() {
                                   size="icon"
                                   className="w-9 h-9 bg-[#111] border border-[#333] text-slate-400 hover:text-deckly-primary hover:bg-[#1a1a1a]"
                                   onClick={handleCopy}
+                                  disabled={!shareUrl}
                                   title="Copy URL"
                                 >
                                   <Copy size={14} />
                                 </Button>
-                                <a
-                                  href={shareUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center justify-center w-9 h-9 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-deckly-primary hover:bg-[#1a1a1a] transition-all"
-                                  title="Open in new tab"
-                                >
-                                  <ExternalLink size={14} />
-                                </a>
+                                {shareUrl ? (
+                                  <a
+                                    href={shareUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center w-9 h-9 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-deckly-primary hover:bg-[#1a1a1a] transition-all"
+                                    title="Open in new tab"
+                                  >
+                                    <ExternalLink size={14} />
+                                  </a>
+                                ) : (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    disabled
+                                    className="w-9 h-9 bg-[#111] border border-[#333] text-slate-500"
+                                    title="Share URL unavailable"
+                                  >
+                                    <ExternalLink size={14} />
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </div>

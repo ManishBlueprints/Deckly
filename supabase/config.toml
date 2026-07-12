@@ -125,7 +125,9 @@ site_url = "http://127.0.0.1:3000"
 additional_redirect_urls = [
   "https://127.0.0.1:3000",
   "http://127.0.0.1:3000/reset-password",
-  "http://localhost:5173/reset-password"
+  "http://localhost:5173/reset-password",
+  "https://app.deckly.space/reset-password",
+  "https://deckly.space/reset-password"
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
@@ -387,6 +389,6 @@ entrypoint = "./functions/sign-deck-url/index.ts"
 
 [functions.send-interest-signal-email]
 enabled = true
-verify_jwt = false  # Database Webhook authenticates with the project service key or EMAIL_WEBHOOK_SECRET
+verify_jwt = false  # Database Webhook is authenticated in-function with EMAIL_WEBHOOK_SECRET
 import_map = "./functions/deno.json"
 entrypoint = "./functions/send-interest-signal-email/index.ts"

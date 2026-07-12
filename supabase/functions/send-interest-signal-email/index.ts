@@ -66,24 +66,24 @@ Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const serviceRoleKeys = Array.from(new Set([
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    Deno.env.get("PROJECT_SECRET_KEY") ?? "",
-  ].filter(Boolean)));
-  const serviceRoleKey = serviceRoleKeys[0] ?? "";
-  const webhookSecret = Deno.env.get("EMAIL_WEBHOOK_SECRET") ?? "";
-  const authorization = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
+  const serviceRoleKey =
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
+    Deno.env.get("PROJECT_SECRET_KEY") ??
+    "";
+  const webhookSecret = Deno.env.get("EMAIL_WEBHOOK_SECRET")?.trim() ?? "";
   const providedWebhookSecret = request.headers.get("x-email-webhook-secret") ?? "";
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!supabaseUrl || !serviceRoleKey || !webhookSecret) {
     console.error("[send-interest-signal-email] Missing Supabase server configuration");
     return jsonResponse({ error: "Server configuration error" }, 500);
   }
 
-  const authorized =
-    serviceRoleKeys.includes(authorization) ||
-    (webhookSecret.length > 0 && providedWebhookSecret === webhookSecret);
-  if (!authorized) return jsonResponse({ error: "Unauthorized" }, 401);
+  // This function is invoked by a database webhook with verify_jwt disabled.
+  // Never accept a project service-role/secret key from request headers: those
+  // credentials are for server-side Supabase access, not webhook authentication.
+  if (providedWebhookSecret !== webhookSecret) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
 
   const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
   const fromAddress = Deno.env.get("EMAIL_FROM") ?? "";

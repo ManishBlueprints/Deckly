@@ -3,6 +3,7 @@
 import {
   getDeckPath,
   getDataRoomPath,
+  getReadyDeckLinkShareUrl,
   getDeckShareUrl,
   getDeckLinkShareUrl,
   getDataRoomShareUrl,
@@ -90,6 +91,12 @@ describe("url utilities", () => {
           "investor-follow-up",
         ),
       ).toBe("https://deckly.space/user/investor-follow-up");
+    });
+
+    it("does not build a share URL until both route segments are available", () => {
+      expect(getReadyDeckLinkShareUrl(undefined, "deck")).toBeNull();
+      expect(getReadyDeckLinkShareUrl("user", undefined)).toBeNull();
+      expect(getReadyDeckLinkShareUrl(" ", "deck")).toBeNull();
     });
   });
 });

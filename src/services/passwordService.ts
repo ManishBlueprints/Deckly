@@ -66,12 +66,21 @@ export function isEmailPasswordSession(user: {
   return user?.app_metadata?.provider === "email";
 }
 
+/**
+ * Password recovery must return to the same application origin that requested
+ * it. This supports local development and preview deployments; each origin
+ * must still be explicitly allowed in Supabase Auth URL Configuration.
+ */
+export function getPasswordResetRedirectUrl(origin = window.location.origin): string {
+  return new URL("/reset-password", origin).toString();
+}
+
 export async function requestPasswordResetEmail(
   email: string,
   captchaToken?: string,
 ) {
   return supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${window.location.origin}/reset-password`,
+    redirectTo: getPasswordResetRedirectUrl(),
     captchaToken: captchaToken || undefined,
   });
 }

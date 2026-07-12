@@ -5,9 +5,10 @@ import { assertDeckOwnership } from "./deckService.shared.ts";
 import { Deck, DeckPageStats, DeckLinkStats } from "../types";
 import { getTierConfig } from "../constants/tiers.ts";
 import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
+import { posthogConfig } from "./posthogConfig.ts";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
-const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
+const posthogKey = posthogConfig.apiKey;
 type GeoLocation = {
   country: string;
   city: string;
