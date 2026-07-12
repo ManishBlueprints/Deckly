@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Mail,
   Copy,
+  ShieldCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
@@ -33,6 +34,8 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { getOnboardingStage, isOnboardingComplete } from "../utils/onboarding";
 import { ProfileOnboardingFlow } from "../components/onboarding/ProfileOnboardingFlow";
+import { PasswordSecuritySection } from "../components/profile/PasswordSecuritySection";
+import { isEmailPasswordSession } from "../services/passwordService";
 
 const TIER_PRICING: Record<
   Tier,
@@ -124,12 +127,12 @@ function formatCount(value: number, unit: string) {
   return `${value} ${value === 1 ? unit : `${unit}s`}`;
 }
 
-type ProfileSection = "identity" | "tier" | "collaboration" | "danger";
+type ProfileSection = "identity" | "security" | "tier" | "collaboration" | "danger";
 
 function Profile() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { profile, branding, signOutAllDevices, deleteAccount } = useAuth();
+  const { profile, branding, session, signOutAllDevices, deleteAccount } = useAuth();
   const { markTourComplete } = useTourState();
   const [activeSection, setActiveSection] =
     useState<ProfileSection>("identity");
@@ -166,12 +169,16 @@ function Profile() {
     return <ProfileOnboardingFlow />;
   }
 
+  const canChangePassword = isEmailPasswordSession(session?.user);
   const sections: {
     id: ProfileSection;
     label: string;
     icon: React.ElementType;
   }[] = [
     { id: "identity", label: "Identity", icon: User },
+    ...(canChangePassword
+      ? [{ id: "security" as const, label: "Security", icon: ShieldCheck }]
+      : []),
     { id: "tier", label: "Plan", icon: Crown },
     { id: "collaboration", label: "Team", icon: Users },
     { id: "danger", label: "Delete", icon: Trash2 },
@@ -227,7 +234,7 @@ function Profile() {
                           : "bg-purple-600 text-white border-purple-500/50",
                     )}
                   >
-                    {TIER_CONFIG[tier].label}
+                    {TIER_CONFIG[tier].planLabel}
                   </span>
                 </div>
               </div>
@@ -299,6 +306,9 @@ function Profile() {
                   />
                 )}
                 {activeSection === "tier" && <TierSection currentTier={tier} />}
+                {activeSection === "security" && canChangePassword && (
+                  <PasswordSecuritySection />
+                )}
                 {activeSection === "collaboration" && <CollaborationSection />}
                 {activeSection === "danger" && (
                   <DangerSection

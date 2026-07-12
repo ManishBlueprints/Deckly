@@ -2,12 +2,13 @@ import posthog from "posthog-js";
 import { withRetry } from "../utils/resilience.ts";
 import { supabase } from "./supabase.ts";
 import { assertDeckOwnership } from "./deckService.shared.ts";
-import { Deck, DeckPageStats } from "../types";
+import { Deck, DeckPageStats, DeckLinkStats } from "../types";
 import { getTierConfig } from "../constants/tiers.ts";
 import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
+import { posthogConfig } from "./posthogConfig.ts";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
-const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
+const posthogKey = posthogConfig.apiKey;
 type GeoLocation = {
   country: string;
   city: string;
@@ -113,6 +114,7 @@ export const analyticsService = {
       deck_slug: deck.slug,
       deck_title: deck.title,
       owner_id: deck.user_id,
+      deck_link_id: deck.deck_link_id || null,
       ...metadata,
     });
   },
@@ -126,6 +128,7 @@ export const analyticsService = {
       owner_id: deck.user_id,
       page_number: pageNumber,
       time_spent_seconds: Math.round(timeSpent),
+      deck_link_id: deck.deck_link_id || null,
     });
   },
 
@@ -245,6 +248,7 @@ export const analyticsService = {
         p_country: geo.country,
         p_city: geo.city,
         p_country_code: geo.country_code,
+        p_deck_link_id: deck.deck_link_id || null,
       });
 
       if (error) throw error;
@@ -629,6 +633,21 @@ export const analyticsService = {
     }
 
     return data;
+  },
+
+  // Get aggregated deck links stats
+  async getDeckLinkStats(
+    deckId: string,
+    ownerUserId: string,
+  ): Promise<DeckLinkStats[]> {
+    await assertDeckOwnership(deckId, ownerUserId);
+
+    const { data, error } = await supabase.rpc("get_deck_link_stats", {
+      p_deck_id: deckId,
+    });
+
+    if (error) throw error;
+    return (data as unknown as DeckLinkStats[]) || [];
   },
 
   // Get aggregated location stats for a deck

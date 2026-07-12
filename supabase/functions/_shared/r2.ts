@@ -96,9 +96,9 @@ async function sha256Hex(message: string): Promise<string> {
   return toHex(digest);
 }
 
-async function hmacSha256(key: CryptoKey, message: string): Promise<Uint8Array> {
+async function hmacSha256(key: CryptoKey, message: string): Promise<ArrayBuffer> {
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(message));
-  return new Uint8Array(signature);
+  return signature;
 }
 
 async function deriveSigningKey(
@@ -259,7 +259,7 @@ export function buildStoragePublicUrl(bucket: StorageBucket, key: string): strin
   return `${stripTrailingSlash(baseUrl)}/${key}`;
 }
 
-export async function presignGetUrl(
+export function presignGetUrl(
   bucket: StorageBucket,
   key: string,
   expiresInSeconds = 3600,
@@ -267,7 +267,7 @@ export async function presignGetUrl(
   return presignUrl("GET", bucket, key, { expiresInSeconds });
 }
 
-export async function presignPutUrl(
+export function presignPutUrl(
   bucket: StorageBucket,
   key: string,
   expiresInSeconds = 900,
@@ -275,7 +275,7 @@ export async function presignPutUrl(
   return presignUrl("PUT", bucket, key, { expiresInSeconds });
 }
 
-export async function presignDeleteUrl(
+export function presignDeleteUrl(
   bucket: StorageBucket,
   key: string,
   expiresInSeconds = 900,

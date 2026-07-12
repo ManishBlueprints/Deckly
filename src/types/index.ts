@@ -43,6 +43,7 @@ export interface Deck {
   user_handle?: string;
   active_link_count?: number;
   total_link_count?: number;
+  deck_link_id?: string;
 }
 
 export interface DeckLink {
@@ -236,6 +237,17 @@ export interface BrandingSettings {
 export interface DeckPageStats {
   page_number: number;
   total_views: number;
+  total_time_seconds: number;
+}
+
+export interface DeckLinkStats {
+  link_id: string;
+  link_name: string;
+  link_alias: string | null;
+  is_primary: boolean;
+  is_enabled: boolean;
+  total_views: number;
+  unique_visitors: number;
   total_time_seconds: number;
 }
 

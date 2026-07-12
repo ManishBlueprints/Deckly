@@ -108,4 +108,38 @@ describe("analyticsService ownership gates", () => {
       { p_deck_id: "deck-1" },
     );
   });
+
+  it("refuses deck-link-stats RPC access when the caller does not own the deck", async () => {
+    mocks.queueResponse("decks.select.maybeSingle", {
+      data: null,
+      error: null,
+    });
+
+    await expect(
+      analyticsService.getDeckLinkStats("deck-1", "user-1"),
+    ).rejects.toThrow("Unauthorized");
+
+    expect(vi.mocked(mocks.mockSupabase.rpc)).not.toHaveBeenCalled();
+  });
+
+  it("allows deck-link-stats RPC access after ownership is confirmed", async () => {
+    mocks.queueResponse("decks.select.maybeSingle", {
+      data: { id: "deck-1" },
+      error: null,
+    });
+    vi.mocked(mocks.mockSupabase.rpc).mockImplementationOnce(async () => ({
+      data: [{ link_id: "link-1", link_name: "Link 1", total_views: 12 }],
+      error: null,
+    }));
+
+    await expect(
+      analyticsService.getDeckLinkStats("deck-1", "user-1"),
+    ).resolves.toEqual([{ link_id: "link-1", link_name: "Link 1", total_views: 12 }]);
+
+    expect(vi.mocked(mocks.mockSupabase.from)).toHaveBeenCalledWith("decks");
+    expect(vi.mocked(mocks.mockSupabase.rpc)).toHaveBeenCalledWith(
+      "get_deck_link_stats",
+      { p_deck_id: "deck-1" },
+    );
+  });
 });

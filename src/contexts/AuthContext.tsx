@@ -8,9 +8,15 @@ import { userService } from "../services/userService";
 import { UserProfile, BrandingSettings } from "../types";
 import { useProfile, useBranding } from "../hooks/useAuthQueries";
 import posthog from "posthog-js";
+import {
+  captureSignupCompleted,
+  consumePendingOAuthSignup,
+} from "../services/signupAnalytics";
 
 interface AuthContextType {
   session: Session | null;
+  passwordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   profile: UserProfile | null;
   loading: boolean;
   isPro: boolean;
@@ -35,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [initializationError, setInitializationError] = useState<string | null>(
     null,
@@ -87,6 +94,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const clearPasswordRecovery = () => {
+    setPasswordRecovery(false);
+  };
+
   const setBranding = (newBranding: BrandingSettings | null) => {
     if (session?.user) {
       queryClient.setQueryData(["branding", session.user.id], newBranding);
@@ -115,8 +126,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         setSession(session);
 
+        if (event === "PASSWORD_RECOVERY") {
+          setPasswordRecovery(true);
+        } else {
+          // PASSWORD_RECOVERY is the only Supabase event that proves the
+          // active session originated from a recovery link. Never let a
+          // previous auth event authorize a normal signed-in session.
+          clearPasswordRecovery();
+        }
+
+        // OAuth returns through a full-page redirect, so the signup page cannot
+        // capture completion itself. Consume the intent exactly once when the
+        // authenticated session is restored.
+        if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+          const signupMethod = consumePendingOAuthSignup();
+          const createdAt = Date.parse(session.user.created_at);
+          const isRecentlyCreated =
+            Number.isFinite(createdAt) &&
+            Date.now() - createdAt <= 15 * 60 * 1000;
+          if (signupMethod && isRecentlyCreated) {
+            captureSignupCompleted(session.user, signupMethod);
+          }
+        }
+
         // Security: Automatically clear sensitive cache if session is signed out remotely
         if (event === "SIGNED_OUT") {
+          clearPasswordRecovery();
           queryClient.clear();
         }
 
@@ -185,6 +220,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     <AuthContext.Provider
       value={{
         session,
+        passwordRecovery,
+        clearPasswordRecovery,
         profile: profile || null,
         branding: branding || null,
         brandingLoading,

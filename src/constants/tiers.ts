@@ -3,6 +3,7 @@ export type Tier = "FREE" | "PRO" | "PRO_PLUS";
 export interface TierConfig {
   days: number;
   label: string;
+  planLabel: string;
   isMaximum?: boolean;
   maxDataRooms: number;
   allowInteractive: boolean;
@@ -22,6 +23,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
   FREE: {
     days: 7,
     label: "7 Day Analytics",
+    planLabel: "Free",
     isMaximum: false,
     maxDataRooms: 1,
     allowInteractive: false,
@@ -39,6 +41,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
   PRO: {
     days: 90,
     label: "90 Day Analytics",
+    planLabel: "Pro",
     isMaximum: true,
     maxDataRooms: 5,
     allowInteractive: true,
@@ -56,6 +59,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
   PRO_PLUS: {
     days: 365,
     label: "1 Year Analytics",
+    planLabel: "Pro+",
     isMaximum: true,
     maxDataRooms: -1, // -1 means unlimited
     allowInteractive: true,
