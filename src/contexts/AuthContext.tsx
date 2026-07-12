@@ -12,10 +12,6 @@ import {
   captureSignupCompleted,
   consumePendingOAuthSignup,
 } from "../services/signupAnalytics";
-import {
-  createPasswordRecoveryMarker,
-  isPasswordRecoveryMarkerActive,
-} from "../utils/passwordRecoveryState";
 
 interface AuthContextType {
   session: Session | null;
@@ -39,24 +35,13 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const PASSWORD_RECOVERY_STORAGE_KEY = "deckly.password_recovery";
-
-const readPasswordRecoveryState = () => {
-  try {
-    return isPasswordRecoveryMarkerActive(
-      window.sessionStorage.getItem(PASSWORD_RECOVERY_STORAGE_KEY),
-    );
-  } catch {
-    return false;
-  }
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
-  const [passwordRecovery, setPasswordRecovery] = useState(readPasswordRecoveryState);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [initializationError, setInitializationError] = useState<string | null>(
     null,
@@ -111,11 +96,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearPasswordRecovery = () => {
     setPasswordRecovery(false);
-    try {
-      window.sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
-    } catch {
-      // Recovery state is only an in-browser guard; storage failures are non-fatal.
-    }
   };
 
   const setBranding = (newBranding: BrandingSettings | null) => {
@@ -148,18 +128,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (event === "PASSWORD_RECOVERY") {
           setPasswordRecovery(true);
-          try {
-            window.sessionStorage.setItem(
-              PASSWORD_RECOVERY_STORAGE_KEY,
-              createPasswordRecoveryMarker(),
-            );
-          } catch {
-            // The active recovery session remains sufficient for this browser visit.
-          }
         } else {
           // PASSWORD_RECOVERY is the only Supabase event that proves the
           // active session originated from a recovery link. Never let a
-          // previous recovery marker authorize a normal signed-in session.
+          // previous auth event authorize a normal signed-in session.
           clearPasswordRecovery();
         }
 

@@ -77,7 +77,7 @@ export default function ResetPassword() {
     );
   }
 
-  if (!session || !passwordRecovery) {
+  if (!session || (!passwordRecovery && !complete && !requiresNewRecoveryLink)) {
     return (
       <main className="min-h-screen bg-deckly-background flex items-center justify-center p-6">
         <section className="w-full max-w-md border border-border bg-surface-low p-6 md:p-8 space-y-5 text-center">
