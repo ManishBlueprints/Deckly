@@ -42,7 +42,7 @@ import { AI_SUMMARY_QUOTA_WINDOW_HOURS } from "../../../src/services/aiSummaryQu
 
 type ProfileRow = {
   id: string;
-  tier: "FREE" | "PRO" | "PRO_PLUS";
+  tier: "FREE" | "PRO" | "PRO_PLUS" | "RAISE";
 };
 
 const corsHeaders = {

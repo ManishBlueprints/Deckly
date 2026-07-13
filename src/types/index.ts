@@ -274,7 +274,7 @@ export interface UserProfile {
   full_name: string | null;
   handle: string | null;
   avatar_url: string | null;
-  tier: "FREE" | "PRO" | "PRO_PLUS";
+  tier: "FREE" | "PRO" | "PRO_PLUS" | "RAISE";
   onboarding_profile?: OnboardingProfile | null;
   tutorial_state?: TutorialState | null;
   updated_at: string | null;

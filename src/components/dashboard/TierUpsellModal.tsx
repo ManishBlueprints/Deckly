@@ -75,12 +75,13 @@ export function TierUpsellModal({
                 id="tier-upsell-title"
                 className="text-2xl font-bold text-white tracking-tight mb-3"
               >
-                Upgrade to PRO
+                Upgrade your plan
               </h2>
               <p className="text-slate-400 font-medium mb-8">
                 {featureName} is available exclusively for our{" "}
-                <span className="text-deckly-primary font-bold">PRO</span> and{" "}
-                <span className="text-deckly-primary font-bold">PRO Plus</span>{" "}
+                <span className="text-deckly-primary font-bold">Share</span>,{" "}
+                <span className="text-deckly-primary font-bold">Founder</span>, or{" "}
+                <span className="text-deckly-primary font-bold">Raise</span>{" "}
                 members.
               </p>
 

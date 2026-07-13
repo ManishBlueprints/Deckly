@@ -51,13 +51,17 @@ const TIER_CONFIG = {
     className: "bg-slate-800/50 text-slate-500 border-white/5",
   },
   PRO: {
-    label: "Pro",
+    label: "Share",
     className: "bg-amber-400 text-slate-950 border-amber-500/50",
   },
   PRO_PLUS: {
-    label: "Pro Plus",
+    label: "Founder",
     className:
       "bg-purple-600 text-white border-purple-500/50 shadow-[0_0_15px_rgba(147,51,234,0.3)]",
+  },
+  RAISE: {
+    label: "Raise",
+    className: "bg-amber-400 text-slate-950 border-amber-300/60",
   },
 };
 

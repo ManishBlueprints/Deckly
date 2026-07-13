@@ -52,6 +52,19 @@ Deno.serve(async (req: Request) => {
   const adminClient = createClient(supabaseUrl, supabaseSecretKey);
 
   try {
+    const { data: activeSubscription, error: subscriptionError } = await adminClient
+      .from("subscriptions")
+      .select("razorpay_subscription_id")
+      .eq("user_id", userId)
+      .in("provider_status", ["authenticated", "active", "pending", "halted", "paused"])
+      .maybeSingle();
+    if (subscriptionError) throw subscriptionError;
+    if (activeSubscription) {
+      return new Response(JSON.stringify({ error: "Cancel your active subscription before deleting your account." }), {
+        status: 409, headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const filePaths = (await listAllObjects("decks", userId)).map((item) => item.name);
 
     if (filePaths.length > 0) {

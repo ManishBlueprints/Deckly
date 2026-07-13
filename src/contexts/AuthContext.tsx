@@ -192,7 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [queryClient]);
 
-  const isPro = profile?.tier === "PRO" || profile?.tier === "PRO_PLUS";
+  const isPro = profile?.tier !== "FREE";
 
   const signOut = async () => {
     await supabase.auth.signOut();

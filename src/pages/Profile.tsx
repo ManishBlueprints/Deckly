@@ -17,11 +17,10 @@ import {
   AlertCircle,
   Zap,
   CheckCircle2,
-  Mail,
-  Copy,
   ShieldCheck,
+  ReceiptText,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
 import { useTourState } from "../contexts/TourContext";
 import { deckService } from "../services/deckService";
@@ -35,25 +34,48 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getOnboardingStage, isOnboardingComplete } from "../utils/onboarding";
 import { ProfileOnboardingFlow } from "../components/onboarding/ProfileOnboardingFlow";
 import { PasswordSecuritySection } from "../components/profile/PasswordSecuritySection";
+import { BillingSection } from "../components/profile/BillingSection";
+import { UpgradeConfirmationDialog } from "../components/profile/UpgradeConfirmationDialog";
 import { isEmailPasswordSession } from "../services/passwordService";
+import { subscriptionService, type BillingInterval, type Subscription } from "../services/subscriptionService";
+import { useSubscriptionState } from "../hooks/useSubscriptionState";
+import { formatBillingAmount } from "../utils/billingPresentation";
 
 const TIER_PRICING: Record<
   Tier,
   { monthly: number; yearly: number; cta: string }
 > = {
   FREE: { monthly: 0, yearly: 0, cta: "Switch to Free" },
-  PRO: { monthly: 9, yearly: 86, cta: "Get Pro" },
-  PRO_PLUS: { monthly: 24, yearly: 230, cta: "Get Pro+" },
+  PRO: { monthly: 9, yearly: 86.4, cta: "Get Share" },
+  PRO_PLUS: { monthly: 15, yearly: 144, cta: "Get Founder" },
+  RAISE: { monthly: 45, yearly: 432, cta: "Get Raise" },
 };
 
 const TIER_ORDER: Record<Tier, number> = {
   FREE: 0,
   PRO: 1,
   PRO_PLUS: 2,
+  RAISE: 3,
+};
+
+const PLAN_PRESENTATION: Record<Tier, { description: string }> = {
+  FREE: {
+    description: "Create one focused room and see how people engage.",
+  },
+  PRO: {
+    description: "Share polished materials with more context and control.",
+  },
+  PRO_PLUS: {
+    description: "Give your active raise a professional, trackable home.",
+  },
+  RAISE: {
+    description: "Run high-stakes investor diligence with deeper controls.",
+  },
 };
 
 type TierFeatureKey =
   | "maxDecks"
+  | "maxDecksPerRoom"
   | "days"
   | "maxDataRooms"
   | "maxFileSizeMB"
@@ -62,7 +84,8 @@ type TierFeatureKey =
   | "allowOffice"
   | "allowInteractive"
   | "teamMembers"
-  | "prioritySupport";
+  | "prioritySupport"
+  | "pricingFeatures";
 
 const TIER_FEATURES: Array<{
   key: TierFeatureKey;
@@ -70,9 +93,9 @@ const TIER_FEATURES: Array<{
   format?: (value: number | boolean | string[]) => string;
 }> = [
   {
-    key: "maxDecks",
-    label: "Decks",
-    format: (value) => formatCount(value as number, "deck"),
+    key: "maxDecksPerRoom",
+    label: "Documents",
+    format: (value) => formatCount(value as number, "document"),
   },
   {
     key: "days",
@@ -86,18 +109,18 @@ const TIER_FEATURES: Array<{
   },
   {
     key: "maxFileSizeMB",
-    label: "Max Upload Size",
-    format: (value) => (value === -1 ? "Unlimited" : `${value} MB`),
+    label: "Storage",
+    format: (value) => formatStorage(value as number),
   },
   {
     key: "aiSummariesPerDay",
-    label: "AI Summaries/Day",
-    format: (value) => formatCount(value as number, "summary"),
+    label: "AI Credits",
+    format: (value) => `${value} / day`,
   },
   {
-    key: "supportedFormats",
-    label: "File Formats",
-    format: (value) => (value as string[]).join(" / "),
+    key: "pricingFeatures",
+    label: "Included",
+    format: (value) => (value as string[]).join(" · "),
   },
   {
     key: "allowOffice",
@@ -127,7 +150,15 @@ function formatCount(value: number, unit: string) {
   return `${value} ${value === 1 ? unit : `${unit}s`}`;
 }
 
-type ProfileSection = "identity" | "security" | "tier" | "collaboration" | "danger";
+function formatStorage(value: number) {
+  return value >= 1024 ? `${value / 1024} GB` : `${value} MB`;
+}
+
+function formatPrice(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+type ProfileSection = "identity" | "security" | "tier" | "billing" | "collaboration" | "danger";
 
 function Profile() {
   const navigate = useNavigate();
@@ -143,11 +174,12 @@ function Profile() {
   }, []);
 
   const isValidTier = (t: string | undefined | null): t is Tier =>
-    ["FREE", "PRO", "PRO_PLUS"].includes(t as string);
+    ["FREE", "PRO", "PRO_PLUS", "RAISE"].includes(t as string);
   const tier: Tier = isValidTier(profile?.tier) ? profile.tier : "FREE";
   const onboardingStage = getOnboardingStage(profile, branding);
   const onboardingMode = onboardingStage !== "complete";
   const setupComplete = onboardingStage !== "workspace";
+  const billing = useSubscriptionState();
 
   useEffect(() => {
     if (
@@ -180,6 +212,7 @@ function Profile() {
       ? [{ id: "security" as const, label: "Security", icon: ShieldCheck }]
       : []),
     { id: "tier", label: "Plan", icon: Crown },
+    { id: "billing", label: "Billing", icon: ReceiptText },
     { id: "collaboration", label: "Team", icon: Users },
     { id: "danger", label: "Delete", icon: Trash2 },
   ];
@@ -199,7 +232,7 @@ function Profile() {
       <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="relative w-full max-w-6xl h-[95vh] md:h-[85vh] bg-surface-lowest border border-border overflow-hidden shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] flex flex-col md:flex-row"
+        className="relative w-[min(96vw,1600px)] h-[95vh] md:h-[90vh] bg-surface-lowest border border-border overflow-hidden shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] flex flex-col md:flex-row"
       >
         {/* Left Sidebar */}
         <div className="w-full md:w-64 bg-surface-low border-b md:border-b-0 md:border-r border-border flex flex-col shrink-0">
@@ -231,7 +264,9 @@ function Profile() {
                         ? "bg-slate-800/50 text-slate-500 border-white/5"
                         : tier === "PRO"
                           ? "bg-amber-400 text-slate-950 border-amber-500/50"
-                          : "bg-purple-600 text-white border-purple-500/50",
+                          : tier === "PRO_PLUS"
+                            ? "bg-purple-600 text-white border-purple-500/50"
+                            : "bg-amber-400 text-slate-950 border-amber-300/60",
                     )}
                   >
                     {TIER_CONFIG[tier].planLabel}
@@ -305,7 +340,8 @@ function Profile() {
                     queryClient={queryClient}
                   />
                 )}
-                {activeSection === "tier" && <TierSection currentTier={tier} />}
+                {activeSection === "tier" && <TierSection currentTier={tier} subscription={billing.subscription} refreshBilling={billing.refreshBilling} onManageBilling={() => setActiveSection("billing")} />}
+                {activeSection === "billing" && <BillingSection currentTier={tier} profileId={billing.profileId} subscription={billing.subscription} subscriptionLoading={billing.subscriptionLoading} refreshBilling={billing.refreshBilling} onManagePlan={() => setActiveSection("tier")} />}
                 {activeSection === "security" && canChangePassword && (
                   <PasswordSecuritySection />
                 )}
@@ -704,48 +740,20 @@ function IdentitySection({
 }
 
 /* ── Tier Section ── */
-function TierSection({ currentTier }: { currentTier: Tier }) {
+function TierSection({ currentTier, onManageBilling, refreshBilling, subscription }: { currentTier: Tier; onManageBilling: () => void; refreshBilling: () => Promise<void>; subscription: Subscription | null | undefined }) {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
     "yearly",
   );
-  const [upgradeNoticeOpen, setUpgradeNoticeOpen] = useState(false);
-  const { profile, session } = useAuth();
-  const tierKeys: Tier[] = ["FREE", "PRO", "PRO_PLUS"];
-  const userName =
-    profile?.full_name?.trim() || profile?.handle || "your username";
-  const userEmail = session?.user?.email || "your email address";
-
-  const handleCopy = async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success(`${label} copied`);
-    } catch {
-      toast.error(`Failed to copy ${label.toLowerCase()}`);
-    }
-  };
-
-  useEffect(() => {
-    if (!upgradeNoticeOpen) return;
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setUpgradeNoticeOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleEscape);
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      window.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "unset";
-    };
-  }, [upgradeNoticeOpen]);
-
+  const [upgradeTarget, setUpgradeTarget] = useState<Exclude<Tier, "FREE"> | null>(null);
+  const { session } = useAuth();
+  const [billingBusy, setBillingBusy] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
+  const tierKeys: Tier[] = ["FREE", "PRO", "PRO_PLUS", "RAISE"];
   const tierIcons = {
     FREE: CheckCircle2,
     PRO: Zap,
     PRO_PLUS: Sparkles,
+    RAISE: Crown,
   };
 
   const getPricePerMonth = (tierKey: Tier) => {
@@ -755,188 +763,196 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
       : Number((pricing.yearly / 12).toFixed(2));
   };
 
+  const beginCheckout = async (tier: Exclude<Tier, "FREE">) => {
+    if (!session?.user) return toast.error("Please sign in again before subscribing.");
+    setBillingBusy(true);
+    let checkoutOpened = false;
+    let checkoutCompleted = false;
+    try {
+      if (subscription) {
+        if (["authenticated", "active"].includes(subscription.provider_status)) {
+          const change = await subscriptionService.change(tier, billingCycle as BillingInterval);
+          const isUpgrade = TIER_ORDER[tier] > TIER_ORDER[subscription.entitlement_tier];
+          if (isUpgrade) {
+            const charge = change.immediate_charge;
+            toast.success(
+              charge?.status === "paid"
+                ? `${TIER_CONFIG[tier].planLabel} is active. Razorpay charged ${formatBillingAmount(charge.amount, charge.currency)} to your saved payment method.`
+                : `${TIER_CONFIG[tier].planLabel} is active. Razorpay is finalising the prorated charge; the receipt will appear in Billing shortly.`,
+            );
+          } else {
+            toast.success("Your downgrade is scheduled for the end of the current billing cycle.");
+          }
+          await refreshBilling();
+          return;
+        }
+
+        if (["pending", "halted", "paused"].includes(subscription.provider_status)) {
+          toast.error("Your current subscription needs attention before its plan can be changed.");
+          return;
+        }
+      }
+      const checkout = await subscriptionService.create(tier, billingCycle as BillingInterval);
+      const Razorpay = await subscriptionService.loadCheckout();
+      new Razorpay({
+        key: checkout.key_id,
+        subscription_id: checkout.subscription_id,
+        name: "Deckly",
+        description: `${TIER_CONFIG[tier].planLabel} subscription`,
+        prefill: { email: session.user.email },
+        handler: async (response: { razorpay_payment_id: string; razorpay_signature: string }) => {
+          checkoutCompleted = true;
+          try {
+            await subscriptionService.verify(checkout.subscription_id, response.razorpay_payment_id, response.razorpay_signature);
+            toast.success("Payment verified. Your plan will activate shortly.");
+            await refreshBilling();
+          } catch (error) { toast.error(error instanceof Error ? error.message : "Payment verification failed."); }
+          finally { setBillingBusy(false); }
+        },
+        modal: {
+          ondismiss: () => {
+            if (checkoutCompleted) {
+              setBillingBusy(false);
+              return;
+            }
+            void (async () => {
+              try {
+                await subscriptionService.abandon(checkout.subscription_id);
+                toast.message("Checkout cancelled — no payment was taken.");
+                await refreshBilling();
+              } catch {
+                toast.message("Checkout closed. We will expire the unfinished authorisation automatically.");
+              } finally {
+                setBillingBusy(false);
+              }
+            })();
+          },
+        },
+      }).open();
+      checkoutOpened = true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to start checkout.");
+    } finally {
+      // Checkout's handler/dismiss callback retains the busy state while it is open.
+      if (!checkoutOpened) setBillingBusy(false);
+    }
+  };
+
+  const confirmImmediateUpgrade = () => {
+    const target = upgradeTarget;
+    setUpgradeTarget(null);
+    if (target) void beginCheckout(target);
+  };
+
   return (
     <div className="space-y-8">
-      <AnimatePresence>
-        {upgradeNoticeOpen && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-              onClick={() => setUpgradeNoticeOpen(false)}
-            />
+      <UpgradeConfirmationDialog
+        targetTier={upgradeTarget}
+        billingCycle={billingCycle}
+        onClose={() => setUpgradeTarget(null)}
+        onConfirm={confirmImmediateUpgrade}
+      />
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 16 }}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="upgrade-notice-title"
-              className="relative w-full max-w-lg overflow-hidden border border-border bg-surface-lowest shadow-[0_32px_120px_-24px_rgba(0,0,0,0.7)]"
-            >
-              <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-deckly-primary mb-2">
-                    Alpha Notice
-                  </p>
-                  <h3
-                    id="upgrade-notice-title"
-                    className="text-xl font-bold text-white"
-                  >
-                    Billing is not live yet
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setUpgradeNoticeOpen(false)}
-                  className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Close upgrade notice"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="px-6 py-5 space-y-5">
-                <div className="flex items-start gap-3 rounded-none border border-amber-500/20 bg-amber-500/10 p-4">
-                  <AlertTriangle
-                    size={18}
-                    className="mt-0.5 shrink-0 text-amber-400"
-                  />
-                  <p className="text-sm text-slate-200 leading-relaxed">
-                    This app is in alpha version. To upgrade, please email{" "}
-                    <a
-                      href="mailto:test@deckly.space"
-                      className="font-semibold text-deckly-primary hover:underline"
-                    >
-                      test@deckly.space
-                    </a>{" "}
-                    with your User Name and Email Id.
-                  </p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="border border-border bg-surface-low p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
-                          User Name
-                        </p>
-                        <p className="text-sm font-semibold text-white break-words">
-                          {userName}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => void handleCopy(userName, "Username")}
-                        className="shrink-0 p-2 text-muted-foreground hover:text-deckly-primary hover:bg-white/5 transition-colors"
-                        aria-label="Copy username"
-                        title="Copy username"
-                      >
-                        <Copy size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="border border-border bg-surface-low p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">
-                          Email Id
-                        </p>
-                        <p className="text-sm font-semibold text-white break-words">
-                          {userEmail}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => void handleCopy(userEmail, "Email")}
-                        className="shrink-0 p-2 text-muted-foreground hover:text-deckly-primary hover:bg-white/5 transition-colors"
-                        aria-label="Copy email"
-                        title="Copy email"
-                      >
-                        <Copy size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col-reverse gap-3 border-t border-border px-6 py-5 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setUpgradeNoticeOpen(false)}
-                  className="px-5 py-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Close
-                </button>
-                <a
-                  href={`mailto:test@deckly.space?subject=${encodeURIComponent("Deckly upgrade request")}&body=${encodeURIComponent(`Hello Deckly team,\n\nI would like to upgrade my account.\n\nUser Name: ${userName}\nEmail Id: ${userEmail}\n\nThanks.`)}`}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-deckly-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.2em] hover:brightness-110 transition-all"
-                >
-                  <Mail size={14} />
-                  Email Upgrade Request
-                </a>
-              </div>
-            </motion.div>
+      {subscription && (
+        <div className="border border-border bg-surface-low px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold text-foreground">Manage your subscription, payment status, and billing history in Billing.</p>
+            {subscription.current_period_end && <p className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">{subscription.cancel_at_period_end ? "Access ends" : "Renews"} {new Date(subscription.current_period_end).toLocaleDateString()}</p>}
           </div>
-        )}
-      </AnimatePresence>
+          <button type="button" onClick={onManageBilling} className="shrink-0 border border-deckly-primary/40 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-deckly-primary hover:bg-deckly-primary/10">
+            Manage billing
+          </button>
+        </div>
+      )}
 
       {/* Billing Toggle - Pill Style */}
       <div className="flex justify-center">
-        <div className="flex p-1 bg-surface-low border border-border">
+        <div className="relative flex p-1 bg-surface-low border border-border" role="group" aria-label="Billing frequency">
           <button
             onClick={() => setBillingCycle("monthly")}
             className={cn(
-              "flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+              "relative z-10 flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors",
               billingCycle === "monthly"
-                ? "bg-surface-highest text-foreground shadow-sm"
+                ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            Monthly
+            {billingCycle === "monthly" && (
+              <motion.span
+                layoutId="billing-cycle-indicator"
+                transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0 z-0 bg-surface-highest shadow-sm"
+              />
+            )}
+            <span className="relative z-10">Monthly</span>
           </button>
           <button
             onClick={() => setBillingCycle("yearly")}
             className={cn(
-              "relative flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2",
+              "relative z-10 flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors flex items-center justify-center gap-2",
               billingCycle === "yearly"
-                ? "bg-surface-highest text-foreground shadow-sm"
+                ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            Yearly
-            <span className="hidden sm:inline-block text-[8px] bg-deckly-primary/20 text-deckly-primary px-1.5 py-0.5 font-bold tracking-normal uppercase">
+            {billingCycle === "yearly" && (
+              <motion.span
+                layoutId="billing-cycle-indicator"
+                transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-0 z-0 bg-surface-highest shadow-sm"
+              />
+            )}
+            <span className="relative z-10">Yearly</span>
+            <span className="relative z-10 hidden sm:inline-block text-[8px] bg-deckly-primary/20 text-deckly-primary px-1.5 py-0.5 font-bold tracking-normal uppercase">
               Save 20%
             </span>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {tierKeys.map((tierKey, index) => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {tierKeys.map((tierKey) => {
           const pricing = TIER_PRICING[tierKey];
           const isCurrent = currentTier === tierKey;
-          const isProPlus = tierKey === "PRO_PLUS";
-          const TierIcon = tierIcons[tierKey];
-          const price = getPricePerMonth(tierKey);
-
-          const prevTier = index > 0 ? tierKeys[index - 1] : null;
+          const isTopTier = tierKey === "RAISE";
+           const TierIcon = tierIcons[tierKey];
+           const price = getPricePerMonth(tierKey);
+           const isImmediateUpgrade = Boolean(
+             subscription
+             && ["authenticated", "active"].includes(subscription.provider_status)
+             && TIER_ORDER[tierKey] > TIER_ORDER[subscription.entitlement_tier],
+           );
+           const isUpgrade = TIER_ORDER[tierKey] > TIER_ORDER[currentTier];
 
           return (
-            <div
+            <motion.div
               key={tierKey}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: shouldReduceMotion ? 0 : 0.24, delay: shouldReduceMotion ? 0 : TIER_ORDER[tierKey] * 0.04, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={shouldReduceMotion ? undefined : { y: -3 }}
               className={cn(
-                "relative p-6 flex flex-col transition-all duration-500 group border",
+                "relative min-h-[470px] p-5 flex flex-col transition-[border-color,background-color] duration-200 group border",
                 isCurrent
-                  ? "bg-surface-low border-deckly-primary/30"
-                  : "bg-surface-low/30 border-border hover:bg-surface-low hover:border-surface-highest",
+                  ? "bg-surface-low border-deckly-primary/45"
+                  : tierKey === "PRO_PLUS"
+                    ? "bg-deckly-primary/[0.035] border-deckly-primary/60 hover:bg-deckly-primary/[0.06]"
+                    : "bg-surface-low/30 border-border hover:bg-surface-low hover:border-surface-highest",
               )}
             >
-              {/* Header */}
-              <div className="mb-6">
+              <div>
+                <div className="mb-3 h-6 flex items-center">
+                  {tierKey === "PRO_PLUS" && (
+                    <motion.span
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: -3 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: shouldReduceMotion ? 0 : 0.18, delay: shouldReduceMotion ? 0 : 0.12 }}
+                      className="inline-flex h-6 items-center bg-deckly-primary px-2.5 text-[9px] font-bold uppercase tracking-[0.14em] text-primary-foreground"
+                    >
+                      Most popular
+                    </motion.span>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 mb-4">
                   <div
                     className={cn(
@@ -944,118 +960,152 @@ function TierSection({ currentTier }: { currentTier: Tier }) {
                         ? "text-slate-500"
                         : tierKey === "PRO"
                           ? "text-deckly-primary"
-                          : "text-amber-400",
+                        : tierKey === "PRO_PLUS" ? "text-deckly-primary" : "text-amber-400",
                     )}
                   >
                     <TierIcon size={20} />
                   </div>
                   <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-foreground">
-                    {tierKey === "PRO_PLUS" ? "Pro+" : tierKey}
+                    {TIER_CONFIG[tierKey].planLabel}
                   </h3>
                 </div>
+                <p className="min-h-10 text-xs leading-relaxed text-muted-foreground">
+                  {PLAN_PRESENTATION[tierKey].description}
+                </p>
 
-                <div className="flex items-baseline gap-1 mb-1">
-                  <span className="text-4xl font-bold tracking-tighter text-white">
-                    ${price}
-                  </span>
+                <div className="mt-5 border-y border-border/70 py-4">
+                  <div className="flex items-baseline gap-1">
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={`${tierKey}-${billingCycle}`}
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={shouldReduceMotion ? undefined : { opacity: 0, y: 3 }}
+                      transition={{ duration: shouldReduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+                      className="text-4xl font-bold tracking-tighter text-white"
+                    >
+                    ${formatPrice(price)}
+                    </motion.span>
+                  </AnimatePresence>
                   <span className="text-sm text-muted-foreground opacity-60">
                     /month
                   </span>
-                </div>
-                {billingCycle === "yearly" && tierKey !== "FREE" && (
-                  <div className="space-y-1 mt-1">
-                    <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase opacity-40">
-                      Billed annually
-                    </p>
-                    <p className="text-[9px] text-deckly-primary font-bold tracking-widest uppercase">
-                      Save $
-                      {TIER_PRICING[tierKey].monthly * 12 -
-                        TIER_PRICING[tierKey].yearly}
-                      /year
-                    </p>
                   </div>
-                )}
+                  {tierKey === "FREE" ? (
+                    <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">No card required</p>
+                  ) : billingCycle === "yearly" ? (
+                    <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-deckly-primary">
+                      ${formatPrice(TIER_PRICING[tierKey].yearly)} billed yearly · save 20%
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Billed monthly · cancel anytime</p>
+                  )}
+                </div>
               </div>
 
-              {/* Feature Intro */}
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">
-                {tierKey === "FREE"
-                  ? "What's included:"
-                  : `Everything on ${prevTier === "PRO_PLUS" ? "Pro+" : prevTier}, plus:`}
-              </p>
-
-              {/* Features List */}
-              <div className="flex-1 space-y-3 mb-8 overflow-hidden">
-                {TIER_FEATURES.map(({ key, label, format }) => {
+              <dl className="mt-4 flex-1 divide-y divide-border/70">
+                {TIER_FEATURES.slice(0, 5).map(({ key, label, format }) => {
                   const val = TIER_CONFIG[tierKey][key];
-                  const prevVal = prevTier ? TIER_CONFIG[prevTier][key] : -1;
-
-                  // Only show if it's a new or improved feature compared to the previous tier
-                  const isNewOrImproved = !areTierFeatureValuesEqual(
-                    val,
-                    prevVal,
-                  );
-                  if (!isNewOrImproved && tierKey !== "FREE") return null;
-
-                  const isIncluded = val !== 0 && val !== false;
 
                   return (
                     <div
                       key={key}
-                      className={cn(
-                        "flex items-start gap-3 transition-all",
-                        isIncluded ? "opacity-100" : "opacity-20 translate-x-1",
-                      )}
+                      className="flex items-center justify-between gap-3 py-2.5"
                     >
-                      <Check
-                        size={12}
-                        className={cn(
-                          "mt-0.5 shrink-0",
-                          isIncluded
-                            ? "text-deckly-primary"
-                            : "text-muted-foreground",
-                        )}
-                      />
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[11px] text-foreground leading-tight">
-                          {label}
-                        </span>
-                        <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5 truncate">
-                          {format
-                            ? format(val as number | boolean | string[])
-                            : formatTierFeatureValue(val)}
-                        </span>
-                      </div>
+                      <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                        {label}
+                      </dt>
+                      <dd className="text-right text-xs font-semibold text-foreground">
+                        {format
+                          ? format(val as number | boolean | string[])
+                          : formatTierFeatureValue(val)}
+                      </dd>
                     </div>
                   );
                 })}
-              </div>
+              </dl>
 
               {/* Action Button */}
               <button
-                disabled={isCurrent}
+                disabled={isCurrent || tierKey === "FREE" || billingBusy}
                 onClick={() => {
-                  if (!isCurrent) {
-                    setUpgradeNoticeOpen(true);
+                  if (isCurrent || tierKey === "FREE") return;
+                  if (isImmediateUpgrade) {
+                    setUpgradeTarget(tierKey);
+                    return;
                   }
+                  void beginCheckout(tierKey);
                 }}
                 className={cn(
-                  "w-full py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
+                  "mt-6 w-full py-3.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
                   isCurrent
                     ? "bg-white/5 text-muted-foreground cursor-not-allowed border border-white/5"
                     : TIER_ORDER[tierKey] < TIER_ORDER[currentTier]
                       ? "bg-white/5 text-foreground hover:bg-white/10 border border-border"
-                      : isProPlus
-                        ? "bg-amber-400 text-slate-950 hover:brightness-110 shadow-lg shadow-amber-400/5"
-                        : "bg-deckly-primary text-primary-foreground hover:brightness-110 shadow-lg shadow-deckly-primary/10",
+                    : isTopTier
+                        ? "bg-amber-400 text-slate-950 hover:brightness-110"
+                        : "bg-deckly-primary text-primary-foreground hover:brightness-110",
                 )}
               >
-                {isCurrent ? "Active Plan" : pricing.cta}
+                {isCurrent
+                  ? "Active Plan"
+                  : billingBusy
+                    ? "Working..."
+                    : isImmediateUpgrade || isUpgrade
+                        ? `Upgrade to ${TIER_CONFIG[tierKey].planLabel}`
+                        : subscription
+                            ? "Change at Renewal"
+                            : pricing.cta}
               </button>
-            </div>
+            </motion.div>
           );
         })}
       </div>
+
+      <section className="border border-border bg-surface-low/30" aria-labelledby="plan-comparison-title">
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
+            <div>
+              <h3 id="plan-comparison-title" className="text-sm font-semibold text-foreground">Complete feature comparison</h3>
+              <p className="mt-1 text-xs text-muted-foreground">Review every limit and capability only when you need the detail.</p>
+            </div>
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-deckly-primary group-open:hidden">Show details</span>
+            <span className="hidden shrink-0 text-[10px] font-bold uppercase tracking-widest text-deckly-primary group-open:inline">Hide details</span>
+          </summary>
+
+          <div className="border-t border-border px-5 py-5">
+            <h4 className="text-xs font-semibold text-foreground">Everything included</h4>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {tierKeys.map((tierKey) => (
+                <article key={tierKey} className="border border-border/70 bg-surface-lowest/40 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-foreground">{TIER_CONFIG[tierKey].planLabel}</p>
+
+                  <dl className="mt-3 divide-y divide-border/70 border-y border-border/70">
+                    {TIER_FEATURES.filter(({ key }) => key !== "pricingFeatures").map(({ key, label, format }) => {
+                      const value = TIER_CONFIG[tierKey][key];
+                      return (
+                        <div key={key} className="flex items-center justify-between gap-3 py-2">
+                          <dt className="text-[10px] text-muted-foreground">{label}</dt>
+                          <dd className="text-right text-[10px] font-semibold text-foreground">{format ? format(value as number | boolean | string[]) : formatTierFeatureValue(value)}</dd>
+                        </div>
+                      );
+                    })}
+                  </dl>
+
+                  <ul className="mt-4 space-y-2">
+                    {TIER_CONFIG[tierKey].pricingFeatures.map((feature) => (
+                      <li key={feature} className="flex gap-2 text-xs leading-snug text-muted-foreground">
+                        <Check size={12} className="mt-0.5 shrink-0 text-deckly-primary" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </div>
+        </details>
+      </section>
     </div>
   );
 }
@@ -1065,18 +1115,6 @@ function formatTierFeatureValue(value: number | boolean | string[]): string {
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (value === -1) return "Unlimited";
   return `${value}`;
-}
-
-function areTierFeatureValuesEqual(a: unknown, b: unknown): boolean {
-  if (Array.isArray(a) && Array.isArray(b)) {
-    return a.length === b.length && a.every((item, index) => item === b[index]);
-  }
-
-  if (a && b && typeof a === "object" && typeof b === "object") {
-    return JSON.stringify(a) === JSON.stringify(b);
-  }
-
-  return a === b;
 }
 
 /* ── Collaboration Section ── */
