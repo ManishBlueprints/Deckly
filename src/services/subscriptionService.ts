@@ -38,7 +38,7 @@ export type BillingInvoice = {
   cancelled_at: string | null;
 };
 
-export type BillingHistory = { items: BillingInvoice[]; total: number; next_offset: number | null; stale?: boolean };
+export type BillingHistory = { items: BillingInvoice[]; total: number; next_offset: number | null; stale?: boolean; sync_pending?: boolean };
 type SubscriptionRefresh = { reconciled: number };
 export type SubscriptionChange = {
   status: SubscriptionStatus;
@@ -49,6 +49,7 @@ export type SubscriptionChange = {
 
 type CheckoutResponse = { key_id: string; subscription_id: string; checkout_expires_at: string };
 type RazorpayCheckout = new (options: Record<string, unknown>) => { open: () => void };
+const CHECKOUT_LOAD_TIMEOUT_MS = 15_000;
 
 declare global { interface Window { Razorpay?: RazorpayCheckout } }
 
@@ -96,9 +97,40 @@ export const subscriptionService = {
     if (window.Razorpay) return window.Razorpay;
     await new Promise<void>((resolve, reject) => {
       const existing = document.querySelector<HTMLScriptElement>('script[data-razorpay-checkout]');
-      if (existing) { existing.addEventListener("load", () => resolve(), { once: true }); existing.addEventListener("error", () => reject(new Error("Razorpay Checkout failed to load.")), { once: true }); return; }
-      const script = document.createElement("script"); script.src = "https://checkout.razorpay.com/v1/checkout.js"; script.async = true; script.dataset.razorpayCheckout = "true";
-      script.onload = () => resolve(); script.onerror = () => reject(new Error("Razorpay Checkout failed to load. Check your connection or content blocker.")); document.head.append(script);
+      if (existing && window.Razorpay) {
+        resolve();
+        return;
+      }
+
+      const script = existing ?? document.createElement("script");
+      if (!existing) {
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.async = true;
+        script.dataset.razorpayCheckout = "true";
+      }
+
+      const cleanup = () => {
+        script.removeEventListener("load", handleLoad);
+        script.removeEventListener("error", handleError);
+        window.clearTimeout(timeoutId);
+      };
+      const handleLoad = () => {
+        cleanup();
+        if (window.Razorpay) resolve();
+        else reject(new Error("Razorpay Checkout loaded without becoming available."));
+      };
+      const handleError = () => {
+        cleanup();
+        reject(new Error("Razorpay Checkout failed to load. Check your connection or content blocker."));
+      };
+
+      script.addEventListener("load", handleLoad, { once: true });
+      script.addEventListener("error", handleError, { once: true });
+      const timeoutId = window.setTimeout(() => {
+        cleanup();
+        reject(new Error("Razorpay Checkout did not finish loading. Please try again."));
+      }, CHECKOUT_LOAD_TIMEOUT_MS);
+      if (!existing) document.head.append(script);
     });
     if (!window.Razorpay) throw new Error("Razorpay Checkout is unavailable.");
     return window.Razorpay;

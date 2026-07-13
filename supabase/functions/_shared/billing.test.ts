@@ -30,7 +30,7 @@ Deno.test("validates a minimal provider subscription response", () => {
 });
 
 Deno.test("compares Razorpay HMAC values without accepting a mismatched value", async () => {
-  const signature = await hmacHex("test-secret", "sub_test|pay_test");
+  const signature = await hmacHex("test-secret", "pay_test|sub_test");
   const changedSignature = `${signature.slice(0, -1)}${signature.endsWith("0") ? "1" : "0"}`;
   expect(timingSafeEqual(signature, signature), "Expected equal HMACs to match");
   expect(!timingSafeEqual(signature, changedSignature), "Expected changed HMAC to fail");

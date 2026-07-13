@@ -109,7 +109,7 @@ const TIER_FEATURES: Array<{
   },
   {
     key: "maxFileSizeMB",
-    label: "Storage",
+    label: "Maximum file size",
     format: (value) => formatStorage(value as number),
   },
   {
@@ -762,6 +762,7 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
       ? pricing.monthly
       : Number((pricing.yearly / 12).toFixed(2));
   };
+  const billingCycleLabel = billingCycle === "yearly" ? "annual" : "monthly";
 
   const beginCheckout = async (tier: Exclude<Tier, "FREE">) => {
     if (!session?.user) return toast.error("Please sign in again before subscribing.");
@@ -771,17 +772,25 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
     try {
       if (subscription) {
         if (["authenticated", "active"].includes(subscription.provider_status)) {
+          const isSameTier = subscription.entitlement_tier === tier;
+          const isIntervalChange = isSameTier && subscription.billing_interval !== billingCycle;
+          if (isSameTier && !isIntervalChange) {
+            toast.message(`${TIER_CONFIG[tier].planLabel} on ${billingCycleLabel} billing is already active.`);
+            return;
+          }
+
           const change = await subscriptionService.change(tier, billingCycle as BillingInterval);
-          const isUpgrade = TIER_ORDER[tier] > TIER_ORDER[subscription.entitlement_tier];
-          if (isUpgrade) {
+          if (change.applied_immediately) {
             const charge = change.immediate_charge;
             toast.success(
               charge?.status === "paid"
-                ? `${TIER_CONFIG[tier].planLabel} is active. Razorpay charged ${formatBillingAmount(charge.amount, charge.currency)} to your saved payment method.`
-                : `${TIER_CONFIG[tier].planLabel} is active. Razorpay is finalising the prorated charge; the receipt will appear in Billing shortly.`,
+                ? `${TIER_CONFIG[tier].planLabel} on ${billingCycleLabel} billing is active. Razorpay charged ${formatBillingAmount(charge.amount, charge.currency)} to your saved payment method.`
+                : `${TIER_CONFIG[tier].planLabel} on ${billingCycleLabel} billing is active. Razorpay is finalising the prorated charge; the receipt will appear in Billing shortly.`,
             );
+          } else if (isIntervalChange) {
+            toast.success(`${TIER_CONFIG[tier].planLabel} will switch to ${billingCycleLabel} billing at your next renewal.`);
           } else {
-            toast.success("Your downgrade is scheduled for the end of the current billing cycle.");
+            toast.success(`${TIER_CONFIG[tier].planLabel} will become active at your next renewal.`);
           }
           await refreshBilling();
           return;
@@ -913,16 +922,22 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {tierKeys.map((tierKey) => {
           const pricing = TIER_PRICING[tierKey];
-          const isCurrent = currentTier === tierKey;
+          const liveSubscription = subscription && ["authenticated", "active"].includes(subscription.provider_status)
+            ? subscription
+            : null;
+          const hasLiveSubscription = liveSubscription !== null;
+          const comparisonTier = liveSubscription?.entitlement_tier ?? currentTier;
+          const isCurrent = currentTier === tierKey && (
+            tierKey === "FREE" || !liveSubscription || liveSubscription.billing_interval === billingCycle
+          );
           const isTopTier = tierKey === "RAISE";
-           const TierIcon = tierIcons[tierKey];
-           const price = getPricePerMonth(tierKey);
-           const isImmediateUpgrade = Boolean(
-             subscription
-             && ["authenticated", "active"].includes(subscription.provider_status)
-             && TIER_ORDER[tierKey] > TIER_ORDER[subscription.entitlement_tier],
-           );
-           const isUpgrade = TIER_ORDER[tierKey] > TIER_ORDER[currentTier];
+          const TierIcon = tierIcons[tierKey];
+          const price = getPricePerMonth(tierKey);
+          const isImmediateUpgrade = hasLiveSubscription && TIER_ORDER[tierKey] > TIER_ORDER[comparisonTier];
+          const isUpgrade = TIER_ORDER[tierKey] > TIER_ORDER[comparisonTier];
+          const isIntervalChange = liveSubscription !== null
+            && tierKey === liveSubscription.entitlement_tier
+            && liveSubscription.billing_interval !== billingCycle;
 
           return (
             <motion.div
@@ -1040,7 +1055,7 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
                   "mt-6 w-full py-3.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
                   isCurrent
                     ? "bg-white/5 text-muted-foreground cursor-not-allowed border border-white/5"
-                    : TIER_ORDER[tierKey] < TIER_ORDER[currentTier]
+                    : TIER_ORDER[tierKey] < TIER_ORDER[comparisonTier]
                       ? "bg-white/5 text-foreground hover:bg-white/10 border border-border"
                     : isTopTier
                         ? "bg-amber-400 text-slate-950 hover:brightness-110"
@@ -1053,6 +1068,8 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
                     ? "Working..."
                     : isImmediateUpgrade || isUpgrade
                         ? `Upgrade to ${TIER_CONFIG[tierKey].planLabel}`
+                        : isIntervalChange
+                            ? `Switch to ${billingCycleLabel} at renewal`
                         : subscription
                             ? "Change at Renewal"
                             : pricing.cta}

@@ -1,6 +1,7 @@
-import { adminClient, applyProviderSubscription, asProviderSubscription, fetchRazorpaySubscription, json, planFor, razorpay, razorpayPlanId, requireUser, syncInvoicesForSubscription, tierRank, unixTime, type PlanCode } from "../_shared/billing.ts";
+import { adminClient, applyProviderSubscription, asProviderSubscription, corsPreflight, fetchRazorpaySubscription, json, planFor, razorpay, razorpayPlanId, requireUser, syncInvoicesForSubscription, tierRank, unixTime, type PlanCode, type SyncedInvoice } from "../_shared/billing.ts";
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return corsPreflight();
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   try {
     const user = await requireUser(req);
@@ -81,9 +82,19 @@ Deno.serve(async (req) => {
         pendingChangeAt: applyImmediately ? null : unixTime(provider.change_scheduled_at),
         preservePendingPlan: false,
       });
-      const invoices = applyImmediately
-        ? await syncInvoicesForSubscription(admin, { ...local, plan_code: applied.planCode })
-        : [];
+      let invoices: SyncedInvoice[] = [];
+      if (applyImmediately) {
+        try {
+          invoices = (await syncInvoicesForSubscription(admin, { ...local, plan_code: applied.planCode })).invoices;
+        } catch (invoiceError) {
+          // The provider change and entitlement transaction have already
+          // succeeded. Invoice history can be retried independently.
+          console.error("Billing invoice synchronization failed", {
+            subscriptionId: local.razorpay_subscription_id,
+            message: invoiceError instanceof Error ? invoiceError.message : "Unknown error",
+          });
+        }
+      }
       const immediateCharge = invoices
         .filter((invoice) => invoice.amount > 0 && invoice.issued_at !== null && invoice.issued_at >= updateStartedAt - 5)
         .sort((left, right) => (right.issued_at ?? 0) - (left.issued_at ?? 0))[0] ?? null;

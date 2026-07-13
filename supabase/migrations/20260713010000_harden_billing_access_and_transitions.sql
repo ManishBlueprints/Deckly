@@ -1,6 +1,22 @@
 -- Billing hardening: raw provider snapshots remain server-only and browser
 -- callers receive a deliberately normalized subscription shape.
 
+-- The pricing migration creates these constraints as NOT VALID, then this
+-- later migration validates existing rows without holding the initial change
+-- transaction open for the scan.
+ALTER TABLE public.billing_plan_catalog
+  VALIDATE CONSTRAINT billing_plan_catalog_code_check;
+ALTER TABLE public.billing_plan_catalog
+  VALIDATE CONSTRAINT billing_plan_catalog_tier_check;
+ALTER TABLE public.subscriptions
+  VALIDATE CONSTRAINT subscriptions_entitlement_tier_check;
+ALTER TABLE public.subscriptions
+  VALIDATE CONSTRAINT subscriptions_plan_code_fkey;
+ALTER TABLE public.subscriptions
+  VALIDATE CONSTRAINT subscriptions_pending_plan_code_fkey;
+ALTER TABLE public.subscriptions
+  VALIDATE CONSTRAINT subscriptions_invoice_sync_offset_check;
+
 DROP POLICY IF EXISTS "Users may read their subscriptions" ON public.subscriptions;
 
 -- The old function returned SETOF public.subscriptions, which included the raw
@@ -159,3 +175,4 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.merge_billing_invoice_snapshots(jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.merge_billing_invoice_snapshots(jsonb) TO service_role;

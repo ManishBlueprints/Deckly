@@ -1,6 +1,7 @@
-import { adminClient, applyProviderSubscription, fetchRazorpaySubscription, hmacHex, json, requireUser, syncInvoicesForSubscription, timingSafeEqual, type PlanCode } from "../_shared/billing.ts";
+import { adminClient, applyProviderSubscription, corsPreflight, fetchRazorpaySubscription, hmacHex, json, requireUser, syncInvoicesForSubscription, timingSafeEqual, type PlanCode } from "../_shared/billing.ts";
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return corsPreflight();
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   try {
     const user = await requireUser(req);
@@ -14,7 +15,7 @@ Deno.serve(async (req) => {
     if (error) throw error;
     if (!local) return json({ error: "Subscription does not belong to this account." }, 404);
     const secret = Deno.env.get("RAZORPAY_KEY_SECRET")?.trim() || "";
-    if (!secret || !timingSafeEqual(await hmacHex(secret, `${subscriptionId}|${paymentId}`), signature)) return json({ error: "Payment verification failed." }, 400);
+    if (!secret || !timingSafeEqual(await hmacHex(secret, `${paymentId}|${subscriptionId}`), signature)) return json({ error: "Payment verification failed." }, 400);
     const provider = await fetchRazorpaySubscription(subscriptionId);
     const applied = await applyProviderSubscription(admin, provider, {
       fallbackPlanCode: local.plan_code as PlanCode,

@@ -91,8 +91,7 @@ export function TierUpsellModal({
                     <Check size={12} strokeWidth={3} />
                   </div>
                   <span className="text-sm font-semibold">
-                    Interactive Mode (Auto Convert Your Files to High Quality
-                    Images)
+                    Professional document sharing and presentation controls
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-slate-300">
@@ -100,7 +99,7 @@ export function TierUpsellModal({
                     <Check size={12} strokeWidth={3} />
                   </div>
                   <span className="text-sm font-semibold">
-                    PPTX, DOCX, and XLSX Support
+                    Richer viewer, link, and engagement insight
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-slate-300">
@@ -108,14 +107,14 @@ export function TierUpsellModal({
                     <Check size={12} strokeWidth={3} />
                   </div>
                   <span className="text-sm font-semibold">
-                    90 Days Analytics & Viewer Insights
+                    Flexible access settings and download controls
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-slate-300">
                   <div className="w-5 h-5 bg-deckly-primary/20 rounded-full flex items-center justify-center text-deckly-primary text-[10px]">
                     <Check size={12} strokeWidth={3} />
                   </div>
-                  <span className="text-sm font-semibold">5 Data Rooms</span>
+                  <span className="text-sm font-semibold">More room, document, storage, and AI capacity</span>
                 </div>
               </div>
 

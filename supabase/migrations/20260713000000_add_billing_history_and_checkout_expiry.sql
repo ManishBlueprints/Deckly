@@ -4,11 +4,22 @@
 ALTER TABLE public.subscriptions
   ADD COLUMN IF NOT EXISTS checkout_expires_at timestamptz,
   ADD COLUMN IF NOT EXISTS checkout_dismissed_at timestamptz,
-  ADD COLUMN IF NOT EXISTS invoices_synced_at timestamptz;
+  ADD COLUMN IF NOT EXISTS invoices_synced_at timestamptz,
+  ADD COLUMN IF NOT EXISTS invoice_sync_offset integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS invoice_history_complete boolean NOT NULL DEFAULT false;
+
+ALTER TABLE public.subscriptions
+  DROP CONSTRAINT IF EXISTS subscriptions_invoice_sync_offset_check;
+ALTER TABLE public.subscriptions
+  ADD CONSTRAINT subscriptions_invoice_sync_offset_check
+  CHECK (invoice_sync_offset >= 0) NOT VALID;
 
 CREATE INDEX IF NOT EXISTS subscriptions_checkout_expiry_idx
   ON public.subscriptions(checkout_expires_at)
   WHERE provider_status = 'created';
+CREATE INDEX IF NOT EXISTS subscriptions_invoice_backfill_idx
+  ON public.subscriptions(invoice_sync_offset, invoices_synced_at)
+  WHERE invoice_history_complete = false;
 
 CREATE TABLE IF NOT EXISTS public.billing_invoices (
   id uuid PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
@@ -78,7 +89,7 @@ BEGIN
   IF v_provider_plan_code IS NOT NULL THEN
     SELECT tier INTO v_provider_tier
     FROM public.billing_plan_catalog
-    WHERE code = v_provider_plan_code AND active;
+    WHERE code = v_provider_plan_code;
     IF v_provider_tier IS NULL THEN
       RAISE EXCEPTION 'Unknown billing plan code';
     END IF;

@@ -1,9 +1,10 @@
-import { adminClient, applyProviderSubscription, asProviderSubscription, fetchRazorpaySubscription, json, planFor, razorpay, razorpayPlanId, requireUser, type PlanCode } from "../_shared/billing.ts";
+import { adminClient, applyProviderSubscription, asProviderSubscription, corsPreflight, fetchRazorpaySubscription, json, planFor, razorpay, razorpayPlanId, requireUser, type PlanCode } from "../_shared/billing.ts";
 
 const OPEN_STATUSES = ["created", "authenticated", "active", "pending", "halted", "paused"];
 const CHECKOUT_EXPIRY_MS = 30 * 60 * 1000;
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return corsPreflight();
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   try {
     const user = await requireUser(req);

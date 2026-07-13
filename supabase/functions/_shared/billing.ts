@@ -27,7 +27,17 @@ const PLANS: Record<PlanCode, PlanConfig> = {
   RAISE_YEARLY: { tier: "RAISE", interval: "yearly", env: "RAZORPAY_PLAN_RAISE_YEARLY" },
 };
 
-export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+export const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Max-Age": "86400",
+};
+export const corsPreflight = () => new Response(null, { status: 204, headers: corsHeaders });
+export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, "Content-Type": "application/json" },
+});
 export const unixTime = (value: unknown) => typeof value === "number" && value > 0 ? new Date(value * 1000).toISOString() : null;
 export const planFor = (tier: unknown, interval: unknown) => {
   const planFamily = tier === "PRO" ? "SHARE" : tier === "PRO_PLUS" ? "FOUNDER" : tier === "RAISE" ? "RAISE" : "";
@@ -161,6 +171,8 @@ type InvoiceSubscription = {
   user_id: string;
   razorpay_subscription_id: string;
   plan_code: string;
+  invoice_sync_offset?: number | null;
+  invoice_history_complete?: boolean | null;
 };
 
 export type SyncedInvoice = {
@@ -172,18 +184,39 @@ export type SyncedInvoice = {
   paid_at: number | null;
 };
 
+export type InvoiceSyncResult = {
+  invoices: SyncedInvoice[];
+  hasMore: boolean;
+};
+
+type InvoiceSyncOptions = {
+  maxPages?: number;
+  startSkip?: number;
+  advanceBackfillCursor?: boolean;
+};
+
+const INVOICE_PAGE_SIZE = 100;
+const MAX_INVOICE_PAGES_PER_SYNC = 5;
+
 // Billing history is refreshed server-side so raw provider payloads and payment
 // identifiers never need to be exposed to the browser.
-export async function syncInvoicesForSubscription(admin: BillingAdminClient, subscription: InvoiceSubscription): Promise<SyncedInvoice[]> {
-  let skip = 0;
-  const pageSize = 100;
+export async function syncInvoicesForSubscription(
+  admin: BillingAdminClient,
+  subscription: InvoiceSubscription,
+  options: InvoiceSyncOptions = {},
+): Promise<InvoiceSyncResult> {
+  let skip = Math.max(0, Math.trunc(options.startSkip ?? 0));
+  const maxPages = Math.max(1, Math.min(MAX_INVOICE_PAGES_PER_SYNC, Math.trunc(options.maxPages ?? 1)));
   const syncedInvoices: SyncedInvoice[] = [];
+  let pagesFetched = 0;
+  let hasMore = false;
 
-  while (true) {
+  while (pagesFetched < maxPages) {
     const provider = await razorpay(
-      `/invoices?subscription_id=${encodeURIComponent(subscription.razorpay_subscription_id)}&count=${pageSize}&skip=${skip}`,
+      `/invoices?subscription_id=${encodeURIComponent(subscription.razorpay_subscription_id)}&count=${INVOICE_PAGE_SIZE}&skip=${skip}`,
     ) as { items?: unknown[] };
     const invoices = Array.isArray(provider.items) ? provider.items : [];
+    pagesFetched += 1;
     const rows = invoices.flatMap((candidate) => {
       const invoice = candidate && typeof candidate === "object" ? candidate as Record<string, unknown> : null;
       if (!invoice) return [];
@@ -239,14 +272,27 @@ export async function syncInvoicesForSubscription(admin: BillingAdminClient, sub
         });
       }
     }
-    if (invoices.length < pageSize) break;
+    if (invoices.length < INVOICE_PAGE_SIZE) break;
     skip += invoices.length;
+    hasMore = true;
   }
 
+  const subscriptionUpdate: Record<string, unknown> = {
+    invoices_synced_at: new Date().toISOString(),
+  };
+  if (options.advanceBackfillCursor) {
+    subscriptionUpdate.invoice_sync_offset = hasMore ? skip : 0;
+    subscriptionUpdate.invoice_history_complete = !hasMore;
+  } else if (!hasMore && (options.startSkip ?? 0) === 0) {
+    // A first-page refresh that reaches the end proves that no historical
+    // backfill is required for this subscription.
+    subscriptionUpdate.invoice_sync_offset = 0;
+    subscriptionUpdate.invoice_history_complete = true;
+  }
   const { error } = await admin
     .from("subscriptions")
-    .update({ invoices_synced_at: new Date().toISOString() })
+    .update(subscriptionUpdate)
     .eq("id", subscription.id);
   if (error) throw error;
-  return syncedInvoices;
+  return { invoices: syncedInvoices, hasMore };
 }

@@ -64,7 +64,6 @@ ALTER TABLE public.billing_plan_catalog ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.billing_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Authenticated users may read billing plans" ON public.billing_plan_catalog FOR SELECT TO authenticated USING (active);
-CREATE POLICY "Users may read their subscriptions" ON public.subscriptions FOR SELECT TO authenticated USING (user_id = auth.uid());
 
 -- The application historically lets a user update their profile. Explicitly
 -- block attempts to self-upgrade while retaining existing profile edit flows.
@@ -129,9 +128,41 @@ BEGIN
 END;
 $$;
 REVOKE ALL ON FUNCTION public.apply_subscription_entitlement(text, text, text, text, timestamptz, timestamptz, boolean, text, timestamptz, jsonb, timestamptz) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_subscription_entitlement(text, text, text, text, timestamptz, timestamptz, boolean, text, timestamptz, jsonb, timestamptz) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.get_my_subscription()
-RETURNS SETOF public.subscriptions LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
-  SELECT * FROM public.subscriptions WHERE user_id = auth.uid() ORDER BY created_at DESC LIMIT 1;
+RETURNS TABLE (
+  id uuid,
+  plan_code text,
+  entitlement_tier text,
+  billing_interval text,
+  razorpay_subscription_id text,
+  provider_status text,
+  current_period_end timestamptz,
+  cancel_at_period_end boolean,
+  pending_plan_code text,
+  pending_change_at timestamptz
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    s.id,
+    s.plan_code,
+    s.entitlement_tier,
+    s.billing_interval,
+    s.razorpay_subscription_id,
+    s.provider_status,
+    s.current_period_end,
+    s.cancel_at_period_end,
+    s.pending_plan_code,
+    s.pending_change_at
+  FROM public.subscriptions AS s
+  WHERE s.user_id = auth.uid()
+  ORDER BY s.created_at DESC
+  LIMIT 1;
 $$;
+REVOKE ALL ON FUNCTION public.get_my_subscription() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_my_subscription() TO authenticated;

@@ -1,10 +1,11 @@
-import { adminClient, applyProviderSubscription, fetchRazorpaySubscription, json, requireUser, type PlanCode } from "../_shared/billing.ts";
+import { adminClient, applyProviderSubscription, corsPreflight, fetchRazorpaySubscription, json, requireUser, type PlanCode } from "../_shared/billing.ts";
 
 // This is a customer-safe recovery path for the narrow window where Checkout
 // completes but its browser callback or Razorpay webhook is lost. It only
 // reconciles the caller's locally-created subscriptions; it never accepts a
 // provider state from the browser.
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return corsPreflight();
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {

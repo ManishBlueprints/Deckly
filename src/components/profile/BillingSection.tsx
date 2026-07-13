@@ -44,13 +44,21 @@ export function BillingSection({
     if (!cancelConfirmOpen && dialog.open) dialog.close();
   }, [cancelConfirmOpen]);
 
+  const refreshBillingAfterAction = async () => {
+    try {
+      await refreshBilling();
+    } catch {
+      toast.error("Your subscription was updated, but the latest billing details could not be loaded. Please refresh the page.");
+    }
+  };
+
   const cancelAtRenewal = async () => {
     setBillingBusy(true);
     try {
       await subscriptionService.cancel();
       setCancelConfirmOpen(false);
       toast.success("Cancellation is scheduled. Your access remains available through the current paid period.");
-      await refreshBilling();
+      await refreshBillingAfterAction();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to schedule cancellation.");
     } finally {
@@ -63,7 +71,7 @@ export function BillingSection({
     try {
       await subscriptionService.cancelChange();
       toast.success("Scheduled plan change cancelled.");
-      await refreshBilling();
+      await refreshBillingAfterAction();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to cancel the scheduled plan change.");
     } finally {
@@ -188,6 +196,7 @@ export function BillingSection({
             <h3 id="billing-history-title" className="text-base font-semibold text-foreground">Billing history</h3>
             <p className="mt-1 text-xs text-muted-foreground">Invoices from every subscription, including paid, pending, expired, and cancelled attempts.</p>
             {historyQuery.data?.stale && <p className="mt-2 text-xs text-amber-200/90">Showing saved history while Razorpay is temporarily unavailable.</p>}
+            {historyQuery.data?.sync_pending && <p className="mt-2 text-xs text-muted-foreground">Older invoices are still synchronizing in the background.</p>}
           </div>
           {historyQuery.isFetching && <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Refreshing</p>}
         </div>

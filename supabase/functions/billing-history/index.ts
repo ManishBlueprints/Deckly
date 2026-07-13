@@ -1,9 +1,11 @@
-import { adminClient, json, requireUser, syncInvoicesForSubscription } from "../_shared/billing.ts";
+import { adminClient, corsPreflight, json, requireUser, syncInvoicesForSubscription } from "../_shared/billing.ts";
 
 const MAX_PAGE_SIZE = 50;
-const SYNC_STALE_AFTER_MS = 5 * 60 * 1000;
+const SYNC_STALE_AFTER_MS = 15 * 60 * 1000;
+const MAX_INTERACTIVE_SUBSCRIPTION_SYNCS = 2;
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return corsPreflight();
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
@@ -14,17 +16,25 @@ Deno.serve(async (req) => {
     const admin = adminClient();
     const { data: subscriptions, error: subscriptionsError } = await admin
       .from("subscriptions")
-      .select("id, user_id, razorpay_subscription_id, plan_code, invoices_synced_at")
+      .select("id, user_id, razorpay_subscription_id, plan_code, invoices_synced_at, invoice_history_complete")
       .eq("user_id", user.id);
     if (subscriptionsError) throw subscriptionsError;
 
     const staleBefore = Date.now() - SYNC_STALE_AFTER_MS;
     let stale = false;
+    let syncPending = (subscriptions ?? []).some((subscription) => subscription.invoice_history_complete !== true);
+    let interactiveSyncs = 0;
     for (const subscription of subscriptions ?? []) {
       const syncedAt = subscription.invoices_synced_at ? new Date(subscription.invoices_synced_at).getTime() : 0;
       if (!syncedAt || syncedAt < staleBefore) {
+        if (interactiveSyncs >= MAX_INTERACTIVE_SUBSCRIPTION_SYNCS) {
+          syncPending = true;
+          continue;
+        }
+        interactiveSyncs += 1;
         try {
-          await syncInvoicesForSubscription(admin, subscription);
+          const result = await syncInvoicesForSubscription(admin, subscription, { maxPages: 1 });
+          syncPending ||= result.hasMore;
         } catch {
           // A cached history is still more useful than a provider outage page.
           stale = true;
@@ -47,6 +57,7 @@ Deno.serve(async (req) => {
       total: count ?? 0,
       next_offset: offset + (invoices?.length ?? 0) < (count ?? 0) ? offset + (invoices?.length ?? 0) : null,
       stale,
+      sync_pending: syncPending,
     });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : "Unable to load billing history." }, error instanceof Error && error.message === "Unauthorized" ? 401 : 500);

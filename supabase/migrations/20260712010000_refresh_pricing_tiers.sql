@@ -4,21 +4,18 @@
 
 ALTER TABLE public.billing_plan_catalog
   DROP CONSTRAINT IF EXISTS billing_plan_catalog_code_check;
-ALTER TABLE public.billing_plan_catalog
-  ADD CONSTRAINT billing_plan_catalog_code_check
-  CHECK (code IN ('PRO_MONTHLY', 'PRO_YEARLY', 'PRO_PLUS_MONTHLY', 'PRO_PLUS_YEARLY', 'SHARE_MONTHLY', 'SHARE_YEARLY', 'FOUNDER_MONTHLY', 'FOUNDER_YEARLY', 'RAISE_MONTHLY', 'RAISE_YEARLY'));
 
 ALTER TABLE public.billing_plan_catalog
   DROP CONSTRAINT IF EXISTS billing_plan_catalog_tier_check;
 ALTER TABLE public.billing_plan_catalog
   ADD CONSTRAINT billing_plan_catalog_tier_check
-  CHECK (tier IN ('PRO', 'PRO_PLUS', 'RAISE'));
+  CHECK (tier IN ('PRO', 'PRO_PLUS', 'RAISE')) NOT VALID;
 
 ALTER TABLE public.subscriptions
   DROP CONSTRAINT IF EXISTS subscriptions_entitlement_tier_check;
 ALTER TABLE public.subscriptions
   ADD CONSTRAINT subscriptions_entitlement_tier_check
-  CHECK (entitlement_tier IN ('PRO', 'PRO_PLUS', 'RAISE'));
+  CHECK (entitlement_tier IN ('PRO', 'PRO_PLUS', 'RAISE')) NOT VALID;
 
 -- The original catalogue already contains the PRO / PRO_PLUS rows for these
 -- tier-and-interval pairs. Rename those immutable codes rather than inserting
@@ -29,13 +26,13 @@ ALTER TABLE public.subscriptions
   DROP CONSTRAINT IF EXISTS subscriptions_plan_code_fkey;
 ALTER TABLE public.subscriptions
   ADD CONSTRAINT subscriptions_plan_code_fkey
-  FOREIGN KEY (plan_code) REFERENCES public.billing_plan_catalog(code) ON UPDATE CASCADE;
+  FOREIGN KEY (plan_code) REFERENCES public.billing_plan_catalog(code) ON UPDATE CASCADE NOT VALID;
 
 ALTER TABLE public.subscriptions
   DROP CONSTRAINT IF EXISTS subscriptions_pending_plan_code_fkey;
 ALTER TABLE public.subscriptions
   ADD CONSTRAINT subscriptions_pending_plan_code_fkey
-  FOREIGN KEY (pending_plan_code) REFERENCES public.billing_plan_catalog(code) ON UPDATE CASCADE;
+  FOREIGN KEY (pending_plan_code) REFERENCES public.billing_plan_catalog(code) ON UPDATE CASCADE NOT VALID;
 
 UPDATE public.billing_plan_catalog
 SET code = CASE code
@@ -63,6 +60,12 @@ ON CONFLICT (code) DO UPDATE SET
   active = true,
   updated_at = now();
 
+-- Only customer-facing Share, Founder, and Raise plan codes are accepted
+-- after the immutable provider-plan rename above has completed.
+ALTER TABLE public.billing_plan_catalog
+  ADD CONSTRAINT billing_plan_catalog_code_check
+  CHECK (code IN ('SHARE_MONTHLY', 'SHARE_YEARLY', 'FOUNDER_MONTHLY', 'FOUNDER_YEARLY', 'RAISE_MONTHLY', 'RAISE_YEARLY')) NOT VALID;
+
 INSERT INTO public.tier_limits (tier, max_file_size_bytes, max_decks, max_decks_per_day, max_decks_per_room)
 VALUES
   ('FREE', 104857600, 5, 30, 5),
@@ -79,11 +82,37 @@ ON CONFLICT (tier) DO UPDATE SET
 -- A previous cancelled checkout must not mask an active subscription when the
 -- profile reloads. Prefer live states, then the most recently created record.
 CREATE OR REPLACE FUNCTION public.get_my_subscription()
-RETURNS SETOF public.subscriptions LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
-  SELECT *
-  FROM public.subscriptions
-  WHERE user_id = auth.uid()
-  ORDER BY CASE provider_status
+RETURNS TABLE (
+  id uuid,
+  plan_code text,
+  entitlement_tier text,
+  billing_interval text,
+  razorpay_subscription_id text,
+  provider_status text,
+  current_period_end timestamptz,
+  cancel_at_period_end boolean,
+  pending_plan_code text,
+  pending_change_at timestamptz
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    s.id,
+    s.plan_code,
+    s.entitlement_tier,
+    s.billing_interval,
+    s.razorpay_subscription_id,
+    s.provider_status,
+    s.current_period_end,
+    s.cancel_at_period_end,
+    s.pending_plan_code,
+    s.pending_change_at
+  FROM public.subscriptions AS s
+  WHERE s.user_id = auth.uid()
+  ORDER BY CASE s.provider_status
     WHEN 'active' THEN 0
     WHEN 'authenticated' THEN 1
     WHEN 'pending' THEN 2
@@ -95,6 +124,7 @@ RETURNS SETOF public.subscriptions LANGUAGE sql STABLE SECURITY INVOKER SET sear
   LIMIT 1;
 $$;
 
+REVOKE ALL ON FUNCTION public.get_my_subscription() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_my_subscription() TO authenticated;
 
 -- Provider updates can change a plan immediately. The Edge Functions attach a
@@ -131,7 +161,7 @@ BEGIN
   IF v_provider_plan_code IS NOT NULL THEN
     SELECT tier INTO v_provider_tier
     FROM public.billing_plan_catalog
-    WHERE code = v_provider_plan_code AND active;
+    WHERE code = v_provider_plan_code;
     IF v_provider_tier IS NULL THEN
       RAISE EXCEPTION 'Unknown billing plan code';
     END IF;
