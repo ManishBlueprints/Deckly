@@ -20,6 +20,8 @@ const OwnerDeckPreview = lazy(() => import("./pages/OwnerDeckPreview"));
 const ManageDeck = lazy(() => import("./pages/ManageDeck"));
 const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ContentPage = lazy(() => import("./pages/ContentPage"));
 const DeckAnalytics = lazy(() => import("./pages/DeckAnalytics"));
 const EditDeck = lazy(() => import("./pages/EditDeck"));
@@ -262,6 +264,11 @@ const AppContent = () => {
               )
             }
           />
+          <Route
+            path="/forgot-password"
+            element={!session ? <ForgotPassword /> : <Navigate to="/" replace />}
+          />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             path="/signup"
             element={

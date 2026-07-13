@@ -79,3 +79,16 @@ export function useDeckLocations(
         refetchOnWindowFocus: false,
     });
 }
+
+export function useDeckLinkStats(
+    deckId: string | undefined,
+    ownerUserId: string | undefined,
+    enabled = true,
+) {
+    return useQuery({
+        queryKey: ["deck-link-stats", deckId, ownerUserId],
+        queryFn: () => analyticsService.getDeckLinkStats(deckId!, ownerUserId!),
+        enabled: enabled && !!deckId && !!ownerUserId,
+        ...ANALYTICS_QUERY_CONFIG,
+    });
+}

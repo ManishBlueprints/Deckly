@@ -122,7 +122,13 @@ enabled = true
 # in emails.
 site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+additional_redirect_urls = [
+  "https://127.0.0.1:3000",
+  "http://127.0.0.1:3000/reset-password",
+  "http://localhost:5173/reset-password",
+  "https://app.deckly.space/reset-password",
+  "https://deckly.space/reset-password"
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # Path to JWT signing key. DO NOT commit your signing keys file to git.
@@ -139,10 +145,10 @@ enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
-minimum_password_length = 6
+minimum_password_length = 8
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
-password_requirements = ""
+password_requirements = "lower_upper_letters_digits_symbols"
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
@@ -175,7 +181,7 @@ double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
 enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
-secure_password_change = false
+secure_password_change = true
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"
 # Number of characters used in the email OTP.
@@ -192,6 +198,10 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+[auth.email.notification.password_changed]
+enabled = true
+subject = "Your Deckly password was changed"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
@@ -376,3 +386,51 @@ enabled = true
 verify_jwt = false  # Function implements its own auth via get_deck_payload re-validation
 import_map = "./functions/deno.json"
 entrypoint = "./functions/sign-deck-url/index.ts"
+
+[functions.send-interest-signal-email]
+enabled = true
+verify_jwt = false  # Database Webhook is authenticated in-function with EMAIL_WEBHOOK_SECRET
+import_map = "./functions/deno.json"
+entrypoint = "./functions/send-interest-signal-email/index.ts"
+
+[functions.create-subscription]
+enabled = true
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/create-subscription/index.ts"
+
+[functions.verify-subscription-checkout]
+enabled = true
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/verify-subscription-checkout/index.ts"
+
+[functions.manage-subscription]
+enabled = true
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/manage-subscription/index.ts"
+
+[functions.refresh-subscription]
+enabled = true
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/refresh-subscription/index.ts"
+
+[functions.billing-history]
+enabled = true
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/billing-history/index.ts"
+
+[functions.razorpay-webhook]
+enabled = true
+verify_jwt = false  # Razorpay verifies itself with its HMAC signature.
+import_map = "./functions/deno.json"
+entrypoint = "./functions/razorpay-webhook/index.ts"
+
+[functions.reconcile-subscriptions]
+enabled = true
+verify_jwt = false  # Scheduled function validates x-cron-secret itself.
+import_map = "./functions/deno.json"
+entrypoint = "./functions/reconcile-subscriptions/index.ts"

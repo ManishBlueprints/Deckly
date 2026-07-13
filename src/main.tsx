@@ -8,6 +8,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PostHogProvider } from "posthog-js/react";
+import { posthogConfig } from "./services/posthogConfig";
 
 
 const queryClient = new QueryClient({
@@ -34,9 +35,9 @@ ReactDOM.createRoot(rootElement, {
   <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <PostHogProvider
-          apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
+          apiKey={posthogConfig.apiKey}
           options={{
-            api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+            api_host: posthogConfig.apiHost || undefined,
             defaults: "2025-05-24",
             capture_exceptions: true,
             debug: false,

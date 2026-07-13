@@ -319,7 +319,7 @@ export default function Landing() {
                     height="1299"
                   />
                   {/* Scanning Light Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent h-1/4 -translate-y-full group-hover:translate-y-[400%] transition-transform duration-[3000ms] pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent h-1/4 -translate-y-full group-hover:translate-y-[400%] transition-transform [transition-duration:3000ms] pointer-events-none" />
                 </div>
               </div>
 

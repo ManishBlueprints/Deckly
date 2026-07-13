@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../services/supabase";
 import { Lock, Mail, CheckCircle2, User } from "lucide-react";
@@ -11,6 +11,12 @@ import { Button } from "../components/ui/button";
 import { FormInput } from "../components/ui/form-input";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { getFriendlyAuthErrorMessage } from "../utils/authErrorMessages";
+import {
+  captureSignupCompleted,
+  clearPendingOAuthSignup,
+  markPendingOAuthSignup,
+} from "../services/signupAnalytics";
+import { getPrefilledSignupEmail } from "../utils/signupNavigation";
 
 function Signup() {
   const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
@@ -19,7 +25,6 @@ function Signup() {
     captchaRequired && !captchaSiteKey
       ? "CAPTCHA is required for email signup, but the Turnstile site key is missing."
       : null;
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,6 +33,8 @@ function Signup() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [email, setEmail] = useState(() => getPrefilledSignupEmail(location.state));
 
   useEffect(() => {
     document.title = "Sign Up | Deckly";
@@ -91,7 +98,10 @@ function Signup() {
 
       if (data.user) {
         setSuccess(true);
-        posthog.capture("user_signup_completed", { method: "email" });
+        toast.success("Check your email", {
+          description: `We sent a confirmation link to ${email}. Please confirm your email before logging in.`,
+        });
+        captureSignupCompleted(data.user, "email");
         setTimeout(() => navigate("/login"), 4000);
       }
     } catch (err: unknown) {
@@ -114,6 +124,7 @@ function Signup() {
   };
 
   const handleGoogleSignIn = async () => {
+    markPendingOAuthSignup("google");
     posthog.capture("user_signup_submitted", { method: "google" });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -124,11 +135,17 @@ function Signup() {
       });
       if (error) throw error;
     } catch (err: unknown) {
+      clearPendingOAuthSignup();
+      posthog.capture("user_signup_failed", {
+        method: "google",
+        error: err instanceof Error ? err.message : String(err),
+      });
       setError(err instanceof Error ? err.message : String(err));
     }
   };
 
   const handleGitHubSignIn = async () => {
+    markPendingOAuthSignup("github");
     posthog.capture("user_signup_submitted", { method: "github" });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -139,6 +156,11 @@ function Signup() {
       });
       if (error) throw error;
     } catch (err: unknown) {
+      clearPendingOAuthSignup();
+      posthog.capture("user_signup_failed", {
+        method: "github",
+        error: err instanceof Error ? err.message : String(err),
+      });
       setError(err instanceof Error ? err.message : String(err));
     }
   };
@@ -297,7 +319,8 @@ function Signup() {
                 </h2>
                 <p className="text-slate-400 text-sm leading-relaxed">
                   We've sent a confirmation link to <strong>{email}</strong>.
-                  Redirecting to login shortly...
+                  Please confirm your email before logging in. Redirecting
+                  shortly...
                 </p>
               </motion.div>
             ) : (

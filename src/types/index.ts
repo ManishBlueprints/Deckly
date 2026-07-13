@@ -43,6 +43,7 @@ export interface Deck {
   user_handle?: string;
   active_link_count?: number;
   total_link_count?: number;
+  deck_link_id?: string;
 }
 
 export interface DeckLink {
@@ -239,6 +240,17 @@ export interface DeckPageStats {
   total_time_seconds: number;
 }
 
+export interface DeckLinkStats {
+  link_id: string;
+  link_name: string;
+  link_alias: string | null;
+  is_primary: boolean;
+  is_enabled: boolean;
+  total_views: number;
+  unique_visitors: number;
+  total_time_seconds: number;
+}
+
 export interface TutorialState {
   home_completed?: boolean;
   content_completed?: boolean;
@@ -262,7 +274,7 @@ export interface UserProfile {
   full_name: string | null;
   handle: string | null;
   avatar_url: string | null;
-  tier: "FREE" | "PRO" | "PRO_PLUS";
+  tier: "FREE" | "PRO" | "PRO_PLUS" | "RAISE";
   onboarding_profile?: OnboardingProfile | null;
   tutorial_state?: TutorialState | null;
   updated_at: string | null;

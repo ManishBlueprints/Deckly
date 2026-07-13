@@ -48,6 +48,21 @@ export const getDeckLinkShareUrl = (
   return getDeckShareUrl(workspaceSlug, slugOrAlias);
 };
 
+/**
+ * Resolves a link URL only when both route segments are ready for UI actions.
+ * Callers that persist a share URL should use getDeckLinkShareUrl instead.
+ */
+export const getReadyDeckLinkShareUrl = (
+  workspaceSlug: string | null | undefined,
+  slugOrAlias: string | null | undefined,
+): string | null => {
+  const normalizedWorkspaceSlug = workspaceSlug?.trim();
+  const normalizedSlugOrAlias = slugOrAlias?.trim();
+  if (!normalizedWorkspaceSlug || !normalizedSlugOrAlias) return null;
+
+  return getDeckShareUrl(normalizedWorkspaceSlug, normalizedSlugOrAlias);
+};
+
 export const getDataRoomPath = (workspaceSlug: string, slug: string): string => {
   // Encode workspace slug and slug, preserve literal "/room/" segment
   return `/${encodeURIComponent(workspaceSlug)}/room/${encodeURIComponent(slug)}`;
