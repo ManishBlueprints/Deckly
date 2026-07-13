@@ -104,7 +104,7 @@ describe("aiSummaryInitialOrchestrator", () => {
       actor: {
         type: "signed_in",
         user_id: "user-1",
-        tier: "FREE",
+        tier: "PRO",
       },
       now: new Date("2026-05-02T12:00:00.000Z"),
     });
@@ -183,7 +183,7 @@ describe("aiSummaryInitialOrchestrator", () => {
       actor: {
         type: "signed_in",
         user_id: "user-1",
-        tier: "FREE",
+        tier: "PRO",
       },
       now: new Date("2026-05-02T12:00:00.000Z"),
     });
@@ -263,7 +263,7 @@ describe("aiSummaryInitialOrchestrator", () => {
       actor: {
         type: "signed_in",
         user_id: "user-1",
-        tier: "FREE",
+        tier: "PRO",
       },
       now: new Date("2026-05-02T12:00:00.000Z"),
     });
@@ -495,7 +495,7 @@ describe("aiSummaryInitialOrchestrator", () => {
           actor: {
             type: "signed_in",
             user_id: "user-1",
-            tier: "FREE",
+            tier: "PRO",
           },
           now: new Date("2026-05-02T12:00:00.000Z"),
         }),
@@ -550,7 +550,7 @@ describe("aiSummaryInitialOrchestrator", () => {
           actor: {
             type: "signed_in",
             user_id: "user-1",
-            tier: "FREE",
+            tier: "PRO",
           },
           now: new Date("2026-05-02T12:00:00.000Z"),
         }),

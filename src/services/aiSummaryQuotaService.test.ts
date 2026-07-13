@@ -125,25 +125,17 @@ describe("aiSummaryQuotaService", () => {
 
   it("keeps canonical AI summary limits on the tier config", () => {
     expect(TIER_CONFIG.FREE.aiSummariesPerDay).toBe(2);
-    expect(TIER_CONFIG.PRO.aiSummariesPerDay).toBe(10);
-    expect(TIER_CONFIG.PRO_PLUS.aiSummariesPerDay).toBe(50);
+    expect(TIER_CONFIG.PRO.aiSummariesPerDay).toBe(20);
+    expect(TIER_CONFIG.PRO_PLUS.aiSummariesPerDay).toBe(200);
+    expect(TIER_CONFIG.RAISE.aiSummariesPerDay).toBe(500);
   });
 
   it("enforces signed-in quota limits and upgrade hints", () => {
-    const freeAllowed = evaluateSignedInAiSummaryQuota("FREE", 1);
     const freeDenied = evaluateSignedInAiSummaryQuota("FREE", 2);
-    const proAllowed = evaluateSignedInAiSummaryQuota("PRO", 9);
-    const proDenied = evaluateSignedInAiSummaryQuota("PRO", 10);
-    const proPlusDenied = evaluateSignedInAiSummaryQuota("PRO_PLUS", 50);
-
-    expect(freeAllowed).toMatchObject({
-      allowed: true,
-      chargeable: true,
-      reason: "allowed",
-      limitPer24Hours: 2,
-      remaining: 1,
-      tier: "FREE",
-    });
+    const proAllowed = evaluateSignedInAiSummaryQuota("PRO", 19);
+    const proDenied = evaluateSignedInAiSummaryQuota("PRO", 20);
+    const founderDenied = evaluateSignedInAiSummaryQuota("PRO_PLUS", 200);
+    const raiseDenied = evaluateSignedInAiSummaryQuota("RAISE", 500);
 
     expect(freeDenied).toMatchObject({
       allowed: false,
@@ -159,7 +151,7 @@ describe("aiSummaryQuotaService", () => {
       allowed: true,
       chargeable: true,
       reason: "allowed",
-      limitPer24Hours: 10,
+      limitPer24Hours: 20,
       remaining: 1,
       tier: "PRO",
     });
@@ -169,19 +161,26 @@ describe("aiSummaryQuotaService", () => {
       chargeable: false,
       reason: "signed_in_limit_reached",
       nextAction: "upgrade",
-      limitPer24Hours: 10,
+      limitPer24Hours: 20,
       remaining: 0,
       tier: "PRO",
     });
 
-    expect(proPlusDenied).toMatchObject({
+    expect(founderDenied).toMatchObject({
       allowed: false,
       chargeable: false,
       reason: "signed_in_limit_reached",
-      nextAction: "none",
-      limitPer24Hours: 50,
+      nextAction: "upgrade",
+      limitPer24Hours: 200,
       remaining: 0,
       tier: "PRO_PLUS",
+    });
+
+    expect(raiseDenied).toMatchObject({
+      allowed: false,
+      nextAction: "none",
+      limitPer24Hours: 500,
+      tier: "RAISE",
     });
   });
 
