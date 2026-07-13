@@ -272,7 +272,10 @@ export async function syncInvoicesForSubscription(
         });
       }
     }
-    if (invoices.length < INVOICE_PAGE_SIZE) break;
+    if (invoices.length < INVOICE_PAGE_SIZE) {
+      hasMore = false;
+      break;
+    }
     skip += invoices.length;
     hasMore = true;
   }

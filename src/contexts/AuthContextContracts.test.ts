@@ -9,10 +9,12 @@ const __dirname = path.dirname(__filename);
 const source = readFileSync(path.resolve(__dirname, "AuthContext.tsx"), "utf8");
 
 describe("password recovery state", () => {
-  it("is transient and is set only from Supabase's recovery event", () => {
+  it("survives recovery-session hydration but remains short-lived and user-scoped", () => {
     expect(source).toContain("useState(false)");
     expect(source).toContain('event === "PASSWORD_RECOVERY"');
-    expect(source).not.toContain("sessionStorage");
-    expect(source).not.toContain("localStorage");
+    expect(source).toContain("sessionStorage");
+    expect(source).toContain("PASSWORD_RECOVERY_MAX_AGE_MS");
+    expect(source).toContain("isPasswordRecoverySession(session)");
+    expect(source).toContain("clearPasswordRecoveryMarker()");
   });
 });

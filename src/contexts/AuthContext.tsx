@@ -13,6 +13,59 @@ import {
   consumePendingOAuthSignup,
 } from "../services/signupAnalytics";
 
+const PASSWORD_RECOVERY_STORAGE_KEY = "deckly.password-recovery";
+const PASSWORD_RECOVERY_MAX_AGE_MS = 30 * 60 * 1000;
+
+type PasswordRecoveryMarker = {
+  userId: string;
+  expiresAt: number;
+};
+
+function readPasswordRecoveryMarker(): PasswordRecoveryMarker | null {
+  try {
+    const stored = window.sessionStorage.getItem(PASSWORD_RECOVERY_STORAGE_KEY);
+    if (!stored) return null;
+    const marker = JSON.parse(stored) as Partial<PasswordRecoveryMarker>;
+    if (
+      typeof marker.userId !== "string" ||
+      typeof marker.expiresAt !== "number" ||
+      marker.expiresAt <= Date.now()
+    ) {
+      window.sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
+      return null;
+    }
+    return marker as PasswordRecoveryMarker;
+  } catch {
+    return null;
+  }
+}
+
+function persistPasswordRecoveryMarker(session: Session | null) {
+  if (!session?.user?.id) return;
+  try {
+    window.sessionStorage.setItem(PASSWORD_RECOVERY_STORAGE_KEY, JSON.stringify({
+      userId: session.user.id,
+      expiresAt: Date.now() + PASSWORD_RECOVERY_MAX_AGE_MS,
+    } satisfies PasswordRecoveryMarker));
+  } catch {
+    // Recovery remains available for this page even when session storage is
+    // unavailable; a reload will fall back to Supabase's event behaviour.
+  }
+}
+
+function clearPasswordRecoveryMarker() {
+  try {
+    window.sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
+  } catch {
+    // Session storage can be unavailable in private or restricted browsers.
+  }
+}
+
+function isPasswordRecoverySession(session: Session | null) {
+  const marker = readPasswordRecoveryMarker();
+  return Boolean(marker && session?.user?.id === marker.userId);
+}
+
 interface AuthContextType {
   session: Session | null;
   passwordRecovery: boolean;
@@ -95,6 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const clearPasswordRecovery = () => {
+    clearPasswordRecoveryMarker();
     setPasswordRecovery(false);
   };
 
@@ -127,12 +181,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setSession(session);
 
         if (event === "PASSWORD_RECOVERY") {
+          persistPasswordRecoveryMarker(session);
           setPasswordRecovery(true);
-        } else {
-          // PASSWORD_RECOVERY is the only Supabase event that proves the
-          // active session originated from a recovery link. Never let a
-          // previous auth event authorize a normal signed-in session.
+        } else if (event === "SIGNED_OUT" || !session) {
           clearPasswordRecovery();
+        } else {
+          // Supabase does not re-emit PASSWORD_RECOVERY when a recovery
+          // session is restored after a reload. Keep the short-lived marker
+          // only for that same recovered user through hydration and refreshes.
+          setPasswordRecovery(isPasswordRecoverySession(session));
         }
 
         // OAuth returns through a full-page redirect, so the signup page cannot
@@ -195,12 +252,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const isPro = profile?.tier === "PRO" || profile?.tier === "PRO_PLUS" || profile?.tier === "RAISE";
 
   const signOut = async () => {
+    clearPasswordRecovery();
     await supabase.auth.signOut();
     queryClient.clear();
   };
 
   const signOutAllDevices = async () => {
     // scope: 'global' revokes ALL refresh tokens across every device/browser
+    clearPasswordRecovery();
     await supabase.auth.signOut({ scope: "global" });
     queryClient.clear();
   };
@@ -208,6 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const deleteAccount = async () => {
     await userService.deleteAccount();
     // The auth row is gone — clear local state and redirect
+    clearPasswordRecovery();
     queryClient.clear();
     try {
       await supabase.auth.signOut();
