@@ -186,6 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setPasswordRecovery(true);
         } else if (event === "SIGNED_OUT" || !session) {
           clearPasswordRecovery();
+          queryClient.clear();
         } else {
           // Supabase does not re-emit PASSWORD_RECOVERY when a recovery
           // session is restored after a reload. Keep the short-lived marker
@@ -205,12 +206,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (signupMethod && isRecentlyCreated) {
             captureSignupCompleted(session.user, signupMethod);
           }
-        }
-
-        // Security: Automatically clear sensitive cache if session is signed out remotely
-        if (event === "SIGNED_OUT") {
-          clearPasswordRecovery();
-          queryClient.clear();
         }
 
         // Always stop loading after the first session discovery or event

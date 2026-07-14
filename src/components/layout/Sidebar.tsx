@@ -22,6 +22,7 @@ import { deckService } from "../../services/deckService";
 import { dataRoomService } from "../../services/dataRoomService";
 import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
 import { organizerService } from "../../services/organizerService";
+import { toast } from "sonner";
 
 const NAV_ITEMS = [
   { icon: LayoutGrid, label: "Dashboard", href: "/" },
@@ -393,7 +394,9 @@ export function Sidebar() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    signOut();
+                    void signOut().catch(() => {
+                      toast.error("Failed to sign out. Please try again.");
+                    });
                   }}
                   className="p-2 text-red-400 hover:text-white hover:bg-red-500 bg-red-500/10 border border-red-500/20 rounded transition-all shrink-0 group/logout"
                   title="Sign Out"
