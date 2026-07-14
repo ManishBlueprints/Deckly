@@ -22,6 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { toast } from "sonner";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -180,7 +181,11 @@ export function DashboardLayout({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  onClick={signOut}
+                  onClick={() => {
+                    void signOut().catch(() => {
+                      toast.error("Failed to sign out. Please try again.");
+                    });
+                  }}
                   className="flex items-center gap-2 py-3 cursor-pointer text-red-400 focus:text-red-400 focus:bg-red-400/10"
                 >
                   <LogOut size={16} />

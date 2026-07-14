@@ -22,6 +22,7 @@ import { deckService } from "../../services/deckService";
 import { dataRoomService } from "../../services/dataRoomService";
 import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
 import { organizerService } from "../../services/organizerService";
+import { toast } from "sonner";
 
 const NAV_ITEMS = [
   { icon: LayoutGrid, label: "Dashboard", href: "/" },
@@ -51,13 +52,17 @@ const TIER_CONFIG = {
     className: "bg-slate-800/50 text-slate-500 border-white/5",
   },
   PRO: {
-    label: "Pro",
+    label: "Share",
     className: "bg-amber-400 text-slate-950 border-amber-500/50",
   },
   PRO_PLUS: {
-    label: "Pro Plus",
+    label: "Founder",
     className:
       "bg-purple-600 text-white border-purple-500/50 shadow-[0_0_15px_rgba(147,51,234,0.3)]",
+  },
+  RAISE: {
+    label: "Raise",
+    className: "bg-amber-400 text-slate-950 border-amber-300/60",
   },
 };
 
@@ -389,7 +394,9 @@ export function Sidebar() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    signOut();
+                    void signOut().catch(() => {
+                      toast.error("Failed to sign out. Please try again.");
+                    });
                   }}
                   className="p-2 text-red-400 hover:text-white hover:bg-red-500 bg-red-500/10 border border-red-500/20 rounded transition-all shrink-0 group/logout"
                   title="Sign Out"

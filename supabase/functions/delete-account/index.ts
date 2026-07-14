@@ -50,8 +50,36 @@ Deno.serve(async (req: Request) => {
 
   const userId = user.id;
   const adminClient = createClient(supabaseUrl, supabaseSecretKey);
+  let deletionMarked = false;
+
+  const clearDeletionPending = async () => {
+    const { error } = await adminClient
+      .rpc("clear_account_deletion_pending", { p_user_id: userId });
+    if (error) throw error;
+    deletionMarked = false;
+  };
 
   try {
+    const { data: deletionCanBegin, error: beginDeletionError } = await adminClient
+      .rpc("begin_account_deletion", { p_user_id: userId });
+    if (beginDeletionError) throw beginDeletionError;
+    if (!deletionCanBegin) {
+      return new Response(JSON.stringify({ error: "Cancel your active subscription before deleting your account." }), {
+        status: 409, headers: { "Content-Type": "application/json" },
+      });
+    }
+    deletionMarked = true;
+
+    const { data: deletionCanComplete, error: confirmDeletionError } = await adminClient
+      .rpc("confirm_account_deletion", { p_user_id: userId });
+    if (confirmDeletionError) throw confirmDeletionError;
+    if (!deletionCanComplete) {
+      await clearDeletionPending();
+      return new Response(JSON.stringify({ error: "A subscription change was detected. Cancel it before deleting your account." }), {
+        status: 409, headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const filePaths = (await listAllObjects("decks", userId)).map((item) => item.name);
 
     if (filePaths.length > 0) {
@@ -82,6 +110,15 @@ Deno.serve(async (req: Request) => {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
+    if (deletionMarked) {
+      const { error: clearError } = await adminClient
+        .rpc("clear_account_deletion_pending", { p_user_id: userId });
+      if (clearError) {
+        console.error("[delete-account] Failed to clear deletion-pending state:", clearError.message);
+      } else {
+        deletionMarked = false;
+      }
+    }
     const message = err instanceof Error ? err.message : String(err);
     console.error("[delete-account] Critical error:", message);
     return new Response(JSON.stringify({ error: "Failed to delete account" }), {

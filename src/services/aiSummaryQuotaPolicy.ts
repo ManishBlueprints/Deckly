@@ -132,7 +132,7 @@ export const evaluateAiSummaryQuota = ({
       allowed: false,
       chargeable: false,
       reason: "signed_in_limit_reached",
-      nextAction: tier === "PRO_PLUS" ? "none" : "upgrade",
+      nextAction: tier === "RAISE" ? "none" : "upgrade",
       limitPer24Hours,
       usedInWindow: usageCount,
       remaining,

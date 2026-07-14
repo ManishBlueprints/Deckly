@@ -8,7 +8,12 @@ import { toast } from "sonner";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import leftPanelBg from "../assets/Signup Left.png";
 import logo from "../assets/Deckly.png";
-import { getFriendlyAuthErrorMessage } from "../utils/authErrorMessages";
+import {
+  getFriendlyAuthErrorMessage,
+  isInvalidLoginCredentialsError,
+} from "../utils/authErrorMessages";
+import { createSignupNavigationState } from "../utils/signupNavigation";
+import { createPasswordResetNavigationState } from "../utils/passwordResetNavigation";
 
 function Login() {
   const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
@@ -22,6 +27,7 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
   const navigate = useNavigate();
@@ -33,6 +39,7 @@ function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setShowSignupPrompt(false);
     if (captchaConfigError) {
       setError(captchaConfigError);
       toast.error(captchaConfigError);
@@ -61,8 +68,13 @@ function Login() {
       posthog.capture("user_login_completed", { method: "email" });
       navigate("/");
     } catch (err: unknown) {
+      const showPrompt = isInvalidLoginCredentialsError(err);
       const friendlyMessage = getFriendlyAuthErrorMessage(err);
       setError(friendlyMessage);
+      setShowSignupPrompt(showPrompt);
+      if (showPrompt) {
+        posthog.capture("user_login_signup_prompt_shown", { method: "email" });
+      }
       toast.error(friendlyMessage);
     } finally {
       setLoading(false);
@@ -72,7 +84,20 @@ function Login() {
     }
   };
 
+  const handleCreateAccount = () => {
+    posthog.capture("user_login_signup_prompt_selected", { method: "email" });
+    navigate("/signup", { state: createSignupNavigationState(email) });
+  };
+
+  const handleForgotPassword = () => {
+    posthog.capture("password_reset_started", { source: "login" });
+    navigate("/forgot-password", {
+      state: createPasswordResetNavigationState(email),
+    });
+  };
+
   const handleGoogleSignIn = async () => {
+    setShowSignupPrompt(false);
     posthog.capture("user_login_submitted", { method: "google" });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -88,6 +113,7 @@ function Login() {
   };
 
   const handleGitHubSignIn = async () => {
+    setShowSignupPrompt(false);
     posthog.capture("user_login_submitted", { method: "github" });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -269,7 +295,13 @@ function Login() {
                 <label htmlFor="password" className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                   PASSWORD
                 </label>
-
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-xs font-semibold text-[#22C55E] hover:text-[#22C55E]/80 transition-colors"
+                >
+                  Forgot password?
+                </button>
               </div>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
@@ -304,6 +336,23 @@ function Login() {
                 id="login-error-message"
               >
                 Sign-in failed: {error}
+              </motion.div>
+            )}
+
+            {showSignupPrompt && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="border border-[#22C55E]/30 bg-[#22C55E]/10 p-4 rounded-lg text-center"
+              >
+                <p className="text-sm text-slate-300">New to Deckly?</p>
+                <button
+                  type="button"
+                  onClick={handleCreateAccount}
+                  className="mt-2 text-sm font-semibold text-[#22C55E] hover:text-[#22C55E]/80 transition-colors"
+                >
+                  Create an account
+                </button>
               </motion.div>
             )}
 
