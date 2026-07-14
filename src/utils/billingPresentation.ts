@@ -20,13 +20,14 @@ export function formatBillingAmount(amount: number, currency: string) {
 }
 
 export function formatBillingDate(value: string | null) {
-  return value
-    ? new Date(value).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
-    : "—";
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export function invoiceDate(invoice: BillingInvoice) {

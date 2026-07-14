@@ -60,6 +60,15 @@ describe("password change security helpers", () => {
     ).toContain("incorrect or expired");
   });
 
+  it("uses the generic fallback for absent provider errors", () => {
+    expect(getPasswordErrorMessage(null)).toBe(
+      "We couldn't complete that password request. Please try again.",
+    );
+    expect(getPasswordErrorMessage(undefined)).toBe(
+      "We couldn't complete that password request. Please try again.",
+    );
+  });
+
   it("shows password management only for email/password accounts", () => {
     expect(isEmailPasswordSession({ app_metadata: { provider: "email" } })).toBe(
       true,

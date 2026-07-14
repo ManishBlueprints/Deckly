@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../contexts/AuthContext";
 import { subscriptionService } from "../services/subscriptionService";
@@ -15,12 +15,16 @@ export function useSubscriptionState() {
   const { profile, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
   const profileId = profile?.id;
+  const reconciledCreatedSubscriptionId = useRef<string | null>(null);
   const subscriptionQuery = useQuery({
     queryKey: subscriptionQueryKey(profileId),
     queryFn: subscriptionService.getCurrent,
     enabled: Boolean(profileId),
     staleTime: 30_000,
   });
+  const subscription = subscriptionQuery.data;
+  const subscriptionId = subscription?.id;
+  const providerStatus = subscription?.provider_status;
 
   const refreshBilling = useCallback(async () => {
     await Promise.all([
@@ -32,7 +36,10 @@ export function useSubscriptionState() {
   }, [profileId, queryClient, refreshProfile]);
 
   useEffect(() => {
-    if (!profileId || subscriptionQuery.data?.provider_status !== "created") return;
+    if (!profileId || !subscriptionId || providerStatus !== "created") return;
+    if (reconciledCreatedSubscriptionId.current === subscriptionId) return;
+
+    reconciledCreatedSubscriptionId.current = subscriptionId;
     let disposed = false;
 
     void (async () => {
@@ -46,11 +53,11 @@ export function useSubscriptionState() {
     })();
 
     return () => { disposed = true; };
-  }, [profileId, refreshBilling, subscriptionQuery.data?.id, subscriptionQuery.data?.provider_status]);
+  }, [profileId, providerStatus, refreshBilling, subscriptionId]);
 
   return {
     profileId,
-    subscription: subscriptionQuery.data,
+    subscription,
     subscriptionLoading: subscriptionQuery.isLoading,
     subscriptionError: subscriptionQuery.error,
     refreshBilling,

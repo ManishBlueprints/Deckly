@@ -22,6 +22,7 @@ export function PasswordSecuritySection() {
   const [saving, setSaving] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nonceError, setNonceError] = useState<string | null>(null);
 
   const resetForm = () => {
     setPassword("");
@@ -29,11 +30,13 @@ export function PasswordSecuritySection() {
     setNonce("");
     setNeedsNonce(false);
     setError(null);
+    setNonceError(null);
   };
 
   const sendVerificationCode = async () => {
     setSendingCode(true);
     setError(null);
+    setNonceError(null);
     try {
       const { error: reauthError } = await requestPasswordReauthentication();
       if (reauthError) throw reauthError;
@@ -52,15 +55,17 @@ export function PasswordSecuritySection() {
     const validationError = validatePassword(password, confirmation);
     if (validationError) {
       setError(validationError);
+      setNonceError(null);
       return;
     }
     if (needsNonce && nonce.trim().length === 0) {
-      setError("Enter the verification code sent to your email.");
+      setNonceError("Enter the verification code sent to your email.");
       return;
     }
 
     setSaving(true);
     setError(null);
+    setNonceError(null);
     posthog.capture("profile_password_update_started", {
       verification_required: needsNonce,
     });
@@ -83,7 +88,11 @@ export function PasswordSecuritySection() {
       toast.success("Password updated. We sent a confirmation email to your account.");
     } catch (updateError: unknown) {
       const message = getPasswordErrorMessage(updateError);
-      setError(message);
+      if (needsNonce) {
+        setNonceError(message);
+      } else {
+        setError(message);
+      }
       posthog.capture("profile_password_update_failed", {
         error_code:
           updateError && typeof updateError === "object" && "code" in updateError
@@ -158,7 +167,11 @@ export function PasswordSecuritySection() {
               inputMode="numeric"
               autoComplete="one-time-code"
               value={nonce}
-              onChange={(event) => setNonce(event.target.value.replace(/\s/g, ""))}
+              onChange={(event) => {
+                setNonce(event.target.value.replace(/\s/g, ""));
+                setNonceError(null);
+              }}
+              error={nonceError}
               required
             />
             <button

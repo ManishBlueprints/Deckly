@@ -362,7 +362,7 @@ export default function DeckAnalytics() {
                     <BarChart3 size={16} className="text-deckly-primary" />
                   </div>
                   <h3 className="text-sm font-semibold text-white tracking-tight">
-                    Engagement per Slide
+                    {activeTab === "LINKS" ? "Link Performance" : "Engagement per Slide"}
                   </h3>
                 </div>
 

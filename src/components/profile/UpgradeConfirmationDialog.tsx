@@ -19,7 +19,10 @@ export function UpgradeConfirmationDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
-  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!targetTier) return;

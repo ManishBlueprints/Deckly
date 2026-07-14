@@ -1,4 +1,4 @@
-import { adminClient, applyProviderSubscription, fetchRazorpaySubscription, json, syncInvoicesForSubscription, type PlanCode } from "../_shared/billing.ts";
+import { adminClient, applyProviderSubscription, fetchRazorpaySubscription, json, syncInvoicesForSubscription, timingSafeEqual, type PlanCode } from "../_shared/billing.ts";
 
 const BATCH_SIZE = 50;
 const RECONCILABLE_STATUSES = ["created", "authenticated", "active", "pending", "halted", "paused"];
@@ -17,7 +17,10 @@ const invoiceSyncOptions = (subscription: { invoice_sync_offset?: number | null;
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   const cronSecret = Deno.env.get("CRON_SECRET")?.trim() || "";
-  if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) return json({ error: "Unauthorized" }, 401);
+  const providedCronSecret = req.headers.get("x-cron-secret")?.trim() || "";
+  if (!cronSecret || !providedCronSecret || !timingSafeEqual(providedCronSecret, cronSecret)) {
+    return json({ error: "Unauthorized" }, 401);
+  }
 
   try {
     const admin = adminClient();

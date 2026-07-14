@@ -15,6 +15,7 @@ function getErrorCode(error: unknown): string {
 }
 
 function getErrorMessage(error: unknown): string {
+  if (error == null) return "";
   if (error instanceof Error) return error.message;
   if (error && typeof error === "object") {
     const message = (error as AuthErrorLike).message;

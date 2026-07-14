@@ -16,6 +16,17 @@ Deno.serve(async (req) => {
     if (!razorpayPlan || !keyId) return json({ error: "Billing is not configured yet." }, 503);
 
     const admin = adminClient();
+    const { data: billingProfile, error: profileError } = await admin
+      .from("profiles")
+      .select("deletion_pending_at")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profileError) throw profileError;
+    if (!billingProfile) return json({ error: "Your billing profile could not be found." }, 404);
+    if (billingProfile.deletion_pending_at) {
+      return json({ error: "Account deletion is in progress. Subscription changes are unavailable." }, 409);
+    }
+
     const { data: existing, error: existingError } = await admin
       .from("subscriptions")
       .select("*")

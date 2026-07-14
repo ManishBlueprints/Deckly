@@ -205,9 +205,12 @@ Deno.serve(async (request: Request) => {
     `Open analytics: ${analyticsUrl}`,
   ].join("\n");
 
+  const resendAbortController = new AbortController();
+  const resendTimeout = setTimeout(() => resendAbortController.abort(), 15_000);
   try {
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      signal: resendAbortController.signal,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${resendApiKey}`,
@@ -257,12 +260,16 @@ Deno.serve(async (request: Request) => {
 
     return jsonResponse({ sent: true, event_id: event.id });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error instanceof DOMException && error.name === "AbortError"
+      ? "Resend request timed out"
+      : error instanceof Error ? error.message : String(error);
     await admin
       .from("interest_signal_email_events")
       .update({ status: "failed", last_error: message, updated_at: new Date().toISOString() })
       .eq("id", event.id);
     console.error("[send-interest-signal-email] Unexpected error:", message);
     return jsonResponse({ error: "Email delivery failed" }, 502);
+  } finally {
+    clearTimeout(resendTimeout);
   }
 });

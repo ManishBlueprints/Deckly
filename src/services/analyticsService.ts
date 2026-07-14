@@ -110,12 +110,12 @@ export const analyticsService = {
   // Track when someone views a deck
   trackDeckView(deck: Deck, metadata: Record<string, unknown> = {}) {
     captureEvent("deck_viewed", {
+      ...metadata,
       deck_id: deck.id,
       deck_slug: deck.slug,
       deck_title: deck.title,
       owner_id: deck.user_id,
       deck_link_id: deck.deck_link_id || null,
-      ...metadata,
     });
   },
 

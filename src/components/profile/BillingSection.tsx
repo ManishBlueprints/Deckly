@@ -36,6 +36,10 @@ export function BillingSection({
     staleTime: 30_000,
   });
   const invoices = historyQuery.data?.items ?? [];
+  const nextOffset = historyQuery.data?.next_offset ?? null;
+  const showHistoryPager = !historyQuery.isLoading && !historyQuery.isError && (
+    offset > 0 || nextOffset !== null
+  );
 
   useEffect(() => {
     const dialog = cancelDialogRef.current;
@@ -230,10 +234,10 @@ export function BillingSection({
           </div>
         )}
 
-        {(offset > 0 || historyQuery.data?.next_offset !== null) && (
+        {showHistoryPager && (
           <div className="flex items-center justify-between border-t border-border px-5 py-3">
             <button type="button" disabled={offset === 0 || historyQuery.isFetching} onClick={() => setOffset(Math.max(0, offset - 20))} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground disabled:opacity-30">Previous</button>
-            <button type="button" disabled={historyQuery.data?.next_offset === null || historyQuery.isFetching} onClick={() => setOffset(historyQuery.data?.next_offset ?? offset)} className="text-[10px] font-bold uppercase tracking-widest text-deckly-primary hover:underline disabled:opacity-30">Next</button>
+            <button type="button" disabled={nextOffset === null || historyQuery.isFetching} onClick={() => setOffset(nextOffset ?? offset)} className="text-[10px] font-bold uppercase tracking-widest text-deckly-primary hover:underline disabled:opacity-30">Next</button>
           </div>
         )}
       </section>

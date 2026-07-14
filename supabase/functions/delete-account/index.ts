@@ -50,20 +50,18 @@ Deno.serve(async (req: Request) => {
 
   const userId = user.id;
   const adminClient = createClient(supabaseUrl, supabaseSecretKey);
+  let deletionMarked = false;
 
   try {
-    const { data: activeSubscription, error: subscriptionError } = await adminClient
-      .from("subscriptions")
-      .select("razorpay_subscription_id")
-      .eq("user_id", userId)
-      .in("provider_status", ["authenticated", "active", "pending", "halted", "paused"])
-      .maybeSingle();
-    if (subscriptionError) throw subscriptionError;
-    if (activeSubscription) {
+    const { data: deletionCanBegin, error: beginDeletionError } = await adminClient
+      .rpc("begin_account_deletion", { p_user_id: userId });
+    if (beginDeletionError) throw beginDeletionError;
+    if (!deletionCanBegin) {
       return new Response(JSON.stringify({ error: "Cancel your active subscription before deleting your account." }), {
         status: 409, headers: { "Content-Type": "application/json" },
       });
     }
+    deletionMarked = true;
 
     const filePaths = (await listAllObjects("decks", userId)).map((item) => item.name);
 
@@ -81,6 +79,17 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const { data: deletionCanComplete, error: confirmDeletionError } = await adminClient
+      .rpc("confirm_account_deletion", { p_user_id: userId });
+    if (confirmDeletionError) throw confirmDeletionError;
+    if (!deletionCanComplete) {
+      await adminClient.rpc("clear_account_deletion_pending", { p_user_id: userId });
+      deletionMarked = false;
+      return new Response(JSON.stringify({ error: "A subscription change was detected. Cancel it before deleting your account." }), {
+        status: 409, headers: { "Content-Type": "application/json" },
+      });
+    }
+
     console.log(`[delete-account] Deleting auth.users row for ${userId}`);
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
 
@@ -95,6 +104,11 @@ Deno.serve(async (req: Request) => {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
+    if (deletionMarked) {
+      const { error: clearError } = await adminClient
+        .rpc("clear_account_deletion_pending", { p_user_id: userId });
+      if (clearError) console.error("[delete-account] Failed to clear deletion-pending state:", clearError.message);
+    }
     const message = err instanceof Error ? err.message : String(err);
     console.error("[delete-account] Critical error:", message);
     return new Response(JSON.stringify({ error: "Failed to delete account" }), {

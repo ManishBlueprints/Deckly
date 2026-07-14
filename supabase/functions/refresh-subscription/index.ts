@@ -20,13 +20,20 @@ Deno.serve(async (req) => {
 
     let reconciled = 0;
     for (const local of subscriptions ?? []) {
-      const provider = await fetchRazorpaySubscription(local.razorpay_subscription_id);
-      if (provider.status === "created") continue;
+      try {
+        const provider = await fetchRazorpaySubscription(local.razorpay_subscription_id);
+        if (provider.status === "created") continue;
 
-      await applyProviderSubscription(admin, provider, {
-        fallbackPlanCode: local.plan_code as PlanCode,
-      });
-      reconciled += 1;
+        await applyProviderSubscription(admin, provider, {
+          fallbackPlanCode: local.plan_code as PlanCode,
+        });
+        reconciled += 1;
+      } catch (error) {
+        console.error("Created subscription refresh failed", {
+          subscriptionId: local.razorpay_subscription_id,
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
     }
 
     return json({ reconciled });
