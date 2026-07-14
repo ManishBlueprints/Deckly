@@ -52,6 +52,13 @@ Deno.serve(async (req: Request) => {
   const adminClient = createClient(supabaseUrl, supabaseSecretKey);
   let deletionMarked = false;
 
+  const clearDeletionPending = async () => {
+    const { error } = await adminClient
+      .rpc("clear_account_deletion_pending", { p_user_id: userId });
+    if (error) throw error;
+    deletionMarked = false;
+  };
+
   try {
     const { data: deletionCanBegin, error: beginDeletionError } = await adminClient
       .rpc("begin_account_deletion", { p_user_id: userId });
@@ -62,6 +69,16 @@ Deno.serve(async (req: Request) => {
       });
     }
     deletionMarked = true;
+
+    const { data: deletionCanComplete, error: confirmDeletionError } = await adminClient
+      .rpc("confirm_account_deletion", { p_user_id: userId });
+    if (confirmDeletionError) throw confirmDeletionError;
+    if (!deletionCanComplete) {
+      await clearDeletionPending();
+      return new Response(JSON.stringify({ error: "A subscription change was detected. Cancel it before deleting your account." }), {
+        status: 409, headers: { "Content-Type": "application/json" },
+      });
+    }
 
     const filePaths = (await listAllObjects("decks", userId)).map((item) => item.name);
 
@@ -77,17 +94,6 @@ Deno.serve(async (req: Request) => {
           console.error(`[delete-account] Storage remove error:`, message);
         }
       }
-    }
-
-    const { data: deletionCanComplete, error: confirmDeletionError } = await adminClient
-      .rpc("confirm_account_deletion", { p_user_id: userId });
-    if (confirmDeletionError) throw confirmDeletionError;
-    if (!deletionCanComplete) {
-      await adminClient.rpc("clear_account_deletion_pending", { p_user_id: userId });
-      deletionMarked = false;
-      return new Response(JSON.stringify({ error: "A subscription change was detected. Cancel it before deleting your account." }), {
-        status: 409, headers: { "Content-Type": "application/json" },
-      });
     }
 
     console.log(`[delete-account] Deleting auth.users row for ${userId}`);
@@ -107,7 +113,11 @@ Deno.serve(async (req: Request) => {
     if (deletionMarked) {
       const { error: clearError } = await adminClient
         .rpc("clear_account_deletion_pending", { p_user_id: userId });
-      if (clearError) console.error("[delete-account] Failed to clear deletion-pending state:", clearError.message);
+      if (clearError) {
+        console.error("[delete-account] Failed to clear deletion-pending state:", clearError.message);
+      } else {
+        deletionMarked = false;
+      }
     }
     const message = err instanceof Error ? err.message : String(err);
     console.error("[delete-account] Critical error:", message);

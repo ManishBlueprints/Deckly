@@ -130,6 +130,14 @@ export async function applyProviderSubscription(
   provider: ProviderSubscription,
   options: ApplyProviderSubscriptionOptions,
 ) {
+  const preservePendingPlan = options.preservePendingPlan ?? provider.has_scheduled_changes === true;
+  const pendingPlanCode = options.pendingPlanCode ?? null;
+  const pendingChangeAt = options.pendingChangeAt === undefined
+    ? unixTime(provider.change_scheduled_at)
+    : options.pendingChangeAt;
+  if (!preservePendingPlan && (pendingPlanCode === null) !== (pendingChangeAt === null)) {
+    throw new Error("A scheduled plan requires both a plan and an effective date.");
+  }
   const snapshotPlanCode = options.planCode === undefined
     ? planCodeForRazorpayPlanId(provider.plan_id)
     : options.planCode;
@@ -137,7 +145,7 @@ export async function applyProviderSubscription(
   const snapshot: Record<string, unknown> = {
     ...provider,
     _deckly_plan_code: snapshotPlanCode,
-    _deckly_preserve_pending_plan: options.preservePendingPlan ?? provider.has_scheduled_changes === true,
+    _deckly_preserve_pending_plan: preservePendingPlan,
   };
   if (options.checkoutExpiresAt !== undefined) snapshot._deckly_checkout_expires_at = options.checkoutExpiresAt;
   if (options.checkoutDismissedAt !== undefined) snapshot._deckly_checkout_dismissed_at = options.checkoutDismissedAt;
@@ -150,12 +158,10 @@ export async function applyProviderSubscription(
     p_current_start: unixTime(provider.current_start),
     p_current_end: unixTime(provider.current_end),
     p_cancel_at_period_end: provider.cancel_at_cycle_end === true,
-    p_pending_plan_code: options.pendingPlanCode ?? null,
+    p_pending_plan_code: pendingPlanCode,
     // `null` is meaningful for undoing a scheduled change; only use the
     // provider value when the caller did not choose a value at all.
-    p_pending_change_at: options.pendingChangeAt === undefined
-      ? unixTime(provider.change_scheduled_at)
-      : options.pendingChangeAt,
+    p_pending_change_at: pendingChangeAt,
     p_snapshot: snapshot,
     p_checkout_verified_at: options.checkoutVerifiedAt ?? null,
   });

@@ -1,4 +1,5 @@
 import {
+  applyProviderSubscription,
   asProviderSubscription,
   hmacHex,
   planFor,
@@ -34,4 +35,24 @@ Deno.test("compares Razorpay HMAC values without accepting a mismatched value", 
   const changedSignature = `${signature.slice(0, -1)}${signature.endsWith("0") ? "1" : "0"}`;
   expect(timingSafeEqual(signature, signature), "Expected equal HMACs to match");
   expect(!timingSafeEqual(signature, changedSignature), "Expected changed HMAC to fail");
+});
+
+Deno.test("rejects incomplete scheduled-plan updates before writing billing state", async () => {
+  let rejected = false;
+  try {
+    await applyProviderSubscription({
+      rpc: () => Promise.resolve({ error: null }),
+    } as never, {
+      id: "sub_test",
+      status: "active",
+    }, {
+      fallbackPlanCode: "SHARE_MONTHLY",
+      pendingPlanCode: "FOUNDER_MONTHLY",
+      pendingChangeAt: null,
+      preservePendingPlan: false,
+    });
+  } catch (error) {
+    rejected = error instanceof Error && error.message.includes("scheduled plan");
+  }
+  expect(rejected, "A scheduled plan update must include both fields");
 });

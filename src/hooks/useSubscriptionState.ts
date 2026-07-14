@@ -5,6 +5,7 @@ import { subscriptionService } from "../services/subscriptionService";
 
 export const subscriptionQueryKey = (profileId: string | undefined) => ["subscription", profileId] as const;
 export const billingHistoryQueryKey = (profileId: string | undefined) => ["billing-history", profileId] as const;
+const CREATED_SUBSCRIPTION_RETRY_DELAYS_MS = [5_000, 15_000];
 
 /**
  * The only client-side source for the normalized subscription response.
@@ -34,26 +35,55 @@ export function useSubscriptionState() {
       queryClient.invalidateQueries({ queryKey: billingHistoryQueryKey(profileId) }),
     ]);
   }, [profileId, queryClient, refreshProfile]);
+  const refreshBillingRef = useRef(refreshBilling);
+
+  useEffect(() => {
+    refreshBillingRef.current = refreshBilling;
+  }, [refreshBilling]);
 
   useEffect(() => {
     if (!profileId || !subscriptionId || providerStatus !== "created") return;
     if (reconciledCreatedSubscriptionId.current === subscriptionId) return;
 
-    reconciledCreatedSubscriptionId.current = subscriptionId;
     let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    void (async () => {
+    const reconcileCreatedSubscription = async (attempt: number) => {
       try {
         const result = await subscriptionService.refreshCreated();
-        if (!disposed && result.reconciled > 0) await refreshBilling();
+        if (disposed) return;
+
+        // A successful authoritative check is enough for this checkout. Avoid
+        // rerunning it on unrelated AuthContext rerenders.
+        reconciledCreatedSubscriptionId.current = subscriptionId;
+        if (result.reconciled > 0) {
+          try {
+            await refreshBillingRef.current();
+          } catch {
+            // The provider state was already refreshed. Normal query retries
+            // and scheduled reconciliation can recover a cache refresh.
+          }
+        }
       } catch {
         // Scheduled reconciliation is the recovery path when Razorpay cannot
-        // be reached from this browser session.
+        // be reached from this browser session. Retry transient browser/Edge
+        // failures a bounded number of times without reopening the checkout.
+        const retryDelay = CREATED_SUBSCRIPTION_RETRY_DELAYS_MS[attempt];
+        if (!disposed && retryDelay !== undefined) {
+          retryTimer = setTimeout(() => {
+            void reconcileCreatedSubscription(attempt + 1);
+          }, retryDelay);
+        }
       }
-    })();
+    };
 
-    return () => { disposed = true; };
-  }, [profileId, providerStatus, refreshBilling, subscriptionId]);
+    void reconcileCreatedSubscription(0);
+
+    return () => {
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [profileId, providerStatus, subscriptionId]);
 
   return {
     profileId,

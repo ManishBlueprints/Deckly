@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
       await applyProviderSubscription(admin, provider, {
         fallbackPlanCode: local.plan_code as PlanCode,
         pendingPlanCode: null,
+        pendingChangeAt: null,
         preservePendingPlan: false,
       });
       return json({ status: provider.status, cancel_at_period_end: true });

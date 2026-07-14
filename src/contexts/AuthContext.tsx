@@ -36,6 +36,7 @@ function readPasswordRecoveryMarker(): PasswordRecoveryMarker | null {
     }
     return marker as PasswordRecoveryMarker;
   } catch {
+    clearPasswordRecoveryMarker();
     return null;
   }
 }
@@ -252,15 +253,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const isPro = profile?.tier === "PRO" || profile?.tier === "PRO_PLUS" || profile?.tier === "RAISE";
 
   const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
     clearPasswordRecovery();
-    await supabase.auth.signOut();
     queryClient.clear();
   };
 
   const signOutAllDevices = async () => {
     // scope: 'global' revokes ALL refresh tokens across every device/browser
+    const { error } = await supabase.auth.signOut({ scope: "global" });
+    if (error) throw error;
     clearPasswordRecovery();
-    await supabase.auth.signOut({ scope: "global" });
     queryClient.clear();
   };
 

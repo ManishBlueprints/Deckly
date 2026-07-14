@@ -94,11 +94,19 @@ LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = public
 AS $$
+DECLARE
+  v_deletion_pending_at timestamptz;
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = NEW.user_id AND deletion_pending_at IS NOT NULL
-  ) THEN
+  SELECT deletion_pending_at
+  INTO v_deletion_pending_at
+  FROM public.profiles
+  WHERE id = NEW.user_id
+  FOR KEY SHARE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Profile not found.' USING ERRCODE = '23503';
+  END IF;
+
+  IF v_deletion_pending_at IS NOT NULL THEN
     RAISE EXCEPTION 'Account deletion is in progress.' USING ERRCODE = '55000';
   END IF;
   RETURN NEW;
@@ -137,6 +145,8 @@ DECLARE
   v_next_tier text;
   v_provider_plan_code text;
   v_provider_tier text;
+  v_deletion_pending_at timestamptz;
+  v_preserve_pending_plan boolean;
 BEGIN
   SELECT * INTO v_subscription
   FROM public.subscriptions
@@ -144,10 +154,16 @@ BEGIN
   FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Unknown Razorpay subscription'; END IF;
 
-  IF EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = v_subscription.user_id AND deletion_pending_at IS NOT NULL
-  ) THEN
+  SELECT deletion_pending_at
+  INTO v_deletion_pending_at
+  FROM public.profiles
+  WHERE id = v_subscription.user_id
+  FOR KEY SHARE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Profile not found.' USING ERRCODE = '23503';
+  END IF;
+
+  IF v_deletion_pending_at IS NOT NULL THEN
     RAISE EXCEPTION 'Account deletion is in progress.' USING ERRCODE = '55000';
   END IF;
 
@@ -161,6 +177,15 @@ BEGIN
     END IF;
   END IF;
 
+  v_preserve_pending_plan := COALESCE((p_snapshot ->> '_deckly_preserve_pending_plan')::boolean, false);
+  IF NOT v_preserve_pending_plan
+    AND (
+      (p_pending_plan_code IS NULL AND p_pending_change_at IS NOT NULL)
+      OR (p_pending_plan_code IS NOT NULL AND p_pending_change_at IS NULL)
+    ) THEN
+    RAISE EXCEPTION 'Scheduled plan code and effective date must be present or absent together.' USING ERRCODE = '22023';
+  END IF;
+
   UPDATE public.subscriptions
   SET provider_status = p_provider_status,
       plan_code = COALESCE(v_provider_plan_code, plan_code),
@@ -171,12 +196,12 @@ BEGIN
       current_period_end = COALESCE(p_current_end, current_period_end),
       cancel_at_period_end = p_cancel_at_period_end,
       pending_plan_code = CASE
-        WHEN COALESCE((p_snapshot ->> '_deckly_preserve_pending_plan')::boolean, false)
+        WHEN v_preserve_pending_plan
           THEN pending_plan_code
         ELSE p_pending_plan_code
       END,
       pending_change_at = CASE
-        WHEN COALESCE((p_snapshot ->> '_deckly_preserve_pending_plan')::boolean, false)
+        WHEN v_preserve_pending_plan
           THEN pending_change_at
         ELSE p_pending_change_at
       END,
