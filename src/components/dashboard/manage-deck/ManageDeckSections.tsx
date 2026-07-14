@@ -10,6 +10,7 @@ import {
   Eye,
   EyeOff,
   CalendarDays,
+  Download,
   Loader2,
   Sparkles,
   ArrowLeft,
@@ -342,12 +343,16 @@ export function ManageDeckDetailsSection({
 interface AccessSectionProps {
   requireEmail: boolean;
   requirePassword: boolean;
+  allowDownload: boolean;
+  canUseDownloadControls: boolean;
   viewPassword: string;
   showPasswordField: boolean;
   enableExpiry: boolean;
   expiresAt: string;
   onRequireEmailChange: (checked: boolean) => void;
   onRequirePasswordChange: (checked: boolean) => void;
+  onAllowDownloadChange: (checked: boolean) => void;
+  onDownloadUpsell: () => void;
   onViewPasswordChange: (value: string) => void;
   onTogglePasswordVisibility: () => void;
   onEnableExpiryChange: (checked: boolean) => void;
@@ -357,12 +362,16 @@ interface AccessSectionProps {
 export function ManageDeckAccessSection({
   requireEmail,
   requirePassword,
+  allowDownload,
+  canUseDownloadControls,
   viewPassword,
   showPasswordField,
   enableExpiry,
   expiresAt,
   onRequireEmailChange,
   onRequirePasswordChange,
+  onAllowDownloadChange,
+  onDownloadUpsell,
   onViewPasswordChange,
   onTogglePasswordVisibility,
   onEnableExpiryChange,
@@ -440,6 +449,72 @@ export function ManageDeckAccessSection({
             onCheckedChange={onRequirePasswordChange}
           />
         </div>
+
+        <div
+          className={cn(
+            "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
+            allowDownload
+              ? "bg-background border-deckly-primary"
+              : "bg-[#2B2B2B] border-white/10",
+          )}
+        >
+          <div className="flex items-center gap-4">
+            <div
+              className={cn(
+                "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
+                allowDownload
+                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                  : "text-slate-500",
+              )}
+            >
+              <Download size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Downloads</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {allowDownload ? "Download enabled" : "Download disabled"}
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={allowDownload}
+            onCheckedChange={(checked) => {
+              if (!canUseDownloadControls) {
+                onDownloadUpsell();
+                return;
+              }
+              onAllowDownloadChange(checked);
+            }}
+            aria-label="Allow investors to download this deck"
+          />
+        </div>
+
+        <div
+          className={cn(
+            "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
+            enableExpiry
+              ? "bg-background border-deckly-primary"
+              : "bg-[#2B2B2B] border-white/10",
+          )}
+        >
+          <div className="flex items-center gap-4">
+            <div
+              className={cn(
+                "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
+                enableExpiry
+                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                  : "text-slate-500",
+              )}
+            >
+              <CalendarDays size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Expiration</p>
+              <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
+            </div>
+          </div>
+          <Switch checked={enableExpiry} onCheckedChange={onEnableExpiryChange} />
+        </div>
       </div>
 
       <AnimatePresence>
@@ -482,33 +557,6 @@ export function ManageDeckAccessSection({
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div
-        className={cn(
-          "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
-          enableExpiry
-            ? "bg-background border-deckly-primary"
-            : "bg-[#2B2B2B] border-white/10",
-        )}
-      >
-        <div className="flex items-center gap-4">
-          <div
-            className={cn(
-              "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
-              enableExpiry
-                ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
-                : "text-slate-500",
-            )}
-          >
-            <CalendarDays size={18} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-white">Expiration</p>
-            <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
-          </div>
-        </div>
-        <Switch checked={enableExpiry} onCheckedChange={onEnableExpiryChange} />
-      </div>
 
       <AnimatePresence>
         {enableExpiry && (

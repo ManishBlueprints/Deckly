@@ -23,6 +23,15 @@ describe("useManageDeckWorkflow upload contracts", () => {
     expect(migration).toContain("true,");
   });
 
+  it("threads the download permission through create, update, and rollback paths", () => {
+    const source = readSource("src/hooks/useManageDeckWorkflow.ts");
+
+    expect(source).toContain("allowDownload");
+    expect(source).toContain("allow_download: allowDownload");
+    expect(source).toContain("p_allow_download: allowDownload");
+    expect(source).toContain("allow_download: previousValues.allow_download");
+  });
+
   it("rolls back the created deck if post-create conversion fails", () => {
     const source = readSource("src/hooks/useManageDeckWorkflow.ts");
 

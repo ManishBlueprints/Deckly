@@ -17,6 +17,7 @@ import { AccessProtectionSection } from "./form-sections/AccessProtectionSection
 import { DangerZoneSection } from "./form-sections/DangerZoneSection";
 import { Button } from "../ui/button";
 import { Save } from "lucide-react";
+import { TierUpsellModal } from "./TierUpsellModal";
 
 interface DeckSettingsFormProps {
   deck: Deck;
@@ -36,6 +37,8 @@ export function DeckSettingsForm({
   const [requirePassword, setRequirePassword] = useState(
     deck.require_password || false,
   );
+  const [allowDownload, setAllowDownload] = useState(deck.allow_download || false);
+  const [showDownloadUpsell, setShowDownloadUpsell] = useState(false);
   const [viewPassword, setViewPassword] = useState(deck.view_password || "");
   const [expiryEnabled, setExpiryEnabled] = useState(!!deck.expires_at);
   const [expiryDate, setExpiryDate] = useState(
@@ -163,6 +166,7 @@ export function DeckSettingsForm({
         ...(newFile ? { extracted_text: null } : {}),
         require_email: requireEmail,
         require_password: requirePassword,
+        allow_download: allowDownload,
         view_password: finalViewPassword ?? undefined,
         expires_at:
           expiryEnabled && expiryDate
@@ -283,6 +287,14 @@ export function DeckSettingsForm({
         setExpiryDate={setExpiryDate}
         requirePassword={requirePassword}
         setRequirePassword={setRequirePassword}
+        allowDownload={allowDownload}
+        setAllowDownload={setAllowDownload}
+        canUseDownloadControls={
+          profile?.tier === "PRO" ||
+          profile?.tier === "PRO_PLUS" ||
+          profile?.tier === "RAISE"
+        }
+        onDownloadUpsell={() => setShowDownloadUpsell(true)}
         viewPassword={viewPassword}
         setViewPassword={setViewPassword}
       />
@@ -330,6 +342,12 @@ export function DeckSettingsForm({
       </div>
 
       <DangerZoneSection onDelete={() => onDelete(deck.id)} />
+
+      <TierUpsellModal
+        isOpen={showDownloadUpsell}
+        onClose={() => setShowDownloadUpsell(false)}
+        featureName="Download controls"
+      />
 
       {/* Progress Notification */}
       <AnimatePresence>

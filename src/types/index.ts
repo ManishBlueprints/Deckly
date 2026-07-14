@@ -33,6 +33,7 @@ export interface Deck {
   file_size?: number;
   require_email?: boolean;
   require_password?: boolean;
+  allow_download?: boolean;
   is_public?: boolean;
   view_password?: string;
   file_type?: string;

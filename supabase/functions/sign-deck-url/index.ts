@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { extractStoragePath } from "../../../src/services/storagePaths.ts";
-import { createSignedUrls } from "../_shared/r2.ts";
+import { createSignedUrls, presignDownloadUrl } from "../_shared/r2.ts";
 
 /**
  * sign-deck-url
@@ -33,13 +33,24 @@ Deno.serve(async (req: Request) => {
       storage_path,
       image_paths: rawImagePaths,
       room_slug,
+      intent: rawIntent,
+      deck_id: rawDeckId,
     } = await req.json();
+    const intent = rawIntent === undefined ? "view" : rawIntent;
     const deckSlug = typeof slug === "string" ? slug : null;
     const roomSlug = typeof room_slug === "string" ? room_slug : null;
     const storagePath = typeof storage_path === "string" ? storage_path : null;
     const image_paths: string[] = Array.isArray(rawImagePaths)
       ? rawImagePaths.filter((p): p is string => typeof p === "string")
       : [];
+    const deckId = typeof rawDeckId === "string" ? rawDeckId : null;
+
+    if (intent !== "view" && intent !== "download") {
+      return new Response(JSON.stringify({ error: "Invalid request intent" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     if (slug !== undefined && slug !== null && deckSlug === null) {
       return new Response(
@@ -75,12 +86,20 @@ Deno.serve(async (req: Request) => {
 
     // Use the publishable client to call get_deck_payload — this re-validates
     // the slug/password/expiry before we issue a signed URL.
-    const anonClient = createClient(supabaseUrl, supabasePublishableKey);
+    const authHeader = req.headers.get("Authorization");
+    const anonClient = createClient(supabaseUrl, supabasePublishableKey, {
+      global: authHeader ? { headers: { Authorization: authHeader } } : undefined,
+    });
 
     const validPaths = new Set<string>();
+    let downloadTarget: { path: string; title: string; fileType: string; allowed: boolean } | null = null;
 
     interface DeckPayload {
+      id?: string;
       storage_path?: string;
+      title?: string;
+      file_type?: string;
+      allow_download?: boolean;
       pages?: Array<{ image_url: string } | string>;
     }
 
@@ -112,6 +131,14 @@ Deno.serve(async (req: Request) => {
         const payloads = rpcData as DeckPayload[];
         payloads.forEach(payload => {
           if (payload.storage_path) validPaths.add(payload.storage_path);
+          if (intent === "download" && payload.id === deckId && payload.storage_path) {
+            downloadTarget = {
+              path: payload.storage_path,
+              title: typeof payload.title === "string" ? payload.title : "pitch-deck",
+              fileType: typeof payload.file_type === "string" ? payload.file_type : "pdf",
+              allowed: payload.allow_download === true,
+            };
+          }
           (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
             const url = typeof page === 'string' ? page : page.image_url;
             if (url && typeof url === 'string') {
@@ -148,6 +175,14 @@ Deno.serve(async (req: Request) => {
       if (rpcData) {
         const payload = rpcData as DeckPayload;
         if (payload.storage_path) validPaths.add(payload.storage_path);
+        if (intent === "download" && payload.storage_path) {
+          downloadTarget = {
+            path: payload.storage_path,
+            title: typeof payload.title === "string" ? payload.title : "pitch-deck",
+            fileType: typeof payload.file_type === "string" ? payload.file_type : "pdf",
+            allowed: payload.allow_download === true,
+          };
+        }
         (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
           const url = typeof page === 'string' ? page : page.image_url;
           if (url && typeof url === 'string') {
@@ -162,7 +197,6 @@ Deno.serve(async (req: Request) => {
     // 2. OWNER MODE: If an auth token is provided, verify it.
     // If verified, the owner can sign any path starting with their userId/ without further checks.
     let ownerId: string | null = null;
-    const authHeader = req.headers.get("Authorization");
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
       const { data: { user }, error: userError } = await anonClient.auth.getUser(token);
@@ -170,6 +204,30 @@ Deno.serve(async (req: Request) => {
         ownerId = user.id;
         console.log("[sign-deck-url] Owner verified.");
       }
+    }
+
+    if (intent === "download") {
+      if (!downloadTarget || !downloadTarget.allowed) {
+        return new Response(JSON.stringify({ error: "Downloads are not permitted for this deck" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      const safeTitle = downloadTarget.title
+        .replace(/[\\/:*?"<>|\r\n]+/g, "-")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 120) || "pitch-deck";
+      const safeExtension = /^[a-z0-9]{1,10}$/i.test(downloadTarget.fileType)
+        ? downloadTarget.fileType.toLowerCase()
+        : "pdf";
+      const filename = `${safeTitle}.${safeExtension}`;
+      const downloadUrl = await presignDownloadUrl("decks", downloadTarget.path, filename, 60);
+      return new Response(JSON.stringify({ download_url: downloadUrl, filename, expires_in: 60 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
     }
 
     const requestedPaths = [];

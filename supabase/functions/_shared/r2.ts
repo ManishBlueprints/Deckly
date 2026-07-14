@@ -267,6 +267,20 @@ export function presignGetUrl(
   return presignUrl("GET", bucket, key, { expiresInSeconds });
 }
 
+export function presignDownloadUrl(
+  bucket: StorageBucket,
+  key: string,
+  filename: string,
+  expiresInSeconds = 60,
+): Promise<string> {
+  return presignUrl("GET", bucket, key, {
+    expiresInSeconds,
+    query: {
+      "response-content-disposition": `attachment; filename="${filename}"`,
+    },
+  });
+}
+
 export function presignPutUrl(
   bucket: StorageBucket,
   key: string,

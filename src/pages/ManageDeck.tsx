@@ -31,6 +31,7 @@ function ManageDeck() {
   const [description, setDescription] = useState("");
   const [requireEmail, setRequireEmail] = useState(false);
   const [requirePassword, setRequirePassword] = useState(false);
+  const [allowDownload, setAllowDownload] = useState(false);
   const [viewPassword, setViewPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string>("");
@@ -65,6 +66,7 @@ function ManageDeck() {
     setDescription,
     setRequireEmail,
     setRequirePassword,
+    setAllowDownload,
     setViewPassword,
     setExpiresAt,
     setEnableExpiry,
@@ -153,6 +155,7 @@ function ManageDeck() {
       description,
       requireEmail,
       requirePassword,
+      allowDownload,
       viewPassword,
       expiresAt,
       conversionMode,
@@ -228,12 +231,23 @@ function ManageDeck() {
             <ManageDeckAccessSection
               requireEmail={requireEmail}
               requirePassword={requirePassword}
+              allowDownload={allowDownload}
+              canUseDownloadControls={
+                userProfile?.tier === "PRO" ||
+                userProfile?.tier === "PRO_PLUS" ||
+                userProfile?.tier === "RAISE"
+              }
               viewPassword={viewPassword}
               showPasswordField={showPasswordField}
               enableExpiry={enableExpiry}
               expiresAt={expiresAt}
               onRequireEmailChange={setRequireEmail}
               onRequirePasswordChange={setRequirePassword}
+              onAllowDownloadChange={setAllowDownload}
+              onDownloadUpsell={() => {
+                setUpsellFeature("Download controls");
+                setShowUpsell(true);
+              }}
               onViewPasswordChange={setViewPassword}
               onTogglePasswordVisibility={() =>
                 setShowPasswordField((value) => !value)

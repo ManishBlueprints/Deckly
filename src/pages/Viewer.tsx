@@ -16,6 +16,7 @@ import DeckViewer from "../components/viewer/DeckViewer";
 import AccessGate from "../components/viewer/AccessGate";
 import { AuthModal } from "../components/auth/AuthModal";
 import { NotesSidebar } from "../components/viewer/NotesSidebar";
+import { DeckDownloadButton } from "../components/viewer/DeckDownloadButton";
 import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { deckService } from "../services/deckService";
@@ -293,6 +294,15 @@ function Viewer() {
     }
   }, [aiSummary, deck]);
 
+  const requestDownload = useCallback(async () => {
+    if (!deck) throw new Error("Deck not loaded");
+    return deckService.requestDeckDownload(
+      slug ?? deck.slug,
+      signedUrlMeta.current?.password,
+      handle ?? null,
+    );
+  }, [deck, handle, slug]);
+
   useEffect(() => {
     if (!deck || !isUnlocked) return;
     if (searchParams.get("ai") !== "summary") return;
@@ -387,11 +397,14 @@ function Viewer() {
             animate={{ opacity: 1 }}
             className="flex-1 flex flex-col items-stretch relative"
           >
-            {refreshWarning ? (
-              <div className="absolute top-4 right-4 z-[100] max-w-md rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                {refreshWarning}
-              </div>
-            ) : null}
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[100] flex flex-col items-end gap-2">
+              {deck.allow_download ? <DeckDownloadButton onRequestDownload={requestDownload} /> : null}
+              {refreshWarning ? (
+                <div className="max-w-md rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                  {refreshWarning}
+                </div>
+              ) : null}
+            </div>
             <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[100] flex flex-wrap items-center gap-2 px-2 md:px-0">
               <Link to="/" className="group">
                 <div className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all">

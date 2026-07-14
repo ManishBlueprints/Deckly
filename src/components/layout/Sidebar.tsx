@@ -394,7 +394,8 @@ export function Sidebar() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    void signOut().catch(() => {
+                    void signOut().catch((err) => {
+                      console.error("Sign out failed", err);
                       toast.error("Failed to sign out. Please try again.");
                     });
                   }}
