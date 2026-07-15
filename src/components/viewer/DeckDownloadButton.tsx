@@ -3,7 +3,7 @@ import { Download } from "lucide-react";
 import { toast } from "sonner";
 
 interface DeckDownloadButtonProps {
-  onRequestDownload: () => Promise<{ downloadUrl: string; filename: string }>;
+  onRequestDownload: (requestId: string) => Promise<{ downloadUrl: string; filename: string }>;
 }
 
 export function DeckDownloadButton({ onRequestDownload }: DeckDownloadButtonProps) {
@@ -13,7 +13,10 @@ export function DeckDownloadButton({ onRequestDownload }: DeckDownloadButtonProp
     if (isDownloading) return;
     setIsDownloading(true);
     try {
-      const { downloadUrl, filename } = await onRequestDownload();
+      const requestId = typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const { downloadUrl, filename } = await onRequestDownload(requestId);
       const anchor = document.createElement("a");
       anchor.href = downloadUrl;
       anchor.download = filename;

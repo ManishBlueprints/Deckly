@@ -341,15 +341,20 @@ function DataRoomViewer() {
     }
   }, [aiSummary, selectedDeck]);
 
-  const requestSelectedDeckDownload = useCallback(async () => {
+  const requestSelectedDeckDownload = useCallback(async (requestId: string) => {
     if (!selectedDeck || !room || !handle) throw new Error("Deck not loaded");
     return dataRoomService.requestDeckDownload(
       handle,
       room.slug,
       selectedDeck.id,
       roomPasswordRef.current,
+      {
+        requestId,
+        visitorId: analyticsService.getVisitorId(),
+        viewerEmail,
+      },
     );
-  }, [handle, room, selectedDeck]);
+  }, [handle, room, selectedDeck, viewerEmail]);
 
   useEffect(() => {
     if (!isUnlocked || !selectedDeck) return;

@@ -477,6 +477,7 @@ const deckPublicService = {
     slugOrAlias: string,
     password?: string,
     handle?: string | null,
+    tracking?: { requestId: string; visitorId: string; viewerEmail?: string },
   ): Promise<{ downloadUrl: string; filename: string }> {
     const { data, error } = await supabase.functions.invoke("sign-deck-url", {
       body: {
@@ -484,6 +485,9 @@ const deckPublicService = {
         handle: handle ?? null,
         slug: slugOrAlias,
         password: password ?? null,
+        request_id: tracking?.requestId ?? null,
+        visitor_id: tracking?.visitorId ?? null,
+        viewer_email: tracking?.viewerEmail ?? null,
       },
     });
     if (error) throw error;

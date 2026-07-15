@@ -2,7 +2,7 @@ import posthog from "posthog-js";
 import { withRetry } from "../utils/resilience.ts";
 import { supabase } from "./supabase.ts";
 import { assertDeckOwnership } from "./deckService.shared.ts";
-import { Deck, DeckPageStats, DeckLinkStats } from "../types";
+import { Deck, DeckPageStats, DeckLinkStats, DeckDownloadAnalytics, DataRoomDownloadAnalytics } from "../types";
 import { getTierConfig } from "../constants/tiers.ts";
 import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
 import { posthogConfig } from "./posthogConfig.ts";
@@ -648,6 +648,38 @@ export const analyticsService = {
 
     if (error) throw error;
     return (data as unknown as DeckLinkStats[]) || [];
+  },
+
+  async getDeckDownloadAnalytics(deckId: string, ownerUserId: string): Promise<DeckDownloadAnalytics> {
+    await assertDeckOwnership(deckId, ownerUserId);
+    const { data, error } = await supabase.rpc("get_deck_download_analytics", {
+      p_deck_id: deckId,
+      p_limit: 100,
+    });
+    if (error) throw error;
+    return (data as DeckDownloadAnalytics) || {
+      total_downloads: 0,
+      unique_downloaders: 0,
+      direct_link_downloads: 0,
+      data_room_downloads: 0,
+      links: [],
+      data_rooms: [],
+      downloaders: [],
+    };
+  },
+
+  async getDataRoomDownloadAnalytics(roomId: string): Promise<DataRoomDownloadAnalytics> {
+    const { data, error } = await supabase.rpc("get_data_room_download_analytics", {
+      p_data_room_id: roomId,
+      p_limit: 100,
+    });
+    if (error) throw error;
+    return (data as DataRoomDownloadAnalytics) || {
+      total_downloads: 0,
+      unique_downloaders: 0,
+      documents: [],
+      downloaders: [],
+    };
   },
 
   // Get aggregated location stats for a deck

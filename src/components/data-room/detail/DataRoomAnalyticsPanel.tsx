@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, Clock, Eye, Globe, MapPin, Users, ChevronDown } from "lucide-react";
+import { BarChart3, Clock, Download, Eye, Globe, MapPin, Users, ChevronDown } from "lucide-react";
 import { Badge } from "../../ui/badge";
 import { VisitorSignal } from "../../../services/interestSignalService";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import {
   AnalyticsStatCard,
   AnalyticsTabs,
 } from "../../analytics/AnalyticsPrimitives";
+import type { DataRoomDownloadAnalytics } from "../../../types";
 
 interface CountryStat {
   name: string;
@@ -46,10 +47,11 @@ interface DataRoomAnalyticsPanelProps {
   roomDocumentStats: RoomDocumentStat[];
   signalsLoading: boolean;
   roomSignals: VisitorSignal[];
+  downloadAnalytics: DataRoomDownloadAnalytics;
   loading?: boolean;
 }
 
-type TabKey = "VISITS" | "TIME" | "LOCATION";
+type TabKey = "VISITS" | "TIME" | "LOCATION" | "DOWNLOADS";
 
 export function DataRoomAnalyticsPanel({
   totalVisitors,
@@ -59,6 +61,7 @@ export function DataRoomAnalyticsPanel({
   roomDocumentStats,
   signalsLoading,
   roomSignals,
+  downloadAnalytics,
   loading = false,
 }: DataRoomAnalyticsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("VISITS");
@@ -72,6 +75,10 @@ export function DataRoomAnalyticsPanel({
   const maxTime = useMemo(
     () => Math.max(...roomDocumentStats.map((s) => s.totalTimeSeconds), 1),
     [roomDocumentStats],
+  );
+  const maxDownloads = useMemo(
+    () => Math.max(...downloadAnalytics.documents.map((doc) => doc.total_downloads), 1),
+    [downloadAnalytics.documents],
   );
   const roomDocumentLookup = useMemo(
     () => new Map(roomDocumentStats.map((doc) => [doc.deckId, doc.title])),
@@ -102,11 +109,12 @@ export function DataRoomAnalyticsPanel({
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-16 space-y-8 md:space-y-16">
       {/* Top stat row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <AnalyticsStatCard icon={<Eye size={16} />} label="Total Views" value={totalViews.toLocaleString()} />
         <AnalyticsStatCard icon={<Clock size={16} />} label="Total Time" value={`${Math.round(totalTimeSeconds)}s`} />
         <AnalyticsStatCard icon={<Users size={16} />} label="Unique Visitors" value={totalVisitors.toLocaleString()} />
         <AnalyticsStatCard icon={<BarChart3 size={16} />} label="Avg Session" value={`${avgTimePerView.toFixed(1)}s`} />
+        <AnalyticsStatCard icon={<Download size={16} />} label="Downloads" value={downloadAnalytics.total_downloads.toLocaleString()} />
       </div>
 
       {/* Document engagement */}
@@ -124,6 +132,7 @@ export function DataRoomAnalyticsPanel({
                   { value: "VISITS", label: "Visits" },
                   { value: "TIME", label: "Duration" },
                   { value: "LOCATION", label: "Location" },
+                  { value: "DOWNLOADS", label: "Downloads" },
                 ]}
               />
             }
@@ -156,6 +165,24 @@ export function DataRoomAnalyticsPanel({
                     renderLabel={(item) => item.name}
                     barClassName="bg-surface-high"
                   />
+                </div>
+              )
+            ) : activeTab === "DOWNLOADS" ? (
+              downloadAnalytics.documents.length === 0 ? (
+                <AnalyticsEmptyState icon={<Download size={32} />} text="No downloads recorded from this data room yet." />
+              ) : (
+                <div className="space-y-4 md:space-y-5">
+                  {downloadAnalytics.documents.map((doc) => (
+                    <AnalyticsMetricRow
+                      key={doc.deck_id}
+                      leftLabel={<span className="min-w-0 text-xs md:text-sm text-muted-foreground truncate" title={doc.title}>{doc.title}</span>}
+                      valueLabel={`${doc.total_downloads} Download${doc.total_downloads === 1 ? "" : "s"} · ${doc.unique_downloaders} viewer${doc.unique_downloaders === 1 ? "" : "s"}`}
+                      percent={(doc.total_downloads / maxDownloads) * 100}
+                      barClassName="bg-primary"
+                      valueClassName="text-primary-foreground"
+                      title={doc.latest_download_at ? `Last downloaded ${new Date(doc.latest_download_at).toLocaleString()}` : doc.title}
+                    />
+                  ))}
                 </div>
               )
             ) : roomDocumentStats.length === 0 ? (
@@ -207,6 +234,29 @@ export function DataRoomAnalyticsPanel({
             )}
           </div>
         </div>
+      </div>
+
+      <div className="bg-surface-card rounded-lg p-4 md:p-8 shadow-sm">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-10 h-10 rounded-md bg-surface-lowest flex items-center justify-center text-primary"><Download size={20} /></div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground tracking-tight">Downloaders</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">People who downloaded files through this room</p>
+          </div>
+          <Badge className="ml-auto bg-primary text-primary-foreground">{downloadAnalytics.unique_downloaders} viewer{downloadAnalytics.unique_downloaders === 1 ? "" : "s"}</Badge>
+        </div>
+        {downloadAnalytics.downloaders.length === 0 ? (
+          <AnalyticsEmptyState icon={<Download size={32} />} text="No download activity recorded yet." />
+        ) : (
+          <div className="space-y-3">
+            {downloadAnalytics.downloaders.map((downloader, index) => (
+              <div key={downloader.visitor_id} className="flex items-center justify-between gap-4 rounded-md bg-surface-low px-4 py-3">
+                <div className="min-w-0"><p className="text-sm font-semibold text-foreground truncate">{downloader.viewer_email?.toLowerCase() || `Anonymous Viewer ${index + 1}`}</p><p className="text-xs text-muted-foreground mt-1">Last download {new Date(downloader.latest_download_at).toLocaleString()}</p></div>
+                <span className="text-xs font-semibold text-primary whitespace-nowrap">{downloader.total_downloads} download{downloader.total_downloads === 1 ? "" : "s"}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Visitor signals */}

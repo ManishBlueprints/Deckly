@@ -294,14 +294,19 @@ function Viewer() {
     }
   }, [aiSummary, deck]);
 
-  const requestDownload = useCallback(async () => {
+  const requestDownload = useCallback(async (requestId: string) => {
     if (!deck) throw new Error("Deck not loaded");
     return deckService.requestDeckDownload(
       slug ?? deck.slug,
       signedUrlMeta.current?.password,
       handle ?? null,
+      {
+        requestId,
+        visitorId: analyticsService.getVisitorId(),
+        viewerEmail,
+      },
     );
-  }, [deck, handle, slug]);
+  }, [deck, handle, slug, viewerEmail]);
 
   useEffect(() => {
     if (!deck || !isUnlocked) return;

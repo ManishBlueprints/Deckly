@@ -160,10 +160,14 @@ function OwnerDeckPreview() {
     }
   }, [aiSummary, deck]);
 
-  const requestDownload = useCallback(async () => {
+  const requestDownload = useCallback(async (requestId: string) => {
     if (!deck) throw new Error("Deck not loaded");
-    return deckService.requestDeckDownload(deck.slug, undefined, profile?.handle ?? null);
-  }, [deck, profile?.handle]);
+    return deckService.requestDeckDownload(deck.slug, undefined, profile?.handle ?? null, {
+      requestId,
+      visitorId: `owner-${session?.user?.id ?? "preview"}`,
+      viewerEmail,
+    });
+  }, [deck, profile?.handle, session?.user?.id, viewerEmail]);
 
   useEffect(() => {
     if (!deck) return;

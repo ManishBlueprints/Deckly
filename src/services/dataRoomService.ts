@@ -652,6 +652,7 @@ export const dataRoomService = {
     roomSlug: string,
     deckId: string,
     password?: string,
+    tracking?: { requestId: string; visitorId: string; viewerEmail?: string },
   ): Promise<{ downloadUrl: string; filename: string }> {
     const { data, error } = await supabase.functions.invoke("sign-deck-url", {
       body: {
@@ -660,6 +661,9 @@ export const dataRoomService = {
         room_slug: roomSlug,
         deck_id: deckId,
         password: password ?? null,
+        request_id: tracking?.requestId ?? null,
+        visitor_id: tracking?.visitorId ?? null,
+        viewer_email: tracking?.viewerEmail ?? null,
       },
     });
     if (error) throw error;
