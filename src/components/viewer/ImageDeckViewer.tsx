@@ -4,6 +4,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useKeyboardControls } from "../../hooks/useKeyboardControls";
 import { useDeckAnalytics } from "../../hooks/useDeckAnalytics";
 import { Deck, SlidePage } from "../../types";
+import {
+  fitAspectRatioWithinBounds,
+  getAspectRatio,
+} from "../../utils/viewerDimensions";
 
 interface ImageDeckViewerProps {
   deck: Deck;
@@ -27,6 +31,9 @@ function ImageDeckViewer({
   const [currentPage, setCurrentPage] = useState(1);
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
+  const [legacyImageAspectRatios, setLegacyImageAspectRatios] = useState<
+    Record<string, number>
+  >({});
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Set up ResizeObserver to track container dimensions
@@ -127,6 +134,40 @@ function ImageDeckViewer({
     () => handleNavigationClick("next"),
   );
 
+  const currentImage = resolveSlideImage(pages[currentPage - 1]);
+  const currentPageData = pages[currentPage - 1] as SlidePage | undefined;
+  const linkHotspots = currentPageData?.links || [];
+  const pageAspectRatio =
+    getAspectRatio(currentPageData?.width, currentPageData?.height) ||
+    legacyImageAspectRatios[currentImage] ||
+    null;
+  const dimensions = useMemo(() => {
+    if (!containerWidth || !containerHeight || !pageAspectRatio) {
+      return { width: containerWidth || 0, height: containerHeight || 0 };
+    }
+
+    return fitAspectRatioWithinBounds(
+      containerWidth,
+      containerHeight,
+      pageAspectRatio,
+    );
+  }, [containerHeight, containerWidth, pageAspectRatio]);
+
+  const rememberLegacyImageAspectRatio = (image: HTMLImageElement) => {
+    if (!currentImage || getAspectRatio(currentPageData?.width, currentPageData?.height)) {
+      return;
+    }
+
+    const aspectRatio = getAspectRatio(image.naturalWidth, image.naturalHeight);
+    if (!aspectRatio) return;
+
+    setLegacyImageAspectRatios((current) =>
+      current[currentImage]
+        ? current
+        : { ...current, [currentImage]: aspectRatio },
+    );
+  };
+
   if (numPages === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-12 text-center">
@@ -142,10 +183,6 @@ function ImageDeckViewer({
       </div>
     );
   }
-
-  const currentImage = resolveSlideImage(pages[currentPage - 1]);
-  const currentPageData = pages[currentPage - 1] as SlidePage | undefined;
-  const linkHotspots = currentPageData?.links || [];
 
   return (
     <div className="flex flex-col h-full bg-[#0d0f14] overflow-hidden">
@@ -164,29 +201,15 @@ function ImageDeckViewer({
               if (info.offset.x > 100) handleNavigationClick("prev");
               if (info.offset.x < -100) handleNavigationClick("next");
             }}
-            style={(() => {
-              if (!containerWidth || !containerHeight) return {};
-              const targetAspect = 16 / 9;
-              const containerAspect = containerWidth / containerHeight;
-
-              let finalWidth, finalHeight;
-              if (containerAspect > targetAspect) {
-                // Window is wider than 16:9 - height is limit
-                finalHeight = containerHeight;
-                finalWidth = containerHeight * targetAspect;
-              } else {
-                // Window is taller than 16:9 - width is limit
-                finalWidth = containerWidth;
-                finalHeight = containerWidth / targetAspect;
-              }
-
-              return {
-                width: finalWidth,
-                height: finalHeight,
-                touchAction: "pan-y",
-              };
-            })()}
-            className="relative z-20 bg-white shadow-[0_32px_128px_-12px_rgba(0,0,0,1)] rounded-sm flex items-center justify-center overflow-hidden"
+            style={{
+              ...dimensions,
+              touchAction: "pan-y",
+            }}
+            className={`relative z-20 rounded-sm flex items-center justify-center overflow-hidden ${
+              pageAspectRatio
+                ? "bg-white shadow-[0_32px_128px_-12px_rgba(0,0,0,1)]"
+                : "bg-transparent"
+            }`}
           >
             {(() => {
               const imgSrc =
@@ -198,6 +221,9 @@ function ImageDeckViewer({
                     src={imgSrc}
                     alt={`Slide ${currentPage}`}
                     referrerPolicy="no-referrer"
+                    onLoad={(event) =>
+                      rememberLegacyImageAspectRatio(event.currentTarget)
+                    }
                     className="w-full h-full object-contain"
                   />
 

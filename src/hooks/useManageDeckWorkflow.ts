@@ -208,6 +208,8 @@ export function useManageDeckWorkflow({
         const processedPages = imageUrls.map((url, idx) => ({
           image_url: url,
           page_number: idx + 1,
+          width: imageAssets[idx]?.width,
+          height: imageAssets[idx]?.height,
           links: imageAssets[idx]?.links || [],
         }));
 
@@ -373,6 +375,8 @@ export function useManageDeckWorkflow({
             finalPages = imageUrls.map((url, idx) => ({
               image_url: url,
               page_number: idx + 1,
+              width: imageAssets[idx]?.width,
+              height: imageAssets[idx]?.height,
               links: imageAssets[idx]?.links || [],
             }));
             finalStatus = "PROCESSED";

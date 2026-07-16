@@ -74,6 +74,8 @@ function ManageDataRoom() {
     const tier: Tier = (profile?.tier as Tier) || "FREE";
     const max = TIER_CONFIG[tier].maxDataRooms;
 
+    if (max === -1) return;
+
     dataRoomService
       .getDataRooms()
       .then((rooms) => {

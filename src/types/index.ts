@@ -15,6 +15,8 @@ export interface PdfLinkHotspot {
 export interface SlidePage {
   image_url: string;
   page_number: number;
+  width?: number;
+  height?: number;
   links?: PdfLinkHotspot[];
 }
 

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Check, ArrowRight } from "lucide-react";
 import { Button } from "../ui/button";
@@ -14,20 +14,66 @@ export function TierUpsellModal({
   onClose,
   featureName = "Premium Features",
 }: TierUpsellModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    if (!isOpen) return;
+
+    const previouslyFocusedElement = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const previousOverflow = document.body.style.overflow;
+    const getFocusableElements = () =>
+      Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((element) => element.getClientRects().length > 0);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+
+      if (e.key !== "Tab") return;
+
+      const focusableElements = getFocusableElements();
+      if (focusableElements.length === 0) {
+        e.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (e.shiftKey && activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
 
-    if (isOpen) {
-      window.addEventListener("keydown", handleEscape);
-      // Prevent scrolling when modal is open
-      document.body.style.overflow = "hidden";
-    }
+    const focusFrame = requestAnimationFrame(() => {
+      const [firstFocusableElement] = getFocusableElements();
+      if (firstFocusableElement) {
+        firstFocusableElement.focus();
+      } else {
+        dialogRef.current?.focus();
+      }
+    });
+    window.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
 
     return () => {
-      window.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "unset";
+      cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocusedElement?.isConnected) previouslyFocusedElement.focus();
     };
   }, [isOpen, onClose]);
 
@@ -53,6 +99,8 @@ export function TierUpsellModal({
             role="dialog"
             aria-modal="true"
             aria-labelledby="tier-upsell-title"
+            ref={dialogRef}
+            tabIndex={-1}
             className="relative w-full max-w-lg bg-[#121212] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl"
           >
             {/* Top Decorative Banner */}

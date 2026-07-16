@@ -18,9 +18,8 @@ import { deckService } from "../../services/deckService";
 import { deckStorageService } from "../../services/deckStorageService";
 import { analyticsService } from "../../services/analyticsService";
 import { useAuth } from "../../contexts/AuthContext";
-import * as pdfjsLib from "pdfjs-dist";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { Deck } from "../../types";
+import { processPdfToImages } from "../../workflows/deckProcessing";
 import { cn } from "../../lib/utils";
 import { getDeckPreviewPath } from "../../utils/url";
 import { DeckLinkManagerModal } from "../dashboard/DeckLinkManagerModal";
@@ -41,9 +40,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-
-// Set worker source for pdfjs-dist
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface DeckDetailPanelProps {
   deck: Deck;
@@ -143,35 +139,6 @@ function DeckDetailPanel({
     }
   };
 
-  const processPdfToImages = async (pdfFile: File) => {
-    setUploadProgress("Processing PDF...");
-    const arrayBuffer = await pdfFile.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const numPages = pdf.numPages;
-    const imageBlobs: Blob[] = [];
-
-    for (let i = 1; i <= numPages; i++) {
-      setUploadProgress(`Processing slide ${i} of ${numPages}...`);
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      if (!context) {
-        console.warn(`Failed to get canvas context for page ${i}, skipping`);
-        continue;
-      }
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (page as any).render({ canvasContext: context, viewport }).promise;
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, "image/webp", 0.8),
-      );
-      if (blob) imageBlobs.push(blob);
-    }
-    return imageBlobs;
-  };
-
   const handleSave = async () => {
     setIsSaving(true);
     setUploadProgress("Saving changes...");
@@ -191,16 +158,24 @@ function DeckDetailPanel({
         finalFileUrl = upload.publicUrl;
         fileSize = newFile.size;
 
-        const imageBlobs = await processPdfToImages(newFile);
-        setUploadProgress(`Uploading ${imageBlobs.length} new slides...`);
+        const imageAssets = await processPdfToImages(newFile, {
+          scale: 1.5,
+          quality: 0.8,
+          onProgress: (current, total) =>
+            setUploadProgress(`Processing slide ${current} of ${total}...`),
+        });
+        setUploadProgress(`Uploading ${imageAssets.length} new slides...`);
         const imageUrls = await deckService.uploadSlideImages(
           userId,
           editValues.slug,
-          imageBlobs,
+          imageAssets.map((asset) => asset.blob),
         );
         finalPages = imageUrls.map((url, idx) => ({
           image_url: url,
           page_number: idx + 1,
+          width: imageAssets[idx]?.width,
+          height: imageAssets[idx]?.height,
+          links: imageAssets[idx]?.links || [],
         }));
       }
 
