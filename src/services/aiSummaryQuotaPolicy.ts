@@ -33,6 +33,8 @@ export interface AiSummaryQuotaInput {
   cachedReopen?: boolean;
   now?: Date;
   tier?: Tier;
+  /** Server-owned entitlement value. Falls back to the legacy client map for tests/offline use. */
+  limitPer24Hours?: number;
 }
 
 const buildQuotaWindow = (now: Date = new Date()) => {
@@ -45,19 +47,22 @@ const buildQuotaWindow = (now: Date = new Date()) => {
   };
 };
 
-const getSignedInAiSummaryLimit = (tier: Tier): number =>
-  TIER_CONFIG[tier].aiSummariesPerDay;
+const getSignedInAiSummaryLimit = (tier: Tier, configuredLimit?: number): number =>
+  typeof configuredLimit === "number" && Number.isFinite(configuredLimit) && configuredLimit >= 0
+    ? Math.floor(configuredLimit)
+    : TIER_CONFIG[tier].aiSummariesPerDay;
 
 export const getAiSummaryQuotaLimit = (
   scope: AiSummaryQuotaScope,
   tier?: Tier,
+  configuredLimit?: number,
 ): number => {
   if (scope === "guest") return 1;
   if (!tier) {
     throw new Error("A signed-in quota check requires a tier.");
   }
 
-  return getSignedInAiSummaryLimit(tier);
+  return getSignedInAiSummaryLimit(tier, configuredLimit);
 };
 
 export const evaluateAiSummaryQuota = ({
@@ -66,11 +71,12 @@ export const evaluateAiSummaryQuota = ({
   cachedReopen = false,
   now = new Date(),
   tier,
+  limitPer24Hours: configuredLimit,
 }: AiSummaryQuotaInput): AiSummaryQuotaDecision => {
   const { windowStart, windowEnd } = buildQuotaWindow(now);
 
   if (cachedReopen) {
-    const limitPer24Hours = getAiSummaryQuotaLimit(scope, tier);
+    const limitPer24Hours = getAiSummaryQuotaLimit(scope, tier, configuredLimit);
     return {
       scope,
       allowed: true,
@@ -123,7 +129,7 @@ export const evaluateAiSummaryQuota = ({
     throw new Error("A signed-in quota check requires a tier.");
   }
 
-  const limitPer24Hours = getSignedInAiSummaryLimit(tier);
+  const limitPer24Hours = getSignedInAiSummaryLimit(tier, configuredLimit);
   const remaining = Math.max(limitPer24Hours - usageCount, 0);
 
   if (usageCount >= limitPer24Hours) {

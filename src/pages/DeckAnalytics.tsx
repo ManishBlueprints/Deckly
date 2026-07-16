@@ -22,6 +22,8 @@ import {
   Download,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useTierFeatureAccess } from "../hooks/useTierEntitlements";
+import { FeatureGate } from "../components/billing/FeatureGate";
 import { cn } from "@/lib/utils";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { Badge } from "../components/ui/badge";
@@ -73,6 +75,10 @@ export default function DeckAnalytics() {
   const navigate = useNavigate();
   const { session, isPro, profile } = useAuth();
   const ownerUserId = session?.user?.id;
+  const pageAnalytics = useTierFeatureAccess(profile?.tier, "page_analytics", Boolean(profile));
+  const visitorSignalsFeature = useTierFeatureAccess(profile?.tier, "visitor_signals", Boolean(profile));
+  const canUsePageAnalytics = pageAnalytics.access.state === "available";
+  const canUseVisitorSignals = visitorSignalsFeature.access.state === "available";
   const [activeTab, setActiveTab] = useState<
     "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION" | "LINKS"
   >("VISITS");
@@ -90,20 +96,20 @@ export default function DeckAnalytics() {
     data: stats = [],
     isLoading: statsLoading,
     isFetching: statsFetching,
-  } = useDeckStats(deckId, !!isPro, ownerUserId, canViewAnalytics);
+  } = useDeckStats(deckId, !!isPro, ownerUserId, canViewAnalytics && canUsePageAnalytics);
   const { data: bookmarks = [], isFetching: bookmarksFetching } =
     useDeckBookmarks(deckId, ownerUserId, canViewAnalytics);
   const {
     data: visitorSignals = [],
     isLoading: signalsLoading,
     isFetching: signalsFetching,
-  } = useVisitorSignals(deckId, ownerUserId, canViewAnalytics);
+  } = useVisitorSignals(deckId, ownerUserId, canViewAnalytics && canUseVisitorSignals);
   const { data: uniqueVisitors = 0, isFetching: uniqueFetching } =
     useUniqueVisitorCount(deckId, ownerUserId, canViewAnalytics);
   const { data: locationData, isFetching: locationsFetching } = useDeckLocations(
     deckId,
     ownerUserId,
-    canViewAnalytics,
+    canViewAnalytics && canUsePageAnalytics,
   );
   const {
     data: linkStats = [],
@@ -202,10 +208,12 @@ export default function DeckAnalytics() {
 
   const tabs = [
     { id: "VISITS", label: "Visits" },
-    { id: "TIME", label: "Duration", shortLabel: "Time" },
-    { id: "DROPOFF", label: "Dropoff" },
+    ...(canUsePageAnalytics ? [
+      { id: "TIME", label: "Duration", shortLabel: "Time" },
+      { id: "DROPOFF", label: "Dropoff" },
+    ] : []),
     { id: "SAVES", label: "Saves", shortLabel: "Saved" },
-    { id: "LOCATION", label: "Location" },
+    ...(canUsePageAnalytics ? [{ id: "LOCATION", label: "Location" }] : []),
     { id: "LINKS", label: "Links" },
   ];
 
@@ -380,6 +388,12 @@ export default function DeckAnalytics() {
         </div>
 
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-16 space-y-8 md:space-y-16">
+          {!canUsePageAnalytics && !pageAnalytics.isLoading && (
+            <FeatureGate
+              access={pageAnalytics.access}
+              onUpgrade={() => navigate("/profile")}
+            />
+          )}
           {/* Detailed Engagement Chart Card */}
           <div className="bg-surface-card rounded-lg p-4 md:p-8 shadow-sm">
             <div className="flex flex-col space-y-8">

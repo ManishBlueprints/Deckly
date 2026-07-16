@@ -32,6 +32,7 @@ export type AiSummaryActor =
       type: "signed_in";
       user_id: string;
       tier: Tier;
+      aiCreditsPerDay?: number;
     }
   | {
       type: "guest";
@@ -193,7 +194,11 @@ const buildQuotaDecision = (
 ): AiSummaryQuotaDecision =>
   actor.type === "guest"
     ? evaluateGuestAiSummaryQuota(usageCount, { cachedReopen, now })
-    : evaluateSignedInAiSummaryQuota(actor.tier, usageCount, { cachedReopen, now });
+    : evaluateSignedInAiSummaryQuota(actor.tier, usageCount, {
+      cachedReopen,
+      now,
+      limitPer24Hours: actor.aiCreditsPerDay,
+    });
 
 const buildSummaryMetadata = (args: {
   resolution: AiScopeResolution;

@@ -6,6 +6,7 @@ import { useManageDeckWorkflow } from "../hooks/useManageDeckWorkflow";
 import { useAuth } from "../contexts/AuthContext";
 import { normalizeSlug } from "../utils/slug";
 import { TIER_CONFIG } from "../constants/tiers";
+import { useTierFeatureAccess } from "../hooks/useTierEntitlements";
 import { Deck, UserProfile } from "../types";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -52,6 +53,8 @@ function ManageDeck() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile: authProfile } = useAuth();
   const queryClient = useQueryClient();
+  const accessControls = useTierFeatureAccess(userProfile?.tier, "access_controls", Boolean(userProfile));
+  const downloadControls = useTierFeatureAccess(userProfile?.tier, "deck_downloads", Boolean(userProfile));
 
   const { data: isSlugAvailable, isLoading: isCheckingSlug } = useCheckDeckSlug(
     slug,
@@ -232,11 +235,8 @@ function ManageDeck() {
               requireEmail={requireEmail}
               requirePassword={requirePassword}
               allowDownload={allowDownload}
-              canUseDownloadControls={
-                userProfile?.tier === "PRO" ||
-                userProfile?.tier === "PRO_PLUS" ||
-                userProfile?.tier === "RAISE"
-              }
+              canUseAccessControls={accessControls.access.state === "available"}
+              canUseDownloadControls={downloadControls.access.state === "available"}
               viewPassword={viewPassword}
               showPasswordField={showPasswordField}
               enableExpiry={enableExpiry}
@@ -244,6 +244,10 @@ function ManageDeck() {
               onRequireEmailChange={setRequireEmail}
               onRequirePasswordChange={setRequirePassword}
               onAllowDownloadChange={setAllowDownload}
+              onAccessUpsell={() => {
+                setUpsellFeature("Email capture, password protection and expiry");
+                setShowUpsell(true);
+              }}
               onDownloadUpsell={() => {
                 setUpsellFeature("Download controls");
                 setShowUpsell(true);

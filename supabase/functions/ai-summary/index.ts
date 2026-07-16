@@ -45,6 +45,10 @@ type ProfileRow = {
   tier: "FREE" | "PRO" | "PRO_PLUS" | "RAISE";
 };
 
+type TierLimitRow = {
+  ai_credits_per_day: number;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -346,10 +350,22 @@ const getSignedInActor = async (
   if (error) throw error;
   if (!data) throw new Error("Profile not found.");
 
+  const { data: tierLimit, error: tierLimitError } = await supabaseClient
+    .from("tier_limits")
+    .select("ai_credits_per_day")
+    .eq("tier", (data as ProfileRow).tier)
+    .single();
+
+  if (tierLimitError) throw tierLimitError;
+  if (!tierLimit || typeof (tierLimit as TierLimitRow).ai_credits_per_day !== "number") {
+    throw new Error("Tier entitlement not found.");
+  }
+
   return {
     type: "signed_in",
     user_id: userId,
     tier: (data as ProfileRow).tier,
+    aiCreditsPerDay: (tierLimit as TierLimitRow).ai_credits_per_day,
   };
 };
 

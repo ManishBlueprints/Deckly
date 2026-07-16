@@ -30,7 +30,7 @@ Deno.serve(async (req: Request) => {
       handle,
       slug,
       password,
-      storage_path,
+      storage_path: rawStoragePath,
       image_paths: rawImagePaths,
       room_slug,
       intent: rawIntent,
@@ -42,7 +42,9 @@ Deno.serve(async (req: Request) => {
     const intent = rawIntent === undefined ? "view" : rawIntent;
     const deckSlug = typeof slug === "string" ? slug : null;
     const roomSlug = typeof room_slug === "string" ? room_slug : null;
-    const storagePath = typeof storage_path === "string" ? storage_path : null;
+    const storagePath = typeof rawStoragePath === "string"
+      ? extractStoragePath(rawStoragePath, "decks")
+      : null;
     const image_paths: string[] = Array.isArray(rawImagePaths)
       ? rawImagePaths.filter((p): p is string => typeof p === "string")
       : [];
@@ -72,9 +74,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (storage_path !== undefined && storage_path !== null && storagePath === null) {
+    if (rawStoragePath !== undefined && rawStoragePath !== null && storagePath === null) {
       return new Response(
-        JSON.stringify({ error: "Invalid request: storage_path must be a string" }),
+        JSON.stringify({ error: "Invalid request: storage_path must be a valid deck storage path" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -146,13 +148,16 @@ Deno.serve(async (req: Request) => {
       if (rpcData) {
         const payloads = rpcData as DeckPayload[];
         payloads.forEach(payload => {
-          if (payload.storage_path) validPaths.add(payload.storage_path);
-          if (intent === "download" && payload.id === deckId && payload.storage_path) {
+          const payloadStoragePath = payload.storage_path
+            ? extractStoragePath(payload.storage_path, "decks")
+            : null;
+          if (payloadStoragePath) validPaths.add(payloadStoragePath);
+          if (intent === "download" && payload.id === deckId && payloadStoragePath) {
             if (typeof payload.id !== "string" || typeof payload.data_room_id !== "string") {
               return;
             }
             downloadTarget = {
-              path: payload.storage_path,
+              path: payloadStoragePath,
               title: typeof payload.title === "string" ? payload.title : "pitch-deck",
               fileType: typeof payload.file_type === "string" ? payload.file_type : "pdf",
               allowed: payload.allow_download === true,
@@ -195,8 +200,11 @@ Deno.serve(async (req: Request) => {
 
       if (rpcData) {
         const payload = rpcData as DeckPayload;
-        if (payload.storage_path) validPaths.add(payload.storage_path);
-        if (intent === "download" && payload.storage_path) {
+        const payloadStoragePath = payload.storage_path
+          ? extractStoragePath(payload.storage_path, "decks")
+          : null;
+        if (payloadStoragePath) validPaths.add(payloadStoragePath);
+        if (intent === "download" && payloadStoragePath) {
           if (typeof payload.id !== "string" || typeof payload.deck_link_id !== "string") {
             return new Response(JSON.stringify({ error: "Download metadata was unavailable" }), {
               status: 500,
@@ -204,7 +212,7 @@ Deno.serve(async (req: Request) => {
             });
           }
           downloadTarget = {
-            path: payload.storage_path,
+            path: payloadStoragePath,
             title: typeof payload.title === "string" ? payload.title : "pitch-deck",
             fileType: typeof payload.file_type === "string" ? payload.file_type : "pdf",
             allowed: payload.allow_download === true,

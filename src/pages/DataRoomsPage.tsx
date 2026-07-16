@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DataRoomCard } from "../components/dashboard/DataRoomCard";
 import { useAuth } from "../contexts/AuthContext";
-import { TIER_CONFIG, Tier } from "../constants/tiers";
+import { type Tier } from "../constants/tiers";
+import { useMyEntitlements } from "../hooks/useTierEntitlements";
 import { useDataRooms } from "../hooks/useDataRooms";
 import { cn } from "@/lib/utils";
 import { DataRoom, DataRoomDocumentSearchSummary } from "../types";
@@ -21,6 +22,7 @@ import {
 function DataRoomsPage() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const entitlements = useMyEntitlements(Boolean(profile), profile?.tier as Tier | undefined);
   const search = useMetadataSearchState("data_room");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
 
@@ -90,9 +92,8 @@ function DataRoomsPage() {
     staleTime: 30000,
   });
 
-  const tier: Tier = (profile?.tier as Tier) || "FREE";
-  const tierConfig = TIER_CONFIG[tier];
-  const maxRooms = tierConfig.maxDataRooms;
+  const tier: Tier = entitlements.data?.tier ?? (profile?.tier as Tier) ?? "FREE";
+  const maxRooms = entitlements.data?.limits.maxDataRooms ?? 1;
   const isUnlimited = maxRooms === -1;
   const isAtLimit = !isUnlimited && rooms.length >= maxRooms;
 
@@ -169,7 +170,11 @@ function DataRoomsPage() {
 
         {/* Upgrade banner */}
         {isAtLimit && !isUnlimited && (
-          <RoomsUpgradeBanner tier={tier} maxRooms={maxRooms} />
+          <RoomsUpgradeBanner
+            tier={tier}
+            maxRooms={maxRooms}
+            onUpgrade={() => navigate("/profile?section=tier")}
+          />
         )}
 
         {/* Content */}
@@ -316,9 +321,11 @@ function RoomsNoResults({ onClear }: { onClear: () => void }) {
 function RoomsUpgradeBanner({
   tier,
   maxRooms,
+  onUpgrade,
 }: {
   tier: Tier;
   maxRooms: number;
+  onUpgrade: () => void;
 }) {
   return (
     <div className="flex items-center gap-4 p-5 bg-[#1a140e] border border-amber-900/30 rounded-lg relative overflow-hidden group">
@@ -327,13 +334,13 @@ function RoomsUpgradeBanner({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white">
-          {tier === "FREE" ? "Upgrade to Pro for more rooms" : "Go Unlimited with Pro+"}
+          {tier === "FREE" ? "Upgrade to Founder for more rooms" : "Choose a higher plan for more rooms"}
         </p>
         <p className="text-xs text-amber-500/80 mt-0.5">
           You've used all {maxRooms} slots on {tier}
         </p>
       </div>
-      <button className="px-5 py-2 bg-amber-500 text-slate-950 font-semibold text-xs rounded-md hover:bg-amber-400 transition-all shrink-0">
+      <button onClick={onUpgrade} className="px-5 py-2 bg-amber-500 text-slate-950 font-semibold text-xs rounded-md hover:bg-amber-400 transition-all shrink-0">
         Upgrade
       </button>
     </div>

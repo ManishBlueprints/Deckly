@@ -7,6 +7,7 @@ import {
 } from "../services/aiSummaryService";
 import { analyticsService } from "../services/analyticsService";
 import { TIER_CONFIG, type Tier } from "../constants/tiers";
+import { useMyEntitlements } from "./useTierEntitlements";
 import type { AiSummaryInitialResult } from "../services/aiSummaryInitialOrchestrator";
 import type { AiScopeType } from "../services/aiScopeResolutionBuilder";
 
@@ -92,24 +93,26 @@ const buildSummaryMeta = (
   result: AiSummaryInitialResult,
   isGuest: boolean,
   tier?: Tier,
+  configuredCreditLimit?: number,
 ): AiSummaryPanelMetaItem[] => {
   const effectiveTier = getEffectiveTier(isGuest, tier);
   const tierConfig = TIER_CONFIG[effectiveTier];
   const summariesLeft = getSummariesLeft(result);
+  const dailyCreditLimit = configuredCreditLimit ?? tierConfig.aiSummariesPerDay;
 
   return [
     {
-      label: "Summaries left",
+      label: "AI credits left",
       value:
         summariesLeft === null
-          ? `${tierConfig.aiSummariesPerDay} / day`
+          ? `${dailyCreditLimit} / day`
           : `${summariesLeft} left today`,
     },
     {
       label: "Chats",
       value: isGuest
         ? "Sign in required"
-        : `${tierConfig.aiChatsPerDay} / day`,
+        : "Uses your daily AI credits",
     },
   ];
 };
@@ -122,6 +125,7 @@ export function useAiSummaryPanel({
   isGuest,
   tier,
 }: UseAiSummaryPanelOptions) {
+  const entitlements = useMyEntitlements(!isGuest, tier);
   const [isOpen, setIsOpen] = useState(false);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -304,7 +308,14 @@ export function useAiSummaryPanel({
     isSummaryLoading,
     isChatLoading,
     summary: getSummaryText(summaryResult),
-    summaryMeta: summaryResult ? buildSummaryMeta(summaryResult, isGuest, tier) : [],
+    summaryMeta: summaryResult
+      ? buildSummaryMeta(
+        summaryResult,
+        isGuest,
+        tier,
+        entitlements.data?.limits.aiCreditsPerDay,
+      )
+      : [],
     summaryNotice,
     summaryNoticeTone,
     chatMessages,

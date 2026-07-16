@@ -21,6 +21,8 @@ interface AccessProtectionSectionProps {
   setAllowDownload?: (v: boolean) => void;
   canUseDownloadControls?: boolean;
   onDownloadUpsell?: () => void;
+  canUseAccessControls?: boolean;
+  onAccessUpsell?: () => void;
 }
 
 export function AccessProtectionSection({
@@ -38,15 +40,23 @@ export function AccessProtectionSection({
   setAllowDownload,
   canUseDownloadControls,
   onDownloadUpsell,
+  canUseAccessControls = true,
+  onAccessUpsell,
 }: AccessProtectionSectionProps) {
   const [showPasswordField, setShowPasswordField] = useState(false);
   const hasDownloadControl = Boolean(setAllowDownload && onDownloadUpsell);
+  const requestAccessControl = () => onAccessUpsell?.();
 
   return (
     <section className="space-y-6 pt-6 border-t border-white/5">
       <div className="flex items-center gap-2 mb-2">
         <Lock size={16} className="text-deckly-primary" />
         <h3 className="text-sm font-medium text-white">Security & Access</h3>
+        {!canUseAccessControls && (
+          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <Lock size={12} /> Share feature
+          </span>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -59,7 +69,10 @@ export function AccessProtectionSection({
                 ? "bg-background border-deckly-primary/50"
                 : "bg-surface-container border-white/10 hover:border-white/20",
             )}
-            onClick={() => setRequireEmail(!requireEmail)}
+            onClick={() => {
+              if (!requireEmail && !canUseAccessControls) return requestAccessControl();
+              setRequireEmail(!requireEmail);
+            }}
           >
             <div className="flex items-center gap-4">
               <div
@@ -84,7 +97,10 @@ export function AccessProtectionSection({
             <Switch
               id="require-email"
               checked={requireEmail}
-              onCheckedChange={setRequireEmail}
+              onCheckedChange={(checked) => {
+                if (checked && !canUseAccessControls) return requestAccessControl();
+                setRequireEmail(checked);
+              }}
               onClick={(e) => e.stopPropagation()}
             />
           </div>
@@ -97,7 +113,10 @@ export function AccessProtectionSection({
                 ? "bg-background border-deckly-primary/50"
                 : "bg-surface-container border-white/10 hover:border-white/20",
             )}
-            onClick={() => setRequirePassword(!requirePassword)}
+            onClick={() => {
+              if (!requirePassword && !canUseAccessControls) return requestAccessControl();
+              setRequirePassword(!requirePassword);
+            }}
           >
             <div className="flex items-center gap-4">
               <div
@@ -120,7 +139,10 @@ export function AccessProtectionSection({
             <Switch
               id="require-password"
               checked={requirePassword}
-              onCheckedChange={setRequirePassword}
+              onCheckedChange={(checked) => {
+                if (checked && !canUseAccessControls) return requestAccessControl();
+                setRequirePassword(checked);
+              }}
               onClick={(e) => e.stopPropagation()}
             />
           </div>
@@ -183,6 +205,7 @@ export function AccessProtectionSection({
             )}
             onClick={() => {
               const next = !expiryEnabled;
+              if (next && !canUseAccessControls) return requestAccessControl();
               setExpiryEnabled(next);
               if (!next) setExpiryDate("");
             }}
@@ -207,6 +230,7 @@ export function AccessProtectionSection({
               id="link-expiry"
               checked={expiryEnabled}
               onCheckedChange={(checked) => {
+                if (checked && !canUseAccessControls) return requestAccessControl();
                 setExpiryEnabled(checked);
                 if (!checked) setExpiryDate("");
               }}

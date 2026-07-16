@@ -33,6 +33,7 @@ export function useSubscriptionState() {
       queryClient.invalidateQueries({ queryKey: subscriptionQueryKey(profileId) }),
       queryClient.invalidateQueries({ queryKey: ["profile", profileId] }),
       queryClient.invalidateQueries({ queryKey: billingHistoryQueryKey(profileId) }),
+      queryClient.invalidateQueries({ queryKey: ["my-entitlements"] }),
     ]);
   }, [profileId, queryClient, refreshProfile]);
   const refreshBillingRef = useRef(refreshBilling);

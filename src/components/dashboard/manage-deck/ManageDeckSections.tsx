@@ -344,6 +344,7 @@ interface AccessSectionProps {
   requireEmail: boolean;
   requirePassword: boolean;
   allowDownload: boolean;
+  canUseAccessControls: boolean;
   canUseDownloadControls: boolean;
   viewPassword: string;
   showPasswordField: boolean;
@@ -352,6 +353,7 @@ interface AccessSectionProps {
   onRequireEmailChange: (checked: boolean) => void;
   onRequirePasswordChange: (checked: boolean) => void;
   onAllowDownloadChange: (checked: boolean) => void;
+  onAccessUpsell: () => void;
   onDownloadUpsell: () => void;
   onViewPasswordChange: (value: string) => void;
   onTogglePasswordVisibility: () => void;
@@ -363,6 +365,7 @@ export function ManageDeckAccessSection({
   requireEmail,
   requirePassword,
   allowDownload,
+  canUseAccessControls,
   canUseDownloadControls,
   viewPassword,
   showPasswordField,
@@ -371,6 +374,7 @@ export function ManageDeckAccessSection({
   onRequireEmailChange,
   onRequirePasswordChange,
   onAllowDownloadChange,
+  onAccessUpsell,
   onDownloadUpsell,
   onViewPasswordChange,
   onTogglePasswordVisibility,
@@ -387,6 +391,7 @@ export function ManageDeckAccessSection({
       <div className="flex items-center gap-2 mb-2">
         <Lock size={16} className="text-deckly-primary" />
         <h3 className="text-sm font-medium text-white">Security & Access</h3>
+        {!canUseAccessControls && <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"><Lock size={12} /> Share feature</span>}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -416,7 +421,11 @@ export function ManageDeckAccessSection({
           </div>
           <Switch
             checked={requireEmail}
-            onCheckedChange={onRequireEmailChange}
+            onCheckedChange={(checked) => {
+              if (checked && !canUseAccessControls) return onAccessUpsell();
+              onRequireEmailChange(checked);
+            }}
+            aria-label={canUseAccessControls ? "Require viewer email" : "Require viewer email, available on Share"}
           />
         </div>
 
@@ -446,7 +455,11 @@ export function ManageDeckAccessSection({
           </div>
           <Switch
             checked={requirePassword}
-            onCheckedChange={onRequirePasswordChange}
+            onCheckedChange={(checked) => {
+              if (checked && !canUseAccessControls) return onAccessUpsell();
+              onRequirePasswordChange(checked);
+            }}
+            aria-label={canUseAccessControls ? "Require a viewing password" : "Require a viewing password, available on Share"}
           />
         </div>
 
@@ -513,7 +526,14 @@ export function ManageDeckAccessSection({
               <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
             </div>
           </div>
-          <Switch checked={enableExpiry} onCheckedChange={onEnableExpiryChange} />
+          <Switch
+            checked={enableExpiry}
+            onCheckedChange={(checked) => {
+              if (checked && !canUseAccessControls) return onAccessUpsell();
+              onEnableExpiryChange(checked);
+            }}
+            aria-label={canUseAccessControls ? "Set an expiry date" : "Set an expiry date, available on Share"}
+          />
         </div>
       </div>
 
