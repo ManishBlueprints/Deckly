@@ -35,6 +35,7 @@ export interface Deck {
   file_size?: number;
   require_email?: boolean;
   require_password?: boolean;
+  allow_download?: boolean;
   is_public?: boolean;
   view_password?: string;
   file_type?: string;
@@ -251,6 +252,63 @@ export interface DeckLinkStats {
   total_views: number;
   unique_visitors: number;
   total_time_seconds: number;
+  total_downloads?: number;
+  unique_downloaders?: number;
+  latest_download_at?: string | null;
+  download_conversion?: number;
+}
+
+export interface DownloadViewerSummary {
+  visitor_id: string;
+  viewer_email: string | null;
+  total_downloads: number;
+  latest_download_at: string;
+}
+
+export interface DeckLinkDownloadSummary {
+  link_id: string;
+  link_name: string;
+  link_alias: string | null;
+  is_primary: boolean;
+  is_enabled: boolean;
+  total_downloads: number;
+  unique_downloaders: number;
+  latest_download_at: string | null;
+}
+
+export interface DataRoomDownloadSummary {
+  data_room_id: string;
+  room_name: string;
+  total_downloads: number;
+  unique_downloaders: number;
+  latest_download_at: string | null;
+}
+
+export interface DeckDownloadAnalytics {
+  total_downloads: number;
+  unique_downloaders: number;
+  direct_link_downloads: number;
+  data_room_downloads: number;
+  links: DeckLinkDownloadSummary[];
+  data_rooms: DataRoomDownloadSummary[];
+  downloaders: DownloadViewerSummary[];
+  downloaders_truncated?: boolean;
+}
+
+export interface DocumentDownloadSummary {
+  deck_id: string;
+  title: string;
+  total_downloads: number;
+  unique_downloaders: number;
+  latest_download_at: string | null;
+}
+
+export interface DataRoomDownloadAnalytics {
+  total_downloads: number;
+  unique_downloaders: number;
+  documents: DocumentDownloadSummary[];
+  downloaders: DownloadViewerSummary[];
+  downloaders_truncated?: boolean;
 }
 
 export interface TutorialState {

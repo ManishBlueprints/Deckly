@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Lock, Eye, EyeOff, Mail, CalendarDays } from "lucide-react";
+import { Lock, Eye, EyeOff, Mail, CalendarDays, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch } from "../../ui/switch";
 import { Label } from "../../ui/label";
@@ -17,6 +17,12 @@ interface AccessProtectionSectionProps {
   setRequirePassword: (v: boolean) => void;
   viewPassword: string;
   setViewPassword: (v: string) => void;
+  allowDownload?: boolean;
+  setAllowDownload?: (v: boolean) => void;
+  canUseDownloadControls?: boolean;
+  onDownloadUpsell?: () => void;
+  canUseAccessControls?: boolean;
+  onAccessUpsell?: () => void;
 }
 
 export function AccessProtectionSection({
@@ -30,14 +36,27 @@ export function AccessProtectionSection({
   setRequirePassword,
   viewPassword,
   setViewPassword,
+  allowDownload,
+  setAllowDownload,
+  canUseDownloadControls,
+  onDownloadUpsell,
+  canUseAccessControls = true,
+  onAccessUpsell,
 }: AccessProtectionSectionProps) {
   const [showPasswordField, setShowPasswordField] = useState(false);
+  const hasDownloadControl = Boolean(setAllowDownload && onDownloadUpsell);
+  const requestAccessControl = () => onAccessUpsell?.();
 
   return (
     <section className="space-y-6 pt-6 border-t border-white/5">
       <div className="flex items-center gap-2 mb-2">
         <Lock size={16} className="text-deckly-primary" />
         <h3 className="text-sm font-medium text-white">Security & Access</h3>
+        {!canUseAccessControls && (
+          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <Lock size={12} /> Share feature
+          </span>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -50,7 +69,10 @@ export function AccessProtectionSection({
                 ? "bg-background border-deckly-primary/50"
                 : "bg-surface-container border-white/10 hover:border-white/20",
             )}
-            onClick={() => setRequireEmail(!requireEmail)}
+            onClick={() => {
+              if (!requireEmail && !canUseAccessControls) return requestAccessControl();
+              setRequireEmail(!requireEmail);
+            }}
           >
             <div className="flex items-center gap-4">
               <div
@@ -75,7 +97,10 @@ export function AccessProtectionSection({
             <Switch
               id="require-email"
               checked={requireEmail}
-              onCheckedChange={setRequireEmail}
+              onCheckedChange={(checked) => {
+                if (checked && !canUseAccessControls) return requestAccessControl();
+                setRequireEmail(checked);
+              }}
               onClick={(e) => e.stopPropagation()}
             />
           </div>
@@ -88,7 +113,10 @@ export function AccessProtectionSection({
                 ? "bg-background border-deckly-primary/50"
                 : "bg-surface-container border-white/10 hover:border-white/20",
             )}
-            onClick={() => setRequirePassword(!requirePassword)}
+            onClick={() => {
+              if (!requirePassword && !canUseAccessControls) return requestAccessControl();
+              setRequirePassword(!requirePassword);
+            }}
           >
             <div className="flex items-center gap-4">
               <div
@@ -111,7 +139,101 @@ export function AccessProtectionSection({
             <Switch
               id="require-password"
               checked={requirePassword}
-              onCheckedChange={setRequirePassword}
+              onCheckedChange={(checked) => {
+                if (checked && !canUseAccessControls) return requestAccessControl();
+                setRequirePassword(checked);
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+
+          {hasDownloadControl && (
+            <div
+              className={cn(
+                "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer",
+                allowDownload
+                  ? "bg-background border-deckly-primary/50"
+                  : "bg-surface-container border-white/10 hover:border-white/20",
+              )}
+              onClick={() => {
+                if (!canUseDownloadControls) {
+                  onDownloadUpsell?.();
+                  return;
+                }
+                setAllowDownload?.(!allowDownload);
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div
+                  className={cn(
+                    "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
+                    allowDownload
+                      ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                      : "text-slate-500",
+                  )}
+                >
+                  <Download size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white leading-tight">Downloads</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {allowDownload ? "Download enabled" : "Download disabled"}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="allow-download"
+                checked={allowDownload}
+                onCheckedChange={(checked) => {
+                  if (!canUseDownloadControls) {
+                    onDownloadUpsell?.();
+                    return;
+                  }
+                  setAllowDownload?.(checked);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
+
+          <div
+            className={cn(
+              "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer",
+              expiryEnabled
+                ? "bg-background border-deckly-primary/50"
+                : "bg-surface-container border-white/10 hover:border-white/20",
+            )}
+            onClick={() => {
+              const next = !expiryEnabled;
+              if (next && !canUseAccessControls) return requestAccessControl();
+              setExpiryEnabled(next);
+              if (!next) setExpiryDate("");
+            }}
+          >
+            <div className="flex items-center gap-4">
+              <div
+                className={cn(
+                  "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
+                  expiryEnabled
+                    ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                    : "text-slate-500",
+                )}
+              >
+                <CalendarDays size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white leading-tight">Expiration</p>
+                <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
+              </div>
+            </div>
+            <Switch
+              id="link-expiry"
+              checked={expiryEnabled}
+              onCheckedChange={(checked) => {
+                if (checked && !canUseAccessControls) return requestAccessControl();
+                setExpiryEnabled(checked);
+                if (!checked) setExpiryDate("");
+              }}
               onClick={(e) => e.stopPropagation()}
             />
           </div>
@@ -161,49 +283,6 @@ export function AccessProtectionSection({
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Expiration Toggle (Standalone Row) */}
-        <div
-          className={cn(
-            "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer mt-4",
-            expiryEnabled
-              ? "bg-background border-deckly-primary/50"
-              : "bg-surface-container border-white/10 hover:border-white/20",
-          )}
-          onClick={() => {
-            const next = !expiryEnabled;
-            setExpiryEnabled(next);
-            if (!next) setExpiryDate("");
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <div
-              className={cn(
-                "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
-                expiryEnabled
-                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
-                  : "text-slate-500",
-              )}
-            >
-              <CalendarDays size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white leading-tight">
-                Expiration
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
-            </div>
-          </div>
-          <Switch
-            id="link-expiry"
-            checked={expiryEnabled}
-            onCheckedChange={(checked) => {
-              setExpiryEnabled(checked);
-              if (!checked) setExpiryDate("");
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
 
         {/* Expiration Reveal */}
         <AnimatePresence>

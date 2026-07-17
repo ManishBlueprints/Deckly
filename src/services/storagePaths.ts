@@ -66,6 +66,17 @@ export function extractStoragePath(
     return decodeURIComponent(match[1]);
   }
 
+  // R2's S3 endpoint uses the bucket as the first pathname segment. Stored
+  // values may be a short-lived R2 URL, but callers must always sign the
+  // underlying object key rather than the URL itself.
+  if (/\.r2\.cloudflarestorage\.com$/i.test(normalizedUrl.hostname)) {
+    const bucketPrefix = `/${bucket}/`;
+    if (normalizedUrl.pathname.startsWith(bucketPrefix)) {
+      const path = normalizedUrl.pathname.slice(bucketPrefix.length);
+      return path ? decodeURIComponent(path) : null;
+    }
+  }
+
   const publicBaseUrls = options.publicBaseUrls
     ?.map((baseUrl) => baseUrl.trim())
     .filter(Boolean)

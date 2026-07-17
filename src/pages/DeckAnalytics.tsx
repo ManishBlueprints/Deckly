@@ -19,8 +19,11 @@ import {
   Link2,
   Copy,
   ExternalLink,
+  Download,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useTierFeatureAccess } from "../hooks/useTierEntitlements";
+import { FeatureGate } from "../components/billing/FeatureGate";
 import { cn } from "@/lib/utils";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { Badge } from "../components/ui/badge";
@@ -35,6 +38,7 @@ import {
   useUniqueVisitorCount,
   useDeckLocations,
   useDeckLinkStats,
+  useDeckDownloadAnalytics,
 } from "../hooks/useDeckAnalyticsData";
 import { getReadyDeckLinkShareUrl } from "../utils/url";
 import {
@@ -71,10 +75,15 @@ export default function DeckAnalytics() {
   const navigate = useNavigate();
   const { session, isPro, profile } = useAuth();
   const ownerUserId = session?.user?.id;
+  const pageAnalytics = useTierFeatureAccess(profile?.tier, "page_analytics", Boolean(profile));
+  const visitorSignalsFeature = useTierFeatureAccess(profile?.tier, "visitor_signals", Boolean(profile));
+  const canUsePageAnalytics = pageAnalytics.access.state === "available";
+  const canUseVisitorSignals = visitorSignalsFeature.access.state === "available";
   const [activeTab, setActiveTab] = useState<
     "VISITS" | "TIME" | "DROPOFF" | "SAVES" | "LOCATION" | "LINKS"
   >("VISITS");
   const [expandedVisitor, setExpandedVisitor] = useState<string | null>(null);
+  const [linkSort, setLinkSort] = useState<"views" | "downloads" | "conversion">("views");
 
   // Queries
   const {
@@ -87,20 +96,20 @@ export default function DeckAnalytics() {
     data: stats = [],
     isLoading: statsLoading,
     isFetching: statsFetching,
-  } = useDeckStats(deckId, !!isPro, ownerUserId, canViewAnalytics);
+  } = useDeckStats(deckId, !!isPro, ownerUserId, canViewAnalytics && canUsePageAnalytics);
   const { data: bookmarks = [], isFetching: bookmarksFetching } =
     useDeckBookmarks(deckId, ownerUserId, canViewAnalytics);
   const {
     data: visitorSignals = [],
     isLoading: signalsLoading,
     isFetching: signalsFetching,
-  } = useVisitorSignals(deckId, ownerUserId, canViewAnalytics);
+  } = useVisitorSignals(deckId, ownerUserId, canViewAnalytics && canUseVisitorSignals);
   const { data: uniqueVisitors = 0, isFetching: uniqueFetching } =
     useUniqueVisitorCount(deckId, ownerUserId, canViewAnalytics);
   const { data: locationData, isFetching: locationsFetching } = useDeckLocations(
     deckId,
     ownerUserId,
-    canViewAnalytics,
+    canViewAnalytics && canUsePageAnalytics,
   );
   const {
     data: linkStats = [],
@@ -109,6 +118,10 @@ export default function DeckAnalytics() {
     isError: linksError,
     refetch: refetchLinkStats,
   } = useDeckLinkStats(deckId, ownerUserId, canViewAnalytics);
+  const {
+    data: downloadAnalytics,
+    isFetching: downloadsFetching,
+  } = useDeckDownloadAnalytics(deckId, ownerUserId, canViewAnalytics);
 
   const errorMsg = deckError?.message?.toLowerCase() || "";
   const isAuthOrNotFoundError = deckError && (
@@ -128,8 +141,23 @@ export default function DeckAnalytics() {
 
   const loading = deckLoading || (canViewAnalytics && stats.length === 0 && statsLoading);
   const isRefreshing =
-    canViewAnalytics && (statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching || linksFetching);
+    canViewAnalytics && (statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching || linksFetching || downloadsFetching);
   const totalSaves = bookmarks.length;
+  const downloadsByLink = useMemo(
+    () => new Map((downloadAnalytics?.links ?? []).map((link) => [link.link_id, link])),
+    [downloadAnalytics],
+  );
+  const sortedLinkStats = useMemo(() => [...linkStats].sort((a, b) => {
+    const aDownloads = downloadsByLink.get(a.link_id)?.total_downloads ?? 0;
+    const bDownloads = downloadsByLink.get(b.link_id)?.total_downloads ?? 0;
+    if (linkSort === "downloads") return bDownloads - aDownloads || b.total_views - a.total_views;
+    if (linkSort === "conversion") {
+      const aRate = a.unique_visitors ? (downloadsByLink.get(a.link_id)?.unique_downloaders ?? 0) / a.unique_visitors : 0;
+      const bRate = b.unique_visitors ? (downloadsByLink.get(b.link_id)?.unique_downloaders ?? 0) / b.unique_visitors : 0;
+      return bRate - aRate || bDownloads - aDownloads;
+    }
+    return b.total_views - a.total_views || bDownloads - aDownloads;
+  }), [downloadsByLink, linkSort, linkStats]);
 
   // Derived Stats
 
@@ -180,10 +208,12 @@ export default function DeckAnalytics() {
 
   const tabs = [
     { id: "VISITS", label: "Visits" },
-    { id: "TIME", label: "Duration", shortLabel: "Time" },
-    { id: "DROPOFF", label: "Dropoff" },
+    ...(canUsePageAnalytics ? [
+      { id: "TIME", label: "Duration", shortLabel: "Time" },
+      { id: "DROPOFF", label: "Dropoff" },
+    ] : []),
     { id: "SAVES", label: "Saves", shortLabel: "Saved" },
-    { id: "LOCATION", label: "Location" },
+    ...(canUsePageAnalytics ? [{ id: "LOCATION", label: "Location" }] : []),
     { id: "LINKS", label: "Links" },
   ];
 
@@ -325,7 +355,7 @@ export default function DeckAnalytics() {
         {/* ═══════════════ STATS ROW ═══════════════ */}
         <div className="bg-background px-4 md:px-6 overflow-x-auto scrollbar-hide py-4 relative z-10">
           <div className="max-w-6xl mx-auto min-w-[320px] pb-1 md:pb-0">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <StatItem
                 icon={<Eye size={16} />}
                 label="Total Visits"
@@ -348,11 +378,22 @@ export default function DeckAnalytics() {
                   .filter((s) => s.isEngaged)
                   .length.toString()}
               />
+              <StatItem
+                icon={<Download size={16} />}
+                label="Downloads"
+                value={(downloadAnalytics?.total_downloads ?? 0).toLocaleString()}
+              />
             </div>
           </div>
         </div>
 
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-16 space-y-8 md:space-y-16">
+          {!canUsePageAnalytics && !pageAnalytics.isLoading && (
+            <FeatureGate
+              access={pageAnalytics.access}
+              onUpgrade={() => navigate("/profile")}
+            />
+          )}
           {/* Detailed Engagement Chart Card */}
           <div className="bg-surface-card rounded-lg p-4 md:p-8 shadow-sm">
             <div className="flex flex-col space-y-8">
@@ -463,8 +504,22 @@ export default function DeckAnalytics() {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid gap-4">
-                      {linkStats.map((link: DeckLinkStats) => {
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {(["views", "downloads", "conversion"] as const).map((sort) => (
+                          <Button key={sort} size="sm" variant={linkSort === sort ? "default" : "outline"} onClick={() => setLinkSort(sort)}>
+                            {sort === "views" ? "Views" : sort === "downloads" ? "Downloads" : "Conversion"}
+                          </Button>
+                        ))}
+                      </div>
+                      <div className="grid gap-4">
+                      {sortedLinkStats.map((link: DeckLinkStats) => {
+                        const linkDownloads = downloadsByLink.get(link.link_id);
+                        const downloads = linkDownloads?.total_downloads ?? 0;
+                        const uniqueDownloaders = linkDownloads?.unique_downloaders ?? 0;
+                        const conversion = link.unique_visitors > 0
+                          ? ((uniqueDownloaders / link.unique_visitors) * 100).toFixed(1)
+                          : "0.0";
                         const shareUrl = getReadyDeckLinkShareUrl(
                           profile?.handle,
                           link.link_alias || deck?.slug,
@@ -531,6 +586,14 @@ export default function DeckAnalytics() {
                                 <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Avg Duration</p>
                                 <p className="text-sm font-bold text-white">{avgTime}s</p>
                               </div>
+                              <div className="space-y-1">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Downloads</p>
+                                <p className="text-sm font-bold text-white">{downloads.toLocaleString()}</p>
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Conversion</p>
+                                <p className="text-sm font-bold text-white">{conversion}%</p>
+                              </div>
 
                               <div className="flex items-center gap-2">
                                 <Button
@@ -570,6 +633,7 @@ export default function DeckAnalytics() {
                           </div>
                         );
                       })}
+                      </div>
                     </div>
                   )
                 ) : activeTab === "LOCATION" ? (
@@ -770,6 +834,52 @@ export default function DeckAnalytics() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Download activity */}
+          <div className="bg-surface-card rounded-lg p-4 md:p-8 shadow-sm">
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-md bg-[#1a1a1a] border border-[#333] flex items-center justify-center text-deckly-primary">
+                  <Download size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white tracking-tight">Download Activity</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {downloadAnalytics?.unique_downloaders ?? 0} unique downloader{(downloadAnalytics?.unique_downloaders ?? 0) === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <Badge className="ml-auto bg-deckly-primary text-slate-950 font-medium text-xs px-3 py-1 rounded">
+                  {downloadAnalytics?.total_downloads ?? 0} downloads
+                </Badge>
+              </div>
+              {(downloadAnalytics?.downloaders.length ?? 0) === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-500">No downloads recorded yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {downloadAnalytics!.downloaders.map((downloader, index) => (
+                    <div key={downloader.visitor_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-md bg-surface-low px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">
+                          {downloader.viewer_email?.toLowerCase() || `Anonymous Viewer ${index + 1}`}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Last download {new Date(downloader.latest_download_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="w-fit border-deckly-primary/30 text-deckly-primary">
+                        {downloader.total_downloads} download{downloader.total_downloads === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(downloadAnalytics?.data_room_downloads ?? 0) > 0 && (
+                <p className="text-xs text-slate-500">
+                  {downloadAnalytics!.data_room_downloads} download{downloadAnalytics!.data_room_downloads === 1 ? "" : "s"} came through data rooms; they are excluded from direct-link totals.
+                </p>
+              )}
             </div>
           </div>
 

@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { FileText, FolderInput, Loader2, Plus } from "lucide-react";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DocumentPicker } from "../components/dashboard/DocumentPicker";
-import { DataRoom, DataRoomDocument } from "../types";
+import { DataRoom, DataRoomDocument, DataRoomDownloadAnalytics } from "../types";
 import { dataRoomService } from "../services/dataRoomService";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
 import { useAuth } from "../contexts/AuthContext";
@@ -79,6 +79,12 @@ function DataRoomDetail() {
     totalTimeSeconds: number;
     uniqueVisitors: number;
   }[]>([]);
+  const [downloadAnalytics, setDownloadAnalytics] = useState<DataRoomDownloadAnalytics>({
+    total_downloads: 0,
+    unique_downloaders: 0,
+    documents: [],
+    downloaders: [],
+  });
 
   const [loading, setLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
@@ -216,6 +222,18 @@ function DataRoomDetail() {
           if (requestId !== loadAllRequestIdRef.current) return;
           console.error("Failed to load room document stats", err);
           setRoomDocumentStats([]);
+        });
+
+      void analyticsService
+        .getDataRoomDownloadAnalytics(roomId)
+        .then((downloadData) => {
+          if (requestId !== loadAllRequestIdRef.current) return;
+          setDownloadAnalytics(downloadData);
+        })
+        .catch((err: unknown) => {
+          if (requestId !== loadAllRequestIdRef.current) return;
+          console.error("Failed to load room download analytics", err);
+          setDownloadAnalytics({ total_downloads: 0, unique_downloaders: 0, documents: [], downloaders: [] });
         });
 
       void dataRoomService
@@ -611,6 +629,7 @@ function DataRoomDetail() {
             totalTimeSeconds={totalRoomTimeSeconds}
             roomLocations={roomLocations}
             roomDocumentStats={roomDocumentStats}
+            downloadAnalytics={downloadAnalytics}
             signalsLoading={signalsLoading}
             roomSignals={roomSignals}
             loading={analyticsLoading}

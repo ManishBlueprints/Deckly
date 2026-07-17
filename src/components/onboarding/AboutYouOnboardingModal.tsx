@@ -31,12 +31,16 @@ const ONBOARDING_USE_CASE_OPTIONS = [
 interface AboutYouOnboardingModalProps {
   isOpen: boolean;
   onComplete: () => void;
+  onCompletionStart: () => void;
+  onCompletionFailed: () => void;
   onClose?: () => void;
 }
 
 export function AboutYouOnboardingModal({
   isOpen,
   onComplete,
+  onCompletionStart,
+  onCompletionFailed,
   onClose,
 }: AboutYouOnboardingModalProps) {
   const { profile, session, refreshProfile } = useAuth();
@@ -83,6 +87,7 @@ export function AboutYouOnboardingModal({
       return;
     }
 
+    onCompletionStart();
     setSaving(true);
     setError(null);
     try {
@@ -104,6 +109,7 @@ export function AboutYouOnboardingModal({
       await refreshProfile();
       onComplete();
     } catch (err: unknown) {
+      onCompletionFailed();
       const message = err instanceof Error ? err.message : String(err);
       setError(message || "Failed to save onboarding details.");
     } finally {
@@ -114,6 +120,7 @@ export function AboutYouOnboardingModal({
   const handleSkip = async () => {
     if (!canDismiss || !profile?.id) return;
 
+    onCompletionStart();
     setSaving(true);
     setError(null);
     try {
@@ -122,6 +129,7 @@ export function AboutYouOnboardingModal({
       await refreshProfile();
       onComplete();
     } catch (err: unknown) {
+      onCompletionFailed();
       const message = err instanceof Error ? err.message : String(err);
       setError(message || "Failed to finish onboarding.");
     } finally {

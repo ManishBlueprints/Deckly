@@ -17,6 +17,8 @@ import { AccessProtectionSection } from "./form-sections/AccessProtectionSection
 import { DangerZoneSection } from "./form-sections/DangerZoneSection";
 import { Button } from "../ui/button";
 import { Save } from "lucide-react";
+import { TierUpsellModal } from "./TierUpsellModal";
+import { useTierFeatureAccess } from "../../hooks/useTierEntitlements";
 
 interface DeckSettingsFormProps {
   deck: Deck;
@@ -36,6 +38,9 @@ export function DeckSettingsForm({
   const [requirePassword, setRequirePassword] = useState(
     deck.require_password || false,
   );
+  const [allowDownload, setAllowDownload] = useState(deck.allow_download || false);
+  const [showUpsell, setShowUpsell] = useState(false);
+  const [upsellFeature, setUpsellFeature] = useState("Premium features");
   const [viewPassword, setViewPassword] = useState(deck.view_password || "");
   const [expiryEnabled, setExpiryEnabled] = useState(!!deck.expires_at);
   const [expiryDate, setExpiryDate] = useState(
@@ -52,6 +57,21 @@ export function DeckSettingsForm({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const accessControls = useTierFeatureAccess(
+    profile?.tier,
+    "access_controls",
+    Boolean(profile),
+  );
+  const downloadControls = useTierFeatureAccess(
+    profile?.tier,
+    "deck_downloads",
+    Boolean(profile),
+  );
+
+  const openUpsell = (feature: string) => {
+    setUpsellFeature(feature);
+    setShowUpsell(true);
+  };
 
   // Cleanup timeout on unmount to prevent state updates on unmounted component
   useEffect(() => {
@@ -163,6 +183,7 @@ export function DeckSettingsForm({
         ...(newFile ? { extracted_text: null } : {}),
         require_email: requireEmail,
         require_password: requirePassword,
+        allow_download: allowDownload,
         view_password: finalViewPassword ?? undefined,
         expires_at:
           expiryEnabled && expiryDate
@@ -283,6 +304,14 @@ export function DeckSettingsForm({
         setExpiryDate={setExpiryDate}
         requirePassword={requirePassword}
         setRequirePassword={setRequirePassword}
+        allowDownload={allowDownload}
+        setAllowDownload={setAllowDownload}
+        canUseAccessControls={accessControls.access.state === "available"}
+        onAccessUpsell={() =>
+          openUpsell("Email capture, password protection, and expiry")
+        }
+        canUseDownloadControls={downloadControls.access.state === "available"}
+        onDownloadUpsell={() => openUpsell("Download controls")}
         viewPassword={viewPassword}
         setViewPassword={setViewPassword}
       />
@@ -330,6 +359,12 @@ export function DeckSettingsForm({
       </div>
 
       <DangerZoneSection onDelete={() => onDelete(deck.id)} />
+
+      <TierUpsellModal
+        isOpen={showUpsell}
+        onClose={() => setShowUpsell(false)}
+        featureName={upsellFeature}
+      />
 
       {/* Progress Notification */}
       <AnimatePresence>

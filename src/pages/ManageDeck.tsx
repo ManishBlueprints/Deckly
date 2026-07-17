@@ -6,6 +6,7 @@ import { useManageDeckWorkflow } from "../hooks/useManageDeckWorkflow";
 import { useAuth } from "../contexts/AuthContext";
 import { normalizeSlug } from "../utils/slug";
 import { TIER_CONFIG } from "../constants/tiers";
+import { useTierFeatureAccess } from "../hooks/useTierEntitlements";
 import { Deck, UserProfile } from "../types";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -31,6 +32,7 @@ function ManageDeck() {
   const [description, setDescription] = useState("");
   const [requireEmail, setRequireEmail] = useState(false);
   const [requirePassword, setRequirePassword] = useState(false);
+  const [allowDownload, setAllowDownload] = useState(false);
   const [viewPassword, setViewPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string>("");
@@ -51,6 +53,8 @@ function ManageDeck() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile: authProfile } = useAuth();
   const queryClient = useQueryClient();
+  const accessControls = useTierFeatureAccess(userProfile?.tier, "access_controls", Boolean(userProfile));
+  const downloadControls = useTierFeatureAccess(userProfile?.tier, "deck_downloads", Boolean(userProfile));
 
   const { data: isSlugAvailable, isLoading: isCheckingSlug } = useCheckDeckSlug(
     slug,
@@ -65,6 +69,7 @@ function ManageDeck() {
     setDescription,
     setRequireEmail,
     setRequirePassword,
+    setAllowDownload,
     setViewPassword,
     setExpiresAt,
     setEnableExpiry,
@@ -153,6 +158,7 @@ function ManageDeck() {
       description,
       requireEmail,
       requirePassword,
+      allowDownload,
       viewPassword,
       expiresAt,
       conversionMode,
@@ -228,12 +234,24 @@ function ManageDeck() {
             <ManageDeckAccessSection
               requireEmail={requireEmail}
               requirePassword={requirePassword}
+              allowDownload={allowDownload}
+              canUseAccessControls={accessControls.access.state === "available"}
+              canUseDownloadControls={downloadControls.access.state === "available"}
               viewPassword={viewPassword}
               showPasswordField={showPasswordField}
               enableExpiry={enableExpiry}
               expiresAt={expiresAt}
               onRequireEmailChange={setRequireEmail}
               onRequirePasswordChange={setRequirePassword}
+              onAllowDownloadChange={setAllowDownload}
+              onAccessUpsell={() => {
+                setUpsellFeature("Email capture, password protection and expiry");
+                setShowUpsell(true);
+              }}
+              onDownloadUpsell={() => {
+                setUpsellFeature("Download controls");
+                setShowUpsell(true);
+              }}
               onViewPasswordChange={setViewPassword}
               onTogglePasswordVisibility={() =>
                 setShowPasswordField((value) => !value)

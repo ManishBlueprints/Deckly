@@ -56,4 +56,13 @@ describe("storagePaths", () => {
       }),
     ).toBeNull();
   });
+
+  it("extracts an R2 object key from a signed R2 URL", () => {
+    expect(
+      extractStoragePath(
+        "https://account.r2.cloudflarestorage.com/decks/user-1/decks/investor-update.pdf?X-Amz-Signature=abc",
+        "decks",
+      ),
+    ).toBe("user-1/decks/investor-update.pdf");
+  });
 });

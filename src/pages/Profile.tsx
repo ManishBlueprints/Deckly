@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   User,
   Crown,
@@ -19,6 +19,8 @@ import {
   CheckCircle2,
   ShieldCheck,
   ReceiptText,
+  Lock,
+  Clock3,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
@@ -40,16 +42,8 @@ import { isEmailPasswordSession } from "../services/passwordService";
 import { subscriptionService, type BillingInterval, type Subscription } from "../services/subscriptionService";
 import { useSubscriptionState } from "../hooks/useSubscriptionState";
 import { formatBillingAmount } from "../utils/billingPresentation";
-
-const TIER_PRICING: Record<
-  Tier,
-  { monthly: number; yearly: number; cta: string }
-> = {
-  FREE: { monthly: 0, yearly: 0, cta: "Switch to Free" },
-  PRO: { monthly: 9, yearly: 86.4, cta: "Get Share" },
-  PRO_PLUS: { monthly: 15, yearly: 144, cta: "Get Founder" },
-  RAISE: { monthly: 45, yearly: 432, cta: "Get Raise" },
-};
+import { usePricingCatalog, useTierFeatureAccess } from "../hooks/useTierEntitlements";
+import type { PricingCatalog, PricingTier } from "../services/tierEntitlementService";
 
 const TIER_ORDER: Record<Tier, number> = {
   FREE: 0,
@@ -73,85 +67,16 @@ const PLAN_PRESENTATION: Record<Tier, { description: string }> = {
   },
 };
 
-type TierFeatureKey =
-  | "maxDecks"
-  | "maxDecksPerRoom"
-  | "days"
-  | "maxDataRooms"
-  | "maxFileSizeMB"
-  | "aiSummariesPerDay"
-  | "supportedFormats"
-  | "allowOffice"
-  | "allowInteractive"
-  | "teamMembers"
-  | "prioritySupport"
-  | "pricingFeatures";
-
-const TIER_FEATURES: Array<{
-  key: TierFeatureKey;
-  label: string;
-  format?: (value: number | boolean | string[]) => string;
-}> = [
-  {
-    key: "maxDecksPerRoom",
-    label: "Documents",
-    format: (value) => formatCount(value as number, "document"),
-  },
-  {
-    key: "days",
-    label: "Analytics Retention",
-    format: (value) => formatCount(value as number, "day"),
-  },
-  {
-    key: "maxDataRooms",
-    label: "Data Rooms",
-    format: (value) => formatCount(value as number, "room"),
-  },
-  {
-    key: "maxFileSizeMB",
-    label: "Maximum file size",
-    format: (value) => formatStorage(value as number),
-  },
-  {
-    key: "aiSummariesPerDay",
-    label: "AI Credits",
-    format: (value) => `${value} / day`,
-  },
-  {
-    key: "pricingFeatures",
-    label: "Included",
-    format: (value) => (value as string[]).join(" · "),
-  },
-  {
-    key: "allowOffice",
-    label: "Office Files",
-    format: (value) => (value ? "Yes" : "No"),
-  },
-  {
-    key: "allowInteractive",
-    label: "Interactive Mode",
-    format: (value) => (value ? "Yes" : "No"),
-  },
-  {
-    key: "teamMembers",
-    label: "Team Members",
-    format: (value) => formatCount(value as number, "member"),
-  },
-  {
-    key: "prioritySupport",
-    label: "Priority Support",
-    format: (value) => (value ? "Yes" : "No"),
-  },
-];
-
 function formatCount(value: number, unit: string) {
   if (value === -1) return "Unlimited";
   if (value === 0) return "0";
   return `${value} ${value === 1 ? unit : `${unit}s`}`;
 }
 
-function formatStorage(value: number) {
-  return value >= 1024 ? `${value / 1024} GB` : `${value} MB`;
+function formatStorageBytes(value: number) {
+  const gigabyte = 1024 * 1024 * 1024;
+  const megabyte = 1024 * 1024;
+  return value >= gigabyte ? `${value / gigabyte} GB` : `${value / megabyte} MB`;
 }
 
 function formatPrice(value: number) {
@@ -160,18 +85,35 @@ function formatPrice(value: number) {
 
 type ProfileSection = "identity" | "security" | "tier" | "billing" | "collaboration" | "danger";
 
+const isProfileSection = (value: string | null): value is ProfileSection =>
+  value === "identity" ||
+  value === "security" ||
+  value === "tier" ||
+  value === "billing" ||
+  value === "collaboration" ||
+  value === "danger";
+
 function Profile() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { profile, branding, session, signOutAllDevices, deleteAccount } = useAuth();
   const { markTourComplete } = useTourState();
-  const [activeSection, setActiveSection] =
-    useState<ProfileSection>("identity");
+  const [activeSection, setActiveSection] = useState<ProfileSection>(() => {
+    const requestedSection = searchParams.get("section");
+    return isProfileSection(requestedSection) ? requestedSection : "identity";
+  });
+  const [isFinishingOnboarding, setIsFinishingOnboarding] = useState(false);
 
   useEffect(() => {
     document.title = "Profile | Deckly";
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    const requestedSection = searchParams.get("section");
+    if (isProfileSection(requestedSection)) setActiveSection(requestedSection);
+  }, [searchParams]);
 
   const isValidTier = (t: string | undefined | null): t is Tier =>
     ["FREE", "PRO", "PRO_PLUS", "RAISE"].includes(t as string);
@@ -180,6 +122,8 @@ function Profile() {
   const onboardingMode = onboardingStage !== "complete";
   const setupComplete = onboardingStage !== "workspace";
   const billing = useSubscriptionState();
+  const pricingCatalog = usePricingCatalog(Boolean(session?.user));
+  const tierLabel = pricingCatalog.data?.tiers.find((entry) => entry.tier === tier)?.label ?? TIER_CONFIG[tier].planLabel;
 
   useEffect(() => {
     if (
@@ -197,8 +141,13 @@ function Profile() {
     profile?.tutorial_state?.onboarding_completed,
   ]);
 
-  if (onboardingMode) {
-    return <ProfileOnboardingFlow />;
+  if (onboardingMode || isFinishingOnboarding) {
+    return (
+      <ProfileOnboardingFlow
+        onCompletionStart={() => setIsFinishingOnboarding(true)}
+        onCompletionFailed={() => setIsFinishingOnboarding(false)}
+      />
+    );
   }
 
   const canChangePassword = isEmailPasswordSession(session?.user);
@@ -269,7 +218,7 @@ function Profile() {
                             : "bg-amber-400 text-slate-950 border-amber-300/60",
                     )}
                   >
-                    {TIER_CONFIG[tier].planLabel}
+                    {tierLabel}
                   </span>
                 </div>
               </div>
@@ -340,7 +289,7 @@ function Profile() {
                     queryClient={queryClient}
                   />
                 )}
-                {activeSection === "tier" && <TierSection currentTier={tier} subscription={billing.subscription} refreshBilling={billing.refreshBilling} onManageBilling={() => setActiveSection("billing")} />}
+                {activeSection === "tier" && <TierSection currentTier={tier} subscription={billing.subscription} refreshBilling={billing.refreshBilling} onManageBilling={() => setActiveSection("billing")} catalog={pricingCatalog.data} catalogLoading={pricingCatalog.isLoading} catalogError={pricingCatalog.error instanceof Error ? pricingCatalog.error.message : null} />}
                 {activeSection === "billing" && <BillingSection currentTier={tier} profileId={billing.profileId} subscription={billing.subscription} subscriptionLoading={billing.subscriptionLoading} refreshBilling={billing.refreshBilling} onManagePlan={() => setActiveSection("tier")} />}
                 {activeSection === "security" && canChangePassword && (
                   <PasswordSecuritySection />
@@ -373,6 +322,11 @@ function IdentitySection({
 }) {
   const navigate = useNavigate();
   const { profile, branding, setBranding, refreshProfile } = useAuth();
+  const customLogo = useTierFeatureAccess(
+    profile?.tier,
+    "custom_logo",
+    Boolean(profile),
+  );
   const { markTourComplete } = useTourState();
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -434,6 +388,11 @@ function IdentitySection({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!customLogo.isLoading && customLogo.access.state !== "available") {
+      toast.info("Custom logos are available on Founder.");
+      return;
+    }
 
     if (file.size > 2 * 1024 * 1024) {
       setError("Image size must be less than 2MB");
@@ -561,8 +520,9 @@ function IdentitySection({
             {!uploading && (
               <button
                 onClick={() => fileInputRef.current?.click()}
+                disabled={!customLogo.isLoading && customLogo.access.state !== "available"}
                 className="absolute -top-2 -right-2 w-8 h-8 bg-deckly-primary text-primary-foreground flex items-center justify-center hover:scale-105 active:scale-95 transition-all border-4 border-surface-low shadow-lg"
-                title="Upload New"
+                title={customLogo.access.state === "available" ? "Upload new logo" : "Custom logos are available on Founder"}
               >
                 <Camera size={14} />
               </button>
@@ -572,13 +532,14 @@ function IdentitySection({
           <div className="flex-1 space-y-3">
             <h3 className="text-sm font-bold text-white">Brand Mascot</h3>
             <p className="text-xs text-slate-500">
-              Appears in the sidebar and shared deck pages. PNGs work best. Max
-              2MB.
+              {customLogo.isLoading || customLogo.access.state === "available"
+                ? "Appears in the sidebar and shared deck pages. PNGs work best. Max 2MB."
+                : "Custom logos are available on Founder. Your existing logo remains visible."}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
+                disabled={uploading || (!customLogo.isLoading && customLogo.access.state !== "available")}
                 className="flex items-center gap-2 px-4 py-2 bg-surface-container hover:bg-surface-high text-foreground text-[10px] font-bold uppercase tracking-widest border border-border transition-all disabled:opacity-50"
               >
                 <Upload size={12} className="text-deckly-primary" />
@@ -740,7 +701,7 @@ function IdentitySection({
 }
 
 /* ── Tier Section ── */
-function TierSection({ currentTier, onManageBilling, refreshBilling, subscription }: { currentTier: Tier; onManageBilling: () => void; refreshBilling: () => Promise<void>; subscription: Subscription | null | undefined }) {
+function TierSection({ currentTier, onManageBilling, refreshBilling, subscription, catalog, catalogLoading, catalogError }: { currentTier: Tier; onManageBilling: () => void; refreshBilling: () => Promise<void>; subscription: Subscription | null | undefined; catalog: PricingCatalog | undefined; catalogLoading: boolean; catalogError: string | null }) {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
     "yearly",
   );
@@ -756,11 +717,12 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
     RAISE: Crown,
   };
 
+  const tierRecord = (tierKey: Tier): PricingTier | undefined => catalog?.tiers.find((entry) => entry.tier === tierKey);
+  const labelFor = (tierKey: Tier) => tierRecord(tierKey)?.label ?? TIER_CONFIG[tierKey].planLabel;
   const getPricePerMonth = (tierKey: Tier) => {
-    const pricing = TIER_PRICING[tierKey];
-    return billingCycle === "monthly"
-      ? pricing.monthly
-      : Number((pricing.yearly / 12).toFixed(2));
+    const pricing = tierRecord(tierKey)?.prices;
+    if (!pricing) return 0;
+    return billingCycle === "monthly" ? pricing.monthly : Number((pricing.yearly / 12).toFixed(2));
   };
   const billingCycleLabel = billingCycle === "yearly" ? "annual" : "monthly";
 
@@ -775,7 +737,7 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
           const isSameTier = subscription.entitlement_tier === tier;
           const isIntervalChange = isSameTier && subscription.billing_interval !== billingCycle;
           if (isSameTier && !isIntervalChange) {
-            toast.message(`${TIER_CONFIG[tier].planLabel} on ${billingCycleLabel} billing is already active.`);
+            toast.message(`${labelFor(tier)} on ${billingCycleLabel} billing is already active.`);
             return;
           }
 
@@ -784,13 +746,13 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
             const charge = change.immediate_charge;
             toast.success(
               charge?.status === "paid"
-                ? `${TIER_CONFIG[tier].planLabel} on ${billingCycleLabel} billing is active. Razorpay charged ${formatBillingAmount(charge.amount, charge.currency)} to your saved payment method.`
-                : `${TIER_CONFIG[tier].planLabel} on ${billingCycleLabel} billing is active. Razorpay is finalising the prorated charge; the receipt will appear in Billing shortly.`,
+                ? `${labelFor(tier)} on ${billingCycleLabel} billing is active. Razorpay charged ${formatBillingAmount(charge.amount, charge.currency)} to your saved payment method.`
+                : `${labelFor(tier)} on ${billingCycleLabel} billing is active. Razorpay is finalising the prorated charge; the receipt will appear in Billing shortly.`,
             );
           } else if (isIntervalChange) {
-            toast.success(`${TIER_CONFIG[tier].planLabel} will switch to ${billingCycleLabel} billing at your next renewal.`);
+            toast.success(`${labelFor(tier)} will switch to ${billingCycleLabel} billing at your next renewal.`);
           } else {
-            toast.success(`${TIER_CONFIG[tier].planLabel} will become active at your next renewal.`);
+            toast.success(`${labelFor(tier)} will become active at your next renewal.`);
           }
           await refreshBilling();
           return;
@@ -807,7 +769,7 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
         key: checkout.key_id,
         subscription_id: checkout.subscription_id,
         name: "Deckly",
-        description: `${TIER_CONFIG[tier].planLabel} subscription`,
+        description: `${labelFor(tier)} subscription`,
         prefill: { email: session.user.email },
         handler: async (response: { razorpay_payment_id: string; razorpay_signature: string }) => {
           checkoutCompleted = true;
@@ -861,6 +823,17 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
         onClose={() => setUpgradeTarget(null)}
         onConfirm={confirmImmediateUpgrade}
       />
+
+      {catalogLoading && (
+        <div className="border border-border bg-surface-low px-4 py-3 text-xs text-muted-foreground" role="status">
+          Loading current plan capabilities…
+        </div>
+      )}
+      {catalogError && (
+        <div className="border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive" role="alert">
+          Plan capabilities could not be loaded. Please refresh before making a billing decision.
+        </div>
+      )}
 
       {subscription && (
         <div className="border border-border bg-surface-low px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -919,9 +892,11 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      {catalog && <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {tierKeys.map((tierKey) => {
-          const pricing = TIER_PRICING[tierKey];
+          const pricing = tierRecord(tierKey)?.prices;
+          const limits = tierRecord(tierKey)?.limits;
+          if (!pricing || !limits) return null;
           const liveSubscription = subscription && ["authenticated", "active"].includes(subscription.provider_status)
             ? subscription
             : null;
@@ -981,7 +956,7 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
                     <TierIcon size={20} />
                   </div>
                   <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-foreground">
-                    {TIER_CONFIG[tierKey].planLabel}
+                    {labelFor(tierKey)}
                   </h3>
                 </div>
                 <p className="min-h-10 text-xs leading-relaxed text-muted-foreground">
@@ -1010,7 +985,7 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
                     <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">No card required</p>
                   ) : billingCycle === "yearly" ? (
                     <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-deckly-primary">
-                      ${formatPrice(TIER_PRICING[tierKey].yearly)} billed yearly · save 20%
+                      ${formatPrice(pricing.yearly)} billed yearly · save 20%
                     </p>
                   ) : (
                     <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Billed monthly · cancel anytime</p>
@@ -1019,25 +994,18 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
               </div>
 
               <dl className="mt-4 flex-1 divide-y divide-border/70">
-                {TIER_FEATURES.slice(0, 5).map(({ key, label, format }) => {
-                  const val = TIER_CONFIG[tierKey][key];
-
-                  return (
-                    <div
-                      key={key}
-                      className="flex items-center justify-between gap-3 py-2.5"
-                    >
-                      <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                        {label}
-                      </dt>
-                      <dd className="text-right text-xs font-semibold text-foreground">
-                        {format
-                          ? format(val as number | boolean | string[])
-                          : formatTierFeatureValue(val)}
-                      </dd>
-                    </div>
-                  );
-                })}
+                {[
+                  ["Documents", formatCount(limits.maxDocuments, "document")],
+                  ["Analytics retention", limits.analyticsRetentionDays === -1 ? "Full history" : formatCount(limits.analyticsRetentionDays, "day")],
+                  ["Data rooms", formatCount(limits.maxDataRooms, "room")],
+                  ["Storage", formatStorageBytes(limits.storageLimitBytes)],
+                  ["AI credits", `${limits.aiCreditsPerDay} / day`],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between gap-3 py-2.5">
+                    <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</dt>
+                    <dd className="text-right text-xs font-semibold text-foreground">{value}</dd>
+                  </div>
+                ))}
               </dl>
 
               {/* Action Button */}
@@ -1067,19 +1035,19 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
                   : billingBusy
                     ? "Working..."
                     : isImmediateUpgrade || isUpgrade
-                        ? `Upgrade to ${TIER_CONFIG[tierKey].planLabel}`
+                        ? `Upgrade to ${labelFor(tierKey)}`
                         : isIntervalChange
                             ? `Switch to ${billingCycleLabel} at renewal`
                         : subscription
                             ? "Change at Renewal"
-                            : pricing.cta}
+                            : `Get ${labelFor(tierKey)}`}
               </button>
             </motion.div>
           );
         })}
-      </div>
+      </div>}
 
-      <section className="border border-border bg-surface-low/30" aria-labelledby="plan-comparison-title">
+      {catalog && <section className="border border-border bg-surface-low/30" aria-labelledby="plan-comparison-title">
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
             <div>
@@ -1095,25 +1063,38 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
             <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {tierKeys.map((tierKey) => (
                 <article key={tierKey} className="border border-border/70 bg-surface-lowest/40 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-foreground">{TIER_CONFIG[tierKey].planLabel}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-foreground">{labelFor(tierKey)}</p>
 
                   <dl className="mt-3 divide-y divide-border/70 border-y border-border/70">
-                    {TIER_FEATURES.filter(({ key }) => key !== "pricingFeatures").map(({ key, label, format }) => {
-                      const value = TIER_CONFIG[tierKey][key];
-                      return (
-                        <div key={key} className="flex items-center justify-between gap-3 py-2">
-                          <dt className="text-[10px] text-muted-foreground">{label}</dt>
-                          <dd className="text-right text-[10px] font-semibold text-foreground">{format ? format(value as number | boolean | string[]) : formatTierFeatureValue(value)}</dd>
-                        </div>
-                      );
-                    })}
+                    {[
+                      ["Active data rooms", formatCount(tierRecord(tierKey)?.limits.maxDataRooms ?? 0, "room")],
+                      ["Documents", formatCount(tierRecord(tierKey)?.limits.maxDocuments ?? 0, "document")],
+                      ["Storage", formatStorageBytes(tierRecord(tierKey)?.limits.storageLimitBytes ?? 0)],
+                      ["Seats", `${tierRecord(tierKey)?.limits.plannedTeamMembers ?? 1} · Coming soon`],
+                      ["Analytics retention", (tierRecord(tierKey)?.limits.analyticsRetentionDays ?? 0) === -1 ? "Full history" : formatCount(tierRecord(tierKey)?.limits.analyticsRetentionDays ?? 0, "day")],
+                      ["AI credits", `${tierRecord(tierKey)?.limits.aiCreditsPerDay ?? 0} / day`],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between gap-3 py-2">
+                        <dt className="text-[10px] text-muted-foreground">{label}</dt>
+                        <dd className="text-right text-[10px] font-semibold text-foreground">{value}</dd>
+                      </div>
+                    ))}
                   </dl>
 
                   <ul className="mt-4 space-y-2">
-                    {TIER_CONFIG[tierKey].pricingFeatures.map((feature) => (
-                      <li key={feature} className="flex gap-2 text-xs leading-snug text-muted-foreground">
-                        <Check size={12} className="mt-0.5 shrink-0 text-deckly-primary" />
-                        <span>{feature}</span>
+                    {tierRecord(tierKey)?.features.map((feature) => (
+                      <li key={feature.key} className="flex gap-2 text-xs leading-snug text-muted-foreground">
+                        {feature.included && feature.availability === "live" ? (
+                          <Check size={12} className="mt-0.5 shrink-0 text-deckly-primary" aria-label="Included" />
+                        ) : feature.included ? (
+                          <Clock3 size={12} className="mt-0.5 shrink-0 text-amber-400" aria-label="Coming soon" />
+                        ) : (
+                          <Lock size={12} className="mt-0.5 shrink-0 text-muted-foreground" aria-label={`Available on ${labelFor(feature.requiredTier)}`} />
+                        )}
+                        <span>
+                          {feature.label}
+                          {feature.included && feature.availability === "coming_soon" && <span className="ml-1 text-[9px] font-bold uppercase tracking-wider text-amber-400">Coming soon</span>}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -1122,16 +1103,9 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
             </div>
           </div>
         </details>
-      </section>
+      </section>}
     </div>
   );
-}
-
-function formatTierFeatureValue(value: number | boolean | string[]): string {
-  if (Array.isArray(value)) return value.join(" / ");
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (value === -1) return "Unlimited";
-  return `${value}`;
 }
 
 /* ── Collaboration Section ── */

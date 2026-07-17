@@ -659,4 +659,30 @@ export const dataRoomService = {
     return decks;
   },
 
+  async requestDeckDownload(
+    handle: string,
+    roomSlug: string,
+    deckId: string,
+    password?: string,
+    tracking?: { requestId: string; visitorId: string; viewerEmail?: string },
+  ): Promise<{ downloadUrl: string; filename: string }> {
+    const { data, error } = await supabase.functions.invoke("sign-deck-url", {
+      body: {
+        intent: "download",
+        handle,
+        room_slug: roomSlug,
+        deck_id: deckId,
+        password: password ?? null,
+        request_id: tracking?.requestId ?? null,
+        visitor_id: tracking?.visitorId ?? null,
+        viewer_email: tracking?.viewerEmail ?? null,
+      },
+    });
+    if (error) throw error;
+    if (!data?.download_url || !data?.filename) {
+      throw new Error("Download link was unavailable");
+    }
+    return { downloadUrl: data.download_url as string, filename: data.filename as string };
+  },
+
 };
