@@ -140,6 +140,65 @@ vi.mock("../utils/resilience", () => ({
 }));
 
 import { deckService } from "./deckService";
+import { extractStoragePath, getDeckSession } from "./deckService.shared";
+
+describe("deckService.getAllDecks", () => {
+  beforeEach(() => {
+    mocks.responseQueues.clear();
+    vi.clearAllMocks();
+  });
+
+  it("hydrates only the first page of each deck for picker thumbnails", async () => {
+    vi.mocked(getDeckSession).mockResolvedValue({ user: { id: "user-1" } } as never);
+    vi.mocked(extractStoragePath).mockReturnValue("user-1/decks/seed-page-1.png");
+    vi.mocked(mocks.mockSupabase.functions.invoke).mockResolvedValue({
+      data: {
+        data: [
+          {
+            path: "user-1/decks/seed-page-1.png",
+            signedUrl: "https://signed.example.com/seed-page-1.png",
+          },
+        ],
+      },
+      error: null,
+    });
+    mocks.queueResponse("decks.select", {
+      data: [
+        {
+          id: "deck-1",
+          title: "Seed",
+          slug: "seed-round",
+          file_url: "user-1/decks/seed.pdf",
+          status: "PROCESSED",
+          user_id: "user-1",
+          display_order: 0,
+          pages: [
+            { page_number: 1, image_url: "user-1/decks/seed-page-1.png" },
+            { page_number: 2, image_url: "user-1/decks/seed-page-2.png" },
+          ],
+          created_at: "2026-05-14T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    const decks = await deckService.getAllDecks();
+
+    expect(decks[0].pages[0].image_url).toBe("https://signed.example.com/seed-page-1.png");
+    expect(decks[0].pages[1].image_url).toBe("user-1/decks/seed-page-2.png");
+    expect(vi.mocked(mocks.mockSupabase.functions.invoke)).toHaveBeenCalledWith(
+      "r2-storage",
+      {
+        body: {
+          action: "create-signed-urls",
+          bucket: "decks",
+          paths: ["user-1/decks/seed-page-1.png"],
+          expiresInSeconds: 3600,
+        },
+      },
+    );
+  });
+});
 
 describe("deckService.getDecksWithAnalytics", () => {
   beforeEach(() => {

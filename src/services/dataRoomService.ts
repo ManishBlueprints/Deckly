@@ -237,7 +237,10 @@ export const dataRoomService = {
     });
   },
 
-  async getDocuments(roomId: string, options?: { signUrls?: boolean }): Promise<DataRoomDocument[]> {
+  async getDocuments(
+    roomId: string,
+    options?: { signUrls?: boolean; signThumbnails?: boolean },
+  ): Promise<DataRoomDocument[]> {
     return withRetry(async () => {
       const { data, error } = await supabase
         .from("data_room_documents")
@@ -268,16 +271,22 @@ export const dataRoomService = {
         };
       }) as DataRoomDocument[];
 
-      // Hydrate signed URLs only when explicitly requested
-      if (options?.signUrls) {
+      // Sign every document asset only when it will be opened. List views need
+      // just the first page, which keeps large data rooms fast.
+      const signAllUrls = options?.signUrls === true;
+      const signThumbnails = options?.signThumbnails === true;
+      if (signAllUrls || signThumbnails) {
         const allPaths: string[] = [];
         documents.forEach(doc => {
           if (!doc.deck) return;
-          const mainPath = extractStoragePath(doc.deck.file_url, "decks");
-          if (mainPath) allPaths.push(mainPath);
-          
+          if (signAllUrls) {
+            const mainPath = extractStoragePath(doc.deck.file_url, "decks");
+            if (mainPath) allPaths.push(mainPath);
+          }
+           
           const pages = Array.isArray(doc.deck.pages) ? doc.deck.pages : [];
-          pages.forEach(p => {
+          const pagesToSign = signAllUrls ? pages : pages.slice(0, 1);
+          pagesToSign.forEach(p => {
             const pPath = extractStoragePath(p.image_url, "decks");
             if (pPath) allPaths.push(pPath);
           });
@@ -297,13 +306,16 @@ export const dataRoomService = {
             
             documents.forEach(doc => {
               if (!doc.deck) return;
-              const mainPath = extractStoragePath(doc.deck.file_url, "decks");
-              if (mainPath && urlMap.has(mainPath)) {
-                doc.deck.file_url = urlMap.get(mainPath)!;
+              if (signAllUrls) {
+                const mainPath = extractStoragePath(doc.deck.file_url, "decks");
+                if (mainPath && urlMap.has(mainPath)) {
+                  doc.deck.file_url = urlMap.get(mainPath)!;
+                }
               }
               
               if (Array.isArray(doc.deck.pages)) {
-                doc.deck.pages = doc.deck.pages.map(p => {
+                doc.deck.pages = doc.deck.pages.map((p, index) => {
+                  if (!signAllUrls && index > 0) return p;
                   const pPath = extractStoragePath(p.image_url, "decks");
                   if (pPath && urlMap.has(pPath)) {
                     return { ...p, image_url: urlMap.get(pPath)! };

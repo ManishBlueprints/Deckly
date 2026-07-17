@@ -7,7 +7,6 @@ import { DocumentPicker } from "../components/dashboard/DocumentPicker";
 import { DataRoom, DataRoomDocument } from "../types";
 import { dataRoomService } from "../services/dataRoomService";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
-import { deckService } from "../services/deckService";
 import { useAuth } from "../contexts/AuthContext";
 import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { useQueryClient } from "@tanstack/react-query";
@@ -65,7 +64,6 @@ function DataRoomDetail() {
 
   const [room, setRoom] = useState<DataRoom | null>(null);
   const [documents, setDocuments] = useState<DataRoomDocument[]>([]);
-  const [signedThumbnails, setSignedThumbnails] = useState<Record<string, string>>({});
   const [analytics, setAnalytics] = useState<{
     totalVisitors: number;
     perDeck: { deckId: string; title: string; visitors: number }[];
@@ -169,7 +167,7 @@ function DataRoomDetail() {
     try {
       const [roomData, docs] = await Promise.all([
         dataRoomService.getDataRoomById(roomId),
-        dataRoomService.getDocuments(roomId),
+        dataRoomService.getDocuments(roomId, { signThumbnails: true }),
       ]);
       if (requestId !== loadAllRequestIdRef.current) return;
       if (!roomData) {
@@ -266,22 +264,6 @@ function DataRoomDetail() {
       loadAllRequestIdRef.current += 1;
     };
   }, [loadAll]);
-
-  // Re-sign thumbnails whenever documents change
-  useEffect(() => {
-    if (documents.length === 0) return;
-    let mounted = true;
-
-    deckService.signOwnerThumbnails().then((thumbs) => {
-      if (mounted) setSignedThumbnails(thumbs);
-    }).catch((err) => {
-      if (mounted) console.error("Failed to sign Data Room thumbnails", err);
-    });
-
-    return () => {
-      mounted = false;
-    };
-  }, [documents]);
 
   /* ── actions ── */
   const handleCopyLink = async () => {
@@ -619,7 +601,6 @@ function DataRoomDetail() {
             onMoveDocumentToFolder={handleMoveDocumentToFolder}
             onViewAnalytics={(deckId) => navigate(`/analytics/${deckId}`)}
             onEditDeck={(deckId) => navigate(`/edit/${deckId}`)}
-            signedThumbnails={signedThumbnails}
           />
         )}
 
@@ -818,7 +799,6 @@ function DataRoomContentSection({
   onMoveDocumentToFolder,
   onViewAnalytics,
   onEditDeck,
-  signedThumbnails,
 }: {
   folders: DataRoomFolderWithTags[];
   tags: DataRoomTag[];
@@ -846,7 +826,6 @@ function DataRoomContentSection({
   onMoveDocumentToFolder: (documentId: string, folderId: string | null) => Promise<void>;
   onViewAnalytics: (deckId: string) => void;
   onEditDeck: (deckId: string) => void;
-  signedThumbnails: Record<string, string>;
 }) {
   return (
     <div className="space-y-6 md:space-y-8">
@@ -958,7 +937,6 @@ function DataRoomContentSection({
               onUpdateDocumentTags={onUpdateDocumentTags}
               onViewAnalytics={onViewAnalytics}
               onEditDeck={onEditDeck}
-              signedThumbnails={signedThumbnails}
             />
           </div>
         )}

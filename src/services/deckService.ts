@@ -78,6 +78,44 @@ const hydrateSignedDeckUrls = async (decks: Deck[]): Promise<Deck[]> => {
   });
 };
 
+const hydrateSignedDeckThumbnails = async (decks: Deck[]): Promise<Deck[]> => {
+  const thumbnailPaths = new Set<string>();
+
+  decks.forEach((deck) => {
+    const thumbnailPath = extractStoragePath(deck.pages?.[0]?.image_url, "decks");
+    if (thumbnailPath) thumbnailPaths.add(thumbnailPath);
+  });
+
+  if (thumbnailPaths.size === 0) return decks;
+
+  const { data: signedData, error: signError } = await storageService.createSignedUrls(
+    "decks",
+    Array.from(thumbnailPaths),
+    3600,
+  );
+
+  if (signError || !signedData) return decks;
+
+  const signedUrlMap = new Map<string, string>();
+  signedData.forEach((item) => {
+    if (item.path && item.signedUrl) signedUrlMap.set(item.path, item.signedUrl);
+  });
+
+  return decks.map((deck) => {
+    const [firstPage, ...remainingPages] = deck.pages ?? [];
+    const thumbnailPath = firstPage
+      ? extractStoragePath(firstPage.image_url, "decks")
+      : null;
+    const signedThumbnailUrl = thumbnailPath
+      ? signedUrlMap.get(thumbnailPath)
+      : null;
+
+    return signedThumbnailUrl && firstPage
+      ? { ...deck, pages: [{ ...firstPage, image_url: signedThumbnailUrl }, ...remainingPages] }
+      : deck;
+  });
+};
+
 const deckCrudService = {
   async getAllDecks(providedUserId?: string): Promise<Deck[]> {
     return withRetry(async () => {
@@ -91,7 +129,7 @@ const deckCrudService = {
         .order("display_order", { ascending: true });
 
       if (error) throw error;
-      return data as Deck[];
+      return hydrateSignedDeckThumbnails(data as Deck[]);
     });
   },
 
