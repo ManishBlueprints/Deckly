@@ -159,7 +159,7 @@ function DeckViewer({
                 ...(dimensions.width > 0 ? dimensions : {}),
                 touchAction: "pan-y",
               }}
-              className={`rounded-sm flex items-center justify-center overflow-hidden ${
+              className={`relative rounded-sm flex items-center justify-center overflow-hidden ${
                 dimensions.width > 0 ? "bg-white shadow-2xl" : "bg-transparent"
               }`}
             >

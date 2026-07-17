@@ -201,6 +201,10 @@ function DeckDetailPanel({
       }
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
+      if (newFile && deck.watermark_enabled) {
+        setUploadProgress("Preparing watermarked download...");
+        await deckService.generateWatermarkedDeck(deck.id);
+      }
       onUpdate(updated);
       setUploadProgress("Saved!");
       setTimeout(() => {

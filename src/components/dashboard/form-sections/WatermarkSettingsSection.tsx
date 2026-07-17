@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Droplets, Lock } from "lucide-react";
 import { Switch } from "../../ui/switch";
 import { Input } from "../../ui/input";
@@ -14,6 +14,8 @@ interface WatermarkSettingsSectionProps {
   onEnabledChange: (enabled: boolean) => void;
   onTextChange: (text: string) => void;
   onUpsell: () => void;
+  onRetry?: () => Promise<void>;
+  isRetrying?: boolean;
 }
 
 export function WatermarkSettingsSection({
@@ -25,9 +27,13 @@ export function WatermarkSettingsSection({
   onEnabledChange,
   onTextChange,
   onUpsell,
+  onRetry,
+  isRetrying = false,
 }: WatermarkSettingsSectionProps) {
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showTextEntry, setShowTextEntry] = useState(false);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   const requestChange = (next: boolean) => {
     if (next && !canUseWatermarking) {
@@ -38,8 +44,15 @@ export function WatermarkSettingsSection({
       setError("Watermarking is currently available for PDF decks only.");
       return;
     }
+    if (next && !text.trim()) {
+      setError("Enter watermark text before enabling it.");
+      setShowTextEntry(true);
+      requestAnimationFrame(() => textInputRef.current?.focus());
+      return;
+    }
     setApplied(false);
     setError(null);
+    setShowTextEntry(next);
     onEnabledChange(next);
   };
 
@@ -50,6 +63,8 @@ export function WatermarkSettingsSection({
       return;
     }
     onTextChange(normalized);
+    onEnabledChange(true);
+    setShowTextEntry(true);
     setError(null);
     setApplied(true);
   };
@@ -95,12 +110,13 @@ export function WatermarkSettingsSection({
         />
       </div>
 
-      {enabled && (
+      {(enabled || showTextEntry) && (
         <div className="space-y-3 rounded-lg border border-white/10 bg-surface-lowest/50 p-4">
           <div className="space-y-2">
             <Label htmlFor="watermark-text" className="text-xs font-semibold text-slate-300">Watermark text</Label>
             <Input
               id="watermark-text"
+              ref={textInputRef}
               value={text}
               maxLength={80}
               onChange={(event) => { setApplied(false); setError(null); onTextChange(event.target.value); }}
@@ -115,6 +131,16 @@ export function WatermarkSettingsSection({
             </button>
             <span className="text-xs text-slate-500">{applied ? "Ready to save" : "Apply to preview before saving"}</span>
           </div>
+          {status === "failed" && onRetry && (
+            <button
+              type="button"
+              onClick={() => void onRetry()}
+              disabled={isRetrying}
+              className="px-3 py-2 text-xs font-semibold text-white border border-white/20 hover:bg-white/5 transition-colors rounded-md disabled:opacity-50"
+            >
+              {isRetrying ? "Retrying watermark..." : "Retry watermark"}
+            </button>
+          )}
           {statusLabel && <p className="text-xs text-slate-400">{statusLabel}</p>}
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>

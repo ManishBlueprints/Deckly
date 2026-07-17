@@ -35,6 +35,7 @@ interface UseManageDeckWorkflowParams {
   setAllowDownload: SetState<boolean>;
   setWatermarkEnabled: SetState<boolean>;
   setWatermarkText: SetState<string>;
+  setFileType: SetState<string>;
   setViewPassword: SetState<string>;
   setExpiresAt: SetState<string>;
   setEnableExpiry: SetState<boolean>;
@@ -76,6 +77,7 @@ export function useManageDeckWorkflow({
   setAllowDownload,
   setWatermarkEnabled,
   setWatermarkText,
+  setFileType,
   setViewPassword,
   setExpiresAt,
   setEnableExpiry,
@@ -122,6 +124,7 @@ export function useManageDeckWorkflow({
         setAllowDownload(deck.allow_download || false);
         setWatermarkEnabled(deck.watermark_enabled || false);
         setWatermarkText(deck.watermark_text || "");
+        setFileType((deck.file_type || "pdf").toLowerCase());
         setViewPassword(deck.view_password || "");
         setExpiresAt(deck.expires_at ? deck.expires_at.split("T")[0] : "");
         setEnableExpiry(!!deck.expires_at);
@@ -139,6 +142,7 @@ export function useManageDeckWorkflow({
       setError,
       setExistingDeck,
       setExpiresAt,
+      setFileType,
       setLoading,
       setProgress,
       setRequireEmail,
@@ -334,6 +338,12 @@ export function useManageDeckWorkflow({
       queryClient,
       navigate,
     }: SubmitDeckParams) => {
+      const normalizedWatermarkText = watermarkText.trim();
+      if (watermarkEnabled && !normalizedWatermarkText) {
+        setError("Enter watermark text before saving with watermarking enabled.");
+        return;
+      }
+
       setLoading(true);
       setError(null);
       setProgressPercent(0);
@@ -446,14 +456,22 @@ export function useManageDeckWorkflow({
               require_password: requirePassword,
               allow_download: allowDownload,
               watermark_enabled: watermarkEnabled,
-              watermark_text: watermarkEnabled ? watermarkText.trim() : null,
+              watermark_text: watermarkEnabled ? normalizedWatermarkText : null,
               view_password: finalViewPassword,
               expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
             })
             .eq("id", editId);
           if (dbError) throw dbError;
 
-          if (!watermarkEnabled && existingDeck?.watermark_enabled) {
+          const deferWatermarkCleanupUntilConversionCommitted = Boolean(
+            !watermarkEnabled &&
+            existingDeck?.watermark_enabled &&
+            file &&
+            finalFileType !== "pdf" &&
+            finalConversionMode === "interactive",
+          );
+          const shouldCleanupDisabledWatermark = !watermarkEnabled && existingDeck?.watermark_enabled;
+          if (shouldCleanupDisabledWatermark && !deferWatermarkCleanupUntilConversionCommitted) {
             await deckService.cleanupWatermarkedDeck(editId).catch((cleanupError) => {
               console.error("Watermark cleanup failed after disabling:", cleanupError);
             });
@@ -476,6 +494,11 @@ export function useManageDeckWorkflow({
                 // Not diffing here, interactive mode wipes the existing deck rendering entirely. But diffing may still be safer.
                 const actuallyDelete = oldSlidePathsToDelete;
                 await deckStorageService.deleteSlideImages(actuallyDelete);
+              }
+              if (deferWatermarkCleanupUntilConversionCommitted) {
+                await deckService.cleanupWatermarkedDeck(editId).catch((cleanupError) => {
+                  console.error("Watermark cleanup failed after conversion:", cleanupError);
+                });
               }
             } catch (conversionErr) {
               const { data: currentDeck } = await supabase
@@ -555,6 +578,25 @@ export function useManageDeckWorkflow({
                 });
               }
 
+              if (
+                previousValues.watermark_enabled &&
+                previousValues.file_type === "pdf" &&
+                previousValues.watermark_text?.trim()
+              ) {
+                try {
+                  setProgress("Restoring watermarked download...");
+                  await deckService.generateWatermarkedDeck(editId);
+                } catch (watermarkRestoreError) {
+                  throw new Error(
+                    `Conversion failed and the previous watermark could not be restored: ${
+                      watermarkRestoreError instanceof Error
+                        ? watermarkRestoreError.message
+                        : String(watermarkRestoreError)
+                    }`,
+                  );
+                }
+              }
+
               throw conversionErr;
             }
           }
@@ -579,7 +621,7 @@ export function useManageDeckWorkflow({
               p_require_password: requirePassword,
               p_allow_download: allowDownload,
               p_watermark_enabled: watermarkEnabled,
-              p_watermark_text: watermarkEnabled ? watermarkText.trim() : null,
+              p_watermark_text: watermarkEnabled ? normalizedWatermarkText : null,
               p_view_password: finalViewPassword,
               p_expires_at: expiresAt
                 ? new Date(expiresAt).toISOString()
@@ -647,9 +689,15 @@ export function useManageDeckWorkflow({
 
           if (watermarkEnabled && fileType === "pdf" && deckRecord) {
             setProgress("Applying watermark...");
-            await deckService.generateWatermarkedDeck(deckRecord.id).catch((watermarkError) => {
+            try {
+              await deckService.generateWatermarkedDeck(deckRecord.id);
+            } catch (watermarkError) {
               console.error("Watermark generation failed after deck creation:", watermarkError);
-            });
+              setExistingDeck({ ...deckRecord, watermark_status: "failed" } as Deck);
+              setError("Deck saved, but the watermark could not be prepared. Retry watermark before sharing a download.");
+              setProgress("");
+              return;
+            }
           }
         }
 
@@ -666,9 +714,17 @@ export function useManageDeckWorkflow({
         );
         if (shouldGenerateUpdatedWatermark && editId) {
           setProgress("Applying watermark...");
-          await deckService.generateWatermarkedDeck(editId).catch((watermarkError) => {
+          try {
+            await deckService.generateWatermarkedDeck(editId);
+          } catch (watermarkError) {
             console.error("Watermark generation failed after deck update:", watermarkError);
-          });
+            setExistingDeck((current) => current
+              ? { ...current, watermark_status: "failed" }
+              : current);
+            setError("Deck saved, but the watermark could not be prepared. Retry watermark before sharing a download.");
+            setProgress("");
+            return;
+          }
         }
 
         setProgress("Successful!");
@@ -715,6 +771,7 @@ export function useManageDeckWorkflow({
       editId,
       processPdfFile,
       setError,
+      setExistingDeck,
       setLoading,
       setProgress,
       setProgressPercent,

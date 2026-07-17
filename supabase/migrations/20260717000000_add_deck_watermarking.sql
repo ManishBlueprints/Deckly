@@ -3,22 +3,42 @@ BEGIN;
 ALTER TABLE public.decks
   ADD COLUMN IF NOT EXISTS watermark_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS watermark_text TEXT,
-  ADD COLUMN IF NOT EXISTS watermark_revision UUID NOT NULL DEFAULT gen_random_uuid(),
+  ADD COLUMN IF NOT EXISTS watermark_revision UUID,
   ADD COLUMN IF NOT EXISTS watermark_status TEXT NOT NULL DEFAULT 'disabled',
   ADD COLUMN IF NOT EXISTS watermarked_file_path TEXT,
   ADD COLUMN IF NOT EXISTS watermark_error TEXT,
   ADD COLUMN IF NOT EXISTS watermark_updated_at TIMESTAMPTZ;
 
+UPDATE public.decks
+SET watermark_revision = gen_random_uuid()
+WHERE watermark_revision IS NULL;
+
+ALTER TABLE public.decks
+  ALTER COLUMN watermark_revision SET DEFAULT gen_random_uuid();
+
 ALTER TABLE public.decks
   DROP CONSTRAINT IF EXISTS decks_watermark_status_check,
+  DROP CONSTRAINT IF EXISTS decks_watermark_text_check;
+
+ALTER TABLE public.decks
+  ADD CONSTRAINT decks_watermark_revision_not_null
+    CHECK (watermark_revision IS NOT NULL) NOT VALID,
   ADD CONSTRAINT decks_watermark_status_check
-    CHECK (watermark_status IN ('disabled', 'pending', 'processing', 'ready', 'failed')),
-  DROP CONSTRAINT IF EXISTS decks_watermark_text_check,
+    CHECK (watermark_status IN ('disabled', 'pending', 'processing', 'ready', 'failed')) NOT VALID,
   ADD CONSTRAINT decks_watermark_text_check
     CHECK (
       NOT watermark_enabled
       OR (watermark_text IS NOT NULL AND char_length(btrim(watermark_text)) BETWEEN 1 AND 80)
-    );
+    ) NOT VALID;
+
+ALTER TABLE public.decks
+  VALIDATE CONSTRAINT decks_watermark_revision_not_null,
+  VALIDATE CONSTRAINT decks_watermark_status_check,
+  VALIDATE CONSTRAINT decks_watermark_text_check;
+
+ALTER TABLE public.decks
+  ALTER COLUMN watermark_revision SET NOT NULL,
+  DROP CONSTRAINT decks_watermark_revision_not_null;
 
 INSERT INTO public.billing_feature_catalog (key, label, description, availability, required_tier, display_order)
 VALUES ('deck_watermarking', 'Deck watermarking', 'Apply a text watermark to shared PDF decks and downloads.', 'live', 'RAISE', 65)

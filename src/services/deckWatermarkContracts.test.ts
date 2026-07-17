@@ -21,6 +21,14 @@ describe("deck watermark contracts", () => {
     expect(migration).toContain("PDF decks only");
   });
 
+  it("backfills watermark revisions before enforcing constraints", () => {
+    expect(migration).toContain("ADD COLUMN IF NOT EXISTS watermark_revision UUID");
+    expect(migration).not.toContain("watermark_revision UUID NOT NULL DEFAULT gen_random_uuid()");
+    expect(migration).toContain("SET watermark_revision = gen_random_uuid()");
+    expect(migration).toContain("CHECK (watermark_status IN ('disabled', 'pending', 'processing', 'ready', 'failed')) NOT VALID");
+    expect(migration).toContain("VALIDATE CONSTRAINT decks_watermark_text_check");
+  });
+
   it("exposes only the effective public setting across deck and data-room payloads", () => {
     expect(migration).toContain("'watermark_enabled', COALESCE(v_watermark_enabled, FALSE)");
     expect(migration).toContain("public.has_live_feature_for_user(d.user_id, 'deck_watermarking')");

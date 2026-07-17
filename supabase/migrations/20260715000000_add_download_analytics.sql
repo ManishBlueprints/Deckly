@@ -179,6 +179,8 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.get_data_room_download_analytics(UUID, INTEGER);
+
 CREATE OR REPLACE FUNCTION public.get_data_room_download_analytics(
   p_data_room_id UUID,
   p_limit INTEGER DEFAULT 100,

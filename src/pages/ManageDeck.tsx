@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCheckDeckSlug } from "../hooks/useSlugValidation";
 import { useManageDeckWorkflow } from "../hooks/useManageDeckWorkflow";
+import { deckService } from "../services/deckService";
 import { useAuth } from "../contexts/AuthContext";
 import { normalizeSlug } from "../utils/slug";
 import { TIER_CONFIG } from "../constants/tiers";
@@ -76,6 +77,7 @@ function ManageDeck() {
     setAllowDownload,
     setWatermarkEnabled,
     setWatermarkText,
+    setFileType,
     setViewPassword,
     setExpiresAt,
     setEnableExpiry,
@@ -156,6 +158,11 @@ function ManageDeck() {
     e.preventDefault();
     if ((!file && !editId) || !title || !slug) return;
 
+    if (watermarkEnabled && !watermarkText.trim()) {
+      setError("Enter watermark text before saving with watermarking enabled.");
+      return;
+    }
+
     if (!isSlugAvailable && !editId) {
       setError("This URL Slug is already taken. Please enter a different one.");
       return;
@@ -180,6 +187,31 @@ function ManageDeck() {
       queryClient,
       navigate,
     });
+  };
+
+  const handleRetryWatermark = async () => {
+    if (!existingDeck?.id) return;
+
+    setLoading(true);
+    setError(null);
+    setProgress("Applying watermark...");
+    try {
+      await deckService.generateWatermarkedDeck(existingDeck.id);
+      setExistingDeck((current) => current
+        ? { ...current, watermark_status: "ready" }
+        : current);
+      setProgress("Watermark ready");
+      queryClient.invalidateQueries({ queryKey: ["decks", authProfile?.id] });
+    } catch (watermarkError) {
+      console.error("Watermark retry failed:", watermarkError);
+      setExistingDeck((current) => current
+        ? { ...current, watermark_status: "failed" }
+        : current);
+      setError("The watermark could not be prepared. Please retry.");
+      setProgress("");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -278,6 +310,7 @@ function ManageDeck() {
             <WatermarkSettingsSection
               enabled={watermarkEnabled}
               text={watermarkText}
+              status={existingDeck?.watermark_status}
               isPdf={fileType === "pdf"}
               canUseWatermarking={watermarkControls.access.state === "available"}
               onEnabledChange={setWatermarkEnabled}
@@ -286,6 +319,8 @@ function ManageDeck() {
                 setUpsellFeature("Deck watermarking");
                 setShowUpsell(true);
               }}
+              onRetry={existingDeck?.watermark_status === "failed" ? handleRetryWatermark : undefined}
+              isRetrying={loading && progress === "Applying watermark..."}
             />
 
             <ManageDeckFeedbackSection

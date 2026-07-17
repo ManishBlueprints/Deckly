@@ -207,6 +207,24 @@ const deckCrudService = {
     providedUserId?: string,
   ): Promise<{ dbDeleted: boolean; assetsDeleted: boolean; cleanupError?: Error }> {
     const userId = await getRequiredDeckUserId(providedUserId);
+    try {
+      await Promise.all([
+        deckStorageService.deleteDeckAssets(fileUrl, slug, userId),
+        deckStorageService.deleteDeckWatermarkAssets(id, userId),
+      ]);
+    } catch (err) {
+      console.error("Deck storage cleanup failed; database row was retained for retry.", {
+        deckId: id,
+        fileUrl,
+        slug,
+        userId,
+        cleanupError: err,
+      });
+      throw err instanceof Error
+        ? err
+        : new Error("Unable to remove deck storage assets. The deck was not deleted.");
+    }
+
     const { error } = await supabase
       .from("decks")
       .delete()
@@ -214,7 +232,7 @@ const deckCrudService = {
       .eq("user_id", userId);
 
     if (error) {
-      console.error("Deck DB deletion failed; storage cleanup was not attempted.", {
+      console.error("Deck storage was removed but database deletion failed.", {
         deckId: id,
         fileUrl,
         slug,
@@ -222,31 +240,6 @@ const deckCrudService = {
         error,
       });
       throw error;
-    }
-
-    let cleanupError: unknown = null;
-    try {
-      await Promise.all([
-        deckStorageService.deleteDeckAssets(fileUrl, slug, userId),
-        deckStorageService.deleteDeckWatermarkAssets(id, userId),
-      ]);
-    } catch (err) {
-      cleanupError = err;
-    }
-
-    if (cleanupError) {
-      console.error("Deck DB row deleted but asset cleanup failed.", {
-        deckId: id,
-        fileUrl,
-        slug,
-        userId,
-        cleanupError,
-      });
-      return {
-        dbDeleted: true,
-        assetsDeleted: false,
-        cleanupError: cleanupError instanceof Error ? cleanupError : new Error(String(cleanupError)),
-      };
     }
 
     return { dbDeleted: true, assetsDeleted: true };

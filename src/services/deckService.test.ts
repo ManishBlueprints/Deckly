@@ -6,6 +6,7 @@ type MockResponse = {
 };
 
 type TableChain = {
+  delete: ReturnType<typeof vi.fn>;
   select: ReturnType<typeof vi.fn>;
   eq: ReturnType<typeof vi.fn>;
   in: ReturnType<typeof vi.fn>;
@@ -43,6 +44,10 @@ const mocks = vi.hoisted(() => {
   const createTableChain = (table: string) => {
     let mode = "select";
     const chain = {
+      delete: vi.fn(() => {
+        mode = "delete";
+        return chain;
+      }),
       select: vi.fn(() => {
         mode = "select";
         return chain;
@@ -141,7 +146,43 @@ vi.mock("../utils/resilience", () => ({
 }));
 
 import { deckService } from "./deckService";
-import { extractStoragePath, getDeckSession } from "./deckService.shared";
+import { extractStoragePath, getDeckSession, getRequiredDeckUserId } from "./deckService.shared";
+import { deckStorageService } from "./deckStorageService";
+
+describe("deckService.deleteDeck", () => {
+  beforeEach(() => {
+    mocks.responseQueues.clear();
+    vi.clearAllMocks();
+  });
+
+  it("keeps the deck row when any storage cleanup fails", async () => {
+    vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
+    vi.mocked(deckStorageService.deleteDeckAssets).mockRejectedValue(new Error("storage unavailable"));
+    vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mockResolvedValue(undefined);
+
+    await expect(deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"))
+      .rejects.toThrow("storage unavailable");
+
+    expect(mocks.mockSupabase.from).not.toHaveBeenCalledWith("decks");
+  });
+
+  it("removes storage before deleting the deck row", async () => {
+    vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
+    vi.mocked(deckStorageService.deleteDeckAssets).mockResolvedValue(undefined);
+    vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mockResolvedValue(undefined);
+    mocks.queueResponse("decks.delete", { data: null, error: null });
+
+    await expect(deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"))
+      .resolves.toEqual({ dbDeleted: true, assetsDeleted: true });
+
+    const cleanupCalls = [
+      vi.mocked(deckStorageService.deleteDeckAssets).mock.invocationCallOrder[0],
+      vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mock.invocationCallOrder[0],
+    ];
+    const deleteCall = mocks.mockSupabase.from.mock.invocationCallOrder[0];
+    expect(Math.max(...cleanupCalls)).toBeLessThan(deleteCall);
+  });
+});
 
 describe("deckService.getAllDecks", () => {
   beforeEach(() => {

@@ -10,6 +10,18 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   },
 });
 
+const EXTERNAL_FETCH_TIMEOUT_MS = 60_000;
+
+async function withExternalFetchTimeout<T>(operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), EXTERNAL_FETCH_TIMEOUT_MS);
+  try {
+    return await operation(controller.signal);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -20,10 +32,15 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const parsedBody: unknown = await req.json().catch(() => ({}));
+  const body = parsedBody && typeof parsedBody === "object"
+    ? parsedBody as Record<string, unknown>
+    : {};
+  const action: "generate" | "cleanup" = body.action === "cleanup" ? "cleanup" : "generate";
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("PROJECT_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const convertApiKey = Deno.env.get("CONVERT_API_SECRET") ?? "";
-  if (!supabaseUrl || !serviceRoleKey || !convertApiKey) {
+  if (!supabaseUrl || !serviceRoleKey || (action === "generate" && !convertApiKey)) {
     return json({ success: false, message: "Watermark service is not configured." }, 500);
   }
 
@@ -36,11 +53,8 @@ Deno.serve(async (req: Request) => {
 
   let deckId = "";
   let revision = "";
-  let action: "generate" | "cleanup" = "generate";
   try {
-    const body = await req.json().catch(() => ({}));
     deckId = typeof body.deckId === "string" ? body.deckId : "";
-    action = body.action === "cleanup" ? "cleanup" : "generate";
     if (!deckId) return json({ success: false, message: "A deck id is required." }, 400);
 
     const { data: userData, error: userError } = await admin.auth.getUser(authHeader.replace("Bearer ", ""));
@@ -111,28 +125,35 @@ Deno.serve(async (req: Request) => {
     formData.append("VerticalAlignment", "center");
     formData.append("StoreFile", "true");
 
-    const response = await fetch("https://v2.convertapi.com/convert/pdf/to/text-watermark", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${convertApiKey}` },
-      body: formData,
+    const result = await withExternalFetchTimeout(async (signal) => {
+      const response = await fetch("https://v2.convertapi.com/convert/pdf/to/text-watermark", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${convertApiKey}` },
+        body: formData,
+        signal,
+      });
+      if (!response.ok) {
+        const message = await response.text().catch(() => "");
+        throw new Error(`ConvertAPI watermark failed (${response.status}): ${message.slice(0, 240)}`);
+      }
+      return response.json();
     });
-    if (!response.ok) {
-      const message = await response.text().catch(() => "");
-      throw new Error(`ConvertAPI watermark failed (${response.status}): ${message.slice(0, 240)}`);
-    }
-    const result = await response.json();
     const converted = Array.isArray(result?.Files) ? result.Files[0] : null;
     const convertedUrl = converted?.Url ?? converted?.url ?? converted?.URL;
     if (typeof convertedUrl !== "string") {
       throw new Error("ConvertAPI returned no watermarked PDF.");
     }
-    const convertedResponse = await fetch(convertedUrl);
-    if (!convertedResponse.ok || !convertedResponse.body) {
-      throw new Error("Unable to download the generated watermark file.");
-    }
-
     const outputPath = `${deck.user_id}/watermarks/${deck.id}/${revision}.pdf`;
-    await uploadObject("decks", outputPath, convertedResponse.body, { contentType: "application/pdf", expiresInSeconds: 900 });
+    await withExternalFetchTimeout(async (signal) => {
+      const convertedResponse = await fetch(convertedUrl, { signal });
+      if (!convertedResponse.ok || !convertedResponse.body) {
+        throw new Error("Unable to download the generated watermark file.");
+      }
+      await uploadObject("decks", outputPath, convertedResponse.body, {
+        contentType: "application/pdf",
+        expiresInSeconds: 900,
+      });
+    });
 
     const { data: updated, error: readyError } = await admin
       .from("decks")

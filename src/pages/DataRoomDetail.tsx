@@ -516,12 +516,14 @@ function DataRoomDetail() {
       !downloadAnalytics.downloaders_truncated
     ) return;
 
+    const requestId = loadAllRequestIdRef.current;
     setIsLoadingMoreDownloaders(true);
     try {
       const nextPage = await analyticsService.getDataRoomDownloadAnalytics(roomId, {
         limit: DOWNLOADERS_PAGE_SIZE,
         offset: downloadAnalytics.downloaders.length,
       });
+      if (requestId !== loadAllRequestIdRef.current) return;
       setDownloadAnalytics((current) => {
         const seenVisitorIds = new Set(
           current.downloaders.map((downloader) => downloader.visitor_id),
@@ -536,10 +538,13 @@ function DataRoomDetail() {
         };
       });
     } catch (error) {
+      if (requestId !== loadAllRequestIdRef.current) return;
       console.error("Failed to load more room downloaders", error);
       toast.error("Failed to load more downloaders.");
     } finally {
-      setIsLoadingMoreDownloaders(false);
+      if (requestId === loadAllRequestIdRef.current) {
+        setIsLoadingMoreDownloaders(false);
+      }
     }
   }, [downloadAnalytics.downloaders.length, downloadAnalytics.downloaders_truncated, isLoadingMoreDownloaders, roomId]);
 

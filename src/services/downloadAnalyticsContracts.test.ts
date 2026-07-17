@@ -40,6 +40,9 @@ describe("download analytics contracts", () => {
 
   it("defines the paginated data-room analytics RPC and refreshes the API schema cache", () => {
     expect(migrationSql).toContain(
+      "DROP FUNCTION IF EXISTS public.get_data_room_download_analytics(UUID, INTEGER)",
+    );
+    expect(migrationSql).toContain(
       "get_data_room_download_analytics(UUID, INTEGER, INTEGER)",
     );
     expect(migrationSql).toContain("NOTIFY pgrst, 'reload schema'");
