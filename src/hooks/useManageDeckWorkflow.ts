@@ -32,6 +32,7 @@ interface UseManageDeckWorkflowParams {
   setDescription: SetState<string>;
   setRequireEmail: SetState<boolean>;
   setRequirePassword: SetState<boolean>;
+  setAllowDownload: SetState<boolean>;
   setViewPassword: SetState<string>;
   setExpiresAt: SetState<string>;
   setEnableExpiry: SetState<boolean>;
@@ -49,6 +50,7 @@ interface SubmitDeckParams {
   description: string;
   requireEmail: boolean;
   requirePassword: boolean;
+  allowDownload: boolean;
   viewPassword: string;
   expiresAt: string;
   conversionMode: "raw" | "interactive";
@@ -67,6 +69,7 @@ export function useManageDeckWorkflow({
   setDescription,
   setRequireEmail,
   setRequirePassword,
+  setAllowDownload,
   setViewPassword,
   setExpiresAt,
   setEnableExpiry,
@@ -110,6 +113,7 @@ export function useManageDeckWorkflow({
         setDescription(deck.description || "");
         setRequireEmail(deck.require_email || false);
         setRequirePassword(deck.require_password || false);
+        setAllowDownload(deck.allow_download || false);
         setViewPassword(deck.view_password || "");
         setExpiresAt(deck.expires_at ? deck.expires_at.split("T")[0] : "");
         setEnableExpiry(!!deck.expires_at);
@@ -131,6 +135,7 @@ export function useManageDeckWorkflow({
       setProgress,
       setRequireEmail,
       setRequirePassword,
+      setAllowDownload,
       setSlug,
       setTitle,
       setViewPassword,
@@ -305,6 +310,7 @@ export function useManageDeckWorkflow({
       description,
       requireEmail,
       requirePassword,
+      allowDownload,
       viewPassword,
       expiresAt,
       conversionMode,
@@ -401,6 +407,7 @@ export function useManageDeckWorkflow({
             extracted_text: existingDeck?.extracted_text ?? null,
             require_email: existingDeck?.require_email,
             require_password: existingDeck?.require_password,
+            allow_download: existingDeck?.allow_download,
             view_password: existingDeck?.view_password,
             expires_at: existingDeck?.expires_at,
           };
@@ -419,6 +426,7 @@ export function useManageDeckWorkflow({
               ...(file ? { extracted_text: null } : {}),
               require_email: requireEmail,
               require_password: requirePassword,
+              allow_download: allowDownload,
               view_password: finalViewPassword,
               expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
             })
@@ -505,6 +513,7 @@ export function useManageDeckWorkflow({
                   extracted_text: previousValues.extracted_text,
                   require_email: previousValues.require_email,
                   require_password: previousValues.require_password,
+                  allow_download: previousValues.allow_download,
                   view_password: previousValues.view_password,
                   expires_at: previousValues.expires_at,
                 })
@@ -540,6 +549,7 @@ export function useManageDeckWorkflow({
               p_file_type: fileType,
               p_require_email: requireEmail,
               p_require_password: requirePassword,
+              p_allow_download: allowDownload,
               p_view_password: finalViewPassword,
               p_expires_at: expiresAt
                 ? new Date(expiresAt).toISOString()

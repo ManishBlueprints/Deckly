@@ -10,6 +10,7 @@ import {
   Eye,
   EyeOff,
   CalendarDays,
+  Download,
   Loader2,
   Sparkles,
   ArrowLeft,
@@ -342,12 +343,18 @@ export function ManageDeckDetailsSection({
 interface AccessSectionProps {
   requireEmail: boolean;
   requirePassword: boolean;
+  allowDownload: boolean;
+  canUseAccessControls: boolean;
+  canUseDownloadControls: boolean;
   viewPassword: string;
   showPasswordField: boolean;
   enableExpiry: boolean;
   expiresAt: string;
   onRequireEmailChange: (checked: boolean) => void;
   onRequirePasswordChange: (checked: boolean) => void;
+  onAllowDownloadChange: (checked: boolean) => void;
+  onAccessUpsell: () => void;
+  onDownloadUpsell: () => void;
   onViewPasswordChange: (value: string) => void;
   onTogglePasswordVisibility: () => void;
   onEnableExpiryChange: (checked: boolean) => void;
@@ -357,12 +364,18 @@ interface AccessSectionProps {
 export function ManageDeckAccessSection({
   requireEmail,
   requirePassword,
+  allowDownload,
+  canUseAccessControls,
+  canUseDownloadControls,
   viewPassword,
   showPasswordField,
   enableExpiry,
   expiresAt,
   onRequireEmailChange,
   onRequirePasswordChange,
+  onAllowDownloadChange,
+  onAccessUpsell,
+  onDownloadUpsell,
   onViewPasswordChange,
   onTogglePasswordVisibility,
   onEnableExpiryChange,
@@ -378,6 +391,7 @@ export function ManageDeckAccessSection({
       <div className="flex items-center gap-2 mb-2">
         <Lock size={16} className="text-deckly-primary" />
         <h3 className="text-sm font-medium text-white">Security & Access</h3>
+        {!canUseAccessControls && <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"><Lock size={12} /> Share feature</span>}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -407,7 +421,11 @@ export function ManageDeckAccessSection({
           </div>
           <Switch
             checked={requireEmail}
-            onCheckedChange={onRequireEmailChange}
+            onCheckedChange={(checked) => {
+              if (checked && !canUseAccessControls) return onAccessUpsell();
+              onRequireEmailChange(checked);
+            }}
+            aria-label={canUseAccessControls ? "Require viewer email" : "Require viewer email, available on Share"}
           />
         </div>
 
@@ -437,7 +455,84 @@ export function ManageDeckAccessSection({
           </div>
           <Switch
             checked={requirePassword}
-            onCheckedChange={onRequirePasswordChange}
+            onCheckedChange={(checked) => {
+              if (checked && !canUseAccessControls) return onAccessUpsell();
+              onRequirePasswordChange(checked);
+            }}
+            aria-label={canUseAccessControls ? "Require a viewing password" : "Require a viewing password, available on Share"}
+          />
+        </div>
+
+        <div
+          className={cn(
+            "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
+            allowDownload
+              ? "bg-background border-deckly-primary"
+              : "bg-[#2B2B2B] border-white/10",
+          )}
+        >
+          <div className="flex items-center gap-4">
+            <div
+              className={cn(
+                "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
+                allowDownload
+                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                  : "text-slate-500",
+              )}
+            >
+              <Download size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Downloads</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {allowDownload ? "Download enabled" : "Download disabled"}
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={allowDownload}
+            onCheckedChange={(checked) => {
+              if (!canUseDownloadControls) {
+                onDownloadUpsell();
+                return;
+              }
+              onAllowDownloadChange(checked);
+            }}
+            aria-label="Allow investors to download this deck"
+          />
+        </div>
+
+        <div
+          className={cn(
+            "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
+            enableExpiry
+              ? "bg-background border-deckly-primary"
+              : "bg-[#2B2B2B] border-white/10",
+          )}
+        >
+          <div className="flex items-center gap-4">
+            <div
+              className={cn(
+                "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
+                enableExpiry
+                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
+                  : "text-slate-500",
+              )}
+            >
+              <CalendarDays size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Expiration</p>
+              <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
+            </div>
+          </div>
+          <Switch
+            checked={enableExpiry}
+            onCheckedChange={(checked) => {
+              if (checked && !canUseAccessControls) return onAccessUpsell();
+              onEnableExpiryChange(checked);
+            }}
+            aria-label={canUseAccessControls ? "Set an expiry date" : "Set an expiry date, available on Share"}
           />
         </div>
       </div>
@@ -482,33 +577,6 @@ export function ManageDeckAccessSection({
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div
-        className={cn(
-          "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
-          enableExpiry
-            ? "bg-background border-deckly-primary"
-            : "bg-[#2B2B2B] border-white/10",
-        )}
-      >
-        <div className="flex items-center gap-4">
-          <div
-            className={cn(
-              "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
-              enableExpiry
-                ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
-                : "text-slate-500",
-            )}
-          >
-            <CalendarDays size={18} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-white">Expiration</p>
-            <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
-          </div>
-        </div>
-        <Switch checked={enableExpiry} onCheckedChange={onEnableExpiryChange} />
-      </div>
 
       <AnimatePresence>
         {enableExpiry && (

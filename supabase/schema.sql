@@ -222,6 +222,7 @@ CREATE TABLE IF NOT EXISTS public.decks (
     display_order INTEGER DEFAULT 1,
     require_email BOOLEAN DEFAULT FALSE,
     require_password BOOLEAN DEFAULT FALSE,
+    allow_download BOOLEAN NOT NULL DEFAULT FALSE,
     is_public BOOLEAN NOT NULL DEFAULT FALSE,
     view_password TEXT,
     unique_visitors INTEGER DEFAULT 0,

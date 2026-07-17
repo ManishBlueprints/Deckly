@@ -1,0 +1,52 @@
+/// <reference types="vitest/globals" />
+
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const migrationSql = readFileSync(
+  path.resolve(__dirname, "../../supabase/migrations/20260715000000_add_download_analytics.sql"),
+  "utf8",
+);
+const signingSource = readFileSync(
+  path.resolve(__dirname, "../../supabase/functions/sign-deck-url/index.ts"),
+  "utf8",
+);
+describe("download analytics contracts", () => {
+  it("records source-attributed, idempotent download events through a service-only function", () => {
+    expect(migrationSql).toContain("CREATE TABLE IF NOT EXISTS public.deck_download_events");
+    expect(migrationSql).toContain("request_id UUID NOT NULL UNIQUE");
+    expect(migrationSql).toContain("source_type IN ('deck_link', 'data_room')");
+    expect(migrationSql).toContain("ON CONFLICT (request_id) DO NOTHING");
+    expect(migrationSql).toContain("GRANT EXECUTE ON FUNCTION public.record_deck_download");
+    expect(migrationSql).toContain("TO service_role");
+  });
+
+  it("preserves direct-link context and excludes room downloads from it", () => {
+    expect(migrationSql).toContain("deck_link_name_snapshot");
+    expect(migrationSql).toContain("source_type = 'deck_link'");
+    expect(migrationSql).toContain("source_type = 'data_room'");
+    expect(migrationSql).toContain("get_deck_download_analytics");
+    expect(migrationSql).toContain("get_data_room_download_analytics");
+  });
+
+  it("records analytics only after generating an authorized download URL", () => {
+    expect(signingSource).toContain("const downloadUrl = await presignDownloadUrl");
+    expect(signingSource).toContain('admin.rpc("record_deck_download"');
+    expect(signingSource).toContain("p_actor_user_id: authenticatedUser?.id ?? null");
+    expect(signingSource).toContain("request_id: rawRequestId");
+    expect(signingSource).toContain("visitor_id: rawVisitorId");
+  });
+
+  it("keeps owner IDs out of public payloads and bounds downloader results", () => {
+    expect(migrationSql).toContain("p_actor_user_id UUID DEFAULT NULL");
+    expect(migrationSql).toContain("IF p_actor_user_id IS NOT NULL AND p_actor_user_id = v_owner_user_id THEN");
+    expect(migrationSql).toContain("p_limit INTEGER DEFAULT 100");
+    expect(migrationSql).toContain("LIMIT v_limit");
+    expect(migrationSql).toContain("idx_deck_download_events_room_visitor");
+    expect(migrationSql).not.toContain("'id', d.id, 'user_id', d.user_id, 'data_room_id'");
+    expect(signingSource).toContain("p_actor_user_id: authenticatedUser?.id ?? null");
+  });
+});

@@ -363,7 +363,15 @@ const deckPublicService = {
     slugOrAlias: string,
     password?: string,
     handle?: string | null,
-  ): Promise<{ file_url: string; signed_url?: string; expires_in?: number; pages: SlidePage[] }> {
+  ): Promise<{
+    file_url: string;
+    signed_url?: string;
+    expires_in?: number;
+    pages: SlidePage[];
+    title?: string;
+    file_type?: string;
+    allow_download: boolean;
+  }> {
     const { data, error } = await supabase.rpc("get_deck_payload", {
       p_handle: handle ?? null,
       p_slug_or_alias: slugOrAlias,
@@ -372,7 +380,14 @@ const deckPublicService = {
     if (error) throw error;
     if (!data) throw new Error("Deck not found or access denied");
 
-    const payload = data as { file_url: string; storage_path?: string; pages: SlidePage[] };
+    const payload = data as {
+      file_url: string;
+      storage_path?: string;
+      pages: SlidePage[];
+      title?: string;
+      file_type?: string;
+      allow_download?: boolean;
+    };
 
     // If the bucket is private and we have a storage path, fetch short-lived signed URLs.
     // This includes both the main document and any processed slide images.
@@ -445,8 +460,9 @@ const deckPublicService = {
           return signedUrl ? { ...page, image_url: signedUrl } : page;
         });
 
-        return { 
+        return {
           ...payload, 
+          allow_download: payload.allow_download === true,
           signed_url: fnData.signed_url, 
           expires_in: fnData.expires_in as number | undefined,
           pages: hydratedPages
@@ -454,7 +470,31 @@ const deckPublicService = {
       }
     }
 
-    return payload;
+    return { ...payload, allow_download: payload.allow_download === true };
+  },
+
+  async requestDeckDownload(
+    slugOrAlias: string,
+    password?: string,
+    handle?: string | null,
+    tracking?: { requestId: string; visitorId: string; viewerEmail?: string },
+  ): Promise<{ downloadUrl: string; filename: string }> {
+    const { data, error } = await supabase.functions.invoke("sign-deck-url", {
+      body: {
+        intent: "download",
+        handle: handle ?? null,
+        slug: slugOrAlias,
+        password: password ?? null,
+        request_id: tracking?.requestId ?? null,
+        visitor_id: tracking?.visitorId ?? null,
+        viewer_email: tracking?.viewerEmail ?? null,
+      },
+    });
+    if (error) throw error;
+    if (!data?.download_url || !data?.filename) {
+      throw new Error("Download link was unavailable");
+    }
+    return { downloadUrl: data.download_url as string, filename: data.filename as string };
   },
 
   async getDeckBySlugOnly(

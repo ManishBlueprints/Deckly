@@ -2,8 +2,7 @@ import posthog from "posthog-js";
 import { withRetry } from "../utils/resilience.ts";
 import { supabase } from "./supabase.ts";
 import { assertDeckOwnership } from "./deckService.shared.ts";
-import { Deck, DeckPageStats, DeckLinkStats } from "../types";
-import { getTierConfig } from "../constants/tiers.ts";
+import { Deck, DeckPageStats, DeckLinkStats, DeckDownloadAnalytics, DataRoomDownloadAnalytics } from "../types";
 import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
 import { posthogConfig } from "./posthogConfig.ts";
 
@@ -260,7 +259,7 @@ export const analyticsService = {
   // Get stats for a specific deck (Management view)
   async getDeckStats(
     deckId: string,
-    isPro: boolean = false,
+    _isPro: boolean = false,
     providedUserId?: string,
   ): Promise<DeckPageStats[]> {
     let userId = providedUserId;
@@ -273,39 +272,16 @@ export const analyticsService = {
       userId = session.user.id;
     }
 
-    const tier = getTierConfig(isPro);
-
     return withRetry(async () => {
-      const cutoffDate = new Date(
-        Date.now() - tier.days * 24 * 60 * 60 * 1000,
-      ).toISOString();
-
       const { data, error } = await supabase
-        .from("deck_stats")
-        .select("*")
-        .eq("deck_id", deckId)
-        .eq("user_id", userId)
-        .gt("updated_at", cutoffDate)
-        .order("page_number", { ascending: true });
+        .rpc("get_entitled_deck_page_stats", { p_deck_id: deckId });
 
       if (error) throw error;
-      
-      // Aggregate by page_number to handle multiple contexts (Data Rooms vs Direct)
-      const aggregated = ((data as unknown as DeckPageStats[]) || []).reduce((acc: Record<number, DeckPageStats>, curr: DeckPageStats) => {
-        const page = curr.page_number;
-        if (!acc[page]) {
-          acc[page] = {
-            page_number: page,
-            total_views: 0,
-            total_time_seconds: 0
-          };
-        }
-        acc[page].total_views += (curr.total_views || 0);
-        acc[page].total_time_seconds += (curr.total_time_seconds || 0);
-        return acc;
-      }, {} as Record<number, DeckPageStats>);
-
-      return (Object.values(aggregated) as DeckPageStats[]).sort((a, b) => a.page_number - b.page_number);
+      return ((data as unknown as DeckPageStats[]) || []).map((row) => ({
+        page_number: row.page_number,
+        total_views: Number(row.total_views || 0),
+        total_time_seconds: Number(row.total_time_seconds || 0),
+      }));
     });
   },
 
@@ -648,6 +624,38 @@ export const analyticsService = {
 
     if (error) throw error;
     return (data as unknown as DeckLinkStats[]) || [];
+  },
+
+  async getDeckDownloadAnalytics(deckId: string, ownerUserId: string): Promise<DeckDownloadAnalytics> {
+    await assertDeckOwnership(deckId, ownerUserId);
+    const { data, error } = await supabase.rpc("get_deck_download_analytics", {
+      p_deck_id: deckId,
+      p_limit: 100,
+    });
+    if (error) throw error;
+    return (data as DeckDownloadAnalytics) || {
+      total_downloads: 0,
+      unique_downloaders: 0,
+      direct_link_downloads: 0,
+      data_room_downloads: 0,
+      links: [],
+      data_rooms: [],
+      downloaders: [],
+    };
+  },
+
+  async getDataRoomDownloadAnalytics(roomId: string): Promise<DataRoomDownloadAnalytics> {
+    const { data, error } = await supabase.rpc("get_data_room_download_analytics", {
+      p_data_room_id: roomId,
+      p_limit: 100,
+    });
+    if (error) throw error;
+    return (data as DataRoomDownloadAnalytics) || {
+      total_downloads: 0,
+      unique_downloaders: 0,
+      documents: [],
+      downloaders: [],
+    };
   },
 
   // Get aggregated location stats for a deck

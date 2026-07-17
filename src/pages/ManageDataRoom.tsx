@@ -30,7 +30,6 @@ import { deckService } from "../services/deckService";
 import { useDataRoomFolders } from "../hooks/useDataRoomFolders";
 import { useAuth } from "../contexts/AuthContext";
 import { DataRoomCreateTour } from "../components/tours/DataRoomCreateTour";
-import { TIER_CONFIG, Tier } from "../constants/tiers";
 import { normalizeSlug } from "../utils/slug";
 import { FolderColorKey } from "../constants/folderColors";
 import { useQueryClient } from "@tanstack/react-query";
@@ -52,12 +51,20 @@ import { DataRoomFolderCard } from "../components/data-room/DataRoomFolderCard";
 import { DataRoomFolderModal } from "../components/data-room/DataRoomFolderModal";
 import { DataRoomTagsModal } from "../components/data-room/DataRoomTagsModal";
 import { DataRoomFolderWithTags } from "../types";
+import { useMyEntitlements, useTierFeatureAccess } from "../hooks/useTierEntitlements";
+import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 
 function ManageDataRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const entitlements = useMyEntitlements(Boolean(profile), profile?.tier);
+  const accessControls = useTierFeatureAccess(
+    profile?.tier,
+    "access_controls",
+    Boolean(profile),
+  );
   const isEditMode = !!roomId && roomId !== "new";
   const {
     folders,
@@ -71,8 +78,8 @@ function ManageDataRoom() {
     if (isEditMode) return;
 
     let isMounted = true;
-    const tier: Tier = (profile?.tier as Tier) || "FREE";
-    const max = TIER_CONFIG[tier].maxDataRooms;
+    const max = entitlements.data?.limits.maxDataRooms;
+    if (max === undefined) return;
 
     dataRoomService
       .getDataRooms()
@@ -88,7 +95,7 @@ function ManageDataRoom() {
     return () => {
       isMounted = false;
     };
-  }, [isEditMode, profile, navigate]);
+  }, [entitlements.data?.limits.maxDataRooms, isEditMode, navigate]);
 
   // Form state
   const [name, setName] = useState("");
@@ -121,6 +128,7 @@ function ManageDataRoom() {
   const [uploadingIcon, setUploadingIcon] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAccessUpsell, setShowAccessUpsell] = useState(false);
 
   const { data: isSlugAvailable, isLoading: isCheckingSlug } =
     useCheckDataRoomSlug(slug, isEditMode ? roomId : undefined);
@@ -994,6 +1002,8 @@ function ManageDataRoom() {
               setExpiryEnabled={setExpiryEnabled}
               expiryDate={expiryDate}
               setExpiryDate={setExpiryDate}
+              canUseAccessControls={accessControls.access.state === "available"}
+              onAccessUpsell={() => setShowAccessUpsell(true)}
             />
           </div>
         </div>
@@ -1101,6 +1111,12 @@ function ManageDataRoom() {
           folderActions.updateTag(tagId, name, color)
         }
         onDelete={folderActions.deleteTag}
+      />
+
+      <TierUpsellModal
+        isOpen={showAccessUpsell}
+        onClose={() => setShowAccessUpsell(false)}
+        featureName="Email capture, password protection, and expiry"
       />
 
       <AlertDialog

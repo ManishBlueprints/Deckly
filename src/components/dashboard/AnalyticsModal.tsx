@@ -15,7 +15,8 @@ import { analyticsService } from "../../services/analyticsService";
 import { Deck, DeckPageStats } from "../../types";
 import { cn } from "../../lib/utils";
 import { useAuth } from "../../contexts/AuthContext";
-import { getTierConfig } from "../../constants/tiers";
+import { useTierFeatureAccess } from "../../hooks/useTierEntitlements";
+import { FeatureGate } from "../billing/FeatureGate";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
@@ -26,8 +27,10 @@ interface AnalyticsModalProps {
 }
 
 function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
-  const { session, isPro } = useAuth();
+  const { session, isPro, profile } = useAuth();
   const userId = session?.user?.id;
+  const pageAnalytics = useTierFeatureAccess(profile?.tier, "page_analytics", Boolean(profile));
+  const canUsePageAnalytics = pageAnalytics.access.state === "available";
   const [stats, setStats] = useState<DeckPageStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<"timeout" | "failed" | null>(null);
@@ -35,13 +38,19 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
     "views",
   );
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const tier = getTierConfig(!!isPro);
+  const tierLabel = pageAnalytics.data?.tiers.find((entry) => entry.tier === profile?.tier)?.label
+    ?? (profile?.tier === "PRO" ? "Share" : profile?.tier === "PRO_PLUS" ? "Founder" : profile?.tier === "RAISE" ? "Raise" : "Free");
 
   useEffect(() => {
     let mounted = true;
     let timeoutId: NodeJS.Timeout;
 
     const performFetch = async () => {
+      if (!pageAnalytics.isLoading && !canUsePageAnalytics) {
+        setLoading(false);
+        setStats([]);
+        return;
+      }
       setLoading(true);
       setError(null);
 
@@ -81,7 +90,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
       mounted = false;
       clearTimeout(timeoutId);
     };
-  }, [deck.id, session, isPro, refreshTrigger, userId]);
+  }, [canUsePageAnalytics, deck.id, isPro, pageAnalytics.isLoading, refreshTrigger, session, userId]);
 
   const handleRetry = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -153,7 +162,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                 </h3>
                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
                   <History size={10} className="text-deckly-primary" />
-                  {tier.label}
+                  {tierLabel}
                 </div>
               </div>
               <p className="text-sm text-slate-400 font-medium truncate max-w-[240px]">
@@ -170,7 +179,9 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
         </header>
 
         <div className="p-6 md:p-8 max-h-[70vh] overflow-y-auto">
-          {loading ? (
+          {!pageAnalytics.isLoading && !canUsePageAnalytics ? (
+            <FeatureGate access={pageAnalytics.access} />
+          ) : loading ? (
             <div className="py-20 flex flex-col items-center gap-4">
               <Loader2 className="animate-spin text-deckly-primary" size={32} />
               <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { extractStoragePath } from "../../../src/services/storagePaths.ts";
-import { createSignedUrls } from "../_shared/r2.ts";
+import { createSignedUrls, presignDownloadUrl } from "../_shared/r2.ts";
 
 /**
  * sign-deck-url
@@ -30,16 +30,35 @@ Deno.serve(async (req: Request) => {
       handle,
       slug,
       password,
-      storage_path,
+      storage_path: rawStoragePath,
       image_paths: rawImagePaths,
       room_slug,
+      intent: rawIntent,
+      deck_id: rawDeckId,
+      request_id: rawRequestId,
+      visitor_id: rawVisitorId,
+      viewer_email: rawViewerEmail,
     } = await req.json();
+    const intent = rawIntent === undefined ? "view" : rawIntent;
     const deckSlug = typeof slug === "string" ? slug : null;
     const roomSlug = typeof room_slug === "string" ? room_slug : null;
-    const storagePath = typeof storage_path === "string" ? storage_path : null;
+    const storagePath = typeof rawStoragePath === "string"
+      ? extractStoragePath(rawStoragePath, "decks")
+      : null;
     const image_paths: string[] = Array.isArray(rawImagePaths)
       ? rawImagePaths.filter((p): p is string => typeof p === "string")
       : [];
+    const deckId = typeof rawDeckId === "string" ? rawDeckId : null;
+    const requestId = typeof rawRequestId === "string" ? rawRequestId : null;
+    const visitorId = typeof rawVisitorId === "string" ? rawVisitorId.trim() : null;
+    const viewerEmail = typeof rawViewerEmail === "string" ? rawViewerEmail.trim() : null;
+
+    if (intent !== "view" && intent !== "download") {
+      return new Response(JSON.stringify({ error: "Invalid request intent" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     if (slug !== undefined && slug !== null && deckSlug === null) {
       return new Response(
@@ -55,9 +74,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (storage_path !== undefined && storage_path !== null && storagePath === null) {
+    if (rawStoragePath !== undefined && rawStoragePath !== null && storagePath === null) {
       return new Response(
-        JSON.stringify({ error: "Invalid request: storage_path must be a string" }),
+        JSON.stringify({ error: "Invalid request: storage_path must be a valid deck storage path" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -75,12 +94,30 @@ Deno.serve(async (req: Request) => {
 
     // Use the publishable client to call get_deck_payload — this re-validates
     // the slug/password/expiry before we issue a signed URL.
-    const anonClient = createClient(supabaseUrl, supabasePublishableKey);
+    const authHeader = req.headers.get("Authorization");
+    const anonClient = createClient(supabaseUrl, supabasePublishableKey, {
+      global: authHeader ? { headers: { Authorization: authHeader } } : undefined,
+    });
 
     const validPaths = new Set<string>();
+    let downloadTarget: {
+      path: string;
+      title: string;
+      fileType: string;
+      allowed: boolean;
+      deckId: string;
+      deckLinkId?: string;
+      dataRoomId?: string;
+    } | null = null;
 
     interface DeckPayload {
+      id?: string;
       storage_path?: string;
+      title?: string;
+      file_type?: string;
+      allow_download?: boolean;
+      deck_link_id?: string;
+      data_room_id?: string;
       pages?: Array<{ image_url: string } | string>;
     }
 
@@ -111,7 +148,23 @@ Deno.serve(async (req: Request) => {
       if (rpcData) {
         const payloads = rpcData as DeckPayload[];
         payloads.forEach(payload => {
-          if (payload.storage_path) validPaths.add(payload.storage_path);
+          const payloadStoragePath = payload.storage_path
+            ? extractStoragePath(payload.storage_path, "decks")
+            : null;
+          if (payloadStoragePath) validPaths.add(payloadStoragePath);
+          if (intent === "download" && payload.id === deckId && payloadStoragePath) {
+            if (typeof payload.id !== "string" || typeof payload.data_room_id !== "string") {
+              return;
+            }
+            downloadTarget = {
+              path: payloadStoragePath,
+              title: typeof payload.title === "string" ? payload.title : "pitch-deck",
+              fileType: typeof payload.file_type === "string" ? payload.file_type : "pdf",
+              allowed: payload.allow_download === true,
+              deckId: payload.id,
+              dataRoomId: payload.data_room_id,
+            };
+          }
           (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
             const url = typeof page === 'string' ? page : page.image_url;
             if (url && typeof url === 'string') {
@@ -147,7 +200,26 @@ Deno.serve(async (req: Request) => {
 
       if (rpcData) {
         const payload = rpcData as DeckPayload;
-        if (payload.storage_path) validPaths.add(payload.storage_path);
+        const payloadStoragePath = payload.storage_path
+          ? extractStoragePath(payload.storage_path, "decks")
+          : null;
+        if (payloadStoragePath) validPaths.add(payloadStoragePath);
+        if (intent === "download" && payloadStoragePath) {
+          if (typeof payload.id !== "string" || typeof payload.deck_link_id !== "string") {
+            return new Response(JSON.stringify({ error: "Download metadata was unavailable" }), {
+              status: 500,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+          downloadTarget = {
+            path: payloadStoragePath,
+            title: typeof payload.title === "string" ? payload.title : "pitch-deck",
+            fileType: typeof payload.file_type === "string" ? payload.file_type : "pdf",
+            allowed: payload.allow_download === true,
+            deckId: payload.id,
+            deckLinkId: payload.deck_link_id,
+          };
+        }
         (Array.isArray(payload.pages) ? payload.pages : []).forEach(page => {
           const url = typeof page === 'string' ? page : page.image_url;
           if (url && typeof url === 'string') {
@@ -161,15 +233,68 @@ Deno.serve(async (req: Request) => {
     // Reject if any requested path (main or image) is not authorized for this session.
     // 2. OWNER MODE: If an auth token is provided, verify it.
     // If verified, the owner can sign any path starting with their userId/ without further checks.
-    let ownerId: string | null = null;
-    const authHeader = req.headers.get("Authorization");
+    let authenticatedUser: { id: string; email?: string | null } | null = null;
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
       const { data: { user }, error: userError } = await anonClient.auth.getUser(token);
       if (!userError && user) {
-        ownerId = user.id;
-        console.log("[sign-deck-url] Owner verified.");
+        authenticatedUser = user;
+        console.log("[sign-deck-url] Authenticated viewer verified.");
       }
+    }
+
+    if (intent === "download") {
+      if (!downloadTarget || !downloadTarget.allowed) {
+        return new Response(JSON.stringify({ error: "Downloads are not permitted for this deck" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      const safeTitle = downloadTarget.title
+        .replace(/[\\/:*?"<>|\r\n]+/g, "-")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 120) || "pitch-deck";
+      const safeExtension = /^[a-z0-9]{1,10}$/i.test(downloadTarget.fileType)
+        ? downloadTarget.fileType.toLowerCase()
+        : "pdf";
+      const filename = `${safeTitle}.${safeExtension}`;
+      const downloadUrl = await presignDownloadUrl("decks", downloadTarget.path, filename, 60);
+
+      const isValidRequestId = requestId !== null && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId);
+      if (isValidRequestId && visitorId) {
+        const serviceRoleKey = Deno.env.get("PROJECT_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+        if (!serviceRoleKey) {
+          console.error("[sign-deck-url] Download analytics skipped: service role key is unavailable");
+        } else {
+          const admin = createClient(supabaseUrl, serviceRoleKey, {
+            auth: { autoRefreshToken: false, persistSession: false },
+          });
+          const { error: analyticsError } = await admin.rpc("record_deck_download", {
+            p_request_id: requestId,
+            p_deck_id: downloadTarget.deckId,
+            p_visitor_id: visitorId,
+            p_viewer_email: authenticatedUser?.email ?? viewerEmail ?? null,
+            p_deck_link_id: downloadTarget.deckLinkId ?? null,
+            p_data_room_id: downloadTarget.dataRoomId ?? null,
+            p_actor_user_id: authenticatedUser?.id ?? null,
+          });
+          if (analyticsError) {
+            console.error("[sign-deck-url] Failed to record download analytics:", {
+              code: analyticsError.code,
+              message: analyticsError.message,
+            });
+          }
+        }
+      } else {
+        console.warn("[sign-deck-url] Download analytics skipped: invalid tracking metadata");
+      }
+
+      return new Response(JSON.stringify({ download_url: downloadUrl, filename, expires_in: 60 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
     }
 
     const requestedPaths = [];
@@ -181,12 +306,12 @@ Deno.serve(async (req: Request) => {
     const finalRequestedPaths = requestedPaths.filter(path => {
       if (path === "") return false;
       if (validPaths.has(path)) return true;
-      if (ownerId && path.startsWith(`${ownerId}/`)) return true;
+      if (authenticatedUser?.id && path.startsWith(`${authenticatedUser.id}/`)) return true;
       return false;
     });
 
     if (finalRequestedPaths.length < requestedPaths.length) {
-       const missing = requestedPaths.find(p => (p === "" || !validPaths.has(p)) && (!ownerId || p === "" || !p.startsWith(`${ownerId}/`)));
+       const missing = requestedPaths.find(p => (p === "" || !validPaths.has(p)) && (!authenticatedUser?.id || p === "" || !p.startsWith(`${authenticatedUser.id}/`)));
        if (missing) {
          console.warn("[sign-deck-url] Blocked path access attempt: unauthorized path requested.");
          return new Response(

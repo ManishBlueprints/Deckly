@@ -108,8 +108,8 @@ For more details, see the full [LICENSE](./LICENSE) file.
 
 Deckly keeps the install surface intentionally small:
 
-- [`supabase/schema.sql`](./supabase/schema.sql) is the human-readable canonical snapshot.
-- [`supabase/migrations/`](./supabase/migrations) is the executable history that Supabase replays.
+- [`supabase/migrations/`](./supabase/migrations) is the canonical, executable database history that Supabase replays.
+- [`supabase/schema.sql`](./supabase/schema.sql) is a human-readable reference only; provision fresh environments through migrations rather than applying it directly.
 - [`supabase/seed.sql`](./supabase/seed.sql) stays minimal and non-production.
 - [`supabase/bootstrap/verify.sql`](./supabase/bootstrap/verify.sql) verifies a fresh install.
 - [`scripts/bootstrap-supabase.mjs`](./scripts/bootstrap-supabase.mjs) is the one command entrypoint.

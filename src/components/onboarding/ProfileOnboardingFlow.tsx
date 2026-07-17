@@ -7,7 +7,15 @@ import { MascotSettingsModal } from "../dashboard/MascotSettingsModal";
 import { AboutYouOnboardingModal } from "./AboutYouOnboardingModal";
 import { getOnboardingStage } from "../../utils/onboarding";
 
-export function ProfileOnboardingFlow() {
+interface ProfileOnboardingFlowProps {
+  onCompletionStart: () => void;
+  onCompletionFailed: () => void;
+}
+
+export function ProfileOnboardingFlow({
+  onCompletionStart,
+  onCompletionFailed,
+}: ProfileOnboardingFlowProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { profile, branding, setBranding } = useAuth();
@@ -43,6 +51,8 @@ export function ProfileOnboardingFlow() {
   return (
     <AboutYouOnboardingModal
       isOpen
+      onCompletionStart={onCompletionStart}
+      onCompletionFailed={onCompletionFailed}
       onComplete={() => navigate("/", { replace: true })}
     />
   );
