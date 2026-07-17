@@ -303,11 +303,15 @@ export interface DocumentDownloadSummary {
   latest_download_at: string | null;
 }
 
+export interface DataRoomDownloadViewerSummary extends DownloadViewerSummary {
+  downloaded_documents: DocumentDownloadSummary[];
+}
+
 export interface DataRoomDownloadAnalytics {
   total_downloads: number;
   unique_downloaders: number;
   documents: DocumentDownloadSummary[];
-  downloaders: DownloadViewerSummary[];
+  downloaders: DataRoomDownloadViewerSummary[];
   downloaders_truncated?: boolean;
 }
 

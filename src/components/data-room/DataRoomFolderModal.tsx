@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useMemo, useState, type CSSProperties } from "react";
 import { Loader2, Plus, X } from "lucide-react";
+import { toast } from "sonner";
 import { GlobalTag } from "../../types";
 import {
   DEFAULT_FOLDER_COLOR,
@@ -54,19 +55,6 @@ export function DataRoomFolderModal({
     setShowSuggestions(false);
     setIsSaving(false);
   }, [isOpen, initialData]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
 
   const selectedTags = useMemo(
     () => existingTags.filter((tag) => selectedTagIds.includes(tag.id)),
@@ -132,6 +120,11 @@ export function DataRoomFolderModal({
         tagIds: selectedTagIds,
       });
       onClose();
+    } catch (error) {
+      console.error("Failed to save data room folder", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save folder.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -141,6 +134,7 @@ export function DataRoomFolderModal({
     <DataRoomModalShell
       isOpen={isOpen}
       onClose={onClose}
+      ariaLabel={initialData ? "Edit folder" : "Create folder"}
       panelClassName="pointer-events-auto w-full max-w-md rounded-none border border-border bg-surface-card shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden"
     >
       <div className="p-8 space-y-8">

@@ -644,10 +644,14 @@ export const analyticsService = {
     };
   },
 
-  async getDataRoomDownloadAnalytics(roomId: string): Promise<DataRoomDownloadAnalytics> {
+  async getDataRoomDownloadAnalytics(
+    roomId: string,
+    options: { limit?: number; offset?: number } = {},
+  ): Promise<DataRoomDownloadAnalytics> {
     const { data, error } = await supabase.rpc("get_data_room_download_analytics", {
       p_data_room_id: roomId,
-      p_limit: 100,
+      p_limit: options.limit ?? 100,
+      p_offset: options.offset ?? 0,
     });
     if (error) throw error;
     return (data as DataRoomDownloadAnalytics) || {

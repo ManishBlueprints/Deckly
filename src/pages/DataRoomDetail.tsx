@@ -8,7 +8,6 @@ import { DataRoom, DataRoomDocument, DataRoomDownloadAnalytics } from "../types"
 import { dataRoomService } from "../services/dataRoomService";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
 import { useAuth } from "../contexts/AuthContext";
-import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getRoomVisitorSignals,
@@ -45,9 +44,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
-import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
-import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
-import type { Tier } from "../constants/tiers";
+
+const DOWNLOADERS_PAGE_SIZE = 100;
 
 /* ───────── main page ───────── */
 function DataRoomDetail() {
@@ -85,6 +83,8 @@ function DataRoomDetail() {
     documents: [],
     downloaders: [],
   });
+  const [downloadAnalyticsLoading, setDownloadAnalyticsLoading] = useState(true);
+  const [isLoadingMoreDownloaders, setIsLoadingMoreDownloaders] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
@@ -103,7 +103,6 @@ function DataRoomDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isUpdatingShareState, setIsUpdatingShareState] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const search = useMetadataSearchState("data_room");
 
   const [roomSignals, setRoomSignals] = useState<VisitorSignal[]>([]);
@@ -170,6 +169,7 @@ function DataRoomDetail() {
     loadAllRequestIdRef.current = requestId;
     setLoading(true);
     setAnalyticsLoading(true);
+    setDownloadAnalyticsLoading(true);
     try {
       const [roomData, docs] = await Promise.all([
         dataRoomService.getDataRoomById(roomId),
@@ -234,6 +234,10 @@ function DataRoomDetail() {
           if (requestId !== loadAllRequestIdRef.current) return;
           console.error("Failed to load room download analytics", err);
           setDownloadAnalytics({ total_downloads: 0, unique_downloaders: 0, documents: [], downloaders: [] });
+        })
+        .finally(() => {
+          if (requestId !== loadAllRequestIdRef.current) return;
+          setDownloadAnalyticsLoading(false);
         });
 
       void dataRoomService
@@ -256,6 +260,7 @@ function DataRoomDetail() {
       console.error("Failed to load room", err);
       setLoading(false);
       setAnalyticsLoading(false);
+      setDownloadAnalyticsLoading(false);
     }
   }, [roomId, navigate]);
 
@@ -267,14 +272,6 @@ function DataRoomDetail() {
     () => roomDocumentStats.reduce((acc, doc) => acc + doc.totalTimeSeconds, 0),
     [roomDocumentStats],
   );
-
-  const aiSummary = useAiSummaryPanel({
-    onRequireAuth: () => {
-      toast.info("Sign in to unlock AI follow-up chat.");
-    },
-    isGuest: false,
-    tier: (profile?.tier as Tier) || "FREE",
-  });
 
   useEffect(() => {
     loadAll();
@@ -512,43 +509,39 @@ function DataRoomDetail() {
     }
   };
 
-  const handleSummarizeRoom = async () => {
-    if (!room) return;
+  const handleLoadMoreDownloaders = useCallback(async () => {
+    if (
+      !roomId ||
+      isLoadingMoreDownloaders ||
+      !downloadAnalytics.downloaders_truncated
+    ) return;
 
+    setIsLoadingMoreDownloaders(true);
     try {
-      const result = await aiSummary.requestSummary({
-        scope_type: "data_room",
-        scope_id: room.id,
-        scope_label: room.name,
+      const nextPage = await analyticsService.getDataRoomDownloadAnalytics(roomId, {
+        limit: DOWNLOADERS_PAGE_SIZE,
+        offset: downloadAnalytics.downloaders.length,
       });
-      if (!result) return;
+      setDownloadAnalytics((current) => {
+        const seenVisitorIds = new Set(
+          current.downloaders.map((downloader) => downloader.visitor_id),
+        );
+        const additionalDownloaders = nextPage.downloaders.filter(
+          (downloader) => !seenVisitorIds.has(downloader.visitor_id),
+        );
 
-      if (result.status === "quota_limited" && result.usage.quota?.nextAction === "upgrade") {
-        setShowUpgradeModal(true);
-      }
-    } catch (err) {
-      console.error("Failed to summarize room", err);
-      toast.error("Failed to load the AI summary.");
-    }
-  };
-
-  const handleSummarizeFolder = async (folder: DataRoomFolderWithTags) => {
-    try {
-      const result = await aiSummary.requestSummary({
-        scope_type: "folder",
-        scope_id: folder.id,
-        scope_label: folder.name,
+        return {
+          ...nextPage,
+          downloaders: [...current.downloaders, ...additionalDownloaders],
+        };
       });
-      if (!result) return;
-
-      if (result.status === "quota_limited" && result.usage.quota?.nextAction === "upgrade") {
-        setShowUpgradeModal(true);
-      }
-    } catch (err) {
-      console.error("Failed to summarize folder", err);
-      toast.error("Failed to load the AI summary.");
+    } catch (error) {
+      console.error("Failed to load more room downloaders", error);
+      toast.error("Failed to load more downloaders.");
+    } finally {
+      setIsLoadingMoreDownloaders(false);
     }
-  };
+  }, [downloadAnalytics.downloaders.length, downloadAnalytics.downloaders_truncated, isLoadingMoreDownloaders, roomId]);
 
   /* ── loading state ── */
   if (loading) {
@@ -579,8 +572,6 @@ function DataRoomDetail() {
               "noopener,noreferrer",
             )
           }
-          onSummarize={() => void handleSummarizeRoom()}
-          summarizeDisabled={documents.length === 0}
         />
 
         <DataRoomDetailTabs activeTab={activeTab} onChange={setActiveTab} />
@@ -605,7 +596,6 @@ function DataRoomDetail() {
             }}
             onUpdateFolderTags={handleUpdateFolderTags}
             onDeleteFolder={(nextFolder) => setDeletingFolder(nextFolder)}
-            onSummarizeFolder={(nextFolder) => void handleSummarizeFolder(nextFolder)}
             onEditTags={() => setTagModalOpen(true)}
             search={search}
             selectedTagId={selectedTagId}
@@ -630,6 +620,9 @@ function DataRoomDetail() {
             roomLocations={roomLocations}
             roomDocumentStats={roomDocumentStats}
             downloadAnalytics={downloadAnalytics}
+            downloadLoading={downloadAnalyticsLoading}
+            isLoadingMoreDownloaders={isLoadingMoreDownloaders}
+            onLoadMoreDownloaders={() => void handleLoadMoreDownloaders()}
             signalsLoading={signalsLoading}
             roomSignals={roomSignals}
             loading={analyticsLoading}
@@ -759,34 +752,6 @@ function DataRoomDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AiSummarySidebar
-        isOpen={aiSummary.state.isOpen}
-        onClose={aiSummary.close}
-        onRequireAuth={() => {
-          toast.info("Sign in to unlock AI follow-up chat.");
-        }}
-        title="AI Summary"
-        privacyLabel="Room owner view"
-        description="Quick overview plus follow-up chat for this room or folder."
-        summary={aiSummary.state.summary}
-        isSummaryLoading={aiSummary.state.isSummaryLoading}
-        summaryEmptyMessage="Summary will appear here when available."
-        summaryMeta={aiSummary.state.summaryMeta}
-        summaryNotice={aiSummary.state.summaryNotice}
-        summaryNoticeTone={aiSummary.state.summaryNoticeTone}
-        chatMessages={aiSummary.state.chatMessages}
-        chatInputValue={aiSummary.state.chatInputValue}
-        onChatInputChange={aiSummary.setChatInputValue}
-        onChatSubmit={aiSummary.submitChat}
-        isChatLoading={aiSummary.state.isChatLoading}
-        isChatLocked={aiSummary.state.isChatLocked}
-      />
-
-      <TierUpsellModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        featureName="AI summaries"
-      />
     </DashboardLayout>
   );
 }
@@ -804,7 +769,6 @@ function DataRoomContentSection({
   onEditFolder,
   onUpdateFolderTags,
   onDeleteFolder,
-  onSummarizeFolder,
   onEditTags,
   search,
   selectedTagId,
@@ -831,7 +795,6 @@ function DataRoomContentSection({
   onEditFolder: (folder: DataRoomFolderWithTags) => void;
   onUpdateFolderTags: (folder: DataRoomFolderWithTags, tagIds: string[]) => Promise<void>;
   onDeleteFolder: (folder: DataRoomFolderWithTags) => void;
-  onSummarizeFolder: (folder: DataRoomFolderWithTags) => void;
   onEditTags: () => void;
   search: ReturnType<typeof useMetadataSearchState>;
   selectedTagId: string | null;
@@ -891,7 +854,6 @@ function DataRoomContentSection({
         onEditFolder={onEditFolder}
         onUpdateFolderTags={onUpdateFolderTags}
         onDeleteFolder={onDeleteFolder}
-        onSummarizeFolder={onSummarizeFolder}
       />
 
       <div className="rounded-xl md:rounded-2xl border border-white/5 bg-[#111] overflow-hidden">

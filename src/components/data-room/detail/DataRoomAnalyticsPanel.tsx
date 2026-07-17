@@ -12,7 +12,10 @@ import {
   AnalyticsStatCard,
   AnalyticsTabs,
 } from "../../analytics/AnalyticsPrimitives";
-import type { DataRoomDownloadAnalytics } from "../../../types";
+import type {
+  DataRoomDownloadAnalytics,
+  DocumentDownloadSummary,
+} from "../../../types";
 
 interface CountryStat {
   name: string;
@@ -48,10 +51,18 @@ interface DataRoomAnalyticsPanelProps {
   signalsLoading: boolean;
   roomSignals: VisitorSignal[];
   downloadAnalytics: DataRoomDownloadAnalytics;
+  downloadLoading?: boolean;
+  isLoadingMoreDownloaders?: boolean;
+  onLoadMoreDownloaders?: () => void;
   loading?: boolean;
 }
 
 type TabKey = "VISITS" | "TIME" | "LOCATION" | "DOWNLOADS";
+type RoomVisitorActivity = VisitorSignal & {
+  totalDownloads: number;
+  latestDownloadAt: string | null;
+  downloadedDocuments: DocumentDownloadSummary[];
+};
 
 export function DataRoomAnalyticsPanel({
   totalVisitors,
@@ -62,6 +73,9 @@ export function DataRoomAnalyticsPanel({
   signalsLoading,
   roomSignals,
   downloadAnalytics,
+  downloadLoading = false,
+  isLoadingMoreDownloaders = false,
+  onLoadMoreDownloaders,
   loading = false,
 }: DataRoomAnalyticsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("VISITS");
@@ -84,6 +98,58 @@ export function DataRoomAnalyticsPanel({
     () => new Map(roomDocumentStats.map((doc) => [doc.deckId, doc.title])),
     [roomDocumentStats],
   );
+  const visitorActivity = useMemo<RoomVisitorActivity[]>(() => {
+    const visitors = new Map<string, RoomVisitorActivity>();
+
+    for (const visitor of roomSignals) {
+      visitors.set(visitor.visitorId, {
+        ...visitor,
+        totalDownloads: 0,
+        latestDownloadAt: null,
+        downloadedDocuments: [],
+      });
+    }
+
+    for (const downloader of downloadAnalytics.downloaders) {
+      const existingVisitor = visitors.get(downloader.visitor_id);
+      const downloadedDocuments = downloader.downloaded_documents ?? [];
+
+      if (existingVisitor) {
+        visitors.set(downloader.visitor_id, {
+          ...existingVisitor,
+          viewerEmail: existingVisitor.viewerEmail ?? downloader.viewer_email,
+          totalDownloads: downloader.total_downloads,
+          latestDownloadAt: downloader.latest_download_at,
+          downloadedDocuments,
+        });
+        continue;
+      }
+
+      visitors.set(downloader.visitor_id, {
+        visitorId: downloader.visitor_id,
+        viewerEmail: downloader.viewer_email,
+        totalVisits: 0,
+        totalTime: 0,
+        distinctDays: 0,
+        deepSlides: 0,
+        daysBetweenFirstAndLast: null,
+        signals: [],
+        slideBreakdown: [],
+        deckBreakdown: [],
+        isEngaged: false,
+        totalDownloads: downloader.total_downloads,
+        latestDownloadAt: downloader.latest_download_at,
+        downloadedDocuments,
+      });
+    }
+
+    return [...visitors.values()].sort(
+      (left, right) =>
+        right.totalDownloads - left.totalDownloads ||
+        right.totalVisits - left.totalVisits ||
+        right.totalTime - left.totalTime,
+    );
+  }, [downloadAnalytics.downloaders, roomSignals]);
 
   const sortedDocs = useMemo(() => {
     const docs = [...roomDocumentStats];
@@ -114,7 +180,7 @@ export function DataRoomAnalyticsPanel({
         <AnalyticsStatCard icon={<Clock size={16} />} label="Total Time" value={`${Math.round(totalTimeSeconds)}s`} />
         <AnalyticsStatCard icon={<Users size={16} />} label="Unique Visitors" value={totalVisitors.toLocaleString()} />
         <AnalyticsStatCard icon={<BarChart3 size={16} />} label="Avg Session" value={`${avgTimePerView.toFixed(1)}s`} />
-        <AnalyticsStatCard icon={<Download size={16} />} label="Downloads" value={downloadAnalytics.total_downloads.toLocaleString()} />
+        <AnalyticsStatCard icon={<Download size={16} />} label="Downloads" value={downloadLoading ? "—" : downloadAnalytics.total_downloads.toLocaleString()} />
       </div>
 
       {/* Document engagement */}
@@ -168,7 +234,12 @@ export function DataRoomAnalyticsPanel({
                 </div>
               )
             ) : activeTab === "DOWNLOADS" ? (
-              downloadAnalytics.documents.length === 0 ? (
+              downloadLoading ? (
+                <div className="flex items-center justify-center gap-3 py-12 text-sm text-muted-foreground">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+                  Loading download analytics...
+                </div>
+              ) : downloadAnalytics.documents.length === 0 ? (
                 <AnalyticsEmptyState icon={<Download size={32} />} text="No downloads recorded from this data room yet." />
               ) : (
                 <div className="space-y-4 md:space-y-5">
@@ -245,7 +316,12 @@ export function DataRoomAnalyticsPanel({
           </div>
           <Badge className="ml-auto bg-primary text-primary-foreground">{downloadAnalytics.unique_downloaders} viewer{downloadAnalytics.unique_downloaders === 1 ? "" : "s"}</Badge>
         </div>
-        {downloadAnalytics.downloaders.length === 0 ? (
+        {downloadLoading ? (
+          <div className="flex items-center justify-center gap-3 py-12 text-sm text-muted-foreground">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+            Loading downloaders...
+          </div>
+        ) : downloadAnalytics.downloaders.length === 0 ? (
           <AnalyticsEmptyState icon={<Download size={32} />} text="No download activity recorded yet." />
         ) : (
           <div className="space-y-3">
@@ -255,6 +331,23 @@ export function DataRoomAnalyticsPanel({
                 <span className="text-xs font-semibold text-primary whitespace-nowrap">{downloader.total_downloads} download{downloader.total_downloads === 1 ? "" : "s"}</span>
               </div>
             ))}
+          </div>
+        )}
+        {!downloadLoading && downloadAnalytics.downloaders_truncated && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+            <p>
+              Showing {downloadAnalytics.downloaders.length} of {downloadAnalytics.unique_downloaders} downloaders.
+            </p>
+            {onLoadMoreDownloaders && (
+              <button
+                type="button"
+                onClick={onLoadMoreDownloaders}
+                disabled={isLoadingMoreDownloaders}
+                className="font-semibold text-primary transition-colors hover:text-primary/80 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isLoadingMoreDownloaders ? "Loading..." : "Load more"}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -271,33 +364,37 @@ export function DataRoomAnalyticsPanel({
                 Individual Visitors
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Visitor activity by deck
+                Visitor activity and downloads by deck
               </p>
             </div>
-            {roomSignals.length > 0 && (
+            {visitorActivity.length > 0 && (
               <Badge className="ml-auto bg-primary text-primary-foreground font-medium text-xs px-3 py-1 rounded w-fit">
-                {roomSignals.length} Viewer{roomSignals.length !== 1 ? "s" : ""}
+                {visitorActivity.length} Viewer{visitorActivity.length !== 1 ? "s" : ""}
               </Badge>
             )}
           </div>
 
-          {signalsLoading ? (
+          {signalsLoading || downloadLoading ? (
             <div className="py-20 flex flex-col items-center gap-4 text-muted-foreground">
               <div className="w-12 h-12 border-4 border-border border-t-primary rounded-full animate-spin" />
               <p className="text-[10px] font-bold uppercase tracking-widest">
                 Loading visitor activity...
               </p>
             </div>
-          ) : roomSignals.length === 0 ? (
+          ) : visitorActivity.length === 0 ? (
             <AnalyticsEmptyState
               icon={<Users size={32} />}
               text="No visitor activity recorded yet."
             />
           ) : (
             <div className="space-y-4">
-              {roomSignals.map((visitor, idx) => {
+              {visitorActivity.map((visitor, idx) => {
                 const isOpen = expandedVisitor === visitor.visitorId;
                 const deckBreakdown = visitor.deckBreakdown ?? [];
+                const documentCount = new Set([
+                  ...deckBreakdown.map((deck) => deck.deckId),
+                  ...visitor.downloadedDocuments.map((document) => document.deck_id),
+                ]).size;
 
                 return (
                   <motion.div
@@ -344,6 +441,14 @@ export function DataRoomAnalyticsPanel({
                               {visitor.distinctDays} Day
                               {visitor.distinctDays !== 1 ? "s" : ""}
                             </span>
+                            {visitor.totalDownloads > 0 && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-border" />
+                                <span className="text-xs text-muted-foreground font-medium">
+                                  {visitor.totalDownloads} Download{visitor.totalDownloads !== 1 ? "s" : ""}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -354,7 +459,7 @@ export function DataRoomAnalyticsPanel({
                             Decks
                           </p>
                           <p className="text-xs font-semibold text-foreground mt-1">
-                            {deckBreakdown.length} visited
+                            {documentCount} active
                           </p>
                         </div>
                         <div className={cn(
@@ -374,15 +479,11 @@ export function DataRoomAnalyticsPanel({
 
                     {isOpen && (
                       <div className="border-t border-border/60 bg-[#0e0e0e] p-4 md:p-6 space-y-4">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                          Visited Decks
-                        </p>
-
-                        {deckBreakdown.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            No per-deck breakdown available for this visitor.
-                          </p>
-                        ) : (
+                        {deckBreakdown.length > 0 && (
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                              Visited Decks
+                            </p>
                           <div className="space-y-3">
                             {deckBreakdown.map((deck) => (
                               <div
@@ -404,6 +505,35 @@ export function DataRoomAnalyticsPanel({
                                 </div>
                               </div>
                             ))}
+                          </div>
+                          </div>
+                        )}
+
+                        {visitor.downloadedDocuments.length > 0 && (
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                              Downloaded Files
+                            </p>
+                            <div className="space-y-3">
+                              {visitor.downloadedDocuments.map((document) => (
+                                <div
+                                  key={document.deck_id}
+                                  className="flex flex-col gap-3 rounded-md bg-surface-lowest px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-foreground">
+                                      {document.title}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                      Last downloaded {document.latest_download_at ? new Date(document.latest_download_at).toLocaleString() : "—"}
+                                    </p>
+                                  </div>
+                                  <span className="text-xs font-medium text-primary">
+                                    {document.total_downloads} download{document.total_downloads === 1 ? "" : "s"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
