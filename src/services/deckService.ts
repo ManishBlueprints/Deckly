@@ -226,11 +226,10 @@ const deckCrudService = {
 
     let cleanupError: unknown = null;
     try {
-      await deckStorageService.deleteDeckAssets(
-        fileUrl,
-        slug,
-        userId,
-      );
+      await Promise.all([
+        deckStorageService.deleteDeckAssets(fileUrl, slug, userId),
+        deckStorageService.deleteDeckWatermarkAssets(id, userId),
+      ]);
     } catch (err) {
       cleanupError = err;
     }
@@ -409,6 +408,9 @@ const deckPublicService = {
     title?: string;
     file_type?: string;
     allow_download: boolean;
+    watermark_enabled?: boolean;
+    watermark_text?: string | null;
+    watermark_status?: "disabled" | "pending" | "processing" | "ready" | "failed";
   }> {
     const { data, error } = await supabase.rpc("get_deck_payload", {
       p_handle: handle ?? null,
@@ -425,6 +427,9 @@ const deckPublicService = {
       title?: string;
       file_type?: string;
       allow_download?: boolean;
+      watermark_enabled?: boolean;
+      watermark_text?: string | null;
+      watermark_status?: "disabled" | "pending" | "processing" | "ready" | "failed";
     };
 
     // If the bucket is private and we have a storage path, fetch short-lived signed URLs.
@@ -533,6 +538,26 @@ const deckPublicService = {
       throw new Error("Download link was unavailable");
     }
     return { downloadUrl: data.download_url as string, filename: data.filename as string };
+  },
+
+  async generateWatermarkedDeck(deckId: string): Promise<void> {
+    const { data, error } = await supabase.functions.invoke("generate-watermarked-deck", {
+      body: { deckId },
+    });
+    if (error) throw error;
+    if (!data?.success) {
+      throw new Error(data?.message || "Unable to prepare the watermarked download");
+    }
+  },
+
+  async cleanupWatermarkedDeck(deckId: string): Promise<void> {
+    const { data, error } = await supabase.functions.invoke("generate-watermarked-deck", {
+      body: { deckId, action: "cleanup" },
+    });
+    if (error) throw error;
+    if (!data?.success) {
+      throw new Error(data?.message || "Unable to remove the watermarked download");
+    }
   },
 
   async getDeckBySlugOnly(

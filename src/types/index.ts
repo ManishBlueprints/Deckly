@@ -36,6 +36,9 @@ export interface Deck {
   require_email?: boolean;
   require_password?: boolean;
   allow_download?: boolean;
+  watermark_enabled?: boolean;
+  watermark_text?: string | null;
+  watermark_status?: "disabled" | "pending" | "processing" | "ready" | "failed";
   is_public?: boolean;
   view_password?: string;
   file_type?: string;

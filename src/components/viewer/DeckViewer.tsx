@@ -11,6 +11,7 @@ import {
   getAspectRatio,
 } from "../../utils/viewerDimensions";
 import "react-pdf/dist/Page/AnnotationLayer.css";
+import { DeckWatermark } from "./DeckWatermark";
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -189,6 +190,7 @@ function DeckViewer({
                   />
                 )}
               </Document>
+              <DeckWatermark enabled={deck.watermark_enabled} text={deck.watermark_text} />
             </motion.div>
           </AnimatePresence>
         ) : (

@@ -9,6 +9,44 @@ function sanitizeStorageSlug(slug: string): string {
   return slug.replace(/[^a-z0-9-]/gi, "_");
 }
 
+async function deleteAssetsUnderPrefix(prefix: string): Promise<void> {
+  await withRetry(async () => {
+    const allFilesToDelete: string[] = [];
+    let continuationToken: string | null = null;
+
+    while (true) {
+      const { data, error } = await storageService.list(
+        "decks",
+        prefix,
+        { continuationToken },
+      );
+
+      if (error) {
+        if (!error.message?.toLowerCase().includes("not found")) {
+          throw error;
+        }
+        return;
+      }
+
+      allFilesToDelete.push(
+        ...((data?.items || [])
+          .map((item) => item.name)
+          .filter((name) => name.startsWith(prefix))),
+      );
+
+      continuationToken = data?.nextToken ?? null;
+      if (!continuationToken) break;
+    }
+
+    for (let i = 0; i < allFilesToDelete.length; i += 100) {
+      const { error } = await storageService.remove("decks", allFilesToDelete.slice(i, i + 100));
+      if (error && !error.message?.toLowerCase().includes("not found")) {
+        throw error;
+      }
+    }
+  });
+}
+
 export const deckStorageService = {
   async uploadDeckFile(
     file: File,
@@ -107,52 +145,13 @@ export const deckStorageService = {
       }
     });
 
-    await withRetry(async () => {
-      const safeSlug = sanitizeStorageSlug(slug);
-      const prefix = `${userId}/deck-images/${safeSlug}/`;
-      const allFilesToDelete: string[] = [];
-      let continuationToken: string | null = null;
+    const safeSlug = sanitizeStorageSlug(slug);
+    await deleteAssetsUnderPrefix(`${userId}/deck-images/${safeSlug}/`);
+  },
 
-      while (true) {
-        const { data, error } = await storageService.list(
-          "decks",
-          prefix,
-          { continuationToken },
-        );
-
-        if (error) {
-          if (!error.message?.toLowerCase().includes("not found")) {
-            throw error;
-          }
-          return;
-        }
-
-        allFilesToDelete.push(
-          ...((data?.items || [])
-            .map((item) => item.name)
-            .filter((name) => name.startsWith(prefix))),
-        );
-
-        continuationToken = data?.nextToken ?? null;
-        if (!continuationToken) {
-          break;
-        }
-      }
-
-      if (allFilesToDelete.length > 0) {
-        // supabase remove has a limit depending on the payload length, but usually accepts a lot. Let's chunk if necessary, or pass all.
-        // Doing simple chunks of 100
-        const chunkSize = 100;
-        for (let i = 0; i < allFilesToDelete.length; i += chunkSize) {
-          const chunk = allFilesToDelete.slice(i, i + chunkSize);
-          const { error: removeError } = await storageService.remove("decks", chunk);
-
-          if (removeError && !removeError.message?.toLowerCase().includes("not found")) {
-            throw removeError;
-          }
-        }
-      }
-    });
+  async deleteDeckWatermarkAssets(deckId: string, providedUserId?: string): Promise<void> {
+    const userId = await getRequiredDeckUserId(providedUserId);
+    await deleteAssetsUnderPrefix(`${userId}/watermarks/${deckId}/`);
   },
 
   async deleteSlideImages(fileUrls: string[]): Promise<void> {

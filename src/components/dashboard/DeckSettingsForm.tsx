@@ -14,6 +14,7 @@ import { extractStoragePath } from "../../services/deckService.shared";
 // Sub-components
 import { ManagementSection } from "./form-sections/ManagementSection";
 import { AccessProtectionSection } from "./form-sections/AccessProtectionSection";
+import { WatermarkSettingsSection } from "./form-sections/WatermarkSettingsSection";
 import { DangerZoneSection } from "./form-sections/DangerZoneSection";
 import { Button } from "../ui/button";
 import { Save } from "lucide-react";
@@ -39,6 +40,8 @@ export function DeckSettingsForm({
     deck.require_password || false,
   );
   const [allowDownload, setAllowDownload] = useState(deck.allow_download || false);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(deck.watermark_enabled || false);
+  const [watermarkText, setWatermarkText] = useState(deck.watermark_text || "");
   const [showUpsell, setShowUpsell] = useState(false);
   const [upsellFeature, setUpsellFeature] = useState("Premium features");
   const [viewPassword, setViewPassword] = useState(deck.view_password || "");
@@ -65,6 +68,11 @@ export function DeckSettingsForm({
   const downloadControls = useTierFeatureAccess(
     profile?.tier,
     "deck_downloads",
+    Boolean(profile),
+  );
+  const watermarkControls = useTierFeatureAccess(
+    profile?.tier,
+    "deck_watermarking",
     Boolean(profile),
   );
 
@@ -184,6 +192,8 @@ export function DeckSettingsForm({
         require_email: requireEmail,
         require_password: requirePassword,
         allow_download: allowDownload,
+        watermark_enabled: watermarkEnabled,
+        watermark_text: watermarkEnabled ? watermarkText.trim() : null,
         view_password: finalViewPassword ?? undefined,
         expires_at:
           expiryEnabled && expiryDate
@@ -192,6 +202,27 @@ export function DeckSettingsForm({
       };
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
+
+      if (!watermarkEnabled && deck.watermark_enabled) {
+        await deckService.cleanupWatermarkedDeck(deck.id).catch((cleanupError) => {
+          console.error("Watermark cleanup failed after disabling:", cleanupError);
+        });
+      }
+
+      const shouldGenerateWatermarkedDownload = watermarkEnabled &&
+        (newFile?.type === "application/pdf" || (!newFile && (!deck.file_type || deck.file_type === "pdf"))) &&
+        (
+          Boolean(newFile) ||
+          !deck.watermark_enabled ||
+          watermarkText.trim() !== (deck.watermark_text || "").trim() ||
+          deck.watermark_status !== "ready"
+        );
+      if (shouldGenerateWatermarkedDownload) {
+        setUploadProgress("Preparing watermarked download...");
+        await deckService.generateWatermarkedDeck(deck.id).catch((watermarkError) => {
+          console.error("Watermark generation failed after deck settings update:", watermarkError);
+        });
+      }
 
       // Feature: Updating document replaces the physical storage blob but keeps UI intact (no slug change).
       // Cleanup the prior source file ONLY after successful DB update.
@@ -314,6 +345,17 @@ export function DeckSettingsForm({
         onDownloadUpsell={() => openUpsell("Download controls")}
         viewPassword={viewPassword}
         setViewPassword={setViewPassword}
+      />
+
+      <WatermarkSettingsSection
+        enabled={watermarkEnabled}
+        text={watermarkText}
+        status={deck.watermark_status}
+        isPdf={newFile ? newFile.type === "application/pdf" : (!deck.file_type || deck.file_type === "pdf")}
+        canUseWatermarking={watermarkControls.access.state === "available"}
+        onEnabledChange={setWatermarkEnabled}
+        onTextChange={setWatermarkText}
+        onUpsell={() => openUpsell("Deck watermarking")}
       />
 
       <div className="flex justify-end pt-6 mt-6 border-t border-white/5">

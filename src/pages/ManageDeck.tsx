@@ -20,6 +20,7 @@ import {
 } from "../components/dashboard/manage-deck/ManageDeckSections";
 import { UploadTour } from "../components/tours/UploadTour";
 import { ArrowLeft } from "lucide-react";
+import { WatermarkSettingsSection } from "../components/dashboard/form-sections/WatermarkSettingsSection";
 
 function ManageDeck() {
   const [searchParams] = useSearchParams();
@@ -33,6 +34,8 @@ function ManageDeck() {
   const [requireEmail, setRequireEmail] = useState(false);
   const [requirePassword, setRequirePassword] = useState(false);
   const [allowDownload, setAllowDownload] = useState(false);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(false);
+  const [watermarkText, setWatermarkText] = useState("");
   const [viewPassword, setViewPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string>("");
@@ -55,6 +58,7 @@ function ManageDeck() {
   const queryClient = useQueryClient();
   const accessControls = useTierFeatureAccess(userProfile?.tier, "access_controls", Boolean(userProfile));
   const downloadControls = useTierFeatureAccess(userProfile?.tier, "deck_downloads", Boolean(userProfile));
+  const watermarkControls = useTierFeatureAccess(userProfile?.tier, "deck_watermarking", Boolean(userProfile));
 
   const { data: isSlugAvailable, isLoading: isCheckingSlug } = useCheckDeckSlug(
     slug,
@@ -70,6 +74,8 @@ function ManageDeck() {
     setRequireEmail,
     setRequirePassword,
     setAllowDownload,
+    setWatermarkEnabled,
+    setWatermarkText,
     setViewPassword,
     setExpiresAt,
     setEnableExpiry,
@@ -118,6 +124,10 @@ function ManageDeck() {
     setFile(selectedFile);
     setFileType(ext);
 
+    if (ext !== "pdf") {
+      setWatermarkEnabled(false);
+    }
+
     if (ext === "xlsx") {
       setConversionMode("raw");
     } else if (ext === "pptx") {
@@ -159,6 +169,8 @@ function ManageDeck() {
       requireEmail,
       requirePassword,
       allowDownload,
+      watermarkEnabled,
+      watermarkText,
       viewPassword,
       expiresAt,
       conversionMode,
@@ -261,6 +273,19 @@ function ManageDeck() {
                 if (!checked) setExpiresAt("");
               }}
               onExpiresAtChange={setExpiresAt}
+            />
+
+            <WatermarkSettingsSection
+              enabled={watermarkEnabled}
+              text={watermarkText}
+              isPdf={fileType === "pdf"}
+              canUseWatermarking={watermarkControls.access.state === "available"}
+              onEnabledChange={setWatermarkEnabled}
+              onTextChange={setWatermarkText}
+              onUpsell={() => {
+                setUpsellFeature("Deck watermarking");
+                setShowUpsell(true);
+              }}
             />
 
             <ManageDeckFeedbackSection

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useKeyboardControls } from "../../hooks/useKeyboardControls";
 import { useDeckAnalytics } from "../../hooks/useDeckAnalytics";
 import { Deck, SlidePage } from "../../types";
+import { DeckWatermark } from "./DeckWatermark";
 import {
   fitAspectRatioWithinBounds,
   getAspectRatio,
@@ -226,6 +227,7 @@ function ImageDeckViewer({
                     }
                     className="w-full h-full object-contain"
                   />
+                  <DeckWatermark enabled={deck.watermark_enabled} text={deck.watermark_text} />
 
                   {linkHotspots.length > 0 && (
                     <div className="absolute inset-0 z-20">

@@ -33,6 +33,8 @@ interface UseManageDeckWorkflowParams {
   setRequireEmail: SetState<boolean>;
   setRequirePassword: SetState<boolean>;
   setAllowDownload: SetState<boolean>;
+  setWatermarkEnabled: SetState<boolean>;
+  setWatermarkText: SetState<string>;
   setViewPassword: SetState<string>;
   setExpiresAt: SetState<string>;
   setEnableExpiry: SetState<boolean>;
@@ -51,6 +53,8 @@ interface SubmitDeckParams {
   requireEmail: boolean;
   requirePassword: boolean;
   allowDownload: boolean;
+  watermarkEnabled: boolean;
+  watermarkText: string;
   viewPassword: string;
   expiresAt: string;
   conversionMode: "raw" | "interactive";
@@ -70,6 +74,8 @@ export function useManageDeckWorkflow({
   setRequireEmail,
   setRequirePassword,
   setAllowDownload,
+  setWatermarkEnabled,
+  setWatermarkText,
   setViewPassword,
   setExpiresAt,
   setEnableExpiry,
@@ -114,6 +120,8 @@ export function useManageDeckWorkflow({
         setRequireEmail(deck.require_email || false);
         setRequirePassword(deck.require_password || false);
         setAllowDownload(deck.allow_download || false);
+        setWatermarkEnabled(deck.watermark_enabled || false);
+        setWatermarkText(deck.watermark_text || "");
         setViewPassword(deck.view_password || "");
         setExpiresAt(deck.expires_at ? deck.expires_at.split("T")[0] : "");
         setEnableExpiry(!!deck.expires_at);
@@ -136,6 +144,8 @@ export function useManageDeckWorkflow({
       setRequireEmail,
       setRequirePassword,
       setAllowDownload,
+      setWatermarkEnabled,
+      setWatermarkText,
       setSlug,
       setTitle,
       setViewPassword,
@@ -313,6 +323,8 @@ export function useManageDeckWorkflow({
       requireEmail,
       requirePassword,
       allowDownload,
+      watermarkEnabled,
+      watermarkText,
       viewPassword,
       expiresAt,
       conversionMode,
@@ -412,6 +424,8 @@ export function useManageDeckWorkflow({
             require_email: existingDeck?.require_email,
             require_password: existingDeck?.require_password,
             allow_download: existingDeck?.allow_download,
+            watermark_enabled: existingDeck?.watermark_enabled,
+            watermark_text: existingDeck?.watermark_text,
             view_password: existingDeck?.view_password,
             expires_at: existingDeck?.expires_at,
           };
@@ -431,11 +445,19 @@ export function useManageDeckWorkflow({
               require_email: requireEmail,
               require_password: requirePassword,
               allow_download: allowDownload,
+              watermark_enabled: watermarkEnabled,
+              watermark_text: watermarkEnabled ? watermarkText.trim() : null,
               view_password: finalViewPassword,
               expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
             })
             .eq("id", editId);
           if (dbError) throw dbError;
+
+          if (!watermarkEnabled && existingDeck?.watermark_enabled) {
+            await deckService.cleanupWatermarkedDeck(editId).catch((cleanupError) => {
+              console.error("Watermark cleanup failed after disabling:", cleanupError);
+            });
+          }
 
           if (
             oldSlidePathsToDelete.length > 0 &&
@@ -518,6 +540,8 @@ export function useManageDeckWorkflow({
                   require_email: previousValues.require_email,
                   require_password: previousValues.require_password,
                   allow_download: previousValues.allow_download,
+                  watermark_enabled: previousValues.watermark_enabled,
+                  watermark_text: previousValues.watermark_text,
                   view_password: previousValues.view_password,
                   expires_at: previousValues.expires_at,
                 })
@@ -554,6 +578,8 @@ export function useManageDeckWorkflow({
               p_require_email: requireEmail,
               p_require_password: requirePassword,
               p_allow_download: allowDownload,
+              p_watermark_enabled: watermarkEnabled,
+              p_watermark_text: watermarkEnabled ? watermarkText.trim() : null,
               p_view_password: finalViewPassword,
               p_expires_at: expiresAt
                 ? new Date(expiresAt).toISOString()
@@ -618,6 +644,31 @@ export function useManageDeckWorkflow({
               throw conversionErr;
             }
           }
+
+          if (watermarkEnabled && fileType === "pdf" && deckRecord) {
+            setProgress("Applying watermark...");
+            await deckService.generateWatermarkedDeck(deckRecord.id).catch((watermarkError) => {
+              console.error("Watermark generation failed after deck creation:", watermarkError);
+            });
+          }
+        }
+
+        const shouldGenerateUpdatedWatermark = Boolean(
+          editId &&
+          watermarkEnabled &&
+          finalFileType === "pdf" &&
+          (
+            file ||
+            !existingDeck?.watermark_enabled ||
+            watermarkText.trim() !== (existingDeck?.watermark_text || "").trim() ||
+            existingDeck.watermark_status !== "ready"
+          ),
+        );
+        if (shouldGenerateUpdatedWatermark && editId) {
+          setProgress("Applying watermark...");
+          await deckService.generateWatermarkedDeck(editId).catch((watermarkError) => {
+            console.error("Watermark generation failed after deck update:", watermarkError);
+          });
         }
 
         setProgress("Successful!");

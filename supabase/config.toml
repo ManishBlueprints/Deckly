@@ -387,6 +387,12 @@ verify_jwt = false  # Function implements its own auth via get_deck_payload re-v
 import_map = "./functions/deno.json"
 entrypoint = "./functions/sign-deck-url/index.ts"
 
+[functions.generate-watermarked-deck]
+enabled = true
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/generate-watermarked-deck/index.ts"
+
 [functions.send-interest-signal-email]
 enabled = true
 verify_jwt = false  # Database Webhook is authenticated in-function with EMAIL_WEBHOOK_SECRET

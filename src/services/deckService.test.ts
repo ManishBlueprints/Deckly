@@ -118,6 +118,7 @@ vi.mock("./deckStorageService", () => ({
   deckStorageService: {
     uploadDeckFile: vi.fn(),
     deleteDeckAssets: vi.fn(),
+    deleteDeckWatermarkAssets: vi.fn(),
     uploadSlideImages: vi.fn(),
     getStoragePath: vi.fn(),
   },

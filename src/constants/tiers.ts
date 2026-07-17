@@ -97,7 +97,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     supportedFormats: ["PDF", "XLSX", "DOCX", "PPTX"],
     teamMembers: 5,
     prioritySupport: true,
-    pricingFeatures: ["Unlimited viewers", "Full-history link analytics with export", "Page-level and drop-off analytics", "Visitor alerts and engagement signals", "Email capture, password and expiry", "Granular download controls by room and folder", "White-label branding and custom domain", "NDA gate, watermarking, access groups and audit trail", "500 AI credits per day"],
+    pricingFeatures: ["Unlimited viewers", "Full-history link analytics with export", "Page-level and drop-off analytics", "Visitor alerts and engagement signals", "Email capture, password and expiry", "Granular download controls by room and folder", "Deck watermarking", "White-label branding and custom domain", "NDA gate, access groups and audit trail", "500 AI credits per day"],
   },
 };
 
