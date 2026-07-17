@@ -201,16 +201,29 @@ function DeckDetailPanel({
       }
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
+      let watermarkGenerationFailed = false;
       if (newFile && deck.watermark_enabled) {
         setUploadProgress("Preparing watermarked download...");
-        await deckService.generateWatermarkedDeck(deck.id);
+        try {
+          await deckService.generateWatermarkedDeck(deck.id);
+        } catch (watermarkError) {
+          console.error("Watermark generation failed after replacing the deck source:", watermarkError);
+          watermarkGenerationFailed = true;
+        }
       }
-      onUpdate(updated);
-      setUploadProgress("Saved!");
+      onUpdate({
+        ...updated,
+        ...(watermarkGenerationFailed ? { watermark_status: "failed" } : {}),
+      });
+      setUploadProgress(
+        watermarkGenerationFailed
+          ? "Saved, but the watermark could not be prepared. Retry from deck settings."
+          : "Saved!",
+      );
       setTimeout(() => {
         onClose();
         setUploadProgress("");
-      }, 1000);
+      }, watermarkGenerationFailed ? 2500 : 1000);
     } catch (err: unknown) {
       alert(
         "Failed to update deck: " +

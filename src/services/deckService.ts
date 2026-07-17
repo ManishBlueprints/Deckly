@@ -208,10 +208,11 @@ const deckCrudService = {
   ): Promise<{ dbDeleted: boolean; assetsDeleted: boolean; cleanupError?: Error }> {
     const userId = await getRequiredDeckUserId(providedUserId);
     try {
-      await Promise.all([
-        deckStorageService.deleteDeckAssets(fileUrl, slug, userId),
-        deckStorageService.deleteDeckWatermarkAssets(id, userId),
-      ]);
+      // Storage deletes are not transactional. Remove the optional watermark
+      // artifacts first so a failure cannot leave a retained deck without its
+      // primary source file and slide assets.
+      await deckStorageService.deleteDeckWatermarkAssets(id, userId);
+      await deckStorageService.deleteDeckAssets(fileUrl, slug, userId);
     } catch (err) {
       console.error("Deck storage cleanup failed; database row was retained for retry.", {
         deckId: id,
