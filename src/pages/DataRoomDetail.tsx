@@ -542,9 +542,7 @@ function DataRoomDetail() {
       console.error("Failed to load more room downloaders", error);
       toast.error("Failed to load more downloaders.");
     } finally {
-      if (requestId === loadAllRequestIdRef.current) {
-        setIsLoadingMoreDownloaders(false);
-      }
+      setIsLoadingMoreDownloaders(false);
     }
   }, [downloadAnalytics.downloaders.length, downloadAnalytics.downloaders_truncated, isLoadingMoreDownloaders, roomId]);
 
