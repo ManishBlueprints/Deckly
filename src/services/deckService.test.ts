@@ -7,8 +7,10 @@ type MockResponse = {
 
 type TableChain = {
   delete: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
   select: ReturnType<typeof vi.fn>;
   eq: ReturnType<typeof vi.fn>;
+  neq: ReturnType<typeof vi.fn>;
   in: ReturnType<typeof vi.fn>;
   order: ReturnType<typeof vi.fn>;
   maybeSingle: ReturnType<typeof vi.fn>;
@@ -48,11 +50,16 @@ const mocks = vi.hoisted(() => {
         mode = "delete";
         return chain;
       }),
+      update: vi.fn(() => {
+        mode = "update";
+        return chain;
+      }),
       select: vi.fn(() => {
         mode = "select";
         return chain;
       }),
       eq: vi.fn(() => chain),
+      neq: vi.fn(() => chain),
       in: vi.fn(() => chain),
       order: vi.fn(() => chain),
       maybeSingle: vi.fn(async () => consumeResponse(`${table}.${mode}.maybeSingle`)),
@@ -155,31 +162,67 @@ describe("deckService.deleteDeck", () => {
     vi.clearAllMocks();
   });
 
-  it("keeps primary deck assets intact when watermark cleanup fails", async () => {
+  it("hides the deck and keeps primary assets intact when watermark cleanup fails", async () => {
     vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
     vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mockRejectedValue(new Error("watermark storage unavailable"));
+    mocks.queueResponse("decks.update", { data: null, error: null });
 
     await expect(deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"))
       .rejects.toThrow("watermark storage unavailable");
 
     expect(deckStorageService.deleteDeckAssets).not.toHaveBeenCalled();
-    expect(mocks.mockSupabase.from).not.toHaveBeenCalledWith("decks");
+    const updateChain = mocks.mockSupabase.from.mock.results[0]?.value as TableChain;
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "DELETED" }),
+    );
   });
 
   it("removes storage before deleting the deck row", async () => {
     vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
     vi.mocked(deckStorageService.deleteDeckAssets).mockResolvedValue(undefined);
     vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mockResolvedValue(undefined);
+    mocks.queueResponse("decks.update", { data: null, error: null });
     mocks.queueResponse("decks.delete", { data: null, error: null });
 
     await expect(deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"))
       .resolves.toEqual({ dbDeleted: true, assetsDeleted: true });
 
+    const markDeletingCall = mocks.mockSupabase.from.mock.invocationCallOrder[0];
     const watermarkCleanupCall = vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mock.invocationCallOrder[0];
     const assetCleanupCall = vi.mocked(deckStorageService.deleteDeckAssets).mock.invocationCallOrder[0];
-    const deleteCall = mocks.mockSupabase.from.mock.invocationCallOrder[0];
+    const deleteCall = mocks.mockSupabase.from.mock.invocationCallOrder[1];
+    expect(markDeletingCall).toBeLessThan(watermarkCleanupCall);
     expect(watermarkCleanupCall).toBeLessThan(assetCleanupCall);
     expect(assetCleanupCall).toBeLessThan(deleteCall);
+  });
+
+  it("keeps the deck hidden when database deletion fails after storage cleanup", async () => {
+    const databaseError = new Error("database unavailable");
+    vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
+    vi.mocked(deckStorageService.deleteDeckAssets).mockResolvedValue(undefined);
+    vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mockResolvedValue(undefined);
+    mocks.queueResponse("decks.update", { data: null, error: null });
+    mocks.queueResponse("decks.delete", { data: null, error: databaseError });
+
+    await expect(
+      deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"),
+    ).resolves.toEqual({
+      dbDeleted: false,
+      assetsDeleted: true,
+      deletionPending: true,
+      cleanupError: databaseError,
+    });
+
+    expect(deckStorageService.deleteDeckWatermarkAssets).toHaveBeenCalledWith("deck-1", "user-1");
+    expect(deckStorageService.deleteDeckAssets).toHaveBeenCalledWith(
+      "https://cdn.example/decks/user-1/decks/deck.pdf",
+      "deck",
+      "user-1",
+    );
+    const updateChain = mocks.mockSupabase.from.mock.results[0]?.value as TableChain;
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "DELETED" }),
+    );
   });
 });
 

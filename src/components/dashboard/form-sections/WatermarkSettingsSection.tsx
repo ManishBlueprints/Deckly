@@ -35,25 +35,26 @@ export function WatermarkSettingsSection({
   const [showTextEntry, setShowTextEntry] = useState(false);
   const textInputRef = useRef<HTMLInputElement>(null);
 
-  const requestChange = (next: boolean) => {
+  const requestChange = (next: boolean): boolean => {
     if (next && !canUseWatermarking) {
       onUpsell();
-      return;
+      return false;
     }
     if (next && !isPdf) {
       setError("Watermarking is currently available for PDF decks only.");
-      return;
+      return false;
     }
     if (next && !text.trim()) {
       setError("Enter watermark text before enabling it.");
       setShowTextEntry(true);
       requestAnimationFrame(() => textInputRef.current?.focus());
-      return;
+      return false;
     }
     setApplied(false);
     setError(null);
     setShowTextEntry(next);
     onEnabledChange(next);
+    return true;
   };
 
   const applyPreview = () => {
@@ -63,9 +64,7 @@ export function WatermarkSettingsSection({
       return;
     }
     onTextChange(normalized);
-    onEnabledChange(true);
-    setShowTextEntry(true);
-    setError(null);
+    if (!requestChange(true)) return;
     setApplied(true);
   };
 

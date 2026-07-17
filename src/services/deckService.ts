@@ -126,6 +126,7 @@ const deckCrudService = {
         .from("decks")
         .select("*")
         .eq("user_id", userId)
+        .neq("status", "DELETED")
         .order("display_order", { ascending: true });
 
       if (error) throw error;
@@ -145,6 +146,7 @@ const deckCrudService = {
         .from("decks")
         .select("*")
         .eq("user_id", userId)
+        .neq("status", "DELETED")
         .in("id", deckIds);
 
       if (error) throw error;
@@ -160,6 +162,7 @@ const deckCrudService = {
       .select("*")
       .eq("id", id)
       .eq("user_id", userId)
+      .neq("status", "DELETED")
       .single();
 
     if (error) throw error;
@@ -205,8 +208,22 @@ const deckCrudService = {
     fileUrl: string,
     slug: string,
     providedUserId?: string,
-  ): Promise<{ dbDeleted: boolean; assetsDeleted: boolean; cleanupError?: Error }> {
+  ): Promise<{
+    dbDeleted: boolean;
+    assetsDeleted: boolean;
+    deletionPending?: boolean;
+    cleanupError?: Error;
+  }> {
     const userId = await getRequiredDeckUserId(providedUserId);
+
+    const { error: markDeletingError } = await supabase
+      .from("decks")
+      .update({ status: "DELETED", updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    if (markDeletingError) throw markDeletingError;
+
     try {
       // Storage deletes are not transactional. Remove the optional watermark
       // artifacts first so a failure cannot leave a retained deck without its
@@ -226,21 +243,32 @@ const deckCrudService = {
         : new Error("Unable to remove deck storage assets. The deck was not deleted.");
     }
 
-    const { error } = await supabase
-      .from("decks")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
+    try {
+      await withRetry(async () => {
+        const { error } = await supabase
+          .from("decks")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", userId);
 
-    if (error) {
-      console.error("Deck storage was removed but database deletion failed.", {
+        if (error) throw error;
+      });
+    } catch (err) {
+      const cleanupError =
+        err instanceof Error ? err : new Error("Unable to finalize deck deletion.");
+      console.error("Deck storage was removed; the deck remains hidden pending deletion retry.", {
         deckId: id,
         fileUrl,
         slug,
         userId,
-        error,
+        cleanupError,
       });
-      throw error;
+      return {
+        dbDeleted: false,
+        assetsDeleted: true,
+        deletionPending: true,
+        cleanupError,
+      };
     }
 
     return { dbDeleted: true, assetsDeleted: true };
@@ -581,6 +609,7 @@ const deckAnalyticsService = {
         .from("decks")
         .select("*")
         .eq("user_id", userId)
+        .neq("status", "DELETED")
         .order("created_at", { ascending: false });
 
       if (decksError) throw decksError;

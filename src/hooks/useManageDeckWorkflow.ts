@@ -656,15 +656,19 @@ export function useManageDeckWorkflow({
 
               if (finalFileUrl) {
                 try {
-                  const { dbDeleted, assetsDeleted, cleanupError } = await deckService.deleteDeck(
+                  const { dbDeleted, assetsDeleted, deletionPending, cleanupError } = await deckService.deleteDeck(
                     deckRecord.id,
                     finalFileUrl,
                     slug,
                     userId,
                   );
 
-                  if (!dbDeleted) {
+                  if (!dbDeleted && !deletionPending) {
                     throw new Error("Failed to delete deck from database");
+                  }
+
+                  if (deletionPending) {
+                    console.warn(`Deck [${deckRecord.id}] is hidden while database deletion is retried.`, cleanupError);
                   }
 
                   if (!assetsDeleted) {

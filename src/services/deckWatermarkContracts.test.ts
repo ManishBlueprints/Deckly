@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 const read = (relativePath: string) => readFileSync(path.resolve(__dirname, "../..", relativePath), "utf8");
 
 const migration = read("supabase/migrations/20260717000000_add_deck_watermarking.sql");
+const validationMigration = read("supabase/migrations/20260717000001_validate_deck_watermarking_constraints.sql");
 const signingFunction = read("supabase/functions/sign-deck-url/index.ts");
 const generationFunction = read("supabase/functions/generate-watermarked-deck/index.ts");
 
@@ -26,7 +27,11 @@ describe("deck watermark contracts", () => {
     expect(migration).not.toContain("watermark_revision UUID NOT NULL DEFAULT gen_random_uuid()");
     expect(migration).toContain("SET watermark_revision = gen_random_uuid()");
     expect(migration).toContain("CHECK (watermark_status IN ('disabled', 'pending', 'processing', 'ready', 'failed')) NOT VALID");
-    expect(migration).toContain("VALIDATE CONSTRAINT decks_watermark_text_check");
+    expect(migration).not.toContain("VALIDATE CONSTRAINT decks_watermark_text_check");
+    expect(validationMigration).toContain("VALIDATE CONSTRAINT decks_watermark_revision_not_null");
+    expect(validationMigration).toContain("VALIDATE CONSTRAINT decks_watermark_status_check");
+    expect(validationMigration).toContain("VALIDATE CONSTRAINT decks_watermark_text_check");
+    expect(validationMigration).toContain("ALTER COLUMN watermark_revision SET NOT NULL");
   });
 
   it("exposes only the effective public setting across deck and data-room payloads", () => {

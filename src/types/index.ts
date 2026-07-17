@@ -25,7 +25,7 @@ export interface Deck {
   title: string;
   slug: string;
   file_url: string;
-  status: "PENDING" | "CONVERTING" | "PROCESSED";
+  status: "PENDING" | "CONVERTING" | "PROCESSED" | "DELETED";
   user_id: string;
   display_order: number;
   pages: SlidePage[];

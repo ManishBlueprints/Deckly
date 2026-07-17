@@ -31,15 +31,6 @@ ALTER TABLE public.decks
       OR (watermark_text IS NOT NULL AND char_length(btrim(watermark_text)) BETWEEN 1 AND 80)
     ) NOT VALID;
 
-ALTER TABLE public.decks
-  VALIDATE CONSTRAINT decks_watermark_revision_not_null,
-  VALIDATE CONSTRAINT decks_watermark_status_check,
-  VALIDATE CONSTRAINT decks_watermark_text_check;
-
-ALTER TABLE public.decks
-  ALTER COLUMN watermark_revision SET NOT NULL,
-  DROP CONSTRAINT decks_watermark_revision_not_null;
-
 INSERT INTO public.billing_feature_catalog (key, label, description, availability, required_tier, display_order)
 VALUES ('deck_watermarking', 'Deck watermarking', 'Apply a text watermark to shared PDF decks and downloads.', 'live', 'RAISE', 65)
 ON CONFLICT (key) DO UPDATE SET
@@ -271,7 +262,8 @@ BEGIN
   JOIN public.decks d ON d.id = drd.deck_id
   JOIN public.profiles owner_profile ON owner_profile.id = d.user_id
   LEFT JOIN public.data_room_folders drf ON drf.id = drd.folder_id
-  WHERE drd.data_room_id = v_room.id;
+  WHERE drd.data_room_id = v_room.id
+    AND d.status <> 'DELETED';
   RETURN v_documents;
 END;
 $$;

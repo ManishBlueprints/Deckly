@@ -103,10 +103,14 @@ export default function EditDeck() {
                 deck={deck}
                 onUpdate={setDeck}
                 onDelete={async (id) => {
-                  const { dbDeleted, assetsDeleted } = await deckService.deleteDeck(id, deck.file_url, deck.slug);
+                  const { dbDeleted, assetsDeleted, deletionPending, cleanupError } = await deckService.deleteDeck(id, deck.file_url, deck.slug);
                   
-                  if (!dbDeleted) {
+                  if (!dbDeleted && !deletionPending) {
                     throw new Error("Failed to delete deck from database");
+                  }
+
+                  if (deletionPending) {
+                    console.warn("Deck is hidden while database deletion is retried.", cleanupError);
                   }
 
                   if (!assetsDeleted) {
