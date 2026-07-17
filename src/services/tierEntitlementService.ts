@@ -8,6 +8,7 @@ export type FeatureKey =
   | "visitor_signals"
   | "access_controls"
   | "deck_downloads"
+  | "deck_watermarking"
   | "custom_logo"
   | "team_collaboration"
   | "custom_colours"
@@ -72,6 +73,7 @@ const VALID_FEATURES = new Set<FeatureKey>([
   "visitor_signals",
   "access_controls",
   "deck_downloads",
+  "deck_watermarking",
   "custom_logo",
   "team_collaboration",
   "custom_colours",

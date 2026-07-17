@@ -179,13 +179,22 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.get_data_room_download_analytics(p_data_room_id UUID, p_limit INTEGER DEFAULT 100)
+DROP FUNCTION IF EXISTS public.get_data_room_download_analytics(UUID, INTEGER);
+
+CREATE OR REPLACE FUNCTION public.get_data_room_download_analytics(
+  p_data_room_id UUID,
+  p_limit INTEGER DEFAULT 100,
+  p_offset INTEGER DEFAULT 0
+)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE v_result JSONB; v_limit INTEGER := LEAST(GREATEST(COALESCE(p_limit, 100), 1), 250);
+DECLARE
+  v_result JSONB;
+  v_limit INTEGER := LEAST(GREATEST(COALESCE(p_limit, 100), 1), 100);
+  v_offset INTEGER := GREATEST(COALESCE(p_offset, 0), 0);
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.data_rooms WHERE id = p_data_room_id AND user_id = auth.uid()) THEN
     RAISE EXCEPTION 'Unauthorized';
@@ -193,35 +202,70 @@ BEGIN
 
   WITH events AS (
     SELECT * FROM public.deck_download_events WHERE data_room_id = p_data_room_id
+  ), room_documents AS (
+    SELECT deck_id FROM public.data_room_documents WHERE data_room_id = p_data_room_id
   ), summary AS (
     SELECT count(*)::int AS total_downloads, count(DISTINCT visitor_id)::int AS unique_downloaders FROM events
   ), documents AS (
-    SELECT e.deck_id, COALESCE(d.title, 'Deleted deck') AS title, count(*)::int AS total_downloads,
-      count(DISTINCT e.visitor_id)::int AS unique_downloaders, max(e.downloaded_at) AS latest_download_at
-    FROM events e LEFT JOIN public.decks d ON d.id = e.deck_id
-    GROUP BY e.deck_id, d.title
+    SELECT COALESCE(rd.deck_id, e.deck_id) AS deck_id,
+      COALESCE(d.title, 'Deleted deck') AS title,
+      count(e.id)::int AS total_downloads,
+      count(DISTINCT e.visitor_id)::int AS unique_downloaders,
+      max(e.downloaded_at) AS latest_download_at
+    FROM room_documents rd
+    FULL OUTER JOIN events e ON e.deck_id = rd.deck_id
+    LEFT JOIN public.decks d ON d.id = COALESCE(rd.deck_id, e.deck_id)
+    GROUP BY COALESCE(rd.deck_id, e.deck_id), d.title
+  ), downloader_summaries AS (
+    SELECT visitor_id,
+      max(viewer_email) FILTER (WHERE viewer_email IS NOT NULL) AS viewer_email,
+      count(*)::int AS total_downloads,
+      max(downloaded_at) AS latest_download_at
+    FROM events
+    GROUP BY visitor_id
+  ), paged_downloaders AS (
+    SELECT * FROM downloader_summaries
+    ORDER BY total_downloads DESC, latest_download_at DESC, visitor_id ASC
+    LIMIT v_limit OFFSET v_offset
+  ), downloader_document_summaries AS (
+    SELECT e.visitor_id, e.deck_id, COALESCE(d.title, 'Deleted deck') AS title,
+      count(*)::int AS total_downloads, 1::int AS unique_downloaders,
+      max(e.downloaded_at) AS latest_download_at
+    FROM events e
+    JOIN paged_downloaders pd ON pd.visitor_id = e.visitor_id
+    LEFT JOIN public.decks d ON d.id = e.deck_id
+    GROUP BY e.visitor_id, e.deck_id, d.title
+  ), downloader_documents AS (
+    SELECT visitor_id,
+      jsonb_agg(jsonb_build_object(
+        'deck_id', deck_id, 'title', title, 'total_downloads', total_downloads,
+        'unique_downloaders', unique_downloaders, 'latest_download_at', latest_download_at
+      ) ORDER BY total_downloads DESC, latest_download_at DESC, deck_id ASC) AS downloaded_documents
+    FROM downloader_document_summaries
+    GROUP BY visitor_id
   ), downloaders AS (
-    SELECT visitor_id, max(viewer_email) FILTER (WHERE viewer_email IS NOT NULL) AS viewer_email,
-      count(*)::int AS total_downloads, max(downloaded_at) AS latest_download_at
-    FROM events GROUP BY visitor_id
-    ORDER BY total_downloads DESC, latest_download_at DESC
-    LIMIT v_limit
+    SELECT pd.visitor_id, pd.viewer_email, pd.total_downloads, pd.latest_download_at,
+      COALESCE(dd.downloaded_documents, '[]'::jsonb) AS downloaded_documents
+    FROM paged_downloaders pd
+    LEFT JOIN downloader_documents dd ON dd.visitor_id = pd.visitor_id
   )
   SELECT jsonb_build_object(
     'total_downloads', (SELECT total_downloads FROM summary),
     'unique_downloaders', (SELECT unique_downloaders FROM summary),
-    'documents', COALESCE((SELECT jsonb_agg(to_jsonb(documents) ORDER BY total_downloads DESC, latest_download_at DESC) FROM documents), '[]'::jsonb),
-    'downloaders', COALESCE((SELECT jsonb_agg(to_jsonb(downloaders) ORDER BY total_downloads DESC, latest_download_at DESC) FROM downloaders), '[]'::jsonb),
-    'downloaders_truncated', (SELECT unique_downloaders > v_limit FROM summary)
+    'documents', COALESCE((SELECT jsonb_agg(to_jsonb(documents) ORDER BY total_downloads DESC, latest_download_at DESC, deck_id ASC) FROM documents), '[]'::jsonb),
+    'downloaders', COALESCE((SELECT jsonb_agg(to_jsonb(downloaders) ORDER BY total_downloads DESC, latest_download_at DESC, visitor_id ASC) FROM downloaders), '[]'::jsonb),
+    'downloaders_truncated', (SELECT unique_downloaders > v_offset + v_limit FROM summary)
   ) INTO v_result;
   RETURN v_result;
 END;
 $$;
 
 REVOKE ALL ON FUNCTION public.get_deck_download_analytics(UUID, INTEGER) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.get_data_room_download_analytics(UUID, INTEGER) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_data_room_download_analytics(UUID, INTEGER, INTEGER) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_deck_download_analytics(UUID, INTEGER) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_data_room_download_analytics(UUID, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_data_room_download_analytics(UUID, INTEGER, INTEGER) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
 
 -- The signing function receives trusted attribution context from these payloads.
 CREATE OR REPLACE FUNCTION public.get_deck_payload(

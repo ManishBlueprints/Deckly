@@ -6,8 +6,11 @@ type MockResponse = {
 };
 
 type TableChain = {
+  delete: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
   select: ReturnType<typeof vi.fn>;
   eq: ReturnType<typeof vi.fn>;
+  neq: ReturnType<typeof vi.fn>;
   in: ReturnType<typeof vi.fn>;
   order: ReturnType<typeof vi.fn>;
   maybeSingle: ReturnType<typeof vi.fn>;
@@ -43,11 +46,20 @@ const mocks = vi.hoisted(() => {
   const createTableChain = (table: string) => {
     let mode = "select";
     const chain = {
+      delete: vi.fn(() => {
+        mode = "delete";
+        return chain;
+      }),
+      update: vi.fn(() => {
+        mode = "update";
+        return chain;
+      }),
       select: vi.fn(() => {
         mode = "select";
         return chain;
       }),
       eq: vi.fn(() => chain),
+      neq: vi.fn(() => chain),
       in: vi.fn(() => chain),
       order: vi.fn(() => chain),
       maybeSingle: vi.fn(async () => consumeResponse(`${table}.${mode}.maybeSingle`)),
@@ -118,6 +130,7 @@ vi.mock("./deckStorageService", () => ({
   deckStorageService: {
     uploadDeckFile: vi.fn(),
     deleteDeckAssets: vi.fn(),
+    deleteDeckWatermarkAssets: vi.fn(),
     uploadSlideImages: vi.fn(),
     getStoragePath: vi.fn(),
   },
@@ -140,6 +153,136 @@ vi.mock("../utils/resilience", () => ({
 }));
 
 import { deckService } from "./deckService";
+import { extractStoragePath, getDeckSession, getRequiredDeckUserId } from "./deckService.shared";
+import { deckStorageService } from "./deckStorageService";
+
+describe("deckService.deleteDeck", () => {
+  beforeEach(() => {
+    mocks.responseQueues.clear();
+    vi.clearAllMocks();
+  });
+
+  it("hides the deck and keeps primary assets intact when watermark cleanup fails", async () => {
+    vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
+    vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mockRejectedValue(new Error("watermark storage unavailable"));
+    mocks.queueResponse("decks.update", { data: null, error: null });
+
+    await expect(deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"))
+      .rejects.toThrow("watermark storage unavailable");
+
+    expect(deckStorageService.deleteDeckAssets).not.toHaveBeenCalled();
+    const updateChain = mocks.mockSupabase.from.mock.results[0]?.value as TableChain;
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "DELETED" }),
+    );
+  });
+
+  it("removes storage before deleting the deck row", async () => {
+    vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
+    vi.mocked(deckStorageService.deleteDeckAssets).mockResolvedValue(undefined);
+    vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mockResolvedValue(undefined);
+    mocks.queueResponse("decks.update", { data: null, error: null });
+    mocks.queueResponse("decks.delete", { data: null, error: null });
+
+    await expect(deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"))
+      .resolves.toEqual({ dbDeleted: true, assetsDeleted: true });
+
+    const markDeletingCall = mocks.mockSupabase.from.mock.invocationCallOrder[0];
+    const watermarkCleanupCall = vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mock.invocationCallOrder[0];
+    const assetCleanupCall = vi.mocked(deckStorageService.deleteDeckAssets).mock.invocationCallOrder[0];
+    const deleteCall = mocks.mockSupabase.from.mock.invocationCallOrder[1];
+    expect(markDeletingCall).toBeLessThan(watermarkCleanupCall);
+    expect(watermarkCleanupCall).toBeLessThan(assetCleanupCall);
+    expect(assetCleanupCall).toBeLessThan(deleteCall);
+  });
+
+  it("keeps the deck hidden when database deletion fails after storage cleanup", async () => {
+    const databaseError = new Error("database unavailable");
+    vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
+    vi.mocked(deckStorageService.deleteDeckAssets).mockResolvedValue(undefined);
+    vi.mocked(deckStorageService.deleteDeckWatermarkAssets).mockResolvedValue(undefined);
+    mocks.queueResponse("decks.update", { data: null, error: null });
+    mocks.queueResponse("decks.delete", { data: null, error: databaseError });
+
+    await expect(
+      deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"),
+    ).resolves.toEqual({
+      dbDeleted: false,
+      assetsDeleted: true,
+      deletionPending: true,
+      cleanupError: databaseError,
+    });
+
+    expect(deckStorageService.deleteDeckWatermarkAssets).toHaveBeenCalledWith("deck-1", "user-1");
+    expect(deckStorageService.deleteDeckAssets).toHaveBeenCalledWith(
+      "https://cdn.example/decks/user-1/decks/deck.pdf",
+      "deck",
+      "user-1",
+    );
+    const updateChain = mocks.mockSupabase.from.mock.results[0]?.value as TableChain;
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "DELETED" }),
+    );
+  });
+});
+
+describe("deckService.getAllDecks", () => {
+  beforeEach(() => {
+    mocks.responseQueues.clear();
+    vi.clearAllMocks();
+  });
+
+  it("hydrates only the first page of each deck for picker thumbnails", async () => {
+    vi.mocked(getDeckSession).mockResolvedValue({ user: { id: "user-1" } } as never);
+    vi.mocked(extractStoragePath).mockReturnValue("user-1/decks/seed-page-1.png");
+    vi.mocked(mocks.mockSupabase.functions.invoke).mockResolvedValue({
+      data: {
+        data: [
+          {
+            path: "user-1/decks/seed-page-1.png",
+            signedUrl: "https://signed.example.com/seed-page-1.png",
+          },
+        ],
+      },
+      error: null,
+    });
+    mocks.queueResponse("decks.select", {
+      data: [
+        {
+          id: "deck-1",
+          title: "Seed",
+          slug: "seed-round",
+          file_url: "user-1/decks/seed.pdf",
+          status: "PROCESSED",
+          user_id: "user-1",
+          display_order: 0,
+          pages: [
+            { page_number: 1, image_url: "user-1/decks/seed-page-1.png" },
+            { page_number: 2, image_url: "user-1/decks/seed-page-2.png" },
+          ],
+          created_at: "2026-05-14T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    const decks = await deckService.getAllDecks();
+
+    expect(decks[0].pages[0].image_url).toBe("https://signed.example.com/seed-page-1.png");
+    expect(decks[0].pages[1].image_url).toBe("user-1/decks/seed-page-2.png");
+    expect(vi.mocked(mocks.mockSupabase.functions.invoke)).toHaveBeenCalledWith(
+      "r2-storage",
+      {
+        body: {
+          action: "create-signed-urls",
+          bucket: "decks",
+          paths: ["user-1/decks/seed-page-1.png"],
+          expiresInSeconds: 3600,
+        },
+      },
+    );
+  });
+});
 
 describe("deckService.getDecksWithAnalytics", () => {
   beforeEach(() => {

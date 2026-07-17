@@ -6,7 +6,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useDeckAnalytics } from "../../hooks/useDeckAnalytics";
 import { useKeyboardControls } from "../../hooks/useKeyboardControls";
 import { Deck } from "../../types";
+import {
+  fitAspectRatioWithinBounds,
+  getAspectRatio,
+} from "../../utils/viewerDimensions";
 import "react-pdf/dist/Page/AnnotationLayer.css";
+import { DeckWatermark } from "./DeckWatermark";
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -16,6 +21,16 @@ interface DeckViewerProps {
   isOwner?: boolean;
   dataRoomId?: string;
   viewerEmail?: string;
+}
+
+interface PdfDocument {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<{
+    getViewport: (options: { scale: number }) => {
+      width: number;
+      height: number;
+    };
+  }>;
 }
 
 function DeckViewer({
@@ -28,6 +43,8 @@ function DeckViewer({
   const [pageNumber, setPageNumber] = useState(1);
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
+  const [pdfDocument, setPdfDocument] = useState<PdfDocument | null>(null);
+  const [pageAspectRatio, setPageAspectRatio] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Set up ResizeObserver to track container dimensions
@@ -55,12 +72,33 @@ function DeckViewer({
     viewerEmail,
   );
 
-  const onDocumentLoadSuccess = useCallback(
-    ({ numPages }: { numPages: number }) => {
-      setNumPages(numPages);
-    },
-    [],
-  );
+  const onDocumentLoadSuccess = useCallback((document: PdfDocument) => {
+    setNumPages(document.numPages);
+    setPageAspectRatio(null);
+    setPdfDocument(document);
+  }, []);
+
+  useEffect(() => {
+    if (!pdfDocument || pageNumber > pdfDocument.numPages) return;
+
+    let cancelled = false;
+    setPageAspectRatio(null);
+
+    void pdfDocument
+      .getPage(pageNumber)
+      .then((page) => {
+        if (cancelled) return;
+        const viewport = page.getViewport({ scale: 1 });
+        setPageAspectRatio(getAspectRatio(viewport.width, viewport.height));
+      })
+      .catch(() => {
+        if (!cancelled) setPageAspectRatio(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pageNumber, pdfDocument]);
 
   const goToPrevPage = useCallback(() => {
     setPageNumber((prevPageNumber) => Math.max(prevPageNumber - 1, 1));
@@ -85,24 +123,16 @@ function DeckViewer({
   };
 
   const dimensions = useMemo(() => {
-    if (!containerWidth || !containerHeight) return { width: 0, height: 0 };
-    const targetAspect = 16 / 9;
-    const containerAspect = containerWidth / containerHeight;
-
-    if (containerAspect > targetAspect) {
-      // Window is wider than 16:9 - height is limit
-      return {
-        width: containerHeight * targetAspect,
-        height: containerHeight,
-      };
-    } else {
-      // Window is taller than 16:9 - width is limit
-      return {
-        width: containerWidth,
-        height: containerWidth / targetAspect,
-      };
+    if (!containerWidth || !containerHeight || !pageAspectRatio) {
+      return { width: 0, height: 0 };
     }
-  }, [containerWidth, containerHeight]);
+
+    return fitAspectRatioWithinBounds(
+      containerWidth,
+      containerHeight,
+      pageAspectRatio,
+    );
+  }, [containerHeight, containerWidth, pageAspectRatio]);
 
   const isPdf = !deck.file_type || deck.file_type === "pdf";
   const officeEmbedUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(deck.file_url)}`;
@@ -126,11 +156,12 @@ function DeckViewer({
                 if (info.offset.x < -100) handleNavigationClick("next");
               }}
               style={{
-                width: dimensions.width,
-                height: dimensions.height,
+                ...(dimensions.width > 0 ? dimensions : {}),
                 touchAction: "pan-y",
               }}
-              className="bg-white shadow-2xl rounded-sm flex items-center justify-center overflow-hidden"
+              className={`relative rounded-sm flex items-center justify-center overflow-hidden ${
+                dimensions.width > 0 ? "bg-white shadow-2xl" : "bg-transparent"
+              }`}
             >
               <Document
                 file={deck.file_url}
@@ -149,14 +180,17 @@ function DeckViewer({
                   </div>
                 }
               >
-                <Page
-                  pageNumber={pageNumber}
-                  renderTextLayer={false}
-                  renderAnnotationLayer={true}
-                  width={dimensions.width || undefined}
-                  loading=""
-                />
+                {dimensions.width > 0 && (
+                  <Page
+                    pageNumber={pageNumber}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={true}
+                    width={dimensions.width}
+                    loading=""
+                  />
+                )}
               </Document>
+              <DeckWatermark enabled={deck.watermark_enabled} text={deck.watermark_text} />
             </motion.div>
           </AnimatePresence>
         ) : (

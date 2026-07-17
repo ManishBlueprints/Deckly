@@ -5,6 +5,8 @@ import { extractPdfLinkHotspots } from "../utils/pdfLinks";
 
 export interface ProcessedPdfAsset {
   blob: Blob;
+  width: number;
+  height: number;
   links: PdfLinkHotspot[];
 }
 
@@ -68,7 +70,12 @@ export async function processPdfToImages(
           throw new Error(`Failed to generate blob for page ${i}`);
         }
 
-        imageAssets.push({ blob, links });
+        imageAssets.push({
+          blob,
+          width: viewport.width,
+          height: viewport.height,
+          links,
+        });
         onProgress?.(i, numPages);
       } finally {
         await page.cleanup();

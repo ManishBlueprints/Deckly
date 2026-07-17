@@ -78,6 +78,44 @@ const hydrateSignedDeckUrls = async (decks: Deck[]): Promise<Deck[]> => {
   });
 };
 
+const hydrateSignedDeckThumbnails = async (decks: Deck[]): Promise<Deck[]> => {
+  const thumbnailPaths = new Set<string>();
+
+  decks.forEach((deck) => {
+    const thumbnailPath = extractStoragePath(deck.pages?.[0]?.image_url, "decks");
+    if (thumbnailPath) thumbnailPaths.add(thumbnailPath);
+  });
+
+  if (thumbnailPaths.size === 0) return decks;
+
+  const { data: signedData, error: signError } = await storageService.createSignedUrls(
+    "decks",
+    Array.from(thumbnailPaths),
+    3600,
+  );
+
+  if (signError || !signedData) return decks;
+
+  const signedUrlMap = new Map<string, string>();
+  signedData.forEach((item) => {
+    if (item.path && item.signedUrl) signedUrlMap.set(item.path, item.signedUrl);
+  });
+
+  return decks.map((deck) => {
+    const [firstPage, ...remainingPages] = deck.pages ?? [];
+    const thumbnailPath = firstPage
+      ? extractStoragePath(firstPage.image_url, "decks")
+      : null;
+    const signedThumbnailUrl = thumbnailPath
+      ? signedUrlMap.get(thumbnailPath)
+      : null;
+
+    return signedThumbnailUrl && firstPage
+      ? { ...deck, pages: [{ ...firstPage, image_url: signedThumbnailUrl }, ...remainingPages] }
+      : deck;
+  });
+};
+
 const deckCrudService = {
   async getAllDecks(providedUserId?: string): Promise<Deck[]> {
     return withRetry(async () => {
@@ -88,10 +126,11 @@ const deckCrudService = {
         .from("decks")
         .select("*")
         .eq("user_id", userId)
+        .neq("status", "DELETED")
         .order("display_order", { ascending: true });
 
       if (error) throw error;
-      return data as Deck[];
+      return hydrateSignedDeckThumbnails(data as Deck[]);
     });
   },
 
@@ -107,6 +146,7 @@ const deckCrudService = {
         .from("decks")
         .select("*")
         .eq("user_id", userId)
+        .neq("status", "DELETED")
         .in("id", deckIds);
 
       if (error) throw error;
@@ -122,6 +162,7 @@ const deckCrudService = {
       .select("*")
       .eq("id", id)
       .eq("user_id", userId)
+      .neq("status", "DELETED")
       .single();
 
     if (error) throw error;
@@ -167,38 +208,55 @@ const deckCrudService = {
     fileUrl: string,
     slug: string,
     providedUserId?: string,
-  ): Promise<{ dbDeleted: boolean; assetsDeleted: boolean; cleanupError?: Error }> {
+  ): Promise<{
+    dbDeleted: boolean;
+    assetsDeleted: boolean;
+    deletionPending?: boolean;
+    cleanupError?: Error;
+  }> {
     const userId = await getRequiredDeckUserId(providedUserId);
-    const { error } = await supabase
+
+    const { error: markDeletingError } = await supabase
       .from("decks")
-      .delete()
+      .update({ status: "DELETED", updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("user_id", userId);
 
-    if (error) {
-      console.error("Deck DB deletion failed; storage cleanup was not attempted.", {
+    if (markDeletingError) throw markDeletingError;
+
+    try {
+      // Storage deletes are not transactional. Remove the optional watermark
+      // artifacts first so a failure cannot leave a retained deck without its
+      // primary source file and slide assets.
+      await deckStorageService.deleteDeckWatermarkAssets(id, userId);
+      await deckStorageService.deleteDeckAssets(fileUrl, slug, userId);
+    } catch (err) {
+      console.error("Deck storage cleanup failed; database row was retained for retry.", {
         deckId: id,
         fileUrl,
         slug,
         userId,
-        error,
+        cleanupError: err,
       });
-      throw error;
+      throw err instanceof Error
+        ? err
+        : new Error("Unable to remove deck storage assets. The deck was not deleted.");
     }
 
-    let cleanupError: unknown = null;
     try {
-      await deckStorageService.deleteDeckAssets(
-        fileUrl,
-        slug,
-        userId,
-      );
-    } catch (err) {
-      cleanupError = err;
-    }
+      await withRetry(async () => {
+        const { error } = await supabase
+          .from("decks")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", userId);
 
-    if (cleanupError) {
-      console.error("Deck DB row deleted but asset cleanup failed.", {
+        if (error) throw error;
+      });
+    } catch (err) {
+      const cleanupError =
+        err instanceof Error ? err : new Error("Unable to finalize deck deletion.");
+      console.error("Deck storage was removed; the deck remains hidden pending deletion retry.", {
         deckId: id,
         fileUrl,
         slug,
@@ -206,9 +264,10 @@ const deckCrudService = {
         cleanupError,
       });
       return {
-        dbDeleted: true,
-        assetsDeleted: false,
-        cleanupError: cleanupError instanceof Error ? cleanupError : new Error(String(cleanupError)),
+        dbDeleted: false,
+        assetsDeleted: true,
+        deletionPending: true,
+        cleanupError,
       };
     }
 
@@ -371,6 +430,9 @@ const deckPublicService = {
     title?: string;
     file_type?: string;
     allow_download: boolean;
+    watermark_enabled?: boolean;
+    watermark_text?: string | null;
+    watermark_status?: "disabled" | "pending" | "processing" | "ready" | "failed";
   }> {
     const { data, error } = await supabase.rpc("get_deck_payload", {
       p_handle: handle ?? null,
@@ -387,6 +449,9 @@ const deckPublicService = {
       title?: string;
       file_type?: string;
       allow_download?: boolean;
+      watermark_enabled?: boolean;
+      watermark_text?: string | null;
+      watermark_status?: "disabled" | "pending" | "processing" | "ready" | "failed";
     };
 
     // If the bucket is private and we have a storage path, fetch short-lived signed URLs.
@@ -497,6 +562,26 @@ const deckPublicService = {
     return { downloadUrl: data.download_url as string, filename: data.filename as string };
   },
 
+  async generateWatermarkedDeck(deckId: string): Promise<void> {
+    const { data, error } = await supabase.functions.invoke("generate-watermarked-deck", {
+      body: { deckId },
+    });
+    if (error) throw error;
+    if (!data?.success) {
+      throw new Error(data?.message || "Unable to prepare the watermarked download");
+    }
+  },
+
+  async cleanupWatermarkedDeck(deckId: string): Promise<void> {
+    const { data, error } = await supabase.functions.invoke("generate-watermarked-deck", {
+      body: { deckId, action: "cleanup" },
+    });
+    if (error) throw error;
+    if (!data?.success) {
+      throw new Error(data?.message || "Unable to remove the watermarked download");
+    }
+  },
+
   async getDeckBySlugOnly(
     slug: string,
   ): Promise<{ handle: string; slug: string } | null> {
@@ -524,6 +609,7 @@ const deckAnalyticsService = {
         .from("decks")
         .select("*")
         .eq("user_id", userId)
+        .neq("status", "DELETED")
         .order("created_at", { ascending: false });
 
       if (decksError) throw decksError;

@@ -15,6 +15,8 @@ export interface PdfLinkHotspot {
 export interface SlidePage {
   image_url: string;
   page_number: number;
+  width?: number;
+  height?: number;
   links?: PdfLinkHotspot[];
 }
 
@@ -23,7 +25,7 @@ export interface Deck {
   title: string;
   slug: string;
   file_url: string;
-  status: "PENDING" | "CONVERTING" | "PROCESSED";
+  status: "PENDING" | "CONVERTING" | "PROCESSED" | "DELETED";
   user_id: string;
   display_order: number;
   pages: SlidePage[];
@@ -34,6 +36,9 @@ export interface Deck {
   require_email?: boolean;
   require_password?: boolean;
   allow_download?: boolean;
+  watermark_enabled?: boolean;
+  watermark_text?: string | null;
+  watermark_status?: "disabled" | "pending" | "processing" | "ready" | "failed";
   is_public?: boolean;
   view_password?: string;
   file_type?: string;
@@ -301,11 +306,15 @@ export interface DocumentDownloadSummary {
   latest_download_at: string | null;
 }
 
+export interface DataRoomDownloadViewerSummary extends DownloadViewerSummary {
+  downloaded_documents: DocumentDownloadSummary[];
+}
+
 export interface DataRoomDownloadAnalytics {
   total_downloads: number;
   unique_downloaders: number;
   documents: DocumentDownloadSummary[];
-  downloaders: DownloadViewerSummary[];
+  downloaders: DataRoomDownloadViewerSummary[];
   downloaders_truncated?: boolean;
 }
 

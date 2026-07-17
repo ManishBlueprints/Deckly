@@ -105,6 +105,8 @@ Deno.serve(async (req: Request) => {
       title: string;
       fileType: string;
       allowed: boolean;
+      watermarkEnabled: boolean;
+      watermarkStatus?: string;
       deckId: string;
       deckLinkId?: string;
       dataRoomId?: string;
@@ -116,6 +118,8 @@ Deno.serve(async (req: Request) => {
       title?: string;
       file_type?: string;
       allow_download?: boolean;
+      watermark_enabled?: boolean;
+      watermark_status?: string;
       deck_link_id?: string;
       data_room_id?: string;
       pages?: Array<{ image_url: string } | string>;
@@ -161,6 +165,8 @@ Deno.serve(async (req: Request) => {
               title: typeof payload.title === "string" ? payload.title : "pitch-deck",
               fileType: typeof payload.file_type === "string" ? payload.file_type : "pdf",
               allowed: payload.allow_download === true,
+              watermarkEnabled: payload.watermark_enabled === true,
+              watermarkStatus: typeof payload.watermark_status === "string" ? payload.watermark_status : undefined,
               deckId: payload.id,
               dataRoomId: payload.data_room_id,
             };
@@ -216,6 +222,8 @@ Deno.serve(async (req: Request) => {
             title: typeof payload.title === "string" ? payload.title : "pitch-deck",
             fileType: typeof payload.file_type === "string" ? payload.file_type : "pdf",
             allowed: payload.allow_download === true,
+            watermarkEnabled: payload.watermark_enabled === true,
+            watermarkStatus: typeof payload.watermark_status === "string" ? payload.watermark_status : undefined,
             deckId: payload.id,
             deckLinkId: payload.deck_link_id,
           };
@@ -249,6 +257,44 @@ Deno.serve(async (req: Request) => {
           status: 403,
           headers: { "Content-Type": "application/json" },
         });
+      }
+
+      if (downloadTarget.watermarkEnabled) {
+        const serviceRoleKey = Deno.env.get("PROJECT_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+        if (!serviceRoleKey) {
+          return new Response(JSON.stringify({ error: "Watermarked downloads are temporarily unavailable" }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        const admin = createClient(supabaseUrl, serviceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const { data: watermarkDeck, error: watermarkError } = await admin
+          .from("decks")
+          .select("user_id, watermark_enabled, watermark_status, watermark_revision, watermarked_file_path")
+          .eq("id", downloadTarget.deckId)
+          .maybeSingle();
+        const expectedWatermarkedPath = watermarkDeck
+          ? `${watermarkDeck.user_id}/watermarks/${downloadTarget.deckId}/${watermarkDeck.watermark_revision}.pdf`
+          : null;
+        if (
+          watermarkError ||
+          !watermarkDeck?.watermark_enabled ||
+          watermarkDeck.watermark_status !== "ready" ||
+          !watermarkDeck.watermarked_file_path ||
+          watermarkDeck.watermarked_file_path !== expectedWatermarkedPath
+        ) {
+          return new Response(JSON.stringify({
+            error: "Watermarked download is still being prepared",
+            code: "watermark_not_ready",
+          }), {
+            status: 409,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        downloadTarget.path = watermarkDeck.watermarked_file_path;
+        downloadTarget.fileType = "pdf";
       }
 
       const safeTitle = downloadTarget.title

@@ -60,4 +60,33 @@ describe("deckStorageService", () => {
       ["user-123/deck-images/my-deck/page-1.webp"],
     );
   });
+
+  it("removes every watermark revision for the deleted deck only", async () => {
+    mockList.mockResolvedValueOnce({
+      data: {
+        items: [
+          { name: "user-123/watermarks/deck-123/1.pdf" },
+          { name: "user-123/watermarks/deck-123/2.pdf" },
+          { name: "user-123/watermarks/deck-123-other/1.pdf" },
+        ],
+        nextToken: null,
+      },
+      error: null,
+    });
+    mockRemove.mockResolvedValue({ error: null });
+
+    const { deckStorageService } = await import("./deckStorageService.ts");
+
+    await deckStorageService.deleteDeckWatermarkAssets("deck-123", "user-123");
+
+    expect(mockList).toHaveBeenCalledWith(
+      "decks",
+      "user-123/watermarks/deck-123/",
+      { continuationToken: null },
+    );
+    expect(mockRemove).toHaveBeenCalledWith(
+      "decks",
+      ["user-123/watermarks/deck-123/1.pdf", "user-123/watermarks/deck-123/2.pdf"],
+    );
+  });
 });

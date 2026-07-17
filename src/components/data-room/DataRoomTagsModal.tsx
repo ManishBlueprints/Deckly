@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Edit2, Loader2, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { DataRoomTag } from "../../types";
 import { FOLDER_COLORS } from "../../constants/folderColors";
 import { cn } from "../../utils/cn";
@@ -52,23 +53,18 @@ export function DataRoomTagsModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        if (pendingDeleteTag) return;
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
     setName("");
     setSelectedColor(FOLDER_COLORS[0].key);
     setEditingTagId(null);
     setIsSaving(false);
     setDeletingId(null);
+    setPendingDeleteTag(null);
+  }, [isOpen]);
 
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose, pendingDeleteTag]);
+  const handleClose = () => {
+    if (pendingDeleteTag || deletingId) return;
+    onClose();
+  };
 
   const handleSave = async () => {
     const trimmed = name.trim();
@@ -83,6 +79,11 @@ export function DataRoomTagsModal({
       setName("");
       setSelectedColor(FOLDER_COLORS[0].key);
       setEditingTagId(null);
+    } catch (error) {
+      console.error("Failed to save data room tag", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save tag.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -103,13 +104,19 @@ export function DataRoomTagsModal({
         setName("");
         setSelectedColor(FOLDER_COLORS[0].key);
       }
+      setPendingDeleteTag(null);
+    } catch (error) {
+      console.error("Failed to delete data room tag", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete tag.",
+      );
     } finally {
       setDeletingId(null);
     }
   };
 
   return (
-    <DataRoomModalShell isOpen={isOpen} onClose={onClose} panelClassName="pointer-events-auto w-full max-w-2xl rounded-none border border-border bg-surface-card shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden">
+    <DataRoomModalShell isOpen={isOpen} onClose={handleClose} ariaLabel="Manage tags" panelClassName="pointer-events-auto w-full max-w-2xl rounded-none border border-border bg-surface-card shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden">
       <div className="p-6 md:p-8 space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -121,7 +128,7 @@ export function DataRoomTagsModal({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-9 h-9 rounded-md border border-border bg-surface-low text-muted-foreground hover:text-foreground hover:bg-surface-high transition-colors flex items-center justify-center"
           >
             <X size={18} />
@@ -265,9 +272,7 @@ export function DataRoomTagsModal({
               onClick={(event) => {
                 event.preventDefault();
                 if (!pendingDeleteTag) return;
-                void handleDelete(pendingDeleteTag.id).finally(() => {
-                  setPendingDeleteTag(null);
-                });
+                void handleDelete(pendingDeleteTag.id);
               }}
               disabled={!!deletingId}
             >

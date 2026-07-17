@@ -8,18 +8,14 @@ interface TierUpsellModalProps {
   featureName?: string;
 }
 
-const SHARE_BENEFITS = [
+const UPGRADE_BENEFITS = [
   {
-    title: "Share with control",
-    detail: "Email capture, password protection, expiry, and download controls.",
+    title: "Unlock the features you need",
+    detail: "Choose a plan with the controls, insights, and capacity that fit your workflow.",
   },
   {
-    title: "See what moves people",
-    detail: "30 days of link analytics, page engagement, and visitor signals.",
-  },
-  {
-    title: "Make more room for momentum",
-    detail: "25 documents, 500 MB storage, and 20 daily AI credits.",
+    title: "Compare plans with confidence",
+    detail: "Review every included feature and limit before deciding what is right for your team.",
   },
 ];
 
@@ -29,24 +25,69 @@ export function TierUpsellModal({
   featureName = "Premium features",
 }: TierUpsellModalProps) {
   const shouldReduceMotion = useReducedMotion();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+    const previouslyFocusedElement = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const previousOverflow = document.body.style.overflow;
+    const getFocusableElements = () =>
+      Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((element) => element.getClientRects().length > 0);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableElements = getFocusableElements();
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (event.shiftKey && activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
-    window.addEventListener("keydown", handleEscape);
+    const focusFrame = requestAnimationFrame(() => {
+      closeButtonRef.current?.focus();
+    });
+    window.addEventListener("keydown", handleKeyDown);
     document.body.style.overflow = "hidden";
-    requestAnimationFrame(() => closeButtonRef.current?.focus());
 
     return () => {
-      window.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "unset";
+      cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocusedElement?.isConnected) previouslyFocusedElement.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
@@ -69,6 +110,8 @@ export function TierUpsellModal({
             aria-modal="true"
             aria-labelledby="tier-upsell-title"
             aria-describedby="tier-upsell-description"
+            ref={dialogRef}
+            tabIndex={-1}
             className="relative w-full max-w-[34rem] overflow-hidden border border-border bg-surface-lowest shadow-2xl"
           >
             <header className="relative isolate overflow-hidden border-b border-deckly-primary/25 bg-[#0a2117] px-5 py-5 sm:px-7">
@@ -81,8 +124,8 @@ export function TierUpsellModal({
                     <LockKeyhole size={18} aria-hidden="true" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-deckly-primary">Available on Share</p>
-                    <p className="mt-1 text-xs text-slate-300">Professional sharing controls · starting at $9/month</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-deckly-primary">Plan upgrade</p>
+                    <p className="mt-1 text-xs text-slate-300">Find the plan that includes the features you need.</p>
                   </div>
                 </div>
                 <button
@@ -102,11 +145,11 @@ export function TierUpsellModal({
                 Unlock {featureName}
               </h2>
               <p id="tier-upsell-description" className="mt-3 max-w-lg text-sm leading-relaxed text-slate-400">
-                Share gives you the confidence to send investor materials with more control and a clearer picture of engagement.
+                Compare plans to unlock this feature and choose the tools that best support your workflow.
               </p>
 
               <dl className="mt-6 border-y border-border">
-                {SHARE_BENEFITS.map((benefit) => (
+                {UPGRADE_BENEFITS.map((benefit) => (
                   <div key={benefit.title} className="grid grid-cols-[20px_minmax(0,1fr)] gap-x-3 border-b border-border py-3.5 last:border-b-0">
                     <Check size={15} strokeWidth={2.5} className="mt-0.5 text-deckly-primary" aria-hidden="true" />
                     <div>
@@ -125,7 +168,7 @@ export function TierUpsellModal({
                   }}
                   className="group inline-flex min-h-11 w-full items-center justify-center gap-2 bg-deckly-primary px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-primary-foreground transition-colors hover:bg-deckly-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deckly-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-lowest sm:w-auto"
                 >
-                  View Share plan
+                  View plans
                   <ArrowRight size={15} className="transition-transform motion-safe:group-hover:translate-x-0.5" aria-hidden="true" />
                 </button>
                 <button

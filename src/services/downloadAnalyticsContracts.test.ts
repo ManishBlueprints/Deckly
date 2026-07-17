@@ -32,6 +32,22 @@ describe("download analytics contracts", () => {
     expect(migrationSql).toContain("get_data_room_download_analytics");
   });
 
+  it("includes current room documents with zero downloads and preserves historical downloader files", () => {
+    expect(migrationSql).toContain("room_documents AS");
+    expect(migrationSql).toContain("FULL OUTER JOIN events e ON e.deck_id = rd.deck_id");
+    expect(migrationSql).toContain("downloaded_documents");
+  });
+
+  it("defines the paginated data-room analytics RPC and refreshes the API schema cache", () => {
+    expect(migrationSql).toContain(
+      "DROP FUNCTION IF EXISTS public.get_data_room_download_analytics(UUID, INTEGER)",
+    );
+    expect(migrationSql).toContain(
+      "get_data_room_download_analytics(UUID, INTEGER, INTEGER)",
+    );
+    expect(migrationSql).toContain("NOTIFY pgrst, 'reload schema'");
+  });
+
   it("records analytics only after generating an authorized download URL", () => {
     expect(signingSource).toContain("const downloadUrl = await presignDownloadUrl");
     expect(signingSource).toContain('admin.rpc("record_deck_download"');
@@ -45,6 +61,8 @@ describe("download analytics contracts", () => {
     expect(migrationSql).toContain("IF p_actor_user_id IS NOT NULL AND p_actor_user_id = v_owner_user_id THEN");
     expect(migrationSql).toContain("p_limit INTEGER DEFAULT 100");
     expect(migrationSql).toContain("LIMIT v_limit");
+    expect(migrationSql).toContain("p_offset INTEGER DEFAULT 0");
+    expect(migrationSql).toContain("OFFSET v_offset");
     expect(migrationSql).toContain("idx_deck_download_events_room_visitor");
     expect(migrationSql).not.toContain("'id', d.id, 'user_id', d.user_id, 'data_room_id'");
     expect(signingSource).toContain("p_actor_user_id: authenticatedUser?.id ?? null");

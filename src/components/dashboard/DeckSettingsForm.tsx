@@ -14,6 +14,7 @@ import { extractStoragePath } from "../../services/deckService.shared";
 // Sub-components
 import { ManagementSection } from "./form-sections/ManagementSection";
 import { AccessProtectionSection } from "./form-sections/AccessProtectionSection";
+import { WatermarkSettingsSection } from "./form-sections/WatermarkSettingsSection";
 import { DangerZoneSection } from "./form-sections/DangerZoneSection";
 import { Button } from "../ui/button";
 import { Save } from "lucide-react";
@@ -39,6 +40,9 @@ export function DeckSettingsForm({
     deck.require_password || false,
   );
   const [allowDownload, setAllowDownload] = useState(deck.allow_download || false);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(deck.watermark_enabled || false);
+  const [watermarkText, setWatermarkText] = useState(deck.watermark_text || "");
+  const [watermarkStatus, setWatermarkStatus] = useState(deck.watermark_status || "disabled");
   const [showUpsell, setShowUpsell] = useState(false);
   const [upsellFeature, setUpsellFeature] = useState("Premium features");
   const [viewPassword, setViewPassword] = useState(deck.view_password || "");
@@ -67,11 +71,20 @@ export function DeckSettingsForm({
     "deck_downloads",
     Boolean(profile),
   );
+  const watermarkControls = useTierFeatureAccess(
+    profile?.tier,
+    "deck_watermarking",
+    Boolean(profile),
+  );
 
   const openUpsell = (feature: string) => {
     setUpsellFeature(feature);
     setShowUpsell(true);
   };
+
+  useEffect(() => {
+    setWatermarkStatus(deck.watermark_status || "disabled");
+  }, [deck.id, deck.watermark_status]);
 
   // Cleanup timeout on unmount to prevent state updates on unmounted component
   useEffect(() => {
@@ -114,6 +127,12 @@ export function DeckSettingsForm({
   };
 
   const handleSave = async () => {
+    const normalizedWatermarkText = watermarkText.trim();
+    if (watermarkEnabled && !normalizedWatermarkText) {
+      setError("Enter watermark text before saving with watermarking enabled.");
+      return;
+    }
+
     // Track the uploaded file path so it can be cleaned up if any later step fails
     let uploadedFileName: string | null = null;
     let uploadedSlideImageKeys: string[] = [];
@@ -184,6 +203,8 @@ export function DeckSettingsForm({
         require_email: requireEmail,
         require_password: requirePassword,
         allow_download: allowDownload,
+        watermark_enabled: watermarkEnabled,
+        watermark_text: watermarkEnabled ? normalizedWatermarkText : null,
         view_password: finalViewPassword ?? undefined,
         expires_at:
           expiryEnabled && expiryDate
@@ -192,6 +213,37 @@ export function DeckSettingsForm({
       };
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
+
+      if (!watermarkEnabled && deck.watermark_enabled) {
+        await deckService.cleanupWatermarkedDeck(deck.id).catch((cleanupError) => {
+          console.error("Watermark cleanup failed after disabling:", cleanupError);
+        });
+      }
+
+      const shouldGenerateWatermarkedDownload = watermarkEnabled &&
+        (newFile?.type === "application/pdf" || (!newFile && (!deck.file_type || deck.file_type === "pdf"))) &&
+        (
+          Boolean(newFile) ||
+          !deck.watermark_enabled ||
+          watermarkText.trim() !== (deck.watermark_text || "").trim() ||
+          deck.watermark_status !== "ready"
+        );
+      let watermarkGenerationError: unknown = null;
+      let resultingWatermarkStatus = updated.watermark_status || watermarkStatus;
+      if (shouldGenerateWatermarkedDownload) {
+        setUploadProgress("Preparing watermarked download...");
+        setWatermarkStatus("processing");
+        try {
+          await deckService.generateWatermarkedDeck(deck.id);
+          setWatermarkStatus("ready");
+          resultingWatermarkStatus = "ready";
+        } catch (watermarkError) {
+          console.error("Watermark generation failed after deck settings update:", watermarkError);
+          watermarkGenerationError = watermarkError;
+          setWatermarkStatus("failed");
+          resultingWatermarkStatus = "failed";
+        }
+      }
 
       // Feature: Updating document replaces the physical storage blob but keeps UI intact (no slug change).
       // Cleanup the prior source file ONLY after successful DB update.
@@ -227,7 +279,16 @@ export function DeckSettingsForm({
       uploadedFileName = "";
       uploadedSlideImageKeys = [];
 
-      onUpdate(updated);
+      onUpdate({
+        ...updated,
+        watermark_status: resultingWatermarkStatus,
+      });
+      if (watermarkGenerationError) {
+        setError("Changes were saved, but the watermark could not be prepared. Retry watermark before sharing a download.");
+        setUploadProgress("");
+        setNewFile(null);
+        return;
+      }
       setUploadProgress("Changes Synced!");
       timeoutRef.current = setTimeout(() => {
         setUploadProgress("");
@@ -314,6 +375,36 @@ export function DeckSettingsForm({
         onDownloadUpsell={() => openUpsell("Download controls")}
         viewPassword={viewPassword}
         setViewPassword={setViewPassword}
+      />
+
+      <WatermarkSettingsSection
+        enabled={watermarkEnabled}
+        text={watermarkText}
+        status={watermarkStatus}
+        isPdf={newFile ? newFile.type === "application/pdf" : (!deck.file_type || deck.file_type === "pdf")}
+        canUseWatermarking={watermarkControls.access.state === "available"}
+        onEnabledChange={setWatermarkEnabled}
+        onTextChange={setWatermarkText}
+        onUpsell={() => openUpsell("Deck watermarking")}
+        onRetry={async () => {
+          setError(null);
+          setIsSaving(true);
+          setUploadProgress("Preparing watermarked download...");
+          setWatermarkStatus("processing");
+          try {
+            await deckService.generateWatermarkedDeck(deck.id);
+            setWatermarkStatus("ready");
+            onUpdate({ ...deck, watermark_status: "ready" });
+          } catch (watermarkError) {
+            console.error("Watermark retry failed:", watermarkError);
+            setWatermarkStatus("failed");
+            setError("The watermark could not be prepared. Please retry.");
+          } finally {
+            setIsSaving(false);
+            setUploadProgress("");
+          }
+        }}
+        isRetrying={watermarkStatus === "processing"}
       />
 
       <div className="flex justify-end pt-6 mt-6 border-t border-white/5">

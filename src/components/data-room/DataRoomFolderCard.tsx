@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Edit2, Folder, Sparkles, Tag, Trash2 } from "lucide-react";
+import { Edit2, Folder, Tag, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { DataRoomFolderWithTags, DataRoomTag } from "../../types";
@@ -25,7 +25,6 @@ interface DataRoomFolderCardProps {
     tagIds: string[],
   ) => Promise<void> | void;
   onDelete?: (folder: DataRoomFolderWithTags) => void;
-  onSummarize?: (folder: DataRoomFolderWithTags) => void;
   documentCount?: number;
 }
 
@@ -42,7 +41,6 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
   availableTags = [],
   onUpdateTags,
   onDelete,
-  onSummarize,
   documentCount,
 }: DataRoomFolderCardProps) {
   const [tagFilterQuery, setTagFilterQuery] = useState("");
@@ -52,7 +50,6 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
   const pendingTagIdsRef = useRef<string[] | null>(null);
   const lastCommittedTagIdsRef = useRef<string[]>([]);
   const folderColor = getColorHex(folder?.color ?? "#64748B");
-  const canSummarize = (documentCount ?? 0) > 0;
 
   useEffect(() => {
     const nextTagIds = folder?.tags.map((tag) => tag.id) ?? [];
@@ -96,23 +93,13 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
     [folder, onUpdateTags],
   );
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.target !== event.currentTarget) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onClick?.();
-    }
-  };
-
   if (isNew) {
     return (
-      <motion.div
-        role="button"
-        tabIndex={0}
+      <motion.button
+        type="button"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
-        onKeyDown={handleKeyDown}
         className={
           compact
             ? "h-[160px] w-full bg-surface-card border border-dashed border-border flex flex-col items-center justify-center gap-2.5 group hover:border-border hover:bg-surface-high transition-colors cursor-pointer rounded-md"
@@ -137,7 +124,7 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
         >
           New Folder
         </span>
-      </motion.div>
+      </motion.button>
     );
   }
 
@@ -150,29 +137,31 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
 
   return (
     <motion.div
-      role="button"
-      tabIndex={0}
       whileHover={{ y: -2 }}
       whileTap={{ y: 0 }}
       transition={{ duration: 0.1 }}
-      onClick={onClick}
-      onKeyDown={handleKeyDown}
       className={cn(
         compact
           ? "h-[160px] w-full bg-surface-card border border-border p-3.5 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md"
           : "h-[190px] w-full bg-surface-card border border-border p-4 flex flex-col items-start text-left group transition-colors relative overflow-hidden cursor-pointer rounded-md",
       )}
     >
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={`Open folder ${folder.name}`}
+        className="absolute inset-0 z-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+      />
       {isActive && (
         <motion.div
           layoutId="activeFolderLine"
-          className="absolute top-0 left-0 w-full h-0.5 bg-primary"
+          className="absolute top-0 left-0 z-[1] w-full h-0.5 bg-primary"
         />
       )}
 
       <div
         className={
-          compact ? "mb-4 transition-colors" : "mb-6 transition-colors"
+          compact ? "pointer-events-none relative z-[1] mb-4 transition-colors" : "pointer-events-none relative z-[1] mb-6 transition-colors"
         }
       >
         <Folder
@@ -182,21 +171,7 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
         />
       </div>
 
-      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity z-10">
-        {onSummarize ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (canSummarize) onSummarize(folder);
-            }}
-            aria-label="Summarize folder"
-            disabled={!canSummarize}
-            className="p-2 rounded-md bg-surface-low hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface-low disabled:hover:text-muted-foreground"
-          >
-            <Sparkles size={14} />
-          </button>
-        ) : null}
+      <div className="absolute top-3 right-3 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
         {onUpdateTags && availableTags.length > 0 && (
           <DropdownMenu onOpenChange={(open) => !open && setTagFilterQuery("")}>
             <DropdownMenuTrigger asChild>
@@ -328,7 +303,7 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
         </button>
       </div>
 
-      <div className="space-y-2 flex-1">
+      <div className="pointer-events-none relative z-[1] space-y-2 flex-1">
         <h3
           className={
             compact
@@ -365,8 +340,8 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
       <div
         className={
           compact
-            ? "pt-2 border-t border-border w-full"
-            : "pt-2.5 border-t border-border w-full"
+            ? "pointer-events-none relative z-[1] pt-2 border-t border-border w-full"
+            : "pointer-events-none relative z-[1] pt-2.5 border-t border-border w-full"
         }
       >
         <span

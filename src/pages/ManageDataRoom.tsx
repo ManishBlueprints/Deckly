@@ -81,6 +81,8 @@ function ManageDataRoom() {
     const max = entitlements.data?.limits.maxDataRooms;
     if (max === undefined) return;
 
+    if (max === -1) return;
+
     dataRoomService
       .getDataRooms()
       .then((rooms) => {
