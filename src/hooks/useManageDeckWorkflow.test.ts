@@ -50,4 +50,25 @@ describe("useManageDeckWorkflow upload contracts", () => {
     expect(settingsSource).toContain("...(newFile ? { extracted_text: null } : {}),");
     expect(detailSource).toContain("...(newFile ? { extracted_text: null } : {}),");
   });
+
+  it("marks a disabled watermark as disabled after saving deck settings", () => {
+    const settingsSource = readSource("src/components/dashboard/DeckSettingsForm.tsx");
+
+    expect(settingsSource).toContain('let resultingWatermarkStatus = !watermarkEnabled');
+    expect(settingsSource).toContain('? "disabled"');
+  });
+
+  it("updates the local watermark status after replacing a protected deck source", () => {
+    const detailSource = readSource("src/components/decks/DeckDetailPanel.tsx");
+
+    expect(detailSource).toContain('watermarkGenerationStatus = "ready"');
+    expect(detailSource).toContain('watermarkGenerationStatus = "failed"');
+  });
+
+  it("refreshes dashboard deck queries when watermark generation fails", () => {
+    const source = readSource("src/hooks/useManageDeckWorkflow.ts");
+
+    expect(source).toContain("const invalidateDeckDashboardQueries = () =>");
+    expect(source.match(/invalidateDeckDashboardQueries\(\);/g)).toHaveLength(3);
+  });
 });

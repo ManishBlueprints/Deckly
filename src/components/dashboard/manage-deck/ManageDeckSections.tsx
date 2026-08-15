@@ -499,13 +499,17 @@ export function ManageDeckAccessSection({
           <Switch
             checked={allowDownload}
             onCheckedChange={(checked) => {
-              if (!canUseDownloadControls) {
+              if (checked && !canUseDownloadControls) {
                 onDownloadUpsell();
                 return;
               }
               onAllowDownloadChange(checked);
             }}
-            aria-label="Allow investors to download this deck"
+            aria-label={
+              canUseDownloadControls
+                ? "Allow investors to download this deck"
+                : "Allow investors to download this deck, available on Share"
+            }
           />
         </div>
 

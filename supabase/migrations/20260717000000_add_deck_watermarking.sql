@@ -111,8 +111,17 @@ AS $$
 BEGIN
   IF NOT NEW.watermark_enabled THEN
     NEW.watermark_status := 'disabled';
+    NEW.watermarked_file_path := NULL;
     NEW.watermark_error := NULL;
-    NEW.watermark_updated_at := NOW();
+
+    IF TG_OP = 'INSERT'
+       OR NEW.watermark_enabled IS DISTINCT FROM OLD.watermark_enabled
+       OR NEW.watermark_text IS DISTINCT FROM OLD.watermark_text
+       OR NEW.watermark_status IS DISTINCT FROM OLD.watermark_status
+       OR NEW.watermarked_file_path IS DISTINCT FROM OLD.watermarked_file_path
+       OR NEW.watermark_error IS DISTINCT FROM OLD.watermark_error THEN
+      NEW.watermark_updated_at := NOW();
+    END IF;
     RETURN NEW;
   END IF;
 

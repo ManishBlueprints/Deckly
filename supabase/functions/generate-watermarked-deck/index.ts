@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { extractStoragePath } from "../../../src/services/storagePaths.ts";
-import { deleteObject, presignGetUrl, uploadObject } from "../_shared/r2.ts";
+import { deleteObject, deleteObjects, listAllObjects, presignGetUrl, uploadObject } from "../_shared/r2.ts";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -11,6 +11,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 });
 
 const EXTERNAL_FETCH_TIMEOUT_MS = 60_000;
+const CONVERT_API_DOWNLOAD_HOST = "v2.convertapi.com";
 
 async function withExternalFetchTimeout<T>(operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const controller = new AbortController();
@@ -62,24 +63,27 @@ Deno.serve(async (req: Request) => {
 
     const { data: deck, error: deckError } = await admin
       .from("decks")
-      .select("id, user_id, file_url, file_type, watermark_enabled, watermark_text, watermark_revision, watermarked_file_path")
+      .select("id, user_id, file_url, file_type, watermark_enabled, watermark_text, watermark_revision, watermark_status, watermarked_file_path")
       .eq("id", deckId)
       .single();
     if (deckError || !deck || deck.user_id !== userData.user.id) {
       return json({ success: false, message: "Deck not found." }, 404);
     }
     revision = deck.watermark_revision;
-    const expectedCurrentPath = `${deck.user_id}/watermarks/${deck.id}/${revision}.pdf`;
+    const watermarkPrefix = `${deck.user_id}/watermarks/${deck.id}/`;
+    const expectedCurrentPath = `${watermarkPrefix}${revision}.pdf`;
 
     if (action === "cleanup") {
       if (deck.watermark_enabled) {
         return json({ success: false, message: "Disable the watermark before cleanup." }, 409);
       }
-      if (deck.watermarked_file_path === expectedCurrentPath) {
-        await deleteObject("decks", expectedCurrentPath).catch((cleanupError) => {
-          console.warn("Unable to remove disabled watermark artifact", cleanupError);
-        });
-      }
+      const watermarkArtifacts = await listAllObjects("decks", watermarkPrefix);
+      await deleteObjects(
+        "decks",
+        watermarkArtifacts
+          .map((artifact) => artifact.name)
+          .filter((path) => path.startsWith(watermarkPrefix)),
+      );
       const { error: cleanupUpdateError } = await admin
         .from("decks")
         .update({ watermarked_file_path: null, watermark_error: null, watermark_updated_at: new Date().toISOString() })
@@ -91,6 +95,10 @@ Deno.serve(async (req: Request) => {
 
     if (!deck.watermark_enabled || deck.file_type !== "pdf" || !deck.watermark_text?.trim()) {
       return json({ success: false, message: "This deck does not have an active PDF watermark." }, 409);
+    }
+
+    if (deck.watermark_status === "ready" && deck.watermarked_file_path === expectedCurrentPath) {
+      return json({ success: true });
     }
 
     const { data: entitlement } = await admin.rpc("has_live_feature_for_user", {
@@ -143,15 +151,29 @@ Deno.serve(async (req: Request) => {
     if (typeof convertedUrl !== "string") {
       throw new Error("ConvertAPI returned no watermarked PDF.");
     }
+    let convertedDownloadUrl: URL;
+    try {
+      convertedDownloadUrl = new URL(convertedUrl);
+    } catch {
+      throw new Error("ConvertAPI returned an invalid watermarked PDF URL.");
+    }
+    if (
+      convertedDownloadUrl.protocol !== "https:" ||
+      convertedDownloadUrl.hostname !== CONVERT_API_DOWNLOAD_HOST
+    ) {
+      throw new Error("ConvertAPI returned an unexpected watermarked PDF URL.");
+    }
+
     const outputPath = `${deck.user_id}/watermarks/${deck.id}/${revision}.pdf`;
     await withExternalFetchTimeout(async (signal) => {
-      const convertedResponse = await fetch(convertedUrl, { signal });
+      const convertedResponse = await fetch(convertedDownloadUrl, { signal });
       if (!convertedResponse.ok || !convertedResponse.body) {
         throw new Error("Unable to download the generated watermark file.");
       }
       await uploadObject("decks", outputPath, convertedResponse.body, {
         contentType: "application/pdf",
         expiresInSeconds: 900,
+        signal,
       });
     });
 

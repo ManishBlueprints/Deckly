@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deckLinkService } from "../services/deckLinkService";
+import { deckQueryKeys } from "./useDecks";
 
 type CreateDeckLinkInput = {
   linkName?: string;
@@ -10,7 +11,7 @@ export const deckLinkQueryKeys = {
   list: (deckId: string, userId?: string) =>
     ["deck-links", deckId, userId ?? "anonymous"] as const,
   noDeck: ["deck-links", "no-deck"] as const,
-  deckList: (userId: string) => ["decks", userId] as const,
+  deckList: deckQueryKeys.list,
   deckDetail: (deckId: string) => ["deck", deckId] as const,
 };
 

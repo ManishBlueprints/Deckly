@@ -32,6 +32,23 @@ describe("download analytics contracts", () => {
     expect(migrationSql).toContain("get_data_room_download_analytics");
   });
 
+  it("preserves history and names after deck or room deletion", () => {
+    expect(migrationSql).toContain("deck_id UUID NOT NULL,");
+    expect(migrationSql).toContain("owner_user_id UUID NOT NULL,");
+    expect(migrationSql).toContain("data_room_id UUID,");
+    expect(migrationSql).not.toContain("deck_id UUID NOT NULL REFERENCES public.decks");
+    expect(migrationSql).not.toContain("owner_user_id UUID NOT NULL REFERENCES auth.users");
+    expect(migrationSql).not.toContain("data_room_id UUID REFERENCES public.data_rooms");
+    expect(migrationSql).toContain("deck_title_snapshot TEXT");
+    expect(migrationSql).toContain("data_room_name_snapshot TEXT");
+    expect(migrationSql).toContain("v_deck.title");
+    expect(migrationSql).toContain("v_data_room_name");
+    expect(migrationSql).toContain("array_agg(e.data_room_name_snapshot ORDER BY e.downloaded_at DESC)");
+    expect(migrationSql).toContain("array_agg(e.deck_title_snapshot ORDER BY e.downloaded_at DESC)");
+    expect(migrationSql).toContain("GROUP BY e.data_room_id");
+    expect(migrationSql).toContain("GROUP BY COALESCE(rd.deck_id, e.deck_id)");
+  });
+
   it("includes current room documents with zero downloads and preserves historical downloader files", () => {
     expect(migrationSql).toContain("room_documents AS");
     expect(migrationSql).toContain("FULL OUTER JOIN events e ON e.deck_id = rd.deck_id");
@@ -58,7 +75,7 @@ describe("download analytics contracts", () => {
 
   it("keeps owner IDs out of public payloads and bounds downloader results", () => {
     expect(migrationSql).toContain("p_actor_user_id UUID DEFAULT NULL");
-    expect(migrationSql).toContain("IF p_actor_user_id IS NOT NULL AND p_actor_user_id = v_owner_user_id THEN");
+    expect(migrationSql).toContain("IF p_actor_user_id IS NOT NULL AND p_actor_user_id = v_deck.user_id THEN");
     expect(migrationSql).toContain("p_limit INTEGER DEFAULT 100");
     expect(migrationSql).toContain("LIMIT v_limit");
     expect(migrationSql).toContain("p_offset INTEGER DEFAULT 0");

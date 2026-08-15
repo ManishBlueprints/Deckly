@@ -2,6 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 import { extractStoragePath } from "../../../src/services/storagePaths.ts";
 import { createSignedUrls, presignDownloadUrl } from "../_shared/r2.ts";
 
+const JSON_RESPONSE_HEADERS = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+};
+
 /**
  * sign-deck-url
  *
@@ -19,7 +24,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
       headers: {
-        "Access-Control-Allow-Origin": "*",
+        ...JSON_RESPONSE_HEADERS,
         "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
       },
     });
@@ -56,28 +61,28 @@ Deno.serve(async (req: Request) => {
     if (intent !== "view" && intent !== "download") {
       return new Response(JSON.stringify({ error: "Invalid request intent" }), {
         status: 400,
-        headers: { "Content-Type": "application/json" },
+        headers: JSON_RESPONSE_HEADERS,
       });
     }
 
     if (slug !== undefined && slug !== null && deckSlug === null) {
       return new Response(
         JSON.stringify({ error: "Invalid request: slug must be a string" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: JSON_RESPONSE_HEADERS }
       );
     }
 
     if (room_slug !== undefined && room_slug !== null && roomSlug === null) {
       return new Response(
         JSON.stringify({ error: "Invalid request: room_slug must be a string" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: JSON_RESPONSE_HEADERS }
       );
     }
 
     if (rawStoragePath !== undefined && rawStoragePath !== null && storagePath === null) {
       return new Response(
         JSON.stringify({ error: "Invalid request: storage_path must be a valid deck storage path" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: JSON_RESPONSE_HEADERS }
       );
     }
 
@@ -88,7 +93,7 @@ Deno.serve(async (req: Request) => {
       console.error("Missing environment variables: SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY");
       return new Response(
         JSON.stringify({ error: "Server configuration error" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+        { status: 500, headers: JSON_RESPONSE_HEADERS }
       );
     }
 
@@ -145,7 +150,7 @@ Deno.serve(async (req: Request) => {
             error: "Unauthorized Data Room",
             message: rpcError.message 
           }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
+          { status: 403, headers: JSON_RESPONSE_HEADERS }
         );
       }
 
@@ -200,7 +205,7 @@ Deno.serve(async (req: Request) => {
             error: "Unauthorized Deck",
             message: rpcError.message 
           }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
+          { status: 403, headers: JSON_RESPONSE_HEADERS }
         );
       }
 
@@ -214,7 +219,7 @@ Deno.serve(async (req: Request) => {
           if (typeof payload.id !== "string" || typeof payload.deck_link_id !== "string") {
             return new Response(JSON.stringify({ error: "Download metadata was unavailable" }), {
               status: 500,
-              headers: { "Content-Type": "application/json" },
+              headers: JSON_RESPONSE_HEADERS,
             });
           }
           downloadTarget = {
@@ -255,7 +260,7 @@ Deno.serve(async (req: Request) => {
       if (!downloadTarget || !downloadTarget.allowed) {
         return new Response(JSON.stringify({ error: "Downloads are not permitted for this deck" }), {
           status: 403,
-          headers: { "Content-Type": "application/json" },
+          headers: JSON_RESPONSE_HEADERS,
         });
       }
 
@@ -264,7 +269,7 @@ Deno.serve(async (req: Request) => {
         if (!serviceRoleKey) {
           return new Response(JSON.stringify({ error: "Watermarked downloads are temporarily unavailable" }), {
             status: 503,
-            headers: { "Content-Type": "application/json" },
+            headers: JSON_RESPONSE_HEADERS,
           });
         }
         const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -290,7 +295,7 @@ Deno.serve(async (req: Request) => {
             code: "watermark_not_ready",
           }), {
             status: 409,
-            headers: { "Content-Type": "application/json" },
+            headers: JSON_RESPONSE_HEADERS,
           });
         }
         downloadTarget.path = watermarkDeck.watermarked_file_path;
@@ -339,7 +344,7 @@ Deno.serve(async (req: Request) => {
 
       return new Response(JSON.stringify({ download_url: downloadUrl, filename, expires_in: 60 }), {
         status: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: JSON_RESPONSE_HEADERS,
       });
     }
 
@@ -362,13 +367,13 @@ Deno.serve(async (req: Request) => {
          console.warn("[sign-deck-url] Blocked path access attempt: unauthorized path requested.");
          return new Response(
           JSON.stringify({ error: `Forbidden: path not authorized` }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
+          { status: 403, headers: JSON_RESPONSE_HEADERS }
         );
        }
     }
 
     if (finalRequestedPaths.length === 0) {
-      return new Response(JSON.stringify({ error: "No valid paths to sign" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "No valid paths to sign" }), { status: 400, headers: JSON_RESPONSE_HEADERS });
     }
 
     const EXPIRES_IN_SECONDS = 21600; // 6 hours
@@ -388,17 +393,14 @@ Deno.serve(async (req: Request) => {
       }),
       {
         status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
+        headers: JSON_RESPONSE_HEADERS,
       }
     );
   } catch (err) {
     console.error("sign-deck-url error", err);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: JSON_RESPONSE_HEADERS }
     );
   }
 });

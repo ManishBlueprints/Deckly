@@ -229,7 +229,9 @@ export function DeckSettingsForm({
           deck.watermark_status !== "ready"
         );
       let watermarkGenerationError: unknown = null;
-      let resultingWatermarkStatus = updated.watermark_status || watermarkStatus;
+      let resultingWatermarkStatus = !watermarkEnabled
+        ? "disabled"
+        : updated.watermark_status || watermarkStatus;
       if (shouldGenerateWatermarkedDownload) {
         setUploadProgress("Preparing watermarked download...");
         setWatermarkStatus("processing");
@@ -367,11 +369,11 @@ export function DeckSettingsForm({
         setRequirePassword={setRequirePassword}
         allowDownload={allowDownload}
         setAllowDownload={setAllowDownload}
-        canUseAccessControls={accessControls.access.state === "available"}
+        canUseAccessControls={accessControls.isLoading || accessControls.access.state === "available"}
         onAccessUpsell={() =>
           openUpsell("Email capture, password protection, and expiry")
         }
-        canUseDownloadControls={downloadControls.access.state === "available"}
+        canUseDownloadControls={downloadControls.isLoading || downloadControls.access.state === "available"}
         onDownloadUpsell={() => openUpsell("Download controls")}
         viewPassword={viewPassword}
         setViewPassword={setViewPassword}
@@ -382,7 +384,7 @@ export function DeckSettingsForm({
           text={watermarkText}
           status={watermarkStatus}
           isPdf={newFile ? newFile.type === "application/pdf" : (!deck.file_type || deck.file_type === "pdf")}
-          canUseWatermarking={watermarkControls.access.state === "available"}
+          canUseWatermarking={watermarkControls.isLoading || watermarkControls.access.state === "available"}
           onEnabledChange={setWatermarkEnabled}
           onTextChange={setWatermarkText}
           onUpsell={() => openUpsell("Deck watermarking")}

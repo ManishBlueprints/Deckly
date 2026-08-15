@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DataRoomCard } from "../components/dashboard/DataRoomCard";
 import { useAuth } from "../contexts/AuthContext";
-import { type Tier } from "../constants/tiers";
+import { TIER_CONFIG, type Tier } from "../constants/tiers";
 import { useMyEntitlements } from "../hooks/useTierEntitlements";
 import { useDataRooms } from "../hooks/useDataRooms";
 import { cn } from "@/lib/utils";
@@ -93,9 +93,10 @@ function DataRoomsPage() {
   });
 
   const tier: Tier = entitlements.data?.tier ?? (profile?.tier as Tier) ?? "FREE";
+  const tierLabel = entitlements.data?.label ?? TIER_CONFIG[tier].planLabel;
   const maxRooms = entitlements.data?.limits.maxDataRooms ?? 1;
   const isUnlimited = maxRooms === -1;
-  const isAtLimit = !isUnlimited && rooms.length >= maxRooms;
+  const isAtLimit = !entitlements.isLoading && !isUnlimited && rooms.length >= maxRooms;
 
   const loading = isLoading && rooms.length === 0;
   const isRefreshing = isFetching || isFetchingMeta || isFetchingDocuments;
@@ -171,7 +172,7 @@ function DataRoomsPage() {
         {/* Upgrade banner */}
         {isAtLimit && !isUnlimited && (
           <RoomsUpgradeBanner
-            tier={tier}
+            tierLabel={tierLabel}
             maxRooms={maxRooms}
             onUpgrade={() => navigate("/profile?section=tier")}
           />
@@ -319,11 +320,11 @@ function RoomsNoResults({ onClear }: { onClear: () => void }) {
 }
 
 function RoomsUpgradeBanner({
-  tier,
+  tierLabel,
   maxRooms,
   onUpgrade,
 }: {
-  tier: Tier;
+  tierLabel: string;
   maxRooms: number;
   onUpgrade: () => void;
 }) {
@@ -334,10 +335,12 @@ function RoomsUpgradeBanner({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white">
-          {tier === "FREE" ? "Upgrade to Founder for more rooms" : "Choose a higher plan for more rooms"}
+          {tierLabel === TIER_CONFIG.FREE.planLabel
+            ? "Upgrade to Founder for more rooms"
+            : "Choose a higher plan for more rooms"}
         </p>
         <p className="text-xs text-amber-500/80 mt-0.5">
-          You've used all {maxRooms} slots on {tier}
+          You've used all {maxRooms} {maxRooms === 1 ? "slot" : "slots"} on {tierLabel}
         </p>
       </div>
       <button onClick={onUpgrade} className="px-5 py-2 bg-amber-500 text-slate-950 font-semibold text-xs rounded-md hover:bg-amber-400 transition-all shrink-0">

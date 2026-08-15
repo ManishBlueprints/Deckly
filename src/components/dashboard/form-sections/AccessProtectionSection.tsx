@@ -156,11 +156,12 @@ export function AccessProtectionSection({
                   : "bg-surface-container border-white/10 hover:border-white/20",
               )}
               onClick={() => {
-                if (!canUseDownloadControls) {
+                const next = !allowDownload;
+                if (next && !canUseDownloadControls) {
                   onDownloadUpsell?.();
                   return;
                 }
-                setAllowDownload?.(!allowDownload);
+                setAllowDownload?.(next);
               }}
             >
               <div className="flex items-center gap-4">
@@ -186,9 +187,9 @@ export function AccessProtectionSection({
               </div>
               <Switch
                 id="allow-download"
-                checked={allowDownload}
+                checked={allowDownload ?? false}
                 onCheckedChange={(checked) => {
-                  if (!canUseDownloadControls) {
+                  if (checked && !canUseDownloadControls) {
                     onDownloadUpsell?.();
                     return;
                   }

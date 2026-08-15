@@ -143,6 +143,7 @@ export default function DeckAnalytics() {
   const isRefreshing =
     canViewAnalytics && (statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching || linksFetching || downloadsFetching);
   const totalSaves = bookmarks.length;
+  const downloaders = downloadAnalytics?.downloaders ?? [];
   const downloadsByLink = useMemo(
     () => new Map((downloadAnalytics?.links ?? []).map((link) => [link.link_id, link])),
     [downloadAnalytics],
@@ -854,11 +855,11 @@ export default function DeckAnalytics() {
                   {downloadAnalytics?.total_downloads ?? 0} downloads
                 </Badge>
               </div>
-              {(downloadAnalytics?.downloaders.length ?? 0) === 0 ? (
+              {downloaders.length === 0 ? (
                 <p className="py-8 text-center text-sm text-slate-500">No downloads recorded yet.</p>
               ) : (
                 <div className="space-y-3">
-                  {downloadAnalytics!.downloaders.map((downloader, index) => (
+                  {downloaders.map((downloader, index) => (
                     <div key={downloader.visitor_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-md bg-surface-low px-4 py-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-white truncate">

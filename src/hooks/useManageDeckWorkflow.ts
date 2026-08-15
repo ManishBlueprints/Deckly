@@ -9,6 +9,8 @@ import { userService } from "../services/userService";
 import { dataRoomService } from "../services/dataRoomService";
 import { processPdfToImages } from "../workflows/deckProcessing";
 import { extractStoragePath } from "../services/deckService.shared";
+import { deckQueryKeys } from "./useDecks";
+import { userTotalStatsQueryKeys } from "./useUserTotalStats";
 import { Deck, SlidePage, UserProfile } from "../types";
 import posthog from "posthog-js";
 import * as Sentry from "@sentry/react";
@@ -372,6 +374,14 @@ export function useManageDeckWorkflow({
         } = await supabase.auth.getSession();
         if (!session) throw new Error("Not authenticated");
         const userId = session.user.id;
+        const invalidateDeckDashboardQueries = () => {
+          queryClient.invalidateQueries({
+            queryKey: deckQueryKeys.list(userId),
+          });
+          queryClient.invalidateQueries({
+            queryKey: userTotalStatsQueryKeys.allForUser(userId),
+          });
+        };
 
         if (file) {
           setProgress("Uploading document...");
@@ -697,6 +707,7 @@ export function useManageDeckWorkflow({
               await deckService.generateWatermarkedDeck(deckRecord.id);
             } catch (watermarkError) {
               console.error("Watermark generation failed after deck creation:", watermarkError);
+              invalidateDeckDashboardQueries();
               setExistingDeck({ ...deckRecord, watermark_status: "failed" } as Deck);
               setError("Deck saved, but the watermark could not be prepared. Retry watermark before sharing a download.");
               setProgress("");
@@ -722,6 +733,7 @@ export function useManageDeckWorkflow({
             await deckService.generateWatermarkedDeck(editId);
           } catch (watermarkError) {
             console.error("Watermark generation failed after deck update:", watermarkError);
+            invalidateDeckDashboardQueries();
             setExistingDeck((current) => current
               ? { ...current, watermark_status: "failed" }
               : current);
@@ -734,12 +746,7 @@ export function useManageDeckWorkflow({
         setProgress("Successful!");
         setProgressPercent(100);
 
-        queryClient.invalidateQueries({
-          queryKey: ["decks", session?.user?.id],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ["user-total-stats", session?.user?.id],
-        });
+        invalidateDeckDashboardQueries();
 
         navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content");
         

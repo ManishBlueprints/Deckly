@@ -155,7 +155,7 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
       {isActive && (
         <motion.div
           layoutId="activeFolderLine"
-          className="absolute top-0 left-0 z-[1] w-full h-0.5 bg-primary"
+          className="pointer-events-none absolute top-0 left-0 z-[1] w-full h-0.5 bg-primary"
         />
       )}
 

@@ -301,13 +301,18 @@ export async function uploadObject(
   bucket: StorageBucket,
   key: string,
   body: BodyInit,
-  options: { contentType?: string; expiresInSeconds?: number } = {},
+  options: {
+    contentType?: string;
+    expiresInSeconds?: number;
+    signal?: AbortSignal;
+  } = {},
 ): Promise<void> {
   const signedUrl = await presignPutUrl(bucket, key, options.expiresInSeconds);
   const response = await fetch(signedUrl, {
     method: "PUT",
     body,
     headers: options.contentType ? { "Content-Type": options.contentType } : undefined,
+    signal: options.signal,
   });
 
   if (!response.ok) {

@@ -279,8 +279,8 @@ function ManageDeck() {
               requireEmail={requireEmail}
               requirePassword={requirePassword}
               allowDownload={allowDownload}
-              canUseAccessControls={accessControls.access.state === "available"}
-              canUseDownloadControls={downloadControls.access.state === "available"}
+              canUseAccessControls={accessControls.isLoading || accessControls.access.state === "available"}
+              canUseDownloadControls={downloadControls.isLoading || downloadControls.access.state === "available"}
               viewPassword={viewPassword}
               showPasswordField={showPasswordField}
               enableExpiry={enableExpiry}
@@ -312,7 +312,7 @@ function ManageDeck() {
                 text={watermarkText}
                 status={existingDeck?.watermark_status}
                 isPdf={fileType === "pdf"}
-                canUseWatermarking={watermarkControls.access.state === "available"}
+                canUseWatermarking={watermarkControls.isLoading || watermarkControls.access.state === "available"}
                 onEnabledChange={setWatermarkEnabled}
                 onTextChange={setWatermarkText}
                 onUpsell={() => {

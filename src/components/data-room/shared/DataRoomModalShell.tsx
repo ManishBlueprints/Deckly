@@ -17,6 +17,8 @@ export function DataRoomModalShell({
   ariaLabel,
 }: DataRoomModalShellProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -34,7 +36,7 @@ export function DataRoomModalShell({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -73,7 +75,7 @@ export function DataRoomModalShell({
       document.body.style.overflow = previousOverflow;
       if (previouslyFocusedElement?.isConnected) previouslyFocusedElement.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return (
     <AnimatePresence>

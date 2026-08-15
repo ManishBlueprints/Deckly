@@ -215,6 +215,16 @@ const deckCrudService = {
     cleanupError?: Error;
   }> {
     const userId = await getRequiredDeckUserId(providedUserId);
+    const { data: targetDeck, error: targetDeckError } = await supabase
+      .from("decks")
+      .select("user_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (targetDeckError) throw targetDeckError;
+    if (!targetDeck || targetDeck.user_id !== userId) {
+      throw new Error("Deck not found.");
+    }
 
     const { error: markDeletingError } = await supabase
       .from("decks")
@@ -231,7 +241,7 @@ const deckCrudService = {
       await deckStorageService.deleteDeckWatermarkAssets(id, userId);
       await deckStorageService.deleteDeckAssets(fileUrl, slug, userId);
     } catch (err) {
-      console.error("Deck storage cleanup failed; database row was retained for retry.", {
+      console.error("Deck storage cleanup failed; deck remains hidden for retry.", {
         deckId: id,
         fileUrl,
         slug,

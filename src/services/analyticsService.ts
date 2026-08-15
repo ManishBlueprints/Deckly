@@ -633,14 +633,19 @@ export const analyticsService = {
       p_limit: 100,
     });
     if (error) throw error;
-    return (data as DeckDownloadAnalytics) || {
-      total_downloads: 0,
-      unique_downloaders: 0,
-      direct_link_downloads: 0,
-      data_room_downloads: 0,
-      links: [],
-      data_rooms: [],
-      downloaders: [],
+    const analytics = data && typeof data === "object" && !Array.isArray(data)
+      ? (data as Partial<DeckDownloadAnalytics>)
+      : {};
+
+    return {
+      total_downloads: analytics.total_downloads ?? 0,
+      unique_downloaders: analytics.unique_downloaders ?? 0,
+      direct_link_downloads: analytics.direct_link_downloads ?? 0,
+      data_room_downloads: analytics.data_room_downloads ?? 0,
+      links: Array.isArray(analytics.links) ? analytics.links : [],
+      data_rooms: Array.isArray(analytics.data_rooms) ? analytics.data_rooms : [],
+      downloaders: Array.isArray(analytics.downloaders) ? analytics.downloaders : [],
+      downloaders_truncated: analytics.downloaders_truncated,
     };
   },
 
@@ -654,11 +659,16 @@ export const analyticsService = {
       p_offset: options.offset ?? 0,
     });
     if (error) throw error;
-    return (data as DataRoomDownloadAnalytics) || {
-      total_downloads: 0,
-      unique_downloaders: 0,
-      documents: [],
-      downloaders: [],
+    const analytics = data && typeof data === "object" && !Array.isArray(data)
+      ? (data as Partial<DataRoomDownloadAnalytics>)
+      : {};
+
+    return {
+      total_downloads: analytics.total_downloads ?? 0,
+      unique_downloaders: analytics.unique_downloaders ?? 0,
+      documents: Array.isArray(analytics.documents) ? analytics.documents : [],
+      downloaders: Array.isArray(analytics.downloaders) ? analytics.downloaders : [],
+      downloaders_truncated: analytics.downloaders_truncated,
     };
   },
 
