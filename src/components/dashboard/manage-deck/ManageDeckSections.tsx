@@ -22,6 +22,7 @@ import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { Switch } from "../../ui/switch";
 import { Button } from "../../ui/button";
+import { PremiumFeatureIcon } from "../PremiumFeatureIcon";
 
 interface UploadSectionProps {
   editId: string | null;
@@ -166,12 +167,8 @@ export function ManageDeckUploadSection({
                     : "text-slate-500 hover:text-slate-300",
                 )}
               >
+                <PremiumFeatureIcon tier="PRO" />
                 INTERACTIVE
-                {!config.allowInteractive && (
-                  <span className="bg-background text-slate-400 border border-white/5 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                    PRO
-                  </span>
-                )}
               </button>
             </div>
           </div>
@@ -359,6 +356,7 @@ interface AccessSectionProps {
   onTogglePasswordVisibility: () => void;
   onEnableExpiryChange: (checked: boolean) => void;
   onExpiresAtChange: (value: string) => void;
+  children?: React.ReactNode;
 }
 
 export function ManageDeckAccessSection({
@@ -380,6 +378,7 @@ export function ManageDeckAccessSection({
   onTogglePasswordVisibility,
   onEnableExpiryChange,
   onExpiresAtChange,
+  children,
 }: AccessSectionProps) {
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
@@ -391,7 +390,6 @@ export function ManageDeckAccessSection({
       <div className="flex items-center gap-2 mb-2">
         <Lock size={16} className="text-deckly-primary" />
         <h3 className="text-sm font-medium text-white">Security & Access</h3>
-        {!canUseAccessControls && <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"><Lock size={12} /> Share feature</span>}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -415,7 +413,10 @@ export function ManageDeckAccessSection({
               <Mail size={18} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Email Required</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+                <PremiumFeatureIcon tier="PRO" />
+                Email Required
+              </p>
               <p className="text-xs text-slate-500 mt-0.5">ID Authentication</p>
             </div>
           </div>
@@ -449,7 +450,10 @@ export function ManageDeckAccessSection({
               <Lock size={18} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Gate Access</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+                <PremiumFeatureIcon tier="PRO" />
+                Gate Access
+              </p>
               <p className="text-xs text-slate-500 mt-0.5">Password Lock</p>
             </div>
           </div>
@@ -483,7 +487,10 @@ export function ManageDeckAccessSection({
               <Download size={18} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Downloads</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+                <PremiumFeatureIcon tier="PRO" />
+                Downloads
+              </p>
               <p className="text-xs text-slate-500 mt-0.5">
                 {allowDownload ? "Download enabled" : "Download disabled"}
               </p>
@@ -522,7 +529,10 @@ export function ManageDeckAccessSection({
               <CalendarDays size={18} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Expiration</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+                <PremiumFeatureIcon tier="PRO" />
+                Expiration
+              </p>
               <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
             </div>
           </div>
@@ -605,6 +615,8 @@ export function ManageDeckAccessSection({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {children}
     </div>
   );
 }

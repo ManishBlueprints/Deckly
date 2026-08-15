@@ -79,6 +79,20 @@ function formatStorageBytes(value: number) {
   return value >= gigabyte ? `${value / gigabyte} GB` : `${value / megabyte} MB`;
 }
 
+function ComingSoonLabel() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-400">
+      <Clock3 size={11} aria-hidden="true" />
+      Coming soon
+    </span>
+  );
+}
+
+const FOUNDER_COMING_SOON_FEATURES = new Set([
+  "white_label_domain",
+  "diligence_controls",
+]);
+
 function formatPrice(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
@@ -1067,36 +1081,44 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
 
                   <dl className="mt-3 divide-y divide-border/70 border-y border-border/70">
                     {[
-                      ["Active data rooms", formatCount(tierRecord(tierKey)?.limits.maxDataRooms ?? 0, "room")],
-                      ["Documents", formatCount(tierRecord(tierKey)?.limits.maxDocuments ?? 0, "document")],
-                      ["Storage", formatStorageBytes(tierRecord(tierKey)?.limits.storageLimitBytes ?? 0)],
-                      ["Seats", `${tierRecord(tierKey)?.limits.plannedTeamMembers ?? 1} · Coming soon`],
-                      ["Analytics retention", (tierRecord(tierKey)?.limits.analyticsRetentionDays ?? 0) === -1 ? "Full history" : formatCount(tierRecord(tierKey)?.limits.analyticsRetentionDays ?? 0, "day")],
-                      ["AI credits", `${tierRecord(tierKey)?.limits.aiCreditsPerDay ?? 0} / day`],
-                    ].map(([label, value]) => (
+                      { label: "Active data rooms", value: formatCount(tierRecord(tierKey)?.limits.maxDataRooms ?? 0, "room") },
+                      { label: "Documents", value: formatCount(tierRecord(tierKey)?.limits.maxDocuments ?? 0, "document") },
+                      { label: "Storage", value: formatStorageBytes(tierRecord(tierKey)?.limits.storageLimitBytes ?? 0) },
+                      { label: "Seats", value: String(tierRecord(tierKey)?.limits.plannedTeamMembers ?? 1) },
+                      { label: "Analytics retention", value: (tierRecord(tierKey)?.limits.analyticsRetentionDays ?? 0) === -1 ? "Full history" : formatCount(tierRecord(tierKey)?.limits.analyticsRetentionDays ?? 0, "day") },
+                      { label: "AI credits", value: `${tierRecord(tierKey)?.limits.aiCreditsPerDay ?? 0} / day` },
+                    ].map(({ label, value }) => (
                       <div key={label} className="flex items-center justify-between gap-3 py-2">
                         <dt className="text-[10px] text-muted-foreground">{label}</dt>
-                        <dd className="text-right text-[10px] font-semibold text-foreground">{value}</dd>
+                        <dd className="flex items-center gap-1.5 text-right text-[10px] font-semibold text-foreground">
+                          {value}
+                        </dd>
                       </div>
                     ))}
                   </dl>
 
                   <ul className="mt-4 space-y-2">
-                    {tierRecord(tierKey)?.features.map((feature) => (
+                    {tierRecord(tierKey)?.features.map((feature) => {
+                      const isComingSoon = feature.availability === "coming_soon" && (
+                        feature.included || (
+                          tierKey === "PRO_PLUS" && FOUNDER_COMING_SOON_FEATURES.has(feature.key)
+                        )
+                      );
+
+                      return (
                       <li key={feature.key} className="flex gap-2 text-xs leading-snug text-muted-foreground">
                         {feature.included && feature.availability === "live" ? (
                           <Check size={12} className="mt-0.5 shrink-0 text-deckly-primary" aria-label="Included" />
-                        ) : feature.included ? (
-                          <Clock3 size={12} className="mt-0.5 shrink-0 text-amber-400" aria-label="Coming soon" />
-                        ) : (
+                        ) : isComingSoon ? null : (
                           <Lock size={12} className="mt-0.5 shrink-0 text-muted-foreground" aria-label={`Available on ${labelFor(feature.requiredTier)}`} />
                         )}
                         <span>
                           {feature.label}
-                          {feature.included && feature.availability === "coming_soon" && <span className="ml-1 text-[9px] font-bold uppercase tracking-wider text-amber-400">Coming soon</span>}
+                          {isComingSoon && <span className="ml-1"><ComingSoonLabel /></span>}
                         </span>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </article>
               ))}
@@ -1116,8 +1138,8 @@ function CollaborationSection() {
     <div className="space-y-6">
       {/* Coming Soon Badge */}
       <div className="relative bg-surface-low border border-border p-12 flex flex-col items-center justify-center text-center">
-        <div className="absolute top-4 right-4 px-3 py-1 bg-deckly-primary/10 text-deckly-primary text-[8px] font-bold uppercase tracking-widest border border-deckly-primary/20">
-          Enabling Soon
+        <div className="absolute top-4 right-4 px-3 py-1 bg-amber-400/10 border border-amber-400/20">
+          <ComingSoonLabel />
         </div>
         <div className="w-16 h-16 bg-surface-container flex items-center justify-center mb-6">
           <Users size={32} className="text-muted-foreground/40" />

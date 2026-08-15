@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Lock, Eye, EyeOff, Mail, CalendarDays, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch } from "../../ui/switch";
 import { Label } from "../../ui/label";
 import { Input } from "../../ui/input";
 import { cn } from "@/lib/utils";
+import { PremiumFeatureIcon } from "../PremiumFeatureIcon";
 
 interface AccessProtectionSectionProps {
   requireEmail: boolean;
@@ -23,6 +24,7 @@ interface AccessProtectionSectionProps {
   onDownloadUpsell?: () => void;
   canUseAccessControls?: boolean;
   onAccessUpsell?: () => void;
+  children?: ReactNode;
 }
 
 export function AccessProtectionSection({
@@ -42,6 +44,7 @@ export function AccessProtectionSection({
   onDownloadUpsell,
   canUseAccessControls = true,
   onAccessUpsell,
+  children,
 }: AccessProtectionSectionProps) {
   const [showPasswordField, setShowPasswordField] = useState(false);
   const hasDownloadControl = Boolean(setAllowDownload && onDownloadUpsell);
@@ -52,11 +55,6 @@ export function AccessProtectionSection({
       <div className="flex items-center gap-2 mb-2">
         <Lock size={16} className="text-deckly-primary" />
         <h3 className="text-sm font-medium text-white">Security & Access</h3>
-        {!canUseAccessControls && (
-          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            <Lock size={12} /> Share feature
-          </span>
-        )}
       </div>
 
       <div className="space-y-4">
@@ -86,7 +84,8 @@ export function AccessProtectionSection({
                 <Mail size={18} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white leading-tight">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-white leading-tight">
+                  <PremiumFeatureIcon tier="PRO" />
                   Email Required
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -130,7 +129,8 @@ export function AccessProtectionSection({
                 <Lock size={18} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white leading-tight">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-white leading-tight">
+                  <PremiumFeatureIcon tier="PRO" />
                   Gate Access
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">Password Lock</p>
@@ -175,7 +175,10 @@ export function AccessProtectionSection({
                   <Download size={18} />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white leading-tight">Downloads</p>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-white leading-tight">
+                    <PremiumFeatureIcon tier="PRO" />
+                    Downloads
+                  </p>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {allowDownload ? "Download enabled" : "Download disabled"}
                   </p>
@@ -222,7 +225,10 @@ export function AccessProtectionSection({
                 <CalendarDays size={18} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white leading-tight">Expiration</p>
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-white leading-tight">
+                  <PremiumFeatureIcon tier="PRO" />
+                  Expiration
+                </p>
                 <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
               </div>
             </div>
@@ -312,6 +318,8 @@ export function AccessProtectionSection({
             </motion.div>
           )}
         </AnimatePresence>
+
+        {children}
       </div>
     </section>
   );

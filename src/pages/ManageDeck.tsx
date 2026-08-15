@@ -305,23 +305,24 @@ function ManageDeck() {
                 if (!checked) setExpiresAt("");
               }}
               onExpiresAtChange={setExpiresAt}
-            />
-
-            <WatermarkSettingsSection
-              enabled={watermarkEnabled}
-              text={watermarkText}
-              status={existingDeck?.watermark_status}
-              isPdf={fileType === "pdf"}
-              canUseWatermarking={watermarkControls.access.state === "available"}
-              onEnabledChange={setWatermarkEnabled}
-              onTextChange={setWatermarkText}
-              onUpsell={() => {
-                setUpsellFeature("Deck watermarking");
-                setShowUpsell(true);
-              }}
-              onRetry={existingDeck?.watermark_status === "failed" ? handleRetryWatermark : undefined}
-              isRetrying={loading && progress === "Applying watermark..."}
-            />
+            >
+              <WatermarkSettingsSection
+                embedded
+                enabled={watermarkEnabled}
+                text={watermarkText}
+                status={existingDeck?.watermark_status}
+                isPdf={fileType === "pdf"}
+                canUseWatermarking={watermarkControls.access.state === "available"}
+                onEnabledChange={setWatermarkEnabled}
+                onTextChange={setWatermarkText}
+                onUpsell={() => {
+                  setUpsellFeature("Deck watermarking");
+                  setShowUpsell(true);
+                }}
+                onRetry={existingDeck?.watermark_status === "failed" ? handleRetryWatermark : undefined}
+                isRetrying={loading && progress === "Applying watermark..."}
+              />
+            </ManageDeckAccessSection>
 
             <ManageDeckFeedbackSection
               loading={loading}

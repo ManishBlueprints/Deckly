@@ -375,37 +375,38 @@ export function DeckSettingsForm({
         onDownloadUpsell={() => openUpsell("Download controls")}
         viewPassword={viewPassword}
         setViewPassword={setViewPassword}
-      />
-
-      <WatermarkSettingsSection
-        enabled={watermarkEnabled}
-        text={watermarkText}
-        status={watermarkStatus}
-        isPdf={newFile ? newFile.type === "application/pdf" : (!deck.file_type || deck.file_type === "pdf")}
-        canUseWatermarking={watermarkControls.access.state === "available"}
-        onEnabledChange={setWatermarkEnabled}
-        onTextChange={setWatermarkText}
-        onUpsell={() => openUpsell("Deck watermarking")}
-        onRetry={async () => {
-          setError(null);
-          setIsSaving(true);
-          setUploadProgress("Preparing watermarked download...");
-          setWatermarkStatus("processing");
-          try {
-            await deckService.generateWatermarkedDeck(deck.id);
-            setWatermarkStatus("ready");
-            onUpdate({ ...deck, watermark_status: "ready" });
-          } catch (watermarkError) {
-            console.error("Watermark retry failed:", watermarkError);
-            setWatermarkStatus("failed");
-            setError("The watermark could not be prepared. Please retry.");
-          } finally {
-            setIsSaving(false);
-            setUploadProgress("");
-          }
-        }}
-        isRetrying={watermarkStatus === "processing"}
-      />
+      >
+        <WatermarkSettingsSection
+          embedded
+          enabled={watermarkEnabled}
+          text={watermarkText}
+          status={watermarkStatus}
+          isPdf={newFile ? newFile.type === "application/pdf" : (!deck.file_type || deck.file_type === "pdf")}
+          canUseWatermarking={watermarkControls.access.state === "available"}
+          onEnabledChange={setWatermarkEnabled}
+          onTextChange={setWatermarkText}
+          onUpsell={() => openUpsell("Deck watermarking")}
+          onRetry={async () => {
+            setError(null);
+            setIsSaving(true);
+            setUploadProgress("Preparing watermarked download...");
+            setWatermarkStatus("processing");
+            try {
+              await deckService.generateWatermarkedDeck(deck.id);
+              setWatermarkStatus("ready");
+              onUpdate({ ...deck, watermark_status: "ready" });
+            } catch (watermarkError) {
+              console.error("Watermark retry failed:", watermarkError);
+              setWatermarkStatus("failed");
+              setError("The watermark could not be prepared. Please retry.");
+            } finally {
+              setIsSaving(false);
+              setUploadProgress("");
+            }
+          }}
+          isRetrying={watermarkStatus === "processing"}
+        />
+      </AccessProtectionSection>
 
       <div className="flex justify-end pt-6 mt-6 border-t border-white/5">
         {isProcessing && (
