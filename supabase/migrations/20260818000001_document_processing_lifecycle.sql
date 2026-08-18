@@ -210,7 +210,10 @@ CREATE TRIGGER tr_enforce_viewable_document_limits
   BEFORE INSERT OR UPDATE OF file_url, file_size, pages, page_count, file_type ON public.decks
   FOR EACH ROW EXECUTE FUNCTION public.enforce_viewable_document_limits();
 
-CREATE OR REPLACE FUNCTION public.queue_deck_watermark_processing_job(p_deck_id UUID)
+CREATE OR REPLACE FUNCTION public.queue_deck_watermark_processing_job(
+  p_deck_id UUID,
+  p_user_id UUID
+)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -219,7 +222,10 @@ AS $$
 DECLARE
   v_deck public.decks;
 BEGIN
-  SELECT * INTO v_deck FROM public.decks WHERE id = p_deck_id FOR UPDATE;
+  SELECT * INTO v_deck
+  FROM public.decks
+  WHERE id = p_deck_id AND user_id = p_user_id
+  FOR UPDATE;
   IF NOT FOUND
      OR NOT v_deck.watermark_enabled
      OR v_deck.watermark_status NOT IN ('pending', 'failed')
@@ -262,7 +268,7 @@ EXCEPTION WHEN OTHERS THEN
   SET watermark_status = 'failed',
       watermark_error = LEFT(SQLERRM, 500),
       watermark_updated_at = NOW()
-  WHERE id = p_deck_id AND watermark_enabled;
+  WHERE id = p_deck_id AND user_id = p_user_id AND watermark_enabled;
   RETURN FALSE;
 END;
 $$;
@@ -277,7 +283,7 @@ BEGIN
   IF current_setting('deckly.skip_watermark_enqueue', TRUE) = 'true' THEN
     RETURN NEW;
   END IF;
-  PERFORM public.queue_deck_watermark_processing_job(NEW.id);
+  PERFORM public.queue_deck_watermark_processing_job(NEW.id, NEW.user_id);
   RETURN NEW;
 END;
 $$;
@@ -824,7 +830,7 @@ REVOKE ALL ON FUNCTION public.claim_document_processing_jobs(INTEGER) FROM PUBLI
 REVOKE ALL ON FUNCTION public.assert_document_processing_quota(UUID, INTEGER) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.mark_document_processing_submitted(UUID, TEXT) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.mark_document_processing_submission_uncertain(UUID) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.queue_deck_watermark_processing_job(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.queue_deck_watermark_processing_job(UUID, UUID) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.publish_document_processing_job(UUID, TEXT, TEXT, BIGINT, INTEGER, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.publish_watermark_processing_job(UUID, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.prepare_office_processing_draft(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BIGINT, BOOLEAN, BOOLEAN, TEXT, TIMESTAMPTZ, BOOLEAN, BOOLEAN, TEXT) FROM PUBLIC, anon, authenticated;

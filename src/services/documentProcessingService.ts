@@ -1,5 +1,9 @@
 import { supabase } from "./supabase";
 
+// Allows the largest supported Office upload (200 MB) to complete over a
+// roughly 0.6 Mbps connection, while ensuring an unavailable R2 upload settles.
+const OFFICE_SOURCE_UPLOAD_TIMEOUT_MS = 45 * 60 * 1000;
+
 export type ProcessingJobStatus =
   | "awaiting_upload"
   | "queued"
@@ -69,11 +73,16 @@ export const documentProcessingService = {
     return invoke<PreparedOfficeUpload>({ action: "prepare-office-upload", ...input });
   },
 
-  async uploadPreparedOfficeSource(uploadUrl: string, file: File): Promise<void> {
+  async uploadPreparedOfficeSource(
+    uploadUrl: string,
+    file: File,
+    signal: AbortSignal = AbortSignal.timeout(OFFICE_SOURCE_UPLOAD_TIMEOUT_MS),
+  ): Promise<void> {
     const response = await fetch(uploadUrl, {
       method: "PUT",
       body: file,
       headers: file.type ? { "Content-Type": file.type } : undefined,
+      signal,
     });
     if (!response.ok) throw new Error(`Document upload failed (${response.status}).`);
   },

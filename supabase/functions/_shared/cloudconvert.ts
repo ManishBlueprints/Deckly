@@ -6,6 +6,7 @@
 
 export const CLOUDCONVERT_MAX_JOB_SECONDS = 60 * 60;
 export const CLOUDCONVERT_IO_URL_TTL_SECONDS = CLOUDCONVERT_MAX_JOB_SECONDS + (15 * 60);
+const CLOUDCONVERT_REQUEST_TIMEOUT_MS = 30_000;
 
 type CloudConvertTask = {
   id: string;
@@ -80,37 +81,57 @@ function getApiToken(): string {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${getApiToken()}`,
-      Accept: "application/json",
-      ...init.headers,
-    },
-  });
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, CLOUDCONVERT_REQUEST_TIMEOUT_MS);
+  const abortFromCaller = () => controller.abort(init.signal?.reason);
+  init.signal?.addEventListener("abort", abortFromCaller, { once: true });
 
-  const payload = await response.json().catch(() => null) as
-    | { message?: unknown; code?: unknown }
-    | null;
-  if (!response.ok) {
-    const message = typeof payload?.message === "string"
-      ? payload.message
-      : `CloudConvert request failed (${response.status})`;
-    throw new CloudConvertError(
-      message,
-      response.status,
-      typeof payload?.code === "string" ? payload.code : null,
-    );
-  }
+  try {
+    const response = await fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${getApiToken()}`,
+        Accept: "application/json",
+        ...init.headers,
+      },
+    });
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
+    const payload = await response.json().catch(() => null) as
+      | { message?: unknown; code?: unknown }
+      | null;
+    if (!response.ok) {
+      const message = typeof payload?.message === "string"
+        ? payload.message
+        : `CloudConvert request failed (${response.status})`;
+      throw new CloudConvertError(
+        message,
+        response.status,
+        typeof payload?.code === "string" ? payload.code : null,
+      );
+    }
 
-  if (!payload || !("data" in payload)) {
-    throw new CloudConvertError("CloudConvert returned an invalid response.", response.status);
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    if (!payload || !("data" in payload)) {
+      throw new CloudConvertError("CloudConvert returned an invalid response.", response.status);
+    }
+    return (payload as CloudConvertApiResponse<T>).data;
+  } catch (error) {
+    if (timedOut) {
+      throw new CloudConvertError("CloudConvert request timed out.", 504, "request_timeout");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    init.signal?.removeEventListener("abort", abortFromCaller);
   }
-  return (payload as CloudConvertApiResponse<T>).data;
 }
 
 function watermarkTask(input: string, text: string): Record<string, unknown> {
@@ -215,7 +236,11 @@ export function getCloudConvertJob(jobId: string): Promise<CloudConvertJob> {
 }
 
 export function findCloudConvertJobsByTag(tag: string): Promise<CloudConvertJob[]> {
-  return request<CloudConvertJob[]>(`/jobs?filter[tag]=${encodeURIComponent(tag)}`);
+  const query = new URLSearchParams({
+    "filter[tag]": tag,
+    per_page: "100",
+  });
+  return request<CloudConvertJob[]>(`/jobs?${query}`);
 }
 
 /** Deleting a running job is CloudConvert's cancellation mechanism. */

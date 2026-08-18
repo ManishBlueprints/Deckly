@@ -94,7 +94,10 @@ export function WatermarkSettingsSection({
           enabled ? "bg-background border-deckly-primary/50" : "bg-surface-container border-white/10",
           !isPdf && "opacity-75",
         )}
-        onClick={() => requestChange(!enabled)}
+        onClick={() => {
+          if (!isPdf && !enabled) return;
+          requestChange(!enabled);
+        }}
       >
         <div>
           <p className="flex items-center gap-1.5 text-sm font-semibold text-white">

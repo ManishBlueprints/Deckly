@@ -302,7 +302,8 @@ describe("deckService.getAllDecks", () => {
 
     const decks = await deckService.getAllDecks();
 
-    expect(decks[0].pages[0].image_url).toBe("https://signed.example.com/seed-page-1.png");
+    expect(decks[0].thumbnail_url).toBe("https://signed.example.com/seed-page-1.png");
+    expect(decks[0].pages[0].image_url).toBe("user-1/decks/seed-page-1.png");
     expect(decks[0].pages[1].image_url).toBe("user-1/decks/seed-page-2.png");
     expect(vi.mocked(mocks.mockSupabase.functions.invoke)).toHaveBeenCalledWith(
       "r2-storage",

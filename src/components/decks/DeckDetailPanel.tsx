@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { deckService } from "../../services/deckService";
 import { deckStorageService } from "../../services/deckStorageService";
+import { storageService } from "../../services/storageService";
+import { extractStoragePath } from "../../services/deckService.shared";
 import { analyticsService } from "../../services/analyticsService";
 import { useAuth } from "../../contexts/AuthContext";
 import { Deck } from "../../types";
@@ -142,6 +144,9 @@ function DeckDetailPanel({
   };
 
   const handleSave = async () => {
+    const uploadedSourcePaths = new Set<string>();
+    let uploadedSlideImageKeys: string[] = [];
+
     setIsSaving(true);
     setUploadProgress("Saving changes...");
     try {
@@ -167,14 +172,20 @@ function DeckDetailPanel({
         }
         setUploadProgress("Uploading new PDF...");
         const upload = await deckStorageService.uploadDeckFile(newFile, editValues.slug, userId);
+        uploadedSourcePaths.add(upload.fileName);
         finalFileUrl = upload.publicUrl;
         fileSize = newFile.size;
         setUploadProgress(`Uploading ${imageAssets.length} new slides...`);
-        const imageUrls = await deckService.uploadSlideImages(
+        const stagingVersion = `v-${Date.now()}`;
+        const imageUrls = await deckStorageService.uploadSlideImages(
           userId,
           editValues.slug,
           imageAssets.map((asset) => asset.blob),
+          undefined,
+          stagingVersion,
+          (imageUrl) => uploadedSlideImageKeys.push(imageUrl),
         );
+        uploadedSlideImageKeys = imageUrls;
         finalPages = imageUrls.map((url, idx) => ({
           image_url: url,
           page_number: idx + 1,
@@ -183,6 +194,7 @@ function DeckDetailPanel({
           links: imageAssets[idx]?.links || [],
         }));
         const verifiedPdf = await documentProcessingService.verifyDirectPdf(upload.fileName);
+        uploadedSourcePaths.add(verifiedPdf.storagePath);
         if (verifiedPdf.pageCount !== finalPages.length) {
           throw new Error("PDF pages changed during verification. Please upload the file again.");
         }
@@ -214,6 +226,30 @@ function DeckDetailPanel({
       }
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
+
+      if (newFile) {
+        const previousFilePath = extractStoragePath(deck.file_url, "decks");
+        const currentFilePath = extractStoragePath(finalFileUrl, "decks");
+        if (previousFilePath && previousFilePath !== currentFilePath) {
+          await storageService.remove("decks", [previousFilePath]).catch((cleanupError) => {
+            console.warn("Failed to clean up replaced document:", cleanupError);
+          });
+        }
+
+        const previousSlideImages = (deck.pages ?? []).map((page) => page.image_url);
+        const currentSlideImages = new Set(finalPages.map((page) => page.image_url));
+        const staleSlideImages = previousSlideImages.filter(
+          (imageUrl) => !currentSlideImages.has(imageUrl),
+        );
+        if (staleSlideImages.length > 0) {
+          await deckStorageService.deleteSlideImages(staleSlideImages).catch((cleanupError) => {
+            console.warn("Failed to clean up replaced slide images:", cleanupError);
+          });
+        }
+      }
+
+      uploadedSourcePaths.clear();
+      uploadedSlideImageKeys = [];
       let watermarkGenerationStatus: "pending" | undefined;
       if (newFile && deck.watermark_enabled) {
         setUploadProgress("Preparing protected download in the background...");
@@ -234,6 +270,16 @@ function DeckDetailPanel({
         setUploadProgress("");
       }, watermarkGenerationStatus === "pending" ? 1800 : 1000);
     } catch (err: unknown) {
+      if (uploadedSourcePaths.size > 0) {
+        await storageService.remove("decks", [...uploadedSourcePaths]).catch((cleanupError) => {
+          console.error("Failed to remove orphaned uploaded document:", cleanupError);
+        });
+      }
+      if (uploadedSlideImageKeys.length > 0) {
+        await deckStorageService.deleteSlideImages(uploadedSlideImageKeys).catch((cleanupError) => {
+          console.error("Failed to remove orphaned slide images:", cleanupError);
+        });
+      }
       alert(
         "Failed to update deck: " +
           (err instanceof Error ? err.message : String(err)),

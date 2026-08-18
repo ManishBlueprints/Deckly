@@ -8,12 +8,36 @@ import {
 } from "../_shared/cloudconvert.ts";
 import { copyObject, deleteObject, deleteObjects, headObject, listAllObjects, presignGetUrl, presignPutUrl } from "../_shared/r2.ts";
 import { ACTIVE_DOCUMENT_PROCESSING_STATUSES } from "../_shared/document-processing.ts";
-import { getDocument } from "npm:pdfjs-dist@5.4.296/legacy/build/pdf.mjs";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const OFFICE_FORMATS = new Set(["doc", "docx", "ppt", "pptx", "xls", "xlsx"]);
 const TERMINAL_STATUSES = new Set(["failed", "cancelled", "timed_out"]);
+const CLIENT_ERROR_MESSAGES = new Set([
+  "Processing job not found",
+  "A supported Office file and size are required.",
+  "Watermark text is required.",
+  "A title and slug are required.",
+  "Unable to prepare document processing.",
+  "This upload is not awaiting completion.",
+  "The uploaded document was not found.",
+  "A pending PDF upload is required.",
+  "The verified PDF was not found.",
+  "Document exceeds the viewable document size limit.",
+  "This document cannot be retried.",
+  "The original upload has expired. Upload the document again.",
+  "Watermark processing is not available yet.",
+  "Watermark processing could not be queued.",
+  "No document conversion is available to retry.",
+  "Disable the watermark before cleanup.",
+  "A processing job is required.",
+  "A deck is required.",
+]);
 
 type RequestBody = Record<string, unknown>;
+
+function isClientErrorMessage(message: string): boolean {
+  return CLIENT_ERROR_MESSAGES.has(message) || /^Viewable documents are limited to \d+ pages\.$/.test(message);
+}
 
 function adminClient() {
   const url = Deno.env.get("SUPABASE_URL") ?? "";
@@ -185,7 +209,7 @@ async function verifyDirectPdf(admin: ReturnType<typeof adminClient>, userId: st
   try {
     document = await loadingTask.promise;
     if (document.numPages < 1 || document.numPages > limit.max_document_pages) {
-      throw new Error("Viewable documents are limited to 500 pages.");
+      throw new Error(`Viewable documents are limited to ${limit.max_document_pages} pages.`);
     }
     const { error } = await admin.from("direct_pdf_verifications").upsert({
       user_id: userId,
@@ -251,6 +275,7 @@ async function retryLatestWatermark(admin: ReturnType<typeof adminClient>, userI
   if (!data?.id) {
     const { data: queued, error: queueError } = await admin.rpc("queue_deck_watermark_processing_job", {
       p_deck_id: deckId,
+      p_user_id: userId,
     });
     if (queueError) throw queueError;
     if (!queued) {
@@ -417,8 +442,10 @@ Deno.serve(async (req) => {
     }
     return json({ error: "Unknown action" }, 400);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Document processing failed";
-    const status = message === "Unauthorized" ? 401 : 400;
-    return json({ error: message }, status);
+    const message = error instanceof Error ? error.message : "";
+    console.error("Document processing request failed", error);
+    if (message === "Unauthorized") return json({ error: message }, 401);
+    if (isClientErrorMessage(message)) return json({ error: message }, 400);
+    return json({ error: "Document processing is temporarily unavailable. Please try again." }, 500);
   }
 });

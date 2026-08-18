@@ -75,6 +75,7 @@ export const deckStorageService = {
     imageBlobs: Blob[],
     onProgress?: (current: number, total: number) => void,
     version?: string,
+    onUploaded?: (imageUrl: string) => void,
   ): Promise<string[]> {
     const imageUrls: string[] = new Array(imageBlobs.length);
     const concurrencyLimit = 3;
@@ -101,6 +102,7 @@ export const deckStorageService = {
 
           const publicUrl = storageService.getPublicUrl("decks", fileName);
           imageUrls[index] = publicUrl;
+          onUploaded?.(publicUrl);
           uploadedCount++;
 
           if (onProgress) {

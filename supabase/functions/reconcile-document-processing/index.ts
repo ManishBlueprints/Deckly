@@ -13,6 +13,7 @@ import { ACTIVE_DOCUMENT_PROCESSING_STATUSES } from "../_shared/document-process
 const BATCH_SIZE = 20;
 const SUBMISSION_GRACE_MS = 5 * 60 * 1000;
 const PUBLISH_LEASE_MS = 5 * 60 * 1000;
+const PUBLISH_LEASE_RENEWAL_MS = Math.floor(PUBLISH_LEASE_MS / 3);
 
 type ProcessingJob = {
   id: string;
@@ -149,9 +150,42 @@ async function claimForPublish(admin: ReturnType<typeof adminClient>, job: Proce
   return data as ProcessingJob | null;
 }
 
+function startPublishLeaseRenewal(admin: ReturnType<typeof adminClient>, job: ProcessingJob) {
+  let stopped = false;
+  let failure: unknown = null;
+  let pending = Promise.resolve();
+
+  const renew = () => {
+    if (stopped || failure) return;
+    pending = pending.then(async () => {
+      const { data, error } = await admin.from("document_processing_jobs")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", job.id)
+        .eq("status", "publishing")
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Publishing lease was lost.");
+    }).catch((error) => {
+      failure = error;
+    });
+  };
+
+  const interval = setInterval(renew, PUBLISH_LEASE_RENEWAL_MS);
+  return {
+    async stop() {
+      stopped = true;
+      clearInterval(interval);
+      await pending;
+      if (failure) throw failure;
+    },
+  };
+}
+
 async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: ProcessingJob, providerJob: CloudConvertJob) {
   const claimed = await claimForPublish(admin, job);
   if (!claimed) return false;
+  const publishLease = startPublishLeaseRenewal(admin, claimed);
   const prefix = processingPrefix(claimed);
   const documentStagePath = `${prefix}/document.pdf`;
   const thumbnailStagePath = `${prefix}/thumbnail.webp`;
@@ -193,6 +227,7 @@ async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: Pr
         await copyObject("decks", watermarkStagePath, watermarkPath);
       }
 
+      await publishLease.stop();
       const { error } = await admin.rpc("publish_document_processing_job", {
         p_job_id: claimed.id,
         p_document_path: documentPath,
@@ -215,6 +250,7 @@ async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: Pr
         throw new Error("CloudConvert output did not contain a valid watermark PDF.");
       }
       await copyObject("decks", watermarkStagePath, watermarkPath);
+      await publishLease.stop();
       const { error } = await admin.rpc("publish_watermark_processing_job", {
         p_job_id: claimed.id,
         p_watermark_path: watermarkPath,
@@ -227,13 +263,32 @@ async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: Pr
     if (claimed.provider_job_id) await deleteCloudConvertJob(claimed.provider_job_id).catch(() => undefined);
     return true;
   } catch (error) {
+    await publishLease.stop().catch(() => undefined);
     // Copies happen before the DB swap.  Remove only the immutable artifacts
-    // from this attempt; a live deck is never modified by a failed finalizer.
-    await Promise.all([
-      deleteObject("decks", documentPath).catch(() => undefined),
-      deleteObject("decks", thumbnailPath).catch(() => undefined),
-      watermarkPath ? deleteObject("decks", watermarkPath).catch(() => undefined) : Promise.resolve(),
-    ]);
+    // from this attempt. A successful publish can race a lost response or
+    // lease takeover, so never remove a path the live deck now references.
+    const { data: liveDeck, error: liveDeckError } = await admin.from("decks")
+      .select("file_url, thumbnail_url, watermarked_file_path")
+      .eq("id", claimed.deck_id)
+      .maybeSingle();
+    if (liveDeckError) {
+      console.error("Skipping publish artifact cleanup because the deck could not be read", {
+        jobId: claimed.id,
+        message: liveDeckError.message,
+      });
+    } else {
+      const referencedPaths = new Set([
+        liveDeck?.file_url,
+        liveDeck?.thumbnail_url,
+        liveDeck?.watermarked_file_path,
+      ]);
+      await Promise.all([
+        documentPath,
+        thumbnailPath,
+        watermarkPath,
+      ].filter((path): path is string => !!path && !referencedPaths.has(path))
+        .map((path) => deleteObject("decks", path).catch(() => undefined)));
+    }
     await failJob(admin, claimed, "validation_or_publish_failed", error instanceof Error ? error.message : "Output validation failed");
     return false;
   }
@@ -303,8 +358,13 @@ Deno.serve(async (req) => {
         const outcome = await reconcileJob(admin, job);
         outcomes[outcome] = (outcomes[outcome] ?? 0) + 1;
       } catch (error) {
-        await failJob(admin, job, "reconciliation_failed", error instanceof Error ? error.message : "Reconciliation failed");
-        outcomes.failed = (outcomes.failed ?? 0) + 1;
+        // Network/R2/database failures are retryable. Preserve the job's
+        // current state so the next scheduled reconciliation can try again.
+        console.error("Document processing reconciliation will retry", {
+          jobId: job.id,
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+        outcomes.retrying = (outcomes.retrying ?? 0) + 1;
       }
     }
     return json({ ...outcomes, has_more: (data?.length ?? 0) === BATCH_SIZE });

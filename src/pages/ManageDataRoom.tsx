@@ -159,7 +159,9 @@ function ManageDataRoom() {
         setExpiryDate(room.expires_at ? room.expires_at.split("T")[0] : "");
         setIsPublic(!!room.is_public);
 
-        const docs = await dataRoomService.getDocuments(roomId!);
+        const docs = await dataRoomService.getDocuments(roomId!, {
+          signThumbnails: true,
+        });
         setDocuments(docs);
       } catch (err) {
         console.error("Failed to load room", err);
@@ -173,7 +175,9 @@ function ManageDataRoom() {
 
   const refreshDocuments = useCallback(async () => {
     if (!roomId) return;
-    const docs = await dataRoomService.getDocuments(roomId);
+    const docs = await dataRoomService.getDocuments(roomId, {
+      signThumbnails: true,
+    });
     setDocuments(docs);
   }, [roomId]);
 
@@ -236,7 +240,9 @@ function ManageDataRoom() {
         try {
           await dataRoomService.addDocuments(roomId!, deckIds);
           queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
-          const docs = await dataRoomService.getDocuments(roomId!);
+          const docs = await dataRoomService.getDocuments(roomId!, {
+            signThumbnails: true,
+          });
           setDocuments(docs);
         } catch (err) {
           console.error("Failed to add documents", err);

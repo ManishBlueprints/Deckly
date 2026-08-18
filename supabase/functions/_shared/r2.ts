@@ -423,9 +423,16 @@ export async function headObject(
     throw new Error(`R2 object lookup failed (${response.status})`);
   }
 
-  const contentLength = Number(response.headers.get("content-length"));
+  const rawContentLength = response.headers.get("content-length")?.trim();
+  const contentLength = rawContentLength && /^\d+$/.test(rawContentLength)
+    ? Number(rawContentLength)
+    : Number.NaN;
+  if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
+    throw new Error("R2 object lookup returned an invalid content length.");
+  }
+
   return {
-    size: Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : 0,
+    size: contentLength,
     contentType: response.headers.get("content-type"),
     etag: response.headers.get("etag"),
     lastModified: response.headers.get("last-modified"),

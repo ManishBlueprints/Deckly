@@ -387,7 +387,9 @@ export function useManageDeckWorkflow({
           if (oldSlidePathsToDelete.length > 0) {
             const newUrls = new Set(finalPages.map(p => p.image_url));
             const actuallyDelete = oldSlidePathsToDelete.filter(url => !newUrls.has(url));
-            await deckStorageService.deleteSlideImages(actuallyDelete);
+            await deckStorageService.deleteSlideImages(actuallyDelete).catch((cleanupError) => {
+              console.error("Failed to clean up replaced slide images:", cleanupError);
+            });
           }
 
         } else {

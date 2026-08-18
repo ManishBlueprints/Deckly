@@ -103,16 +103,14 @@ const hydrateSignedDeckThumbnails = async (decks: Deck[]): Promise<Deck[]> => {
   });
 
   return decks.map((deck) => {
-    const [firstPage, ...remainingPages] = deck.pages ?? [];
+    const firstPage = deck.pages?.[0];
     const thumbnailPath = extractStoragePath(deck.thumbnail_url ?? firstPage?.image_url, "decks");
     const signedThumbnailUrl = thumbnailPath
       ? signedUrlMap.get(thumbnailPath)
       : null;
 
     if (!signedThumbnailUrl) return deck;
-    return firstPage
-      ? { ...deck, thumbnail_url: signedThumbnailUrl, pages: [{ ...firstPage, image_url: signedThumbnailUrl }, ...remainingPages] }
-      : { ...deck, thumbnail_url: signedThumbnailUrl };
+    return { ...deck, thumbnail_url: signedThumbnailUrl };
   });
 };
 
@@ -185,7 +183,13 @@ const deckCrudService = {
       file,
       normalizedSlug,
     );
-    const verifiedPdf = await documentProcessingService.verifyDirectPdf(fileName);
+    let verifiedPdf: Awaited<ReturnType<typeof documentProcessingService.verifyDirectPdf>>;
+    try {
+      verifiedPdf = await documentProcessingService.verifyDirectPdf(fileName);
+    } catch (error) {
+      await storageService.remove("decks", [fileName]).catch(() => undefined);
+      throw error;
+    }
     if (!Array.isArray(deckData.pages) || deckData.pages.length !== verifiedPdf.pageCount) {
       await storageService.remove("decks", [verifiedPdf.storagePath]).catch(() => undefined);
       throw new Error("PDF pages must be processed before the deck can be published.");

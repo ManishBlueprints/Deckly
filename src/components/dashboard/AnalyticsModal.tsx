@@ -20,6 +20,7 @@ import { FeatureGate } from "../billing/FeatureGate";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
+import { TIER_CONFIG } from "../../constants/tiers";
 
 interface AnalyticsModalProps {
   deck: Deck;
@@ -39,7 +40,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
   );
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const tierLabel = pageAnalytics.data?.tiers.find((entry) => entry.tier === profile?.tier)?.label
-    ?? (profile?.tier === "PRO" ? "Share" : profile?.tier === "PRO_PLUS" ? "Founder" : profile?.tier === "RAISE" ? "Raise" : "Free");
+    ?? TIER_CONFIG[profile?.tier ?? "FREE"].planLabel;
 
   useEffect(() => {
     let mounted = true;
@@ -90,7 +91,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
       mounted = false;
       clearTimeout(timeoutId);
     };
-  }, [canUsePageAnalytics, deck.id, isPro, pageAnalytics.isLoading, refreshTrigger, session, userId]);
+  }, [canUsePageAnalytics, deck.id, isPro, pageAnalytics.isLoading, refreshTrigger, userId]);
 
   const handleRetry = () => {
     setRefreshTrigger((prev) => prev + 1);

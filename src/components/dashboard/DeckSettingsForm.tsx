@@ -332,7 +332,10 @@ export function DeckSettingsForm({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
-      const tier = (profile?.tier ?? "FREE") as Tier;
+      const persistedTier = profile?.tier;
+      const tier = persistedTier && Object.prototype.hasOwnProperty.call(TIER_CONFIG, persistedTier)
+        ? persistedTier as Tier
+        : "FREE";
       const maxBytes = TIER_CONFIG[tier].maxViewableDocumentSizeMB * 1024 * 1024;
       if (file.size > maxBytes) {
         setError(`This plan supports viewable PDFs up to ${TIER_CONFIG[tier].maxViewableDocumentSizeMB} MB.`);

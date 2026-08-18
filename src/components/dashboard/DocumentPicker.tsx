@@ -123,6 +123,7 @@ export function DocumentPicker({
             <div className="space-y-2 pb-2">
               {filtered.map((deck) => {
                 const isSelected = selected.has(deck.id);
+                const thumbnailUrl = deck.thumbnail_url ?? deck.pages?.[0]?.image_url;
                 return (
                   <button
                     key={deck.id}
@@ -146,9 +147,9 @@ export function DocumentPicker({
 
                     {/* Thumbnail */}
                     <div className="w-12 h-8 rounded-md bg-[#0f0f0f] border border-[#222] overflow-hidden shrink-0 group-hover:border-[#444] transition-all">
-                      {deck.pages?.[0]?.image_url ? (
+                      {thumbnailUrl ? (
                         <img
-                          src={deck.pages[0].image_url}
+                          src={thumbnailUrl}
                           alt=""
                           className="w-full h-full object-cover transition-all duration-300"
                         />

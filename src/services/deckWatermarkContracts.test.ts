@@ -64,6 +64,7 @@ describe("deck watermark contracts", () => {
     expect(deckSettingsForm).toContain('accessControls.isLoading || accessControls.access.state === "available"');
     expect(deckSettingsForm).toContain('downloadControls.isLoading || downloadControls.access.state === "available"');
     expect(deckSettingsForm).toContain('watermarkControls.isLoading || watermarkControls.access.state === "available"');
+    expect(deckSettingsForm).toContain("Object.prototype.hasOwnProperty.call(TIER_CONFIG, persistedTier)");
   });
 
   it("fails downloads closed until a generated watermarked PDF is ready", () => {
@@ -81,6 +82,10 @@ describe("deck watermark contracts", () => {
     expect(cloudConvertClient).toContain("https://eu-central.api.cloudconvert.com/v2");
     expect(cloudConvertClient).toContain('operation: "watermark"');
     expect(cloudConvertClient).toContain('operation: "export/upload"');
+    expect(cloudConvertClient).toContain("CLOUDCONVERT_REQUEST_TIMEOUT_MS");
+    expect(cloudConvertClient).toContain('"request_timeout"');
+    expect(cloudConvertClient).toContain('"filter[tag]"');
+    expect(cloudConvertClient).toContain('per_page: "100"');
     expect(lifecycleMigration).toContain("enqueue_deck_watermark_processing_job");
     expect(lifecycleMigration).toContain("publish_watermark_processing_job");
     expect(lifecycleMigration).toContain("watermarked_file_path = p_watermark_path");
@@ -99,12 +104,20 @@ describe("deck watermark contracts", () => {
     expect(lifecycleMigration).toContain("watermark_status = 'failed'");
     expect(lifecycleMigration).toContain("watermark_status NOT IN ('pending', 'failed')");
     expect(lifecycleMigration).toContain("sync_failed_watermark_processing_job");
+    expect(lifecycleMigration).toContain("p_user_id UUID");
+    expect(lifecycleMigration).toContain("WHERE id = p_deck_id AND user_id = p_user_id");
     expect(processingFunction).toContain('admin.rpc("queue_deck_watermark_processing_job"');
   });
 
   it("cleans up every terminal processing path and enforces retry limits per revision", () => {
     expect(reconcileFunction).toContain('ACTIVE_DOCUMENT_PROCESSING_STATUSES, "superseded"');
     expect(reconcileFunction).toContain("cancelSupersededProviderJob");
+    expect(reconcileFunction).toContain("startPublishLeaseRenewal");
+    expect(reconcileFunction).toContain("PUBLISH_LEASE_RENEWAL_MS");
+    expect(reconcileFunction).toContain("Document processing reconciliation will retry");
+    expect(reconcileFunction).not.toContain('"reconciliation_failed"');
+    expect(reconcileFunction).toContain("Skipping publish artifact cleanup because the deck could not be read");
+    expect(reconcileFunction).toContain("watermarked_file_path");
     expect(cleanupFunction).toContain("findCloudConvertJobsByTag");
     expect(processingFunction).toContain('admin.rpc("retry_document_processing_job"');
     expect(processingFunction).toContain('copyObject("decks", original.source_path, retrySourcePath)');
@@ -124,5 +137,12 @@ describe("deck watermark contracts", () => {
     expect(processingFunction).toContain('action === "verify-direct-pdf"');
     expect(processingFunction).toContain("direct_pdf_verifications");
     expect(cleanupFunction).toContain("cleanupExpiredDirectPdfVerifications");
+  });
+
+  it("does not expose provider or database errors from the processing endpoint", () => {
+    expect(processingFunction).toContain("CLIENT_ERROR_MESSAGES");
+    expect(processingFunction).toContain("isClientErrorMessage");
+    expect(processingFunction).toContain("Document processing is temporarily unavailable. Please try again.");
+    expect(processingFunction).toContain("console.error(\"Document processing request failed\", error)");
   });
 });

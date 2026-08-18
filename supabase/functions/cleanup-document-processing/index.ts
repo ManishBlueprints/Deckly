@@ -65,7 +65,7 @@ async function cleanupJob(admin: ReturnType<typeof adminClient>, job: Job) {
     await admin.from("decks").update({ status: "DELETED" }).eq("id", job.deck_id).eq("status", "PENDING");
   }
 
-  await deleteProcessingPrefix(job).catch(() => undefined);
+  await deleteProcessingPrefix(job);
   const providerJobIds = new Set<string>();
   if (job.provider_job_id) providerJobIds.add(job.provider_job_id);
   if (job.status === "superseded") {

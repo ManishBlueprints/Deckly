@@ -2,6 +2,7 @@
   "imports": {
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
     "@std/http": "jsr:@std/http@0.224.5",
-    "@std/encoding": "jsr:@std/encoding@0.224.3"
+    "@std/encoding": "jsr:@std/encoding@0.224.3",
+    "pdfjs-dist/legacy/build/pdf.mjs": "npm:pdfjs-dist@5.4.296/legacy/build/pdf.mjs"
   }
 }

@@ -96,6 +96,7 @@ export function RoomDocumentList({
           const isDragging = dragIndex === index;
           const isDragOver = dragOverIndex === index;
           const signedUrl = signedThumbnails[doc.deck_id];
+          const thumbnailUrl = signedUrl || deck?.pages?.[0]?.image_url;
           const currentTagIds = (doc.tags || []).map((tag) => tag.id);
           const matchedTagNames = documentMatchInfo[doc.id]?.matchedTagNames ?? [];
           const currentFolder =
@@ -136,9 +137,9 @@ export function RoomDocumentList({
 
               {/* Thumbnail */}
               <div className="w-12 h-10 rounded-md bg-background border border-white/10 overflow-hidden shrink-0 group-hover:border-deckly-primary/30 transition-all">
-                {signedUrl || deck?.thumbnail_url || deck?.pages?.[0]?.image_url ? (
+                {thumbnailUrl ? (
                   <img
-                    src={signedUrl || deck?.thumbnail_url || deck?.pages?.[0]?.image_url}
+                    src={thumbnailUrl}
                     alt=""
                     className="w-full h-full object-cover transition-all duration-500"
                   />
