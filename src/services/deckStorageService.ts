@@ -58,7 +58,7 @@ export const deckStorageService = {
       ? file.name.split(".").pop()?.toLowerCase() || "bin"
       : "bin";
     const safeSlug = sanitizeStorageSlug(slug);
-    const fileName = `${userId}/decks/${safeSlug}-${Date.now()}.${fileExt}`;
+    const fileName = `${userId}/uploads/decks/${safeSlug}-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await storageService.upload("decks", fileName, file);
 
@@ -152,6 +152,11 @@ export const deckStorageService = {
   async deleteDeckWatermarkAssets(deckId: string, providedUserId?: string): Promise<void> {
     const userId = await getRequiredDeckUserId(providedUserId);
     await deleteAssetsUnderPrefix(`${userId}/watermarks/${deckId}/`);
+  },
+
+  async deleteDeckRevisionAssets(deckId: string, providedUserId?: string): Promise<void> {
+    const userId = await getRequiredDeckUserId(providedUserId);
+    await deleteAssetsUnderPrefix(`${userId}/decks/${deckId}/`);
   },
 
   async deleteSlideImages(fileUrls: string[]): Promise<void> {

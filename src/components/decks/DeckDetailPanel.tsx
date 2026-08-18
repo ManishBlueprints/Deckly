@@ -23,6 +23,8 @@ import { processPdfToImages } from "../../workflows/deckProcessing";
 import { cn } from "../../lib/utils";
 import { getDeckPreviewPath } from "../../utils/url";
 import { DeckLinkManagerModal } from "../dashboard/DeckLinkManagerModal";
+import { TIER_CONFIG, type Tier } from "../../constants/tiers";
+import { documentProcessingService } from "../../services/documentProcessingService";
 
 // UI Components
 import { Button } from "../ui/button";
@@ -146,6 +148,7 @@ function DeckDetailPanel({
       let finalFileUrl = deck.file_url;
       let finalPages = deck.pages;
       let fileSize = deck.file_size;
+      let pageCount = deck.page_count ?? null;
       const finalViewPassword = requirePassword
         ? viewPassword.trim() || null
         : null;
@@ -153,17 +156,19 @@ function DeckDetailPanel({
       if (!userId) throw new Error("Not authenticated");
 
       if (newFile) {
-        setUploadProgress("Uploading new PDF...");
-        const upload = await deckStorageService.uploadDeckFile(newFile, editValues.slug, userId);
-        finalFileUrl = upload.publicUrl;
-        fileSize = newFile.size;
-
         const imageAssets = await processPdfToImages(newFile, {
           scale: 1.5,
           quality: 0.8,
           onProgress: (current, total) =>
             setUploadProgress(`Processing slide ${current} of ${total}...`),
         });
+        if (imageAssets.length > 500) {
+          throw new Error("Viewable documents are limited to 500 pages.");
+        }
+        setUploadProgress("Uploading new PDF...");
+        const upload = await deckStorageService.uploadDeckFile(newFile, editValues.slug, userId);
+        finalFileUrl = upload.publicUrl;
+        fileSize = newFile.size;
         setUploadProgress(`Uploading ${imageAssets.length} new slides...`);
         const imageUrls = await deckService.uploadSlideImages(
           userId,
@@ -177,6 +182,13 @@ function DeckDetailPanel({
           height: imageAssets[idx]?.height,
           links: imageAssets[idx]?.links || [],
         }));
+        const verifiedPdf = await documentProcessingService.verifyDirectPdf(upload.fileName);
+        if (verifiedPdf.pageCount !== finalPages.length) {
+          throw new Error("PDF pages changed during verification. Please upload the file again.");
+        }
+        finalFileUrl = verifiedPdf.storagePath;
+        fileSize = verifiedPdf.fileSize;
+        pageCount = verifiedPdf.pageCount;
       }
 
       const updates: Partial<Deck> = {
@@ -185,6 +197,7 @@ function DeckDetailPanel({
         file_url: finalFileUrl,
         pages: finalPages,
         file_size: fileSize,
+        page_count: pageCount,
         ...(newFile ? { extracted_text: null } : {}),
         require_email: requireEmail,
         require_password: requirePassword,
@@ -201,30 +214,25 @@ function DeckDetailPanel({
       }
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
-      let watermarkGenerationStatus: "ready" | "failed" | undefined;
+      let watermarkGenerationStatus: "pending" | undefined;
       if (newFile && deck.watermark_enabled) {
-        setUploadProgress("Preparing watermarked download...");
-        try {
-          await deckService.generateWatermarkedDeck(deck.id);
-          watermarkGenerationStatus = "ready";
-        } catch (watermarkError) {
-          console.error("Watermark generation failed after replacing the deck source:", watermarkError);
-          watermarkGenerationStatus = "failed";
-        }
+        setUploadProgress("Preparing protected download in the background...");
+        // Updating a PDF source queues its watermark transactionally. The
+        // current protected download remains live until the replacement is
+        // ready, so this panel must not await provider work.
+        watermarkGenerationStatus = "pending";
       }
       onUpdate({
         ...updated,
         ...(watermarkGenerationStatus ? { watermark_status: watermarkGenerationStatus } : {}),
       });
       setUploadProgress(
-        watermarkGenerationStatus === "failed"
-          ? "Saved, but the watermark could not be prepared. Retry from deck settings."
-          : "Saved!",
+        watermarkGenerationStatus === "pending" ? "Saved! Preparing protected download." : "Saved!",
       );
       setTimeout(() => {
         onClose();
         setUploadProgress("");
-      }, watermarkGenerationStatus === "failed" ? 2500 : 1000);
+      }, watermarkGenerationStatus === "pending" ? 1800 : 1000);
     } catch (err: unknown) {
       alert(
         "Failed to update deck: " +
@@ -239,6 +247,13 @@ function DeckDetailPanel({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
+      const tier = (profile?.tier ?? "FREE") as Tier;
+      const maxBytes = TIER_CONFIG[tier].maxViewableDocumentSizeMB * 1024 * 1024;
+      if (file.size > maxBytes) {
+        alert(`This plan supports viewable PDFs up to ${TIER_CONFIG[tier].maxViewableDocumentSizeMB} MB.`);
+        e.target.value = "";
+        return;
+      }
       setNewFile(file);
     } else if (file) {
       alert("Please select a valid PDF file.");

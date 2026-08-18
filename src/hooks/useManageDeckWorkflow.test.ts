@@ -9,66 +9,44 @@ function readSource(relativePath: string): string {
 }
 
 describe("useManageDeckWorkflow upload contracts", () => {
-  it("creates a new deck through the atomic deck-and-primary-link RPC", () => {
-    const source = readSource("src/hooks/useManageDeckWorkflow.ts");
-    const migration = readSource(
-      "supabase/migrations/20260522090000_create_deck_with_primary_link.sql",
-    );
+  const workflow = () => readSource("src/hooks/useManageDeckWorkflow.ts");
 
-    expect(source).toContain('supabase.rpc(');
-    expect(source).toContain('"create_deck_with_primary_link"');
-    expect(migration).toContain("CREATE OR REPLACE FUNCTION public.create_deck_with_primary_link");
-    expect(migration).toContain("'Default Link'");
-    expect(migration).toContain("p_slug");
-    expect(migration).toContain("true,");
+  it("uses a durable async path for Office files rather than browser-side conversion", () => {
+    const source = workflow();
+
+    expect(source).toContain('if (file && fileType !== "pdf")');
+    expect(source).toContain("documentProcessingService.prepareOfficeUpload");
+    expect(source).toContain("documentProcessingService.uploadPreparedOfficeSource");
+    expect(source).toContain("documentProcessingService.completeUpload");
+    expect(source).not.toContain("document-processor");
+    expect(source).not.toContain("triggerAndProcessConversion");
   });
 
-  it("threads the download permission through create, update, and rollback paths", () => {
-    const source = readSource("src/hooks/useManageDeckWorkflow.ts");
+  it("keeps a live replacement source intact until the Office job publishes", () => {
+    const source = workflow();
 
-    expect(source).toContain("allowDownload");
-    expect(source).toContain("allow_download: allowDownload");
-    expect(source).toContain("p_allow_download: allowDownload");
-    expect(source).toContain("allow_download: previousValues.allow_download");
+    expect(source).toContain("replacementDeckId: editId ?? undefined");
+    expect(source).toContain("metadata travels with the job");
+    expect(source).not.toContain("Interactive conversion failed for newly created deck:");
   });
 
-  it("rolls back the created deck if post-create conversion fails", () => {
-    const source = readSource("src/hooks/useManageDeckWorkflow.ts");
+  it("keeps direct PDF processing local and enforces the page cap", () => {
+    const source = workflow();
 
-    expect(source).toContain("Interactive conversion failed for newly created deck:");
-    expect(source).toContain("Failed to rollback newly created deck after conversion failure:");
-    expect(source).toContain("await deckService.deleteDeck(");
+    expect(source).toContain("processPdfToImages");
+    expect(source).toContain("Viewable documents are limited to 500 pages.");
+    expect(source).toContain("deckStorageService.uploadSlideImages");
   });
 
-  it("clears extracted text when replacing a deck source file", () => {
-    const workflowSource = readSource("src/hooks/useManageDeckWorkflow.ts");
-    const settingsSource = readSource("src/components/dashboard/DeckSettingsForm.tsx");
-    const detailSource = readSource("src/components/decks/DeckDetailPanel.tsx");
+  it("queues watermark processing without awaiting a provider request", () => {
+    const source = workflow();
 
-    expect(workflowSource).toContain("...(file ? { extracted_text: null } : {}),");
-    expect(workflowSource).toContain("extracted_text: previousValues.extracted_text,");
-    expect(settingsSource).toContain("...(newFile ? { extracted_text: null } : {}),");
-    expect(detailSource).toContain("...(newFile ? { extracted_text: null } : {}),");
+    expect(source).toContain("Preparing protected download in the background...");
+    expect(source).not.toContain("generateWatermarkedDeck(editId)");
+    expect(source).not.toContain("generateWatermarkedDeck(deckRecord.id)");
   });
 
-  it("marks a disabled watermark as disabled after saving deck settings", () => {
-    const settingsSource = readSource("src/components/dashboard/DeckSettingsForm.tsx");
-
-    expect(settingsSource).toContain('let resultingWatermarkStatus = !watermarkEnabled');
-    expect(settingsSource).toContain('? "disabled"');
-  });
-
-  it("updates the local watermark status after replacing a protected deck source", () => {
-    const detailSource = readSource("src/components/decks/DeckDetailPanel.tsx");
-
-    expect(detailSource).toContain('watermarkGenerationStatus = "ready"');
-    expect(detailSource).toContain('watermarkGenerationStatus = "failed"');
-  });
-
-  it("refreshes dashboard deck queries when watermark generation fails", () => {
-    const source = readSource("src/hooks/useManageDeckWorkflow.ts");
-
-    expect(source).toContain("const invalidateDeckDashboardQueries = () =>");
-    expect(source.match(/invalidateDeckDashboardQueries\(\);/g)).toHaveLength(3);
+  it("continues to persist download permission for direct PDF saves", () => {
+    expect(workflow()).toContain("allow_download: allowDownload");
   });
 });

@@ -131,6 +131,7 @@ vi.mock("./deckStorageService", () => ({
     uploadDeckFile: vi.fn(),
     deleteDeckAssets: vi.fn(),
     deleteDeckWatermarkAssets: vi.fn(),
+    deleteDeckRevisionAssets: vi.fn(),
     uploadSlideImages: vi.fn(),
     getStoragePath: vi.fn(),
   },
@@ -314,6 +315,29 @@ describe("deckService.getAllDecks", () => {
         },
       },
     );
+  });
+});
+
+describe("deckService watermark processing actions", () => {
+  beforeEach(() => {
+    mocks.responseQueues.clear();
+    vi.clearAllMocks();
+  });
+
+  it("accepts the durable retry job response and the cleanup response", async () => {
+    vi.mocked(mocks.mockSupabase.functions.invoke)
+      .mockResolvedValueOnce({ data: { id: "job-1", status: "queued" }, error: null })
+      .mockResolvedValueOnce({ data: { cleaned: true }, error: null });
+
+    await expect(deckService.generateWatermarkedDeck("deck-1")).resolves.toBeUndefined();
+    await expect(deckService.cleanupWatermarkedDeck("deck-1")).resolves.toBeUndefined();
+
+    expect(vi.mocked(mocks.mockSupabase.functions.invoke)).toHaveBeenNthCalledWith(1, "document-processing", {
+      body: { action: "retry-watermark", deckId: "deck-1" },
+    });
+    expect(vi.mocked(mocks.mockSupabase.functions.invoke)).toHaveBeenNthCalledWith(2, "document-processing", {
+      body: { action: "cleanup-watermark", deckId: "deck-1" },
+    });
   });
 });
 

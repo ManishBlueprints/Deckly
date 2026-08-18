@@ -100,7 +100,7 @@ function ManageDeck() {
     if (!selectedFile) return;
 
     const ext = selectedFile.name.split(".").pop()?.toLowerCase();
-    const validExts = ["pdf", "pptx", "docx", "doc", "xlsx"];
+    const validExts = ["pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx"];
 
     // Ensure profile is loaded before proceeding with tier-sensitive checks
     if (!userProfile) {
@@ -109,12 +109,20 @@ function ManageDeck() {
     }
 
     if (!ext || !validExts.includes(ext)) {
-      alert("Please select a supported file (PDF, PPTX, DOCX, DOC, or XLSX).");
+      alert("Please select a supported file (PDF, PowerPoint, Word, or Excel).");
       return;
     }
 
     const currentTier = (userProfile.tier as keyof typeof TIER_CONFIG) || "FREE";
     const config = TIER_CONFIG[currentTier];
+
+    if (selectedFile.size > config.maxViewableDocumentSizeMB * 1024 * 1024) {
+      setUploadError(
+        `This plan supports viewable documents up to ${config.maxViewableDocumentSizeMB} MB.`,
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     if (ext !== "pdf" && !config.allowOffice) {
       setUpsellFeature(`${ext.toUpperCase()} Support`);
@@ -126,17 +134,9 @@ function ManageDeck() {
     setFile(selectedFile);
     setFileType(ext);
 
-    if (ext !== "pdf") {
-      setWatermarkEnabled(false);
-    }
-
-    if (ext === "xlsx") {
-      setConversionMode("raw");
-    } else if (ext === "pptx") {
-      setConversionMode(config.allowInteractive ? "interactive" : "raw");
-    } else {
-      setConversionMode("raw");
-    }
+    // Every Office format follows the same durable PDF conversion path.  The
+    // existing conversion-mode control remains for legacy documents only.
+    setConversionMode(ext === "ppt" || ext === "pptx" ? "interactive" : "raw");
 
     const baseName = selectedFile.name.includes(".")
       ? selectedFile.name.substring(0, selectedFile.name.lastIndexOf("."))
@@ -194,13 +194,13 @@ function ManageDeck() {
 
     setLoading(true);
     setError(null);
-    setProgress("Applying watermark...");
+    setProgress("Retrying protected download...");
     try {
       await deckService.generateWatermarkedDeck(existingDeck.id);
       setExistingDeck((current) => current
-        ? { ...current, watermark_status: "ready" }
+        ? { ...current, watermark_status: "pending" }
         : current);
-      setProgress("Watermark ready");
+      setProgress("Watermark queued");
       queryClient.invalidateQueries({ queryKey: ["decks", authProfile?.id] });
     } catch (watermarkError) {
       console.error("Watermark retry failed:", watermarkError);
@@ -311,7 +311,7 @@ function ManageDeck() {
                 enabled={watermarkEnabled}
                 text={watermarkText}
                 status={existingDeck?.watermark_status}
-                isPdf={fileType === "pdf"}
+                isPdf={["pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx"].includes(fileType)}
                 canUseWatermarking={watermarkControls.isLoading || watermarkControls.access.state === "available"}
                 onEnabledChange={setWatermarkEnabled}
                 onTextChange={setWatermarkText}
@@ -320,7 +320,7 @@ function ManageDeck() {
                   setShowUpsell(true);
                 }}
                 onRetry={existingDeck?.watermark_status === "failed" ? handleRetryWatermark : undefined}
-                isRetrying={loading && progress === "Applying watermark..."}
+                isRetrying={loading && progress === "Retrying protected download..."}
               />
             </ManageDeckAccessSection>
 

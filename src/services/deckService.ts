@@ -18,6 +18,7 @@ import {
 import { globalTagService } from "./globalTagService.ts";
 import { withRetry } from "../utils/resilience.ts";
 import { storageService } from "./storageService.ts";
+import { documentProcessingService } from "./documentProcessingService.ts";
 
 const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | null => {
   if (!tag) return null;
@@ -82,7 +83,7 @@ const hydrateSignedDeckThumbnails = async (decks: Deck[]): Promise<Deck[]> => {
   const thumbnailPaths = new Set<string>();
 
   decks.forEach((deck) => {
-    const thumbnailPath = extractStoragePath(deck.pages?.[0]?.image_url, "decks");
+    const thumbnailPath = extractStoragePath(deck.thumbnail_url ?? deck.pages?.[0]?.image_url, "decks");
     if (thumbnailPath) thumbnailPaths.add(thumbnailPath);
   });
 
@@ -103,16 +104,15 @@ const hydrateSignedDeckThumbnails = async (decks: Deck[]): Promise<Deck[]> => {
 
   return decks.map((deck) => {
     const [firstPage, ...remainingPages] = deck.pages ?? [];
-    const thumbnailPath = firstPage
-      ? extractStoragePath(firstPage.image_url, "decks")
-      : null;
+    const thumbnailPath = extractStoragePath(deck.thumbnail_url ?? firstPage?.image_url, "decks");
     const signedThumbnailUrl = thumbnailPath
       ? signedUrlMap.get(thumbnailPath)
       : null;
 
-    return signedThumbnailUrl && firstPage
-      ? { ...deck, pages: [{ ...firstPage, image_url: signedThumbnailUrl }, ...remainingPages] }
-      : deck;
+    if (!signedThumbnailUrl) return deck;
+    return firstPage
+      ? { ...deck, thumbnail_url: signedThumbnailUrl, pages: [{ ...firstPage, image_url: signedThumbnailUrl }, ...remainingPages] }
+      : { ...deck, thumbnail_url: signedThumbnailUrl };
   });
 };
 
@@ -181,17 +181,24 @@ const deckCrudService = {
         .replace(/-+/g, "-")
         .replace(/^-+|-+$/g, "") ||
       "untitled";
-    const { userId, publicUrl } = await deckStorageService.uploadDeckFile(
+    const { userId, fileName } = await deckStorageService.uploadDeckFile(
       file,
       normalizedSlug,
     );
+    const verifiedPdf = await documentProcessingService.verifyDirectPdf(fileName);
+    if (!Array.isArray(deckData.pages) || deckData.pages.length !== verifiedPdf.pageCount) {
+      await storageService.remove("decks", [verifiedPdf.storagePath]).catch(() => undefined);
+      throw new Error("PDF pages must be processed before the deck can be published.");
+    }
 
     const { data: deckRecord, error: deckError } = await supabase
       .from("decks")
       .insert([
         {
           ...deckData,
-          file_url: publicUrl,
+          file_url: verifiedPdf.storagePath,
+          file_size: verifiedPdf.fileSize,
+          page_count: verifiedPdf.pageCount,
           status: "PENDING",
           user_id: userId,
         },
@@ -235,10 +242,15 @@ const deckCrudService = {
     if (markDeletingError) throw markDeletingError;
 
     try {
+      const processingCancellation = await supabase.functions.invoke("document-processing", {
+        body: { action: "cancel-deck-jobs", deckId: id },
+      });
+      if (processingCancellation?.error) throw processingCancellation.error;
       // Storage deletes are not transactional. Remove the optional watermark
       // artifacts first so a failure cannot leave a retained deck without its
       // primary source file and slide assets.
       await deckStorageService.deleteDeckWatermarkAssets(id, userId);
+      await deckStorageService.deleteDeckRevisionAssets(id, userId);
       await deckStorageService.deleteDeckAssets(fileUrl, slug, userId);
     } catch (err) {
       console.error("Deck storage cleanup failed; deck remains hidden for retry.", {
@@ -573,22 +585,26 @@ const deckPublicService = {
   },
 
   async generateWatermarkedDeck(deckId: string): Promise<void> {
-    const { data, error } = await supabase.functions.invoke("generate-watermarked-deck", {
-      body: { deckId },
+    const { data, error } = await supabase.functions.invoke("document-processing", {
+      body: { action: "retry-watermark", deckId },
     });
     if (error) throw error;
-    if (!data?.success) {
-      throw new Error(data?.message || "Unable to prepare the watermarked download");
+    if (!data || typeof data !== "object" || typeof data.error === "string") {
+      throw new Error(
+        data && typeof data === "object" && typeof data.error === "string"
+          ? data.error
+          : "Unable to prepare the watermarked download",
+      );
     }
   },
 
   async cleanupWatermarkedDeck(deckId: string): Promise<void> {
-    const { data, error } = await supabase.functions.invoke("generate-watermarked-deck", {
-      body: { deckId, action: "cleanup" },
+    const { data, error } = await supabase.functions.invoke("document-processing", {
+      body: { action: "cleanup-watermark", deckId },
     });
     if (error) throw error;
-    if (!data?.success) {
-      throw new Error(data?.message || "Unable to remove the watermarked download");
+    if (!data || typeof data !== "object" || data.cleaned !== true) {
+      throw new Error("Unable to remove the watermarked download");
     }
   },
 

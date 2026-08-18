@@ -1,9 +1,0 @@
-{
-  "imports": {
-    "@supabase/supabase-js": "npm:@supabase/supabase-js@^2.100.1",
-    "@std/encoding": "jsr:@std/encoding@^1.0.10",
-    "pdfjs-dist": "npm:pdfjs-dist@^5.5.207",
-    "jszip": "npm:jszip@^3.10.1",
-    "fast-xml-parser": "npm:fast-xml-parser@^5.5.9"
-  }
-}

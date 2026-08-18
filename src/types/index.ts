@@ -45,6 +45,10 @@ export interface Deck {
   display_mode?: "raw" | "interactive";
   expires_at?: string | null;
   extracted_text?: string | null;
+  thumbnail_url?: string | null;
+  page_count?: number | null;
+  source_filename?: string | null;
+  content_revision?: string;
   investor_note?: string;
   user_handle?: string;
   active_link_count?: number;

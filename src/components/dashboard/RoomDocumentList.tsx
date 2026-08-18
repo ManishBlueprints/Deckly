@@ -136,9 +136,9 @@ export function RoomDocumentList({
 
               {/* Thumbnail */}
               <div className="w-12 h-10 rounded-md bg-background border border-white/10 overflow-hidden shrink-0 group-hover:border-deckly-primary/30 transition-all">
-                {signedUrl || deck?.pages?.[0]?.image_url ? (
+                {signedUrl || deck?.thumbnail_url || deck?.pages?.[0]?.image_url ? (
                   <img
-                    src={signedUrl || deck?.pages?.[0]?.image_url}
+                    src={signedUrl || deck?.thumbnail_url || deck?.pages?.[0]?.image_url}
                     alt=""
                     className="w-full h-full object-cover transition-all duration-500"
                   />

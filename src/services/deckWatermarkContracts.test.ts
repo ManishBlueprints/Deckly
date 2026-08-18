@@ -11,7 +11,13 @@ const read = (relativePath: string) => readFileSync(path.resolve(__dirname, "../
 const migration = read("supabase/migrations/20260717000000_add_deck_watermarking.sql");
 const validationMigration = read("supabase/migrations/20260717000001_validate_deck_watermarking_constraints.sql");
 const signingFunction = read("supabase/functions/sign-deck-url/index.ts");
-const generationFunction = read("supabase/functions/generate-watermarked-deck/index.ts");
+const processingFunction = read("supabase/functions/document-processing/index.ts");
+const dispatchFunction = read("supabase/functions/dispatch-document-processing/index.ts");
+const reconcileFunction = read("supabase/functions/reconcile-document-processing/index.ts");
+const cleanupFunction = read("supabase/functions/cleanup-document-processing/index.ts");
+const webhookFunction = read("supabase/functions/cloudconvert-webhook/index.ts");
+const cloudConvertClient = read("supabase/functions/_shared/cloudconvert.ts");
+const lifecycleMigration = read("supabase/migrations/20260818000001_document_processing_lifecycle.sql");
 const r2Storage = read("supabase/functions/_shared/r2.ts");
 const manageDeck = read("src/pages/ManageDeck.tsx");
 const deckSettingsForm = read("src/components/dashboard/DeckSettingsForm.tsx");
@@ -68,19 +74,55 @@ describe("deck watermark contracts", () => {
     expect(signingFunction).not.toContain('headers: { "Content-Type": "application/json" }');
   });
 
-  it("generates a separate protected PDF through ConvertAPI", () => {
-    expect(generationFunction).toContain("convert/pdf/to/text-watermark");
-    expect(generationFunction).toContain("watermark_revision");
-    expect(generationFunction).toContain("watermark_status, watermarked_file_path");
-    expect(generationFunction).toContain("/watermarks/");
-    expect(generationFunction).toContain("watermark_status: \"ready\"");
-    expect(generationFunction).toContain('listAllObjects("decks", watermarkPrefix)');
-    expect(generationFunction).toContain("deleteObjects(");
-    expect(generationFunction).toContain('deck.watermark_status === "ready" && deck.watermarked_file_path === expectedCurrentPath');
-    expect(generationFunction).toContain('convertedDownloadUrl.protocol !== "https:"');
-    expect(generationFunction).toContain("convertedDownloadUrl.hostname !== CONVERT_API_DOWNLOAD_HOST");
-    expect(generationFunction).toContain("expiresInSeconds: 900,\n        signal,");
-    expect(r2Storage).toContain("signal?: AbortSignal");
-    expect(r2Storage).toContain("signal: options.signal");
+  it("generates a separate protected PDF through a durable CloudConvert job", () => {
+    expect(processingFunction).toContain('action === "retry-watermark"');
+    expect(dispatchFunction).toContain("createWatermarkJob");
+    expect(dispatchFunction).toContain("CLOUDCONVERT_IO_URL_TTL_SECONDS");
+    expect(cloudConvertClient).toContain("https://eu-central.api.cloudconvert.com/v2");
+    expect(cloudConvertClient).toContain('operation: "watermark"');
+    expect(cloudConvertClient).toContain('operation: "export/upload"');
+    expect(lifecycleMigration).toContain("enqueue_deck_watermark_processing_job");
+    expect(lifecycleMigration).toContain("publish_watermark_processing_job");
+    expect(lifecycleMigration).toContain("watermarked_file_path = p_watermark_path");
+    expect(r2Storage).toContain("copyObject");
+    expect(r2Storage).toContain("readObjectRange");
+  });
+
+  it("allows a requested watermark only while an Office draft is private", () => {
+    expect(lifecycleMigration).toContain("NEW.status = 'PENDING'");
+    expect(lifecycleMigration).toContain("'/processing/%'");
+    expect(lifecycleMigration).toContain("watermark_revision, watermark_status");
+  });
+
+  it("keeps watermark queue failures retryable without rolling back the deck save", () => {
+    expect(lifecycleMigration).toContain("queue_deck_watermark_processing_job");
+    expect(lifecycleMigration).toContain("watermark_status = 'failed'");
+    expect(lifecycleMigration).toContain("watermark_status NOT IN ('pending', 'failed')");
+    expect(lifecycleMigration).toContain("sync_failed_watermark_processing_job");
+    expect(processingFunction).toContain('admin.rpc("queue_deck_watermark_processing_job"');
+  });
+
+  it("cleans up every terminal processing path and enforces retry limits per revision", () => {
+    expect(reconcileFunction).toContain('ACTIVE_DOCUMENT_PROCESSING_STATUSES, "superseded"');
+    expect(reconcileFunction).toContain("cancelSupersededProviderJob");
+    expect(cleanupFunction).toContain("findCloudConvertJobsByTag");
+    expect(processingFunction).toContain('admin.rpc("retry_document_processing_job"');
+    expect(processingFunction).toContain('copyObject("decks", original.source_path, retrySourcePath)');
+    expect(lifecycleMigration).toContain("retry_document_processing_job");
+    expect(lifecycleMigration).toContain("document-processing-global-credit-cap");
+  });
+
+  it("preserves an Office job watermark revision and cancels ambiguous provider jobs", () => {
+    expect(lifecycleMigration).toContain("deckly.preserve_watermark_revision");
+    expect(processingFunction).toContain("cancelProviderJobs");
+    expect(processingFunction).toContain("findCloudConvertJobsByTag");
+    expect(webhookFunction).toContain("if (error) throw error;");
+  });
+
+  it("requires trusted storage verification before publishing a direct PDF", () => {
+    expect(lifecycleMigration).toContain("PDF must be verified before it can be published");
+    expect(processingFunction).toContain('action === "verify-direct-pdf"');
+    expect(processingFunction).toContain("direct_pdf_verifications");
+    expect(cleanupFunction).toContain("cleanupExpiredDirectPdfVerifications");
   });
 });
