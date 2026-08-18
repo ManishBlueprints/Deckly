@@ -489,7 +489,6 @@ export function useManageDeckWorkflow({
       editId,
       processPdfFile,
       setError,
-      setExistingDeck,
       setLoading,
       setProgress,
       setProgressPercent,

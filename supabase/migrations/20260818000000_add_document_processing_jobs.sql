@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS public.document_processing_jobs (
   provider_error_code TEXT,
   provider_error_detail TEXT,
   submission_uncertain_at TIMESTAMPTZ,
+  publish_claim_token UUID,
   deadline_at TIMESTAMPTZ,
   started_at TIMESTAMPTZ,
   completed_at TIMESTAMPTZ,
@@ -148,6 +149,9 @@ CREATE TABLE IF NOT EXISTS public.document_processing_jobs (
     OR (NOT requested_watermark_enabled AND requested_watermark_text IS NULL)
   )
 );
+
+ALTER TABLE public.document_processing_jobs
+  ADD COLUMN IF NOT EXISTS publish_claim_token UUID;
 
 CREATE OR REPLACE FUNCTION public.is_document_processing_active(p_status TEXT)
 RETURNS BOOLEAN

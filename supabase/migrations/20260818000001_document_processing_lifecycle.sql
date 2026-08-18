@@ -631,8 +631,10 @@ AS $$
   RETURNING TRUE;
 $$;
 
+DROP FUNCTION IF EXISTS public.publish_document_processing_job(UUID, TEXT, TEXT, BIGINT, INTEGER, TEXT, TEXT, TEXT, JSONB);
 CREATE OR REPLACE FUNCTION public.publish_document_processing_job(
   p_job_id UUID,
+  p_publish_claim_token UUID,
   p_document_path TEXT,
   p_thumbnail_path TEXT,
   p_document_size_bytes BIGINT,
@@ -660,7 +662,10 @@ BEGIN
   WHERE id = p_job_id
   FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Processing job not found'; END IF;
-  IF v_job.status NOT IN ('processing', 'validating', 'publishing') THEN
+  IF v_job.publish_claim_token IS DISTINCT FROM p_publish_claim_token THEN
+    RETURN NULL;
+  END IF;
+  IF v_job.status <> 'publishing' THEN
     RAISE EXCEPTION 'Processing job is not publishable';
   END IF;
   IF v_job.deadline_at <= NOW() THEN RAISE EXCEPTION 'Processing job timed out'; END IF;
@@ -745,8 +750,10 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.publish_watermark_processing_job(UUID, TEXT, TEXT, TEXT, JSONB);
 CREATE OR REPLACE FUNCTION public.publish_watermark_processing_job(
   p_job_id UUID,
+  p_publish_claim_token UUID,
   p_watermark_path TEXT,
   p_provider_engine TEXT DEFAULT NULL,
   p_provider_engine_version TEXT DEFAULT NULL,
@@ -764,7 +771,10 @@ DECLARE
 BEGIN
   SELECT * INTO v_job FROM public.document_processing_jobs WHERE id = p_job_id FOR UPDATE;
   IF NOT FOUND OR v_job.operation <> 'watermark_publish' THEN RAISE EXCEPTION 'Watermark job not found'; END IF;
-  IF v_job.status NOT IN ('processing', 'validating', 'publishing') OR v_job.deadline_at <= NOW() THEN
+  IF v_job.publish_claim_token IS DISTINCT FROM p_publish_claim_token THEN
+    RETURN NULL;
+  END IF;
+  IF v_job.status <> 'publishing' OR v_job.deadline_at <= NOW() THEN
     RAISE EXCEPTION 'Watermark job is not publishable';
   END IF;
   SELECT * INTO v_deck FROM public.decks WHERE id = v_job.deck_id FOR UPDATE;
@@ -831,8 +841,8 @@ REVOKE ALL ON FUNCTION public.assert_document_processing_quota(UUID, INTEGER) FR
 REVOKE ALL ON FUNCTION public.mark_document_processing_submitted(UUID, TEXT) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.mark_document_processing_submission_uncertain(UUID) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.queue_deck_watermark_processing_job(UUID, UUID) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.publish_document_processing_job(UUID, TEXT, TEXT, BIGINT, INTEGER, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.publish_watermark_processing_job(UUID, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.publish_document_processing_job(UUID, UUID, TEXT, TEXT, BIGINT, INTEGER, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.publish_watermark_processing_job(UUID, UUID, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.prepare_office_processing_draft(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, BIGINT, BOOLEAN, BOOLEAN, TEXT, TIMESTAMPTZ, BOOLEAN, BOOLEAN, TEXT) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.prepare_office_processing_replacement(UUID, UUID, TEXT, TEXT, BIGINT, TEXT, TEXT, BOOLEAN, BOOLEAN, TEXT, TIMESTAMPTZ, BOOLEAN, BOOLEAN, TEXT) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.complete_document_processing_upload(UUID, BIGINT) FROM PUBLIC, anon, authenticated;

@@ -47,7 +47,9 @@ export function AccessProtectionSection({
   children,
 }: AccessProtectionSectionProps) {
   const [showPasswordField, setShowPasswordField] = useState(false);
-  const hasDownloadControl = typeof allowDownload === "boolean" && Boolean(setAllowDownload && onDownloadUpsell);
+  const hasDownloadControl = typeof allowDownload === "boolean" && Boolean(
+    setAllowDownload && (canUseDownloadControls || onDownloadUpsell),
+  );
   const requestAccessControl = () => onAccessUpsell?.();
 
   return (

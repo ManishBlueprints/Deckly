@@ -26,6 +26,7 @@ type ProcessingJob = {
   requested_watermark_enabled: boolean;
   provider_job_id: string | null;
   submission_uncertain_at: string | null;
+  publish_claim_token: string | null;
   deadline_at: string;
   updated_at: string;
 };
@@ -88,8 +89,20 @@ function hasWebpSignature(bytes: Uint8Array | null) {
     && new TextDecoder().decode(bytes.slice(8, 12)) === "WEBP";
 }
 
-async function failJob(admin: ReturnType<typeof adminClient>, job: ProcessingJob, code: string, detail: string) {
-  await admin.from("document_processing_jobs")
+class PublishingLeaseLostError extends Error {
+  constructor() {
+    super("Publishing lease was lost.");
+  }
+}
+
+async function failJob(
+  admin: ReturnType<typeof adminClient>,
+  job: ProcessingJob,
+  code: string,
+  detail: string,
+  publishClaimToken?: string,
+) {
+  let query = admin.from("document_processing_jobs")
     .update({
       status: "failed",
       provider_error_code: code,
@@ -99,6 +112,9 @@ async function failJob(admin: ReturnType<typeof adminClient>, job: ProcessingJob
     })
     .eq("id", job.id)
     .in("status", ["submitting", "processing", "validating", "publishing"]);
+  if (publishClaimToken) query = query.eq("publish_claim_token", publishClaimToken);
+  const { error } = await query;
+  if (error) throw error;
 }
 
 async function resolveUncertainSubmission(admin: ReturnType<typeof adminClient>, job: ProcessingJob) {
@@ -139,18 +155,26 @@ async function cancelSupersededProviderJob(job: ProcessingJob) {
 
 async function claimForPublish(admin: ReturnType<typeof adminClient>, job: ProcessingJob): Promise<ProcessingJob | null> {
   const staleBefore = new Date(Date.now() - PUBLISH_LEASE_MS).toISOString();
+  const claimToken = crypto.randomUUID();
   const query = admin.from("document_processing_jobs")
-    .update({ status: "publishing" })
+    .update({ status: "publishing", publish_claim_token: claimToken })
     .eq("id", job.id);
   const claimedQuery = job.status === "validating"
     ? query.eq("status", "validating")
     : query.eq("status", "publishing").lt("updated_at", staleBefore);
   const { data, error } = await claimedQuery.select("*").maybeSingle();
   if (error) throw error;
-  return data as ProcessingJob | null;
+  if (!data) return null;
+  const claimed = data as ProcessingJob;
+  if (claimed.publish_claim_token !== claimToken) throw new PublishingLeaseLostError();
+  return claimed;
 }
 
-function startPublishLeaseRenewal(admin: ReturnType<typeof adminClient>, job: ProcessingJob) {
+function startPublishLeaseRenewal(
+  admin: ReturnType<typeof adminClient>,
+  job: ProcessingJob,
+  claimToken: string,
+) {
   let stopped = false;
   let failure: unknown = null;
   let pending = Promise.resolve();
@@ -162,10 +186,11 @@ function startPublishLeaseRenewal(admin: ReturnType<typeof adminClient>, job: Pr
         .update({ updated_at: new Date().toISOString() })
         .eq("id", job.id)
         .eq("status", "publishing")
+        .eq("publish_claim_token", claimToken)
         .select("id")
         .maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error("Publishing lease was lost.");
+      if (!data) throw new PublishingLeaseLostError();
     }).catch((error) => {
       failure = error;
     });
@@ -185,7 +210,8 @@ function startPublishLeaseRenewal(admin: ReturnType<typeof adminClient>, job: Pr
 async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: ProcessingJob, providerJob: CloudConvertJob) {
   const claimed = await claimForPublish(admin, job);
   if (!claimed) return false;
-  const publishLease = startPublishLeaseRenewal(admin, claimed);
+  if (!claimed.publish_claim_token) throw new PublishingLeaseLostError();
+  const publishLease = startPublishLeaseRenewal(admin, claimed, claimed.publish_claim_token);
   const prefix = processingPrefix(claimed);
   const documentStagePath = `${prefix}/document.pdf`;
   const thumbnailStagePath = `${prefix}/thumbnail.webp`;
@@ -228,8 +254,9 @@ async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: Pr
       }
 
       await publishLease.stop();
-      const { error } = await admin.rpc("publish_document_processing_job", {
+      const { data, error } = await admin.rpc("publish_document_processing_job", {
         p_job_id: claimed.id,
+        p_publish_claim_token: claimed.publish_claim_token,
         p_document_path: documentPath,
         p_thumbnail_path: thumbnailPath,
         p_document_size_bytes: documentMetadata.size,
@@ -240,6 +267,7 @@ async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: Pr
         p_provider_task_credits: credits,
       });
       if (error) throw error;
+      if (!data) throw new PublishingLeaseLostError();
     } else {
       if (!watermarkPath) throw new Error("Watermark revision is unavailable.");
       const [watermarkMetadata, watermarkBytes] = await Promise.all([
@@ -251,19 +279,22 @@ async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: Pr
       }
       await copyObject("decks", watermarkStagePath, watermarkPath);
       await publishLease.stop();
-      const { error } = await admin.rpc("publish_watermark_processing_job", {
+      const { data, error } = await admin.rpc("publish_watermark_processing_job", {
         p_job_id: claimed.id,
+        p_publish_claim_token: claimed.publish_claim_token,
         p_watermark_path: watermarkPath,
         p_provider_engine: engine,
         p_provider_engine_version: engineVersion,
         p_provider_task_credits: credits,
       });
       if (error) throw error;
+      if (!data) throw new PublishingLeaseLostError();
     }
     if (claimed.provider_job_id) await deleteCloudConvertJob(claimed.provider_job_id).catch(() => undefined);
     return true;
   } catch (error) {
     await publishLease.stop().catch(() => undefined);
+    if (error instanceof PublishingLeaseLostError) return false;
     // Copies happen before the DB swap.  Remove only the immutable artifacts
     // from this attempt. A successful publish can race a lost response or
     // lease takeover, so never remove a path the live deck now references.
@@ -289,7 +320,13 @@ async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: Pr
       ].filter((path): path is string => !!path && !referencedPaths.has(path))
         .map((path) => deleteObject("decks", path).catch(() => undefined)));
     }
-    await failJob(admin, claimed, "validation_or_publish_failed", error instanceof Error ? error.message : "Output validation failed");
+    await failJob(
+      admin,
+      claimed,
+      "validation_or_publish_failed",
+      error instanceof Error ? error.message : "Output validation failed",
+      claimed.publish_claim_token,
+    );
     return false;
   }
 }
