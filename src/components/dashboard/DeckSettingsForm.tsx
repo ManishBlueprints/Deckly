@@ -17,7 +17,7 @@ import { AccessProtectionSection } from "./form-sections/AccessProtectionSection
 import { WatermarkSettingsSection } from "./form-sections/WatermarkSettingsSection";
 import { DangerZoneSection } from "./form-sections/DangerZoneSection";
 import { Button } from "../ui/button";
-import { Save } from "lucide-react";
+import { AlertCircle, Save } from "lucide-react";
 import { TierUpsellModal } from "./TierUpsellModal";
 import { useTierFeatureAccess } from "../../hooks/useTierEntitlements";
 import { TIER_CONFIG, type Tier } from "../../constants/tiers";
@@ -432,7 +432,7 @@ export function DeckSettingsForm({
         )}
         {error && !isProcessing && (
           <div className="flex-1 mr-6 p-3 bg-red-500/10 border border-red-500/20 rounded text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">error</span>
+            <AlertCircle size={14} />
             {error}
           </div>
         )}

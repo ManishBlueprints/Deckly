@@ -43,6 +43,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
+import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 
 interface DeckDetailPanelProps {
   deck: Deck;
@@ -316,21 +317,11 @@ function DeckDetailPanel({
   };
 
   return (
-    <div className="fixed inset-0 z-[300] flex justify-end">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-      />
-
-      <motion.div
-        initial={{ x: "100%" }}
-        animate={{ x: 0 }}
-        exit={{ x: "100%" }}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="relative w-full max-w-xl bg-slate-900 h-full shadow-2xl overflow-y-auto border-l border-white/5 flex flex-col"
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        presentation="sheet-right"
+        hideClose
+        className="max-w-xl rounded-none border-white/5 bg-slate-900 p-0 text-white"
       >
         <header className="sticky top-0 z-20 bg-slate-900/80 backdrop-blur-xl p-6 border-b border-white/5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-4">
@@ -340,9 +331,9 @@ function DeckDetailPanel({
             >
               <X size={24} />
             </button>
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+            <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
               Asset Intelligence
-            </h2>
+            </DialogTitle>
           </div>
           <div className="flex items-center space-x-2">
             <a
@@ -700,14 +691,14 @@ function DeckDetailPanel({
             {isSaving ? uploadProgress || "Saving" : "Sync Changes"}
           </Button>
         </div>
-      </motion.div>
+      </DialogContent>
       <DeckLinkManagerModal
         deck={deck}
         workspaceSlug={profile?.handle}
         isOpen={isLinkManagerOpen}
         onClose={() => setIsLinkManagerOpen(false)}
       />
-    </div>
+    </Dialog>
   );
 }
 

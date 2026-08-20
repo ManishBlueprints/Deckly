@@ -112,7 +112,7 @@ export function PasswordSecuritySection() {
             <KeyRound size={18} />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-white">Change password</h3>
+            <h3 className="text-sm font-semibold text-ui-text">Change password</h3>
             <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
               {PASSWORD_REQUIREMENTS_MESSAGE} For older sessions, we&apos;ll verify the change with a code sent to your email.
             </p>
@@ -134,7 +134,7 @@ export function PasswordSecuritySection() {
             <button
               type="button"
               onClick={() => setShowPassword((visible) => !visible)}
-              className="text-slate-500 hover:text-slate-200 transition-colors"
+              className="text-ui-muted transition-colors hover:text-ui-text"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -157,7 +157,7 @@ export function PasswordSecuritySection() {
           <div className="border border-deckly-primary/20 bg-deckly-primary/5 p-4 space-y-4">
             <div className="flex gap-3">
               <Mail className="text-deckly-primary shrink-0" size={18} />
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs leading-relaxed text-ui-muted">
                 Enter the verification code we sent to your email before changing your password.
               </p>
             </div>

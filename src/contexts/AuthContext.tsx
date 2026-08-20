@@ -68,7 +68,7 @@ function isPasswordRecoverySession(session: Session | null) {
   return Boolean(marker && session?.user?.id === marker.userId);
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   session: Session | null;
   passwordRecovery: boolean;
   clearPasswordRecovery: () => void;
@@ -90,6 +90,16 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthContextProvider({
+  value,
+  children,
+}: {
+  value: AuthContextType;
+  children: React.ReactNode;
+}) {
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,

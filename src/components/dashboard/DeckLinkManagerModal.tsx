@@ -8,7 +8,7 @@ import {
   useDisableDeckLink,
   useEnableDeckLink,
 } from "../../hooks/useDeckLinks";
-import { cn } from "../../utils/cn";
+import { cn } from "../../lib/utils";
 import { normalizeSlug } from "../../utils/slug";
 import { getPrimaryDeckLink } from "./deckLinkUi";
 import { formatLinkCreatedAt, splitShareUrl } from "./deckLinkFormatting";

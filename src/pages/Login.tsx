@@ -6,8 +6,7 @@ import { Lock, Mail, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import posthog from "posthog-js";
 import { toast } from "sonner";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-import leftPanelBg from "../assets/Signup Left.png";
-import logo from "../assets/Deckly.png";
+import { AuthSignalPanel } from "../components/auth/AuthSignalPanel";
 import {
   getFriendlyAuthErrorMessage,
   isInvalidLoginCredentialsError,
@@ -129,90 +128,18 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-deckly-background">
-      {/* Left Panel - Hero - Hidden on Mobile */}
-      <div className="hidden md:flex md:w-1/2 relative flex-col p-12 lg:p-20 overflow-hidden min-h-screen border-r border-[#22C55E]/20">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-80"
-          style={{ backgroundImage: `url(${leftPanelBg})` }}
-        />
-        {/* Dark Overlay */}
-        <div className="absolute inset-0 bg-black/60" />
-
-        {/* Spacer to push content to middle */}
-        <div className="flex-1" />
-
-        {/* Center Content - Logo, Headline, Paragraph */}
-        <div className="relative z-10 flex flex-col justify-center">
-          {/* DECKLY Logo */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="flex items-center gap-3 mb-10"
-          >
-            <img src={logo} alt="Deckly" className="w-10 h-10 object-contain" />
-            <span className="text-[#22C55E] text-2xl font-bold tracking-widest">
-              DECKLY
-            </span>
-          </motion.div>
-
-          {/* Headline */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <h1 className="text-4xl lg:text-6xl font-bold text-white leading-[1.1] mb-6 tracking-tight">
-              Pitchdeck
-              <br />
-              Management
-              <br />
-              Workspace
-              <br />
-              <span className="text-[#22C55E]">That Works.</span>
-            </h1>
-            <p className="text-slate-400 text-lg leading-relaxed max-w-[420px]">
-              Manage your entire deal flow in one secure workspace.
-            </p>
-          </motion.div>
-        </div>
-
-        {/* Spacer to push badges to bottom */}
-        <div className="flex-1" />
-
-        {/* Bottom Content - Badges */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="relative z-10 flex gap-4 mt-auto"
-        >
-          <div className="bg-white/5 backdrop-blur-sm border-l-2 border-[#22C55E] px-4 py-3 min-w-[140px]">
-            <p className="text-[#22C55E] text-xs font-semibold uppercase tracking-wider mb-1">
-              BUILT FOR
-            </p>
-            <p className="text-white text-lg font-bold">Founders</p>
-          </div>{" "}
-          <div className="bg-white/5 backdrop-blur-sm border-l-2 border-[#22C55E] px-4 py-3 min-w-[140px]">
-            <p className="text-[#22C55E] text-xs font-semibold uppercase tracking-wider mb-1">
-              DETAILED
-            </p>
-            <p className="text-white text-lg font-bold">AI Powered</p>
-          </div>
-        </motion.div>
-      </div>
+    <div className="flex min-h-screen flex-col bg-ui-canvas text-ui-text md:flex-row">
+      <AuthSignalPanel mode="login" />
 
       {/* Right Panel - Sign In Form */}
-      <div className="w-full md:w-1/2 bg-deckly-background flex flex-col items-center justify-center relative z-10 min-h-screen p-8 md:p-12 lg:p-24 overflow-y-auto">
+      <main className="relative z-10 flex min-h-screen w-full flex-col items-center justify-center overflow-y-auto bg-ui-canvas p-8 md:w-1/2 md:p-12 lg:p-24">
         <div className="w-full max-w-[420px]">
           {/* Header */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white tracking-tight mb-2">
-              Sign In
+            <h2 className="mb-2 text-2xl font-bold tracking-tight text-ui-text">
+              Sign in
             </h2>
-            <p className="text-slate-500 text-sm">
+            <p className="text-sm text-ui-muted">
               Welcome back to your workspace
             </p>
           </div>
@@ -221,7 +148,7 @@ function Login() {
           <div className="space-y-3 mb-6">
             <button
               onClick={handleGoogleSignIn}
-              className="w-full flex items-center justify-center gap-3 py-3 bg-white/5 border border-white/10 rounded-lg text-slate-300 font-medium text-sm hover:bg-white/10 transition-all"
+              className="flex w-full items-center justify-center gap-3 rounded-md border border-ui-border bg-ui-surface py-3 text-sm font-medium text-ui-text transition-colors hover:bg-ui-subtle"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
@@ -245,7 +172,7 @@ function Login() {
             </button>
             <button
               onClick={handleGitHubSignIn}
-              className="w-full flex items-center justify-center gap-3 py-3 bg-white/5 border border-white/10 rounded-lg text-slate-300 font-medium text-sm hover:bg-white/10 transition-all"
+              className="flex w-full items-center justify-center gap-3 rounded-md border border-ui-border bg-ui-surface py-3 text-sm font-medium text-ui-text transition-colors hover:bg-ui-subtle"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
@@ -259,22 +186,22 @@ function Login() {
 
           {/* Divider */}
           <div className="flex items-center w-full gap-4 mb-6">
-            <div className="h-px bg-white/10 flex-1" />
-            <span className="text-xs uppercase font-medium tracking-wider text-slate-500">
-              OR EMAIL
+            <div className="h-px flex-1 bg-ui-border" />
+            <span className="text-xs font-medium text-ui-muted">
+              Or use email
             </span>
-            <div className="h-px bg-white/10 flex-1" />
+            <div className="h-px flex-1 bg-ui-border" />
           </div>
 
           {/* Email/Password Form */}
           <form onSubmit={handleLogin} className="flex flex-col gap-5">
             {/* Email Input */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="email" className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                INSTITUTIONAL EMAIL
+              <label htmlFor="email" className="text-sm font-medium text-ui-muted">
+                  Work email
               </label>
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ui-muted">
                   <Mail size={18} />
                 </div>
                 <input
@@ -284,7 +211,7 @@ function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full h-12 pl-12 pr-4 bg-surface-low border border-border text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#22C55E] transition-colors"
+                  className="h-12 w-full rounded-md border border-ui-border bg-ui-surface px-4 pl-12 text-sm text-ui-text transition-colors placeholder:text-ui-muted focus:border-ui-primary focus:outline-none"
                 />
               </div>
             </div>
@@ -292,19 +219,19 @@ function Login() {
             {/* Password Input */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                  PASSWORD
+                <label htmlFor="password" className="text-sm font-medium text-ui-muted">
+                  Password
                 </label>
                 <button
                   type="button"
                   onClick={handleForgotPassword}
-                  className="text-xs font-semibold text-[#22C55E] hover:text-[#22C55E]/80 transition-colors"
+                  className="text-xs font-semibold text-ui-primary transition-colors hover:text-ui-primary/80"
                 >
                   Forgot password?
                 </button>
               </div>
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ui-muted">
                   <Lock size={18} />
                 </div>
                 <input
@@ -314,12 +241,12 @@ function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full h-12 pl-12 pr-12 bg-surface-low border border-border text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-[#22C55E] transition-colors"
+                  className="h-12 w-full rounded-md border border-ui-border bg-ui-surface pl-12 pr-12 text-sm text-ui-text transition-colors placeholder:text-ui-muted focus:border-ui-primary focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-ui-muted transition-colors hover:bg-ui-subtle hover:text-ui-text"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -343,13 +270,13 @@ function Login() {
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="border border-[#22C55E]/30 bg-[#22C55E]/10 p-4 rounded-lg text-center"
+                className="rounded-md border border-ui-primary/30 bg-ui-primary/10 p-4 text-center"
               >
-                <p className="text-sm text-slate-300">New to Deckly?</p>
+                <p className="text-sm text-ui-text">New to Deckly?</p>
                 <button
                   type="button"
                   onClick={handleCreateAccount}
-                  className="mt-2 text-sm font-semibold text-[#22C55E] hover:text-[#22C55E]/80 transition-colors"
+                  className="mt-2 text-sm font-semibold text-ui-primary transition-colors hover:text-ui-primary/80"
                 >
                   Create an account
                 </button>
@@ -365,7 +292,7 @@ function Login() {
                   onSuccess={(token) => setCaptchaToken(token)}
                   onExpire={() => setCaptchaToken(null)}
                   onError={() => setCaptchaToken(null)}
-                  options={{ theme: "dark" }}
+                  options={{ theme: "light" }}
                 />
               </div>
             )}
@@ -380,13 +307,13 @@ function Login() {
             <button
               type="submit"
               disabled={loading || (captchaRequired && (!captchaSiteKey || !captchaToken))}
-              className="w-full h-12 bg-[#22C55E] text-black font-semibold text-sm uppercase tracking-wider rounded-lg hover:bg-[#22C55E]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-ui-primary text-sm font-semibold text-ui-primary-text transition-colors hover:bg-ui-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
               ) : (
                 <>
-                  SIGN IN
+                  Sign in
                   <ArrowRight size={18} />
                 </>
               )}
@@ -395,31 +322,31 @@ function Login() {
 
           {/* Signup Link */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-ui-muted">
               Don't have an account?{" "}
               <Link
                 to="/signup"
-                className="text-[#22C55E] font-semibold hover:text-[#22C55E]/80 transition-colors"
+                className="font-semibold text-ui-primary transition-colors hover:text-ui-primary/80"
               >
-                Signup
+                Create an account
               </Link>
             </p>
           </div>
 
           {/* Footer */}
           <div className="mt-12 flex items-center justify-between">
-            <p className="text-xs text-slate-600 font-medium">V0.0.5-ALPHA</p>
+            <p className="text-xs font-medium text-ui-muted">V0.0.5-ALPHA</p>
             <a
               href="https://deckly.space/privacy"
               target="_blank"
               rel="noreferrer noopener"
-              className="text-xs text-slate-600 font-medium uppercase tracking-wider hover:text-slate-400 transition-colors"
+              className="text-xs font-medium text-ui-muted transition-colors hover:text-ui-text"
             >
-              PRIVACY POLICY
+              Privacy policy
             </a>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

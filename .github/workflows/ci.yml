@@ -25,15 +25,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Type-check
+        run: npm run type-check
+
       - name: Check Linting
         run: npm run lint
 
+      - name: Check UI tokens
+        run: npm run check:ui-tokens
+
       - name: Run Tests
         run: npm test
+
+      - name: Build Storybook
+        run: npm run storybook:build
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run visual tests
+        run: npm run test:visual
+
+      - name: Run system theme tests
+        run: npm run test:theme
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://example.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-publishable-key' }}
 
       - name: Run Build
         run: npm run build
         env:
           # We need these to exist for the build to pass if Vite uses them
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'placeholder' }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder' }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://example.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-publishable-key' }}

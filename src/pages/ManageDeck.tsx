@@ -11,7 +11,7 @@ import { useTierFeatureAccess } from "../hooks/useTierEntitlements";
 import { Deck, UserProfile } from "../types";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { upgradeSourceForFeature } from "../services/upgradeAttribution";
-import { DashboardLayout } from "../components/layout/DashboardLayout";
+import { WorkspaceShell } from "../components/layout/WorkspaceShell";
 import { DashboardCard } from "../components/ui/DashboardCard";
 import {
   ManageDeckAccessSection,
@@ -216,25 +216,25 @@ function ManageDeck() {
   };
 
   return (
-    <DashboardLayout title={editId ? "Refine Deck" : "Add New Asset"}>
+    <WorkspaceShell title={editId ? "Refine Deck" : "Add New Asset"}>
       <UploadTour />
       <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto w-full space-y-6">
         {/* Back + Title */}
-        <div className="flex items-center gap-4 relative z-10 border-b border-white/5 pb-6">
+        <div className="relative z-10 flex items-center gap-4 border-b border-ui-border pb-6">
           <button
             onClick={() =>
               navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content")
             }
-            className="flex-shrink-0 w-10 h-10 rounded-md bg-surface-lowest border border-white/10 flex items-center justify-center text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 transition-all shadow-sm"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] border border-ui-border bg-ui-surface text-ui-muted shadow-sm transition-all hover:border-ui-primary/30 hover:bg-ui-subtle hover:text-ui-primary"
             title={returnToRoom ? "Return to Room" : "Return to Assets"}
           >
             <ArrowLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg md:text-xl font-semibold text-white tracking-tight truncate">
-              {editId ? "Refine Deck" : "Add New Asset"}
+            <h1 className="truncate text-lg font-semibold tracking-tight text-ui-text md:text-xl">
+              {editId ? "Refine deck" : "Add new asset"}
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5 truncate">
+            <p className="mt-0.5 truncate text-xs text-ui-muted">
               {editId
                 ? "Update your pitch deck details and slides."
                 : "Upload a document to your data room."}
@@ -242,7 +242,7 @@ function ManageDeck() {
           </div>
         </div>
 
-        <DashboardCard className="p-6 md:p-8 border-border relative overflow-hidden">
+        <DashboardCard className="relative overflow-hidden rounded-[24px] border-ui-border bg-ui-surface p-6 md:p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-8">
             <ManageDeckUploadSection
               editId={editId}
@@ -350,7 +350,7 @@ function ManageDeck() {
         featureName={upsellFeature}
         upgradeSource={upgradeSourceForFeature(upsellFeature)}
       />
-    </DashboardLayout>
+    </WorkspaceShell>
   );
 }
 

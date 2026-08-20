@@ -4,8 +4,10 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { DataRoomFolderWithTags, DataRoomTag } from "../../types";
 import { FOLDER_COLORS } from "../../constants/folderColors";
-import { cn } from "../../utils/cn";
+import { cn } from "../../lib/utils";
 import { TagChip } from "../saved-decks/TagChip";
+import { useTheme } from "../../contexts/ThemeContext";
+import { asItemColorVariables, getAccessibleColorSet } from "../../utils/accessibleColor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +52,8 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
   const pendingTagIdsRef = useRef<string[] | null>(null);
   const lastCommittedTagIdsRef = useRef<string[]>([]);
   const folderColor = getColorHex(folder?.color ?? "#64748B");
+  const { theme } = useTheme();
+  const folderColorVariables = asItemColorVariables(getAccessibleColorSet(folderColor, theme));
 
   useEffect(() => {
     const nextTagIds = folder?.tags.map((tag) => tag.id) ?? [];
@@ -164,11 +168,7 @@ export const DataRoomFolderCard = memo(function DataRoomFolderCard({
           compact ? "pointer-events-none relative z-[1] mb-4 transition-colors" : "pointer-events-none relative z-[1] mb-6 transition-colors"
         }
       >
-        <Folder
-          className={compact ? "w-5 h-5" : "w-6 h-6"}
-          style={{ color: folderColor }}
-          fill={folderColor}
-        />
+        <Folder className={cn(compact ? "h-5 w-5" : "h-6 w-6", "text-[var(--item-color-border)] fill-[var(--item-color)]")} style={folderColorVariables} />
       </div>
 
       <div className="absolute top-3 right-3 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">

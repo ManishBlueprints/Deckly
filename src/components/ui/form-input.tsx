@@ -21,14 +21,14 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
         {label && (
           <Label 
             htmlFor={inputId}
-            className="text-sm font-medium text-slate-400 px-1"
+            className="px-1 text-sm font-medium text-ui-muted"
           >
             {label}
           </Label>
         )}
         <div className="relative">
           {Icon && (
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+            <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ui-muted">
               <Icon size={18} />
             </div>
           )}
@@ -40,8 +40,8 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
             className={cn(
               Icon && "pl-12",
               rightElement && "pr-12",
-              error && "border-destructive focus-visible:ring-destructive",
-              "h-12 bg-surface-low border-border rounded-none focus-visible:bg-surface-high transition-all"
+              error && "border-ui-destructive focus-visible:ring-ui-destructive",
+              "h-12 rounded-md border-ui-border bg-ui-surface text-ui-text transition-colors placeholder:text-ui-muted focus-visible:bg-ui-surface"
             )}
             {...props}
           />
@@ -52,7 +52,7 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
           )}
         </div>
         {error && (
-          <span id={errorId} className="text-xs text-destructive px-1 font-medium animate-in fade-in slide-in-from-top-1">
+          <span id={errorId} className="animate-in fade-in slide-in-from-top-1 px-1 text-xs font-medium text-ui-destructive">
             {error}
           </span>
         )}

@@ -1,3 +1,5 @@
+import { ITEM_COLOR_PALETTE } from "./itemColors";
+
 export interface FolderColorOption {
   key: string;
   label: string;
@@ -5,15 +7,9 @@ export interface FolderColorOption {
 }
 
 export const FOLDER_COLORS: readonly FolderColorOption[] = [
-  { key: "slate", label: "Slate", hex: "#64748B" },
-  { key: "emerald", label: "Emerald", hex: "#10B981" },
-  { key: "blue", label: "Blue", hex: "#3B82F6" },
+  ...ITEM_COLOR_PALETTE,
+  // Retained for existing records created before the shared picker shipped.
   { key: "indigo", label: "Indigo", hex: "#6366F1" },
-  { key: "violet", label: "Violet", hex: "#8B5CF6" },
-  { key: "cyan", label: "Cyan", hex: "#06B6D4" },
-  { key: "amber", label: "Amber", hex: "#F59E0B" },
-  { key: "rose", label: "Rose", hex: "#F43F5E" },
-  { key: "orange", label: "Orange", hex: "#F97316" },
   { key: "lime", label: "Lime", hex: "#84CC16" },
 ] as const;
 
@@ -31,14 +27,8 @@ export const isFolderColorKey = (value: string): value is FolderColorKey =>
 export const getFolderColorHex = (value: string): string =>
   FOLDER_COLORS.find((color) => color.key === value)?.hex ?? value;
 
-export const FOLDER_PICKER_COLORS: readonly FolderColorOption[] = [
-  { key: "slate", label: "Gray", hex: "#666666" },
-  { key: "emerald", label: "Green", hex: "#54e98a" },
-  { key: "blue", label: "Blue", hex: "#3B82F6" },
-  { key: "violet", label: "Purple", hex: "#A855F7" },
-  { key: "orange", label: "Orange", hex: "#F97316" },
-  { key: "rose", label: "Red", hex: "#EF4444" },
-] as const;
+export const FOLDER_PICKER_COLORS: readonly FolderColorOption[] =
+  ITEM_COLOR_PALETTE;
 
 export const resolveFolderColorKey = (
   value: string | null | undefined,

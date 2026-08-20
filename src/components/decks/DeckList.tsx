@@ -810,7 +810,7 @@ function DeckList({
       {!loading && decks && decks.length > 0 && (
         <Link
           to="/upload"
-          className="fixed bottom-10 right-10 w-16 h-16 bg-deckly-primary rounded-full flex items-center justify-center text-white shadow-2xl shadow-deckly-primary/40 hover:scale-110 active:scale-95 transition-all z-[100] group"
+          className="fixed bottom-10 right-10 w-16 h-16 bg-deckly-primary rounded-full flex items-center justify-center text-white shadow-2xl shadow-deckly-primary/40 hover:scale-110 active:scale-95 transition-all z-[var(--ui-layer-shell)] group"
         >
           <Plus
             size={32}
@@ -886,7 +886,7 @@ function DeckList({
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-32 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl z-[200] flex items-center gap-3 border border-red-400/20"
+            className="fixed bottom-32 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl z-[var(--ui-layer-toast)] flex items-center gap-3 border border-red-400/20"
           >
             <span className="text-xs font-bold uppercase tracking-widest">
               {error}

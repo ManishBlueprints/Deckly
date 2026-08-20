@@ -1,6 +1,96 @@
+@import "@fontsource-variable/onest";
+@import "@fontsource-variable/geist-mono";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --ui-canvas: 247 250 248;
+    --ui-surface: 255 255 255;
+    --ui-surface-subtle: 239 246 242;
+    --ui-surface-elevated: 255 255 255;
+    --ui-text: 7 30 23;
+    --ui-text-muted: 94 116 107;
+    --ui-border: 216 228 222;
+    --ui-primary: 13 117 71;
+    --ui-primary-text: 255 255 255;
+    --ui-mint: 42 212 133;
+    --ui-info: 47 111 228;
+    --ui-destructive: 180 35 24;
+    --ui-warning: 154 103 0;
+    --ui-scrim: 7 30 23;
+    --ui-disabled: 222 231 226;
+    --ui-focus: 47 111 228;
+    --ui-selection: 207 245 226;
+    --ui-chart-1: 16 131 79;
+    --ui-chart-2: 47 111 228;
+    --ui-chart-3: 115 76 219;
+    --ui-chart-4: 219 120 36;
+    --ui-chart-5: 12 140 161;
+    --ui-chart-6: 189 55 128;
+    --ui-chart-7: 111 127 119;
+    --ui-chart-8: 195 154 26;
+    --ui-radius-compact: 6px;
+    --ui-radius-control: 8px;
+    --ui-radius-surface: 12px;
+    --ui-radius-major: 12px;
+    --ui-shadow-control: 0 1px 2px rgb(7 30 23 / 0.05);
+    --ui-shadow-surface: 0 12px 40px rgb(7 30 23 / 0.06);
+    --ui-shadow-overlay: 0 24px 80px rgb(7 30 23 / 0.2);
+    --ui-layer-sticky: 20;
+    --ui-layer-shell: 30;
+    --ui-layer-popover: 40;
+    --ui-layer-scrim: 50;
+    --ui-layer-dialog: 60;
+    --ui-layer-toast: 70;
+    --ui-layer-tour: 80;
+    --ui-layer-viewer: 90;
+  }
+
+  :root[data-theme="dark"],
+  [data-presentation-theme="dark"] {
+    --ui-text: 241 244 242;
+    --ui-text-muted: 158 168 163;
+    --ui-border: 54 63 59;
+    --ui-primary: 49 205 132;
+    --ui-primary-text: 8 27 18;
+    --ui-info: 125 162 255;
+    --ui-destructive: 255 180 171;
+    --ui-warning: 245 196 81;
+    --ui-scrim: 4 6 5;
+    --ui-disabled: 49 55 52;
+    --ui-focus: 125 162 255;
+    --ui-selection: 28 70 51;
+    --ui-chart-1: 49 205 132;
+    --ui-chart-2: 125 162 255;
+    --ui-chart-3: 178 151 255;
+    --ui-chart-4: 255 177 105;
+    --ui-chart-5: 101 211 225;
+    --ui-chart-6: 255 143 203;
+    --ui-chart-7: 167 187 178;
+    --ui-chart-8: 245 196 81;
+    --ui-shadow-control: 0 1px 2px rgb(0 0 0 / 0.24);
+    --ui-shadow-surface: 0 14px 42px rgb(0 0 0 / 0.2);
+    --ui-shadow-overlay: 0 28px 90px rgb(0 0 0 / 0.48);
+  }
+
+  :root[data-theme="dark"] {
+    --ui-canvas: 17 20 19;
+    --ui-surface: 23 27 25;
+    --ui-surface-subtle: 29 34 32;
+    --ui-surface-elevated: 35 41 38;
+  }
+
+  [data-presentation-theme="dark"] {
+    color-scheme: dark;
+    --ui-canvas: 13 15 14;
+    --ui-surface: 20 23 22;
+    --ui-surface-subtle: 27 31 29;
+    --ui-surface-elevated: 34 39 36;
+  }
+}
 
 @layer base {
   :root {
@@ -84,15 +174,109 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: "Manrope", sans-serif;
+    font-family: "Onest Variable", "Onest", sans-serif;
     letter-spacing: -0.02em;
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
   }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--ui-focus));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: rgb(var(--ui-selection));
+    color: rgb(var(--ui-text));
+  }
 }
 
+@keyframes ui-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ui-page-transition {
+  animation: ui-page-enter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Temporary migration adapter for legacy visual descendants rendered inside
+   WorkspaceShell. Delete after the final route has moved to ui-* utilities. */
+.ui-shell {
+  --background: 140 23% 97%;
+  --foreground: 161 62% 7%;
+  --card: 0 0% 100%;
+  --card-foreground: 161 62% 7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 161 62% 7%;
+  --surface-lowest: 140 23% 97%;
+  --surface-low: 140 28% 95%;
+  --surface-card: 0 0% 100%;
+  --surface-container: 140 28% 95%;
+  --surface-high: 140 20% 92%;
+  --surface-highest: 0 0% 100%;
+  --border: 150 18% 87%;
+  --primary: 155 78% 29%;
+  --primary-foreground: 0 0% 100%;
+  --muted-foreground: 155 10% 41%;
+}
+
+:root[data-theme="dark"] .ui-shell {
+  --background: 150 8% 8%;
+  --foreground: 140 10% 94%;
+  --card: 150 7% 11%;
+  --card-foreground: 140 10% 94%;
+  --popover: 150 7% 15%;
+  --popover-foreground: 140 10% 94%;
+  --surface-lowest: 150 8% 8%;
+  --surface-low: 150 7% 11%;
+  --surface-card: 150 7% 11%;
+  --surface-container: 150 8% 13%;
+  --surface-high: 150 7% 16%;
+  --surface-highest: 150 7% 16%;
+  --border: 150 8% 24%;
+  --primary: 151 60% 50%;
+  --primary-foreground: 150 55% 7%;
+  --muted-foreground: 150 6% 65%;
+}
+
+.ui-shell .text-white,
+.ui-shell .text-slate-100,
+.ui-shell .text-slate-200,
+.ui-shell .text-slate-300 { color: rgb(var(--ui-text)); }
+.ui-shell .text-slate-400,
+.ui-shell .text-slate-500,
+.ui-shell .text-slate-600 { color: rgb(var(--ui-text-muted)); }
+
 @layer utilities {
+  /* Temporary radius normalization while legacy arbitrary values migrate to
+     the compact/control/surface token scale. */
+  .rounded-\[24px\] { border-radius: var(--ui-radius-surface); }
+  .rounded-\[18px\] { border-radius: 10px; }
+  .rounded-\[14px\],
+  .rounded-\[12px\] { border-radius: var(--ui-radius-control); }
+  .rounded-\[10px\] { border-radius: var(--ui-radius-compact); }
+
   .bg-grid-kinetic {
     background-size: 40px 40px;
     background-image:

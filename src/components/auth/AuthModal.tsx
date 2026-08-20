@@ -1,9 +1,9 @@
-import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import { X, Github } from "lucide-react";
+import { Github } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../services/supabase";
 import logo from "../../assets/Deckly.png";
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -35,43 +35,20 @@ export function AuthModal({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-      <div key="auth-modal" className="fixed inset-0 z-[400] flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        />
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-md bg-[#121212] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl p-8 text-center"
-        >
-          <button
-            onClick={onClose}
-            className="absolute top-6 right-6 p-2 text-slate-500 hover:text-white hover:bg-white/5 rounded-full transition-all"
-          >
-            <X size={20} />
-          </button>
-
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="sm">
+        <DialogHeader className="items-center text-center">
           <div className="w-16 h-16 bg-deckly-primary/10 rounded-2xl flex items-center justify-center text-deckly-primary border border-deckly-primary/20 mx-auto mb-6">
             <img src={logo} alt="Deckly" className="w-10 h-10 object-contain" />
           </div>
-
-          <h2 className="text-2xl font-bold text-white tracking-tight mb-3">
-            Join Deckly
-          </h2>
-          <p className="text-slate-400 font-medium mb-8">{message}</p>
-
+          <DialogTitle className="text-2xl">Join Deckly</DialogTitle>
+          <DialogDescription>{message}</DialogDescription>
+        </DialogHeader>
+        <DialogBody className="text-center">
           <div className="space-y-4">
             <button
               onClick={() => handleOAuthSignIn("google", "Google")}
-              className="w-full flex items-center justify-center gap-3 py-4 bg-white/5 border border-white/10 rounded-2xl text-slate-300 font-bold text-sm hover:bg-white/10 transition-all active:scale-[0.98]"
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-md border border-ui-border bg-ui-surface text-sm font-semibold text-ui-text hover:bg-ui-subtle"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
@@ -96,24 +73,23 @@ export function AuthModal({
 
             <button
               onClick={() => handleOAuthSignIn("github", "GitHub")}
-              className="w-full flex items-center justify-center gap-3 py-4 bg-white/5 border border-white/10 rounded-2xl text-slate-300 font-bold text-sm hover:bg-white/10 transition-all active:scale-[0.98]"
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-md border border-ui-border bg-ui-surface text-sm font-semibold text-ui-text hover:bg-ui-subtle"
             >
               <Github size={20} />
               <span>Continue with GitHub</span>
             </button>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-white/5 text-center">
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+          <div className="mt-8 border-t border-ui-border pt-6 text-center">
+            <p className="text-xs text-ui-muted">
               By joining, you agree to our{" "}
-              <Link to="/privacy" className="text-[#54e98a] hover:underline">Privacy Policy</Link>
+              <Link to="/privacy" className="text-ui-primary hover:underline">Privacy Policy</Link>
               {" "}and{" "}
-              <Link to="/terms" className="text-[#54e98a] hover:underline">Terms of Service</Link>
+              <Link to="/terms" className="text-ui-primary hover:underline">Terms of Service</Link>
             </p>
           </div>
-        </motion.div>
-      </div>
-      )}
-    </AnimatePresence>
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
   );
 }

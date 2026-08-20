@@ -8,6 +8,9 @@ export default Object.assign([], tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      '**/storybook-static/**',
+      '**/playwright-report/**',
+      '**/test-results/**',
       'docs/.vitepress/cache',
       'docs/.vitepress/.temp/**',
       'docs/.vitepress/dist/**',

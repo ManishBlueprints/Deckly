@@ -1,13 +1,9 @@
 import { memo, useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { GripVertical } from "lucide-react";
 import { SavedDeckOrganized, LibraryFolder, LibraryTag } from "../../types";
-import { TagChip } from "./TagChip";
 import { LibraryActionMenu } from "./LibraryActionMenu";
 import { SavedItemNoteCard } from "./SavedItemNoteCard";
+import { SavedLibraryItemRow } from "./SavedLibraryItemRow";
 import { toast } from "sonner";
-import { cn } from "../../utils/cn";
 
 function formatSavedDate(date: Date): string {
   return date
@@ -31,8 +27,6 @@ interface DocumentRowProps {
   onUnsave: () => void;
   isUnsaving?: boolean;
 }
-let viewerPreloaded = false;
-
 export const DocumentRow = memo(function DocumentRow({
   deck,
   folders,
@@ -47,6 +41,7 @@ export const DocumentRow = memo(function DocumentRow({
 }: DocumentRowProps) {
   const savedDate = new Date(deck.saved_at);
   const savedDateStr = formatSavedDate(savedDate);
+  const currentFolder = folders.find((folder) => folder.id === deck.folder_id);
 
   const [note, setNote] = useState(deck.investor_note || "");
   const [isEditingNote, setIsEditingNote] = useState(false);
@@ -121,69 +116,18 @@ export const DocumentRow = memo(function DocumentRow({
     setIsEditingNote(false);
   };
 
-  const handleMouseEnter = () => {
-    // Preload Viewer chunk on hover only once
-    if (!viewerPreloaded) {
-      viewerPreloaded = true;
-      import("../../pages/Viewer").catch(() => {});
-    }
-  };
-
   return (
-    <motion.div
-      onMouseEnter={handleMouseEnter}
-      className={cn(
-        "bg-surface-card border border-white/5 p-6 flex flex-col md:flex-row items-center gap-6 group hover:border-[#54e98a]/20 transition-all",
-        isUnsaving && "opacity-50 pointer-events-none",
-      )}
-    >
-      <div className="flex items-center gap-4 w-full flex-1">
-        {/* Drag Handle */}
-        <div className="text-[#bbcbbb]/10 group-hover:text-[#bbcbbb]/30 transition-colors pointer-events-none hidden md:block">
-          <GripVertical size={20} />
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <Link
-              to={`/${deck.user_handle}/${deck.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-lg font-headline font-bold text-[#e5e2e1] hover:text-[#54e98a] transition-colors truncate"
-            >
-              {deck.title}
-            </Link>
-            <span className="text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-1 border border-white/10 text-[#bbcbbb]/40">
-              Saved Deck
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
-              {deck.user_handle}
-            </span>
-            <span className="w-1 h-1 bg-[#bbcbbb]/10 rounded-full" />
-            <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
-              Interactive Deck
-            </span>
-          </div>
-          {matchedTagNames.length > 0 && (
-            <p className="mt-2 text-[11px] text-[#54e98a] leading-relaxed">
-              Matched by tag{matchedTagNames.length > 1 ? "s" : ""}:{" "}
-              {matchedTagNames.slice(0, 3).join(", ")}
-              {matchedTagNames.length > 3 ? ` +${matchedTagNames.length - 3} more` : ""}
-            </p>
-          )}
-        </div>
-
-        {/* Tags */}
-        <div className="hidden lg:flex flex-wrap gap-2 max-w-[200px]">
-          {deck.tags.map((tag) => (
-            <TagChip key={tag.id} tag={tag} />
-          ))}
-        </div>
-
-        <SavedItemNoteCard
+    <SavedLibraryItemRow
+      title={deck.title}
+      href={`/${deck.user_handle}/${deck.slug}`}
+      creator={deck.user_handle || "Unknown creator"}
+      type="Deck"
+      folder={currentFolder}
+      tags={deck.tags}
+      savedDateLabel={savedDateStr}
+      matchedTagNames={matchedTagNames}
+      className={isUnsaving ? "pointer-events-none opacity-50" : undefined}
+      note={<SavedItemNoteCard
           note={note}
           isEditing={isEditingNote}
           isSaving={isSavingNote}
@@ -194,11 +138,9 @@ export const DocumentRow = memo(function DocumentRow({
           onSave={handleNoteSave}
           onDiscard={handleNoteDiscard}
           onKeyDown={handleNoteKeyDown}
-        />
-
-        {/* Actions */}
-        <div className="flex items-center gap-3 shrink-0 ml-auto">
-          <LibraryActionMenu
+          compact
+        />}
+      actions={<LibraryActionMenu
             item={{
               title: deck.title,
               folder_id: deck.folder_id,
@@ -216,8 +158,7 @@ export const DocumentRow = memo(function DocumentRow({
             onUpdateTags={onUpdateTags}
             onUnsave={onUnsave}
           />
-        </div>
-      </div>
-    </motion.div>
+      }
+    />
   );
 });

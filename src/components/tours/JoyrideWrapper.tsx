@@ -1,5 +1,6 @@
 import React from "react";
 import { Joyride, EventData, Step, Styles } from "react-joyride";
+import { useTheme } from "../../contexts/ThemeContext";
 
 interface JoyrideWrapperProps {
   steps: Step[];
@@ -22,6 +23,29 @@ export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
   locale,
   debug,
 }) => {
+  const { theme } = useTheme();
+
+  const semanticStyles = (() => {
+    const root = getComputedStyle(document.documentElement);
+    const color = (token: string, alpha?: number) => {
+      const channels = root.getPropertyValue(token).trim();
+      return alpha === undefined ? `rgb(${channels})` : `rgb(${channels} / ${alpha})`;
+    };
+
+    return {
+      elevated: color("--ui-surface-elevated"),
+      text: color("--ui-text"),
+      muted: color("--ui-text-muted"),
+      border: color("--ui-border"),
+      primary: color("--ui-primary"),
+      primaryText: color("--ui-primary-text"),
+      scrim: color("--ui-scrim", 0.72),
+      shadow: root.getPropertyValue("--ui-shadow-overlay").trim(),
+      zIndex: Number(root.getPropertyValue("--ui-layer-tour")) || 80,
+    };
+  })();
+  void theme;
+
   // Memoize steps to inject skipBeacon natively if not present
   const processedSteps: Step[] = React.useMemo(
     () =>
@@ -56,38 +80,38 @@ export const JoyrideWrapper: React.FC<JoyrideWrapperProps> = ({
       styles={
         {
           options: {
-            arrowColor: "#2a2a2a",
-            backgroundColor: "#2a2a2a",
-            overlayColor: "rgba(0, 0, 0, 0.75)",
-            primaryColor: "#54e98a",
-            textColor: "#e5e2e1",
-            zIndex: 10000,
+            arrowColor: semanticStyles.elevated,
+            backgroundColor: semanticStyles.elevated,
+            overlayColor: semanticStyles.scrim,
+            primaryColor: semanticStyles.primary,
+            textColor: semanticStyles.text,
+            zIndex: semanticStyles.zIndex,
           },
           tooltip: {
             borderRadius: "12px",
             padding: "24px",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            backgroundColor: "#1a1a1a",
-            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5)",
+            border: `1px solid ${semanticStyles.border}`,
+            backgroundColor: semanticStyles.elevated,
+            boxShadow: semanticStyles.shadow,
           },
           buttonPrimary: {
             borderRadius: "8px",
             fontWeight: 700,
-            backgroundColor: "#54e98a",
-            color: "#000000",
+            backgroundColor: semanticStyles.primary,
+            color: semanticStyles.primaryText,
             fontSize: "12px",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             padding: "10px 20px",
           },
           buttonBack: {
-            color: "#bbcbbb",
+            color: semanticStyles.muted,
             fontSize: "12px",
             fontWeight: 600,
             marginRight: "12px",
           },
           buttonSkip: {
-            color: "#bbcbbb",
+            color: semanticStyles.muted,
             fontSize: "12px",
             fontWeight: 600,
           },

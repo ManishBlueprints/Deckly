@@ -1,11 +1,11 @@
-import { DashboardLayout } from "../components/layout/DashboardLayout";
+import { WorkspaceShell } from "../components/layout/WorkspaceShell";
 import { SavedLibraryView } from "../components/saved-decks/SavedDecksView";
 
 function SavedLibrary() {
   return (
-    <DashboardLayout title="Saved Library">
+    <WorkspaceShell title="Saved Library" primaryAction={{ label: "New room", href: "/rooms/new" }}>
       <SavedLibraryView />
-    </DashboardLayout>
+    </WorkspaceShell>
   );
 }
 

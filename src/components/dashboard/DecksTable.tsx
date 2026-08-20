@@ -40,11 +40,11 @@ import {
 } from "../ui/alert-dialog";
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { TagAssignmentMenuContent } from "../shared/TagAssignmentMenuContent";
 import { Button } from "../ui/button";
-import { cn } from "../../utils/cn";
+import { cn } from "../../lib/utils";
 import { normalizeSlug } from "../../utils/slug";
 import { deckLinkService } from "../../services/deckLinkService";
 import {
@@ -71,6 +71,18 @@ interface DecksTableProps {
   onUpdateTags?: (deckId: string, tagIds: string[]) => Promise<void> | void;
   emptyMessage?: string;
 }
+
+const CONTENT_ACTION_CLASS =
+  "inline-flex size-9 shrink-0 items-center justify-center rounded-[4px] border border-ui-border bg-ui-surface text-ui-muted transition-colors hover:border-ui-primary/30 hover:bg-ui-subtle hover:text-ui-text active:scale-95";
+
+const CONTENT_TAG_ACTION_CLASS =
+  "border-ui-chart-3/25 bg-ui-chart-3/10 text-ui-chart-3 hover:border-ui-chart-3/40 hover:bg-ui-chart-3/15 hover:text-ui-chart-3";
+const CONTENT_ANALYTICS_ACTION_CLASS =
+  "border-ui-info/25 bg-ui-info/10 text-ui-info hover:border-ui-info/40 hover:bg-ui-info/15 hover:text-ui-info";
+const CONTENT_EDIT_ACTION_CLASS =
+  "border-ui-warning/25 bg-ui-warning/10 text-ui-warning hover:border-ui-warning/40 hover:bg-ui-warning/15 hover:text-ui-warning";
+const CONTENT_DELETE_ACTION_CLASS =
+  "border-ui-destructive/25 bg-ui-destructive/10 text-ui-destructive hover:border-ui-destructive/40 hover:bg-ui-destructive/15 hover:text-ui-destructive";
 
 function getLinkLabel(link: DeckLink, primaryLinkId?: string): string {
   if (link.is_primary || primaryLinkId === link.id) {
@@ -227,22 +239,14 @@ function DeckLinksPanel({
   return (
     <>
       <div
-        className="border border-white/10 bg-[#101010] text-white shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)]"
+        className="overflow-hidden rounded-lg border border-ui-border bg-ui-surface text-ui-text shadow-[var(--ui-shadow-control)]"
         data-testid={`deck-link-panel-${deck.id}`}
       >
-        <div className="border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-deckly-primary/70">
-                Link Control
-              </p>
-              <h3 className="mt-1.5 text-base font-bold text-white">
-                {deck.title}
-              </h3>
-              <p className="mt-1 text-[11px] text-slate-400">
-                Open, copy, disable, or remove each deck link from one place.
-              </p>
-            </div>
+        <div className="border-b border-ui-border bg-ui-subtle px-4 py-2.5 sm:px-5">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold text-ui-text">
+              Link Control
+            </p>
 
             <Button
               type="button"
@@ -253,7 +257,7 @@ function DeckLinksPanel({
                 setCreateDialogOpen(true);
               }}
               disabled={createMutation.isPending || !userCanManageLinks}
-              className="h-10 rounded-none bg-deckly-primary px-4 text-slate-950 hover:bg-deckly-primary/90"
+              className="h-8 shrink-0 rounded-md bg-ui-primary px-3 text-ui-primary-text hover:bg-ui-primary/90"
               data-testid={`create-deck-link-${deck.id}`}
               title={
                 userCanManageLinks
@@ -277,15 +281,15 @@ function DeckLinksPanel({
         </div>
 
         {!userCanManageLinks && (
-          <div className="border-b border-red-500/20 bg-red-500/10 px-5 py-3 text-xs text-red-200">
+          <div className="border-b border-ui-destructive/20 bg-ui-destructive/10 px-5 py-3 text-xs text-ui-destructive">
             Set your workspace slug in profile settings before creating or
             copying deck links.
           </div>
         )}
 
-        <div className="max-h-[360px] overflow-y-auto p-2.5 custom-scrollbar">
+        <div className="max-h-[420px] overflow-y-auto p-2.5 custom-scrollbar sm:p-3">
           {error ? (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-4 text-sm text-red-200">
+            <div className="rounded-lg border border-ui-destructive/20 bg-ui-destructive/10 px-4 py-4 text-sm text-ui-destructive">
               {error instanceof Error
                 ? error.message
                 : "Failed to load deck links."}
@@ -295,19 +299,19 @@ function DeckLinksPanel({
               {Array.from({ length: 2 }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-24 animate-pulse rounded-xl border border-white/5 bg-white/[0.03]"
+                  className="h-20 animate-pulse rounded-lg border border-ui-border bg-ui-subtle"
                 />
               ))}
             </div>
           ) : links.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-white/5 bg-white/[0.03] px-5 py-8 text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary">
+            <div className="flex flex-col items-center justify-center rounded-lg border border-ui-border bg-ui-subtle px-5 py-8 text-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-ui-primary/20 bg-ui-primary/10 text-ui-primary">
                 <Link2 size={18} />
               </div>
-              <h4 className="mt-3 text-base font-bold text-white">
+              <h4 className="mt-3 text-base font-semibold text-ui-text">
                 No links yet
               </h4>
-              <p className="mt-1.5 max-w-sm text-xs text-slate-400">
+              <p className="mt-1.5 max-w-sm text-xs text-ui-muted">
                 Create a private link first, then enable it when you are ready
                 to share.
               </p>
@@ -329,56 +333,57 @@ function DeckLinksPanel({
                 return (
                   <div
                     key={link.id}
-                    className="rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2"
+                    className="rounded-md border border-ui-border bg-ui-elevated p-3"
                   >
-                    <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
-                      <div className="min-w-0 flex items-center gap-2 lg:w-[320px] lg:flex-none">
-                        <span className="truncate text-sm font-semibold text-white">
+                    <div className="grid gap-3 xl:grid-cols-[minmax(180px,0.7fr)_minmax(280px,1.35fr)_auto] xl:items-center">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-ui-text">
                           {link.link_name ||
                             getLinkLabel(link, primaryLink?.id)}
                         </span>
                         {isPrimary && (
-                          <span className="shrink-0 rounded-full border border-deckly-primary/20 bg-deckly-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-deckly-primary">
+                          <span className="shrink-0 rounded-md border border-ui-primary/30 bg-ui-primary/10 px-2 py-0.5 text-[10px] font-semibold text-ui-text">
                             Primary
                           </span>
                         )}
                         <span
                           className={cn(
-                            "shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]",
+                            "shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold",
                             link.is_enabled
-                              ? "border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary"
-                              : "border-white/10 bg-white/[0.03] text-slate-500",
+                              ? "border-ui-primary/30 bg-ui-primary/10 text-ui-text"
+                              : "border-ui-border bg-ui-subtle text-ui-muted",
                           )}
                         >
                           {link.is_enabled ? "Active" : "Private"}
                         </span>
                       </div>
 
-                      <div className="min-w-0 flex flex-1 items-center border border-white/10 bg-black/20">
-                        <span className="shrink-0 border-r border-white/10 px-3 py-2 text-[11px] text-slate-500">
+                      <div className="flex min-w-0 items-center overflow-hidden rounded-md border border-ui-border bg-ui-surface">
+                        <span className="hidden shrink-0 border-r border-ui-border px-3 py-2 font-mono text-[11px] text-ui-muted sm:block">
                           {origin}
                         </span>
-                        <span className="min-w-0 flex-1 truncate px-3 py-2 text-[11px] text-white">
+                        <span className="min-w-0 flex-1 truncate px-3 py-2 font-mono text-[11px] text-ui-text">
+                          <span className="sm:hidden">{origin}</span>
                           {pathWithQuery}
                         </span>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-2 lg:justify-end lg:flex-nowrap">
-                        <span className="order-2 text-[10px] text-slate-500 lg:order-1">
+                      <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-end">
+                        <span className="text-[10px] text-ui-muted xl:whitespace-nowrap">
                           Created {formatLinkCreatedAt(link.created_at)}
                         </span>
 
-                        <div className="order-1 flex flex-wrap items-center gap-2 lg:order-2 lg:flex-nowrap">
+                        <div className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[auto_auto_auto_auto] sm:justify-start xl:justify-end">
                           <Button
                             type="button"
                             onClick={() => void handleCopyLink(link)}
                             disabled={!link.is_enabled || !userCanManageLinks}
                             className={cn(
-                              "h-9 rounded-none border border-deckly-primary/20 bg-deckly-primary/10 px-3 text-deckly-primary hover:bg-deckly-primary/15",
+                              "h-9 rounded-md border border-ui-primary bg-ui-primary px-3 text-ui-primary-text hover:bg-ui-primary/90",
                               isCopied &&
-                                "border-deckly-primary/30 bg-deckly-primary/20",
+                                "border-ui-primary bg-ui-primary/90",
                               (!link.is_enabled || !userCanManageLinks) &&
-                                "cursor-not-allowed border-white/10 bg-white/[0.04] text-slate-500 hover:bg-white/[0.04]",
+                                "cursor-not-allowed border-ui-border bg-ui-subtle text-ui-muted hover:bg-ui-subtle",
                             )}
                             data-testid={`copy-deck-link-${link.id}`}
                           >
@@ -390,7 +395,7 @@ function DeckLinksPanel({
                             href={link.share_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex h-9 w-9 items-center justify-center rounded-none border border-white/10 bg-white/[0.04] text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+                            className="flex h-9 w-9 items-center justify-center rounded-md border border-ui-border bg-ui-surface text-ui-muted transition-colors hover:bg-ui-subtle hover:text-ui-text"
                             aria-label={`Open link for ${deck.title}`}
                           >
                             <ExternalLink size={14} />
@@ -405,10 +410,10 @@ function DeckLinksPanel({
                             }
                             disabled={isPending || !userCanManageLinks}
                             className={cn(
-                              "h-9 rounded-none border px-3 text-white",
+                              "h-9 rounded-md border px-3",
                               link.is_enabled
-                                ? "border-red-500/40 bg-red-500 text-white hover:bg-red-500/90"
-                                : "border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]",
+                                ? "border-ui-destructive/30 bg-ui-destructive text-ui-surface hover:opacity-90"
+                                : "border-ui-border bg-ui-surface text-ui-text hover:bg-ui-subtle",
                               (isPending || !userCanManageLinks) &&
                                 "cursor-not-allowed opacity-60",
                             )}
@@ -431,7 +436,7 @@ function DeckLinksPanel({
                             onClick={() => setDeleteTarget(link)}
                             disabled={isPending || !userCanManageLinks}
                             className={cn(
-                              "h-9 rounded-none border border-white/10 bg-white/[0.04] px-3 text-slate-300 hover:bg-white/[0.08] hover:text-white",
+                              "h-9 rounded-md border border-ui-border bg-ui-surface px-3 text-ui-muted hover:bg-ui-subtle hover:text-ui-text",
                               (isPending || !userCanManageLinks) &&
                                 "cursor-not-allowed opacity-60",
                             )}
@@ -471,7 +476,7 @@ function DeckLinksPanel({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 text-white hover:bg-red-700"
+              className="bg-ui-destructive text-ui-surface hover:opacity-90"
               onClick={(event) => {
                 event.preventDefault();
                 if (disableTarget) {
@@ -506,7 +511,7 @@ function DeckLinksPanel({
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
+              <label className="text-sm font-medium text-ui-text">
                 Link Name
               </label>
               <input
@@ -515,16 +520,16 @@ function DeckLinksPanel({
                   setDraftLinkName(event.currentTarget.value)
                 }
                 placeholder="Investor Follow-up"
-                className="w-full border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none transition focus:border-deckly-primary/30"
+                className="w-full rounded-md border border-ui-border bg-ui-surface px-3 py-2.5 text-sm text-ui-text outline-none transition focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/15"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200">
+              <label className="text-sm font-medium text-ui-text">
                 Custom Link
               </label>
-              <div className="flex min-w-0 items-center border border-white/10 bg-black/20">
-                <span className="shrink-0 border-r border-white/10 px-3 py-3 text-xs text-slate-500">
+              <div className="flex min-w-0 items-center overflow-hidden rounded-md border border-ui-border bg-ui-surface focus-within:border-ui-primary focus-within:ring-2 focus-within:ring-ui-primary/15">
+                <span className="shrink-0 border-r border-ui-border px-3 py-2.5 text-xs text-ui-muted">
                   {workspaceSlug ? `/${workspaceSlug}/` : "/your-workspace/"}
                 </span>
                 <input
@@ -533,19 +538,19 @@ function DeckLinksPanel({
                     setDraftLinkAlias(event.currentTarget.value)
                   }
                   placeholder="custom-room-link"
-                  className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm text-white outline-none"
+                  className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-ui-text outline-none"
                 />
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-ui-muted">
                 Saved as{" "}
-                <span className="font-mono text-slate-300">
+                <span className="font-mono text-ui-text">
                   {normalizeSlug(draftLinkAlias) || "custom-room-link"}
                 </span>
               </p>
             </div>
 
             {createFormError && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+              <div className="rounded-lg border border-ui-destructive/20 bg-ui-destructive/10 px-3 py-2 text-sm text-ui-destructive">
                 {createFormError}
               </div>
             )}
@@ -554,7 +559,7 @@ function DeckLinksPanel({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-deckly-primary text-slate-950 hover:bg-deckly-primary/90"
+              className="bg-ui-primary text-ui-primary-text hover:bg-ui-primary/90"
               onClick={(event) => {
                 event.preventDefault();
                 void handleCreateLink();
@@ -582,7 +587,7 @@ function DeckLinksPanel({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 text-white hover:bg-red-700"
+              className="bg-ui-destructive text-ui-surface hover:opacity-90"
               onClick={(event) => {
                 event.preventDefault();
                 if (deleteTarget) {
@@ -679,12 +684,6 @@ function DeckTagMenu({
     }
   };
 
-  const filteredTags = availableTags.filter((tag) =>
-    tagFilterQuery.trim()
-      ? tag.name.toLowerCase().includes(tagFilterQuery.trim().toLowerCase())
-      : true,
-  );
-
   const handleTagToggle = async (tagId: string, checked: boolean) => {
     const currentSelectedTagIds = selectedTagIdsRef.current;
     const nextIds = checked
@@ -715,7 +714,7 @@ function DeckTagMenu({
               ? `Manage tags for ${deck.title} (${selectedTagIds.length} selected)`
               : `Manage tags for ${deck.title}`
           }
-          className="w-8 h-8 flex items-center justify-center bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-md transition-all active:scale-95"
+          className={cn(CONTENT_ACTION_CLASS, CONTENT_TAG_ACTION_CLASS)}
           title={
             selectedTagIds.length > 0
               ? `${selectedTagIds.length} tag(s) applied`
@@ -725,88 +724,19 @@ function DeckTagMenu({
           <Tag size={14} />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        sideOffset={8}
-        collisionPadding={16}
-        className="w-[min(20rem,calc(100vw-4rem))] p-0 overflow-hidden border-white/10 bg-[#151515] shadow-[0_24px_80px_-20px_rgba(0,0,0,0.85)] sm:w-80"
-        onEscapeKeyDown={() => setTagFilterQuery("")}
-      >
-        <div className="border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bbcbbb]/40">
-                Apply tags
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                {selectedTagIds.length > 0
-                  ? `${selectedTagIds.length} selected`
-                  : "Pick one or more tags"}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
-            >
-              Clear all
-            </button>
-          </div>
-
-          <div className="mt-3">
-            <input
-              aria-label={`Filter tags for ${deck.title}`}
-              value={tagFilterQuery}
-              onChange={(e) => setTagFilterQuery(e.target.value)}
-              placeholder="Search tags..."
-              className="w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-white placeholder:text-slate-500 outline-none transition focus:border-emerald-500/30 focus:ring-1 focus:ring-emerald-500/20"
-            />
-          </div>
-        </div>
-
-        <div className="max-h-72 overflow-y-auto p-2 custom-scrollbar">
-          {filteredTags.length === 0 ? (
-            <div className="px-3 py-8 text-center">
-              <p className="text-sm font-medium text-slate-400">
-                No tags found
-              </p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-slate-600">
-                Try a different search
-              </p>
-            </div>
-          ) : (
-            filteredTags.map((tag) => {
-              const isSelected = selectedTagIds.includes(tag.id);
-              return (
-                <button
-                  key={tag.id}
-                  type="button"
-                  onClick={() => {
-                    void handleTagToggle(tag.id, !isSelected);
-                  }}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-all",
-                    isSelected
-                      ? "border-emerald-500/25 bg-emerald-500/10"
-                      : "border-transparent hover:border-white/10 hover:bg-white/[0.04]",
-                  )}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <TagChip tag={tag} size="md" className="shrink-0" />
-                      {isSelected && (
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-400">
-                          Applied
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </DropdownMenuContent>
+      <TagAssignmentMenuContent
+        itemLabel={deck.title}
+        tags={availableTags}
+        selectedTagIds={selectedTagIds}
+        query={tagFilterQuery}
+        onQueryChange={setTagFilterQuery}
+        onClear={() => {
+          void handleClearAll();
+        }}
+        onToggle={(tagId, selected) => {
+          void handleTagToggle(tagId, selected);
+        }}
+      />
     </DropdownMenu>
   );
 }
@@ -868,7 +798,7 @@ export function DecksTable({
           <TagChip key={tag.id} tag={tag} className="text-[8px] px-2 py-0.5" />
         ))}
         {deck.tags.length > 2 && (
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+          <span className="text-[10px] font-semibold text-ui-muted">
             +{deck.tags.length - 2} More
           </span>
         )}
@@ -944,14 +874,14 @@ export function DecksTable({
           <p
             className={cn(
               "text-[11px] mt-1",
-              summary.isActive ? "text-deckly-primary" : "text-slate-500",
+              summary.isActive ? "text-ui-primary" : "text-ui-muted",
             )}
           >
             {summary.summary}
           </p>
         )}
         {showHelper && (
-          <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-600">
+          <p className="mt-1 text-[10px] text-ui-muted">
             {summary.helper}
           </p>
         )}
@@ -963,10 +893,10 @@ export function DecksTable({
               onClick={() => void handleCopyPrimaryLink(deck)}
               disabled={!canQuickCopy || isCopying}
               className={cn(
-                "inline-flex items-center gap-2 rounded-none border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] transition-all",
+                "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-[10px] font-semibold transition-colors",
                 canQuickCopy
-                  ? "border-deckly-primary/20 bg-deckly-primary/10 text-deckly-primary hover:bg-deckly-primary/15"
-                  : "cursor-not-allowed border-white/10 bg-white/[0.03] text-slate-500",
+                  ? "border-ui-primary/20 bg-ui-primary/10 text-ui-primary hover:bg-ui-primary/15"
+                  : "cursor-not-allowed border-ui-border bg-ui-subtle text-ui-muted",
               )}
               data-testid={`copy-primary-link-${deck.id}`}
             >
@@ -990,7 +920,8 @@ export function DecksTable({
       <React.Fragment key={deck.id}>
         <TableRow
           className={cn(
-            "group hover:bg-surface-low border-border transition-colors",
+            "group border-ui-border transition-colors hover:bg-ui-subtle",
+            isExpanded && "bg-ui-subtle/70",
             deleteTarget?.id === deck.id && "opacity-50 pointer-events-none",
           )}
         >
@@ -1002,10 +933,10 @@ export function DecksTable({
                   setOpenDeckLinkPanelId(isExpanded ? null : deck.id)
                 }
                 className={cn(
-                  "flex h-11 w-11 items-center justify-center rounded-none border transition-all",
+                  "flex h-10 w-10 items-center justify-center rounded-md border transition-colors",
                   isExpanded
-                    ? "border-deckly-primary/30 bg-deckly-primary/10 text-deckly-primary"
-                    : "border-border bg-surface-lowest text-slate-400 hover:bg-surface-high hover:text-white",
+                    ? "border-ui-primary/30 bg-ui-primary/10 text-ui-primary"
+                    : "border-ui-border bg-ui-surface text-ui-muted hover:bg-ui-subtle hover:text-ui-text",
                 )}
                 aria-expanded={isExpanded}
                 aria-label={`${isExpanded ? "Collapse" : "Expand"} links for ${deck.title}`}
@@ -1022,10 +953,10 @@ export function DecksTable({
                 target="_blank"
                 className="flex items-center gap-3 transition-all group/title"
               >
-                <div className="p-2 bg-surface-lowest rounded-none text-slate-500 group-hover:text-deckly-primary transition-colors border border-border">
+                <div className="rounded-md border border-ui-border bg-ui-subtle p-2 text-ui-muted transition-colors group-hover:text-ui-primary">
                   <FileText size={16} />
                 </div>
-                <span className="font-medium text-slate-300 group-hover/title:text-deckly-primary transition-colors block">
+                <span className="block truncate font-medium text-ui-text transition-colors group-hover/title:text-ui-primary">
                   {deck.title}
                 </span>
               </Link>
@@ -1033,7 +964,7 @@ export function DecksTable({
             {renderLinkSummary(deck, { showCopyButton: false })}
           </TableCell>
           <TableCell className="py-4">{renderAppliedTags(deck)}</TableCell>
-          <TableCell className="py-4 text-slate-500 text-xs">
+          <TableCell className="py-4 text-xs text-ui-muted">
             {new Intl.DateTimeFormat("en-GB", {
               day: "2-digit",
               month: "2-digit",
@@ -1049,13 +980,13 @@ export function DecksTable({
               showCopyButton: true,
             })}
           </TableCell>
-          <TableCell className="py-4 text-center text-sm text-slate-300">
+          <TableCell className="py-4 text-center text-sm text-ui-text">
             {deck.total_views}
           </TableCell>
-          <TableCell className="py-4 text-center text-sm text-slate-300">
+          <TableCell className="py-4 text-center text-sm text-ui-text">
             {deck.save_count}
           </TableCell>
-          <TableCell className="py-4 text-center text-slate-500 text-xs">
+          <TableCell className="whitespace-nowrap py-4 text-center text-xs text-ui-muted">
             {deck.last_viewed_at
               ? new Intl.DateTimeFormat("en-GB", {
                   day: "2-digit",
@@ -1066,13 +997,16 @@ export function DecksTable({
                   .replace(/\//g, "-")
               : "-"}
           </TableCell>
-          <TableCell className="px-6 py-4 text-right">
-            <div className="flex items-center justify-end gap-2">
+          <TableCell className="px-4 py-4 text-right">
+            <div className="flex min-w-[168px] shrink-0 items-center justify-end gap-2">
               {renderTagMenu(deck)}
               <Link
                 to={`/analytics/${deck.id}`}
                 data-tour="analytics-btn"
-                className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-none transition-all"
+                className={cn(
+                  CONTENT_ACTION_CLASS,
+                  CONTENT_ANALYTICS_ACTION_CLASS,
+                )}
                 title="View Detailed Analytics"
               >
                 <BarChart3 size={16} />
@@ -1080,7 +1014,7 @@ export function DecksTable({
               <Link
                 to={`/edit/${deck.id}`}
                 data-tour="edit-btn"
-                className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-none transition-all"
+                className={cn(CONTENT_ACTION_CLASS, CONTENT_EDIT_ACTION_CLASS)}
                 title="Edit Deck"
               >
                 <Pencil size={16} />
@@ -1089,7 +1023,11 @@ export function DecksTable({
                 onClick={() => setDeleteTarget(deck)}
                 data-tour="delete-btn"
                 disabled={deleteTarget?.id === deck.id}
-                className="p-2 bg-surface-lowest border border-border text-slate-400 hover:bg-red-500/10 hover:text-red-400 hover:border-red-900/50 rounded-none transition-all disabled:opacity-50"
+                className={cn(
+                  CONTENT_ACTION_CLASS,
+                  CONTENT_DELETE_ACTION_CLASS,
+                  "disabled:opacity-50",
+                )}
                 title="Delete Deck"
               >
                 <Trash2 size={16} />
@@ -1098,7 +1036,7 @@ export function DecksTable({
           </TableCell>
         </TableRow>
         {isExpanded && (
-          <TableRow className="border-border bg-surface-low/40">
+          <TableRow className="border-ui-border bg-ui-subtle/45 hover:bg-ui-subtle/45">
             <TableCell colSpan={8} className="px-6 py-0">
               <div className="py-3">
                 <DeckLinksPanel
@@ -1115,19 +1053,19 @@ export function DecksTable({
   };
 
   return (
-    <DashboardCard className="mt-8 bg-surface-card border border-border rounded-lg">
-      <div className="md:hidden divide-y divide-border">
+    <DashboardCard className="mt-2 overflow-hidden border-ui-border bg-ui-surface">
+      <div className="divide-y divide-ui-border xl:hidden">
         {loading ? (
           Array(3)
             .fill(0)
             .map((_, i) => (
-              <div key={i} className="p-4 space-y-3">
-                <div className="h-4 w-40 bg-surface-lowest animate-pulse rounded-none" />
-                <div className="h-3 w-24 bg-surface-lowest animate-pulse rounded-none" />
+              <div key={i} className="space-y-3 p-4">
+                <div className="h-4 w-40 animate-pulse rounded-md bg-ui-subtle" />
+                <div className="h-3 w-24 animate-pulse rounded-md bg-ui-subtle" />
               </div>
             ))
         ) : decks.length === 0 ? (
-          <p className="p-8 text-center text-slate-400 text-sm">
+              <p className="p-8 text-center text-sm text-ui-muted">
             {emptyMessage}
           </p>
         ) : (
@@ -1135,25 +1073,26 @@ export function DecksTable({
             const isExpanded = openDeckLinkPanelId === deck.id;
 
             return (
-              <div
+              <article
                 key={deck.id}
                 className={cn(
-                  "p-4 flex flex-col gap-4",
+                  "flex flex-col gap-4 p-4 sm:p-5",
+                  isExpanded && "bg-ui-subtle/45",
                   deleteTarget?.id === deck.id &&
                     "opacity-50 pointer-events-none",
                 )}
               >
-                <div className="flex items-start gap-3 min-w-0">
+                <div className="flex min-w-0 items-start gap-3">
                   <button
                     type="button"
                     onClick={() =>
                       setOpenDeckLinkPanelId(isExpanded ? null : deck.id)
                     }
                     className={cn(
-                      "mt-0.5 flex h-10 w-10 items-center justify-center rounded-none border transition-all",
+                      "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors",
                       isExpanded
-                        ? "border-deckly-primary/30 bg-deckly-primary/10 text-deckly-primary"
-                        : "border-border bg-surface-lowest text-slate-400 hover:bg-surface-high hover:text-white",
+                        ? "border-ui-primary/30 bg-ui-primary/10 text-ui-primary"
+                        : "border-ui-border bg-ui-surface text-ui-muted hover:bg-ui-subtle hover:text-ui-text",
                     )}
                     aria-expanded={isExpanded}
                     aria-label={`${isExpanded ? "Collapse" : "Expand"} links for ${deck.title}`}
@@ -1165,20 +1104,25 @@ export function DecksTable({
                       <ChevronRight size={16} />
                     )}
                   </button>
-                  <div className="p-2.5 bg-surface-low rounded-none text-slate-500 shrink-0 border border-border">
+                  <div className="shrink-0 rounded-md border border-ui-border bg-ui-subtle p-2.5 text-ui-muted">
                     <FileText size={18} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <Link
                       to={getDeckPreviewPath(deck.id)}
                       target="_blank"
-                      className="font-medium text-slate-200 text-sm truncate block hover:text-deckly-primary transition-colors"
+                      className="block truncate text-sm font-semibold text-ui-text transition-colors hover:text-ui-primary"
                     >
                       {deck.title}
                     </Link>
                     {renderAppliedTags(deck)}
-                    <p className="text-xs text-slate-500 mt-2 leading-tight">
-                      {deck.total_views} views · {deck.save_count} saves
+                    <p className="mt-2 text-xs leading-tight text-ui-muted">
+                      Uploaded {new Intl.DateTimeFormat("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      }).format(new Date(deck.created_at))}
+                      {" · "}{deck.total_views} views · {deck.save_count} saves
                       {deck.last_viewed_at
                         ? ` · ${new Intl.DateTimeFormat("en-GB", {
                             day: "2-digit",
@@ -1201,60 +1145,82 @@ export function DecksTable({
                   />
                 )}
 
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex flex-wrap items-center gap-2 border-t border-ui-border pt-3">
                   {renderTagMenu(deck)}
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyPrimaryLink(deck)}
+                    disabled={!canCopyPrimaryDeckLink(deck) || !workspaceSlug}
+                    className={cn(CONTENT_ACTION_CLASS, "w-auto gap-2 px-3 text-xs disabled:opacity-50")}
+                  >
+                    <Copy size={14} />
+                    Copy link
+                  </button>
                   <Link
                     to={`/analytics/${deck.id}`}
-                    className="p-2.5 bg-surface-low border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-none transition-all"
+                    className={cn(
+                      CONTENT_ACTION_CLASS,
+                      CONTENT_ANALYTICS_ACTION_CLASS,
+                    )}
+                    aria-label={`View analytics for ${deck.title}`}
                   >
                     <BarChart3 size={16} />
                   </Link>
                   <Link
                     to={`/edit/${deck.id}`}
-                    className="p-2.5 bg-surface-low border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-none transition-all"
+                    className={cn(
+                      CONTENT_ACTION_CLASS,
+                      CONTENT_EDIT_ACTION_CLASS,
+                    )}
+                    aria-label={`Edit ${deck.title}`}
                   >
                     <Pencil size={16} />
                   </Link>
                   <button
                     onClick={() => setDeleteTarget(deck)}
                     disabled={deleteTarget?.id === deck.id}
-                    className="p-2.5 bg-surface-low border border-border text-slate-400 hover:bg-surface-high hover:text-white rounded-none transition-all disabled:opacity-50"
+                    className={cn(
+                      CONTENT_ACTION_CLASS,
+                      CONTENT_DELETE_ACTION_CLASS,
+                      "disabled:opacity-50",
+                    )}
+                    aria-label={`Delete ${deck.title}`}
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
-              </div>
+              </article>
             );
           })
         )}
       </div>
 
-      <div className="hidden md:block">
-        <Table>
+      <div className="hidden overflow-x-auto xl:block">
+        <Table className="min-w-[1120px] table-fixed">
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-border">
-              <TableHead className="text-xs font-semibold text-slate-400 py-4 px-6 capitalize">
+            <TableRow className="border-ui-border hover:bg-transparent">
+              <TableHead className="w-[30%] px-6 py-4 text-xs font-semibold capitalize text-ui-muted">
                 Name
               </TableHead>
-              <TableHead className="text-xs font-semibold text-slate-400 py-4 capitalize">
+              <TableHead className="w-[8%] py-4 text-xs font-semibold capitalize text-ui-muted">
                 Tags
               </TableHead>
-              <TableHead className="text-xs font-semibold text-slate-400 py-4 capitalize">
+              <TableHead className="w-[112px] py-4 text-xs font-semibold capitalize text-ui-muted">
                 Upload Date
               </TableHead>
-              <TableHead className="text-xs font-semibold text-slate-400 py-4 text-center capitalize">
+              <TableHead className="w-[128px] py-4 text-center text-xs font-semibold capitalize text-ui-muted">
                 Link
               </TableHead>
-              <TableHead className="text-xs font-semibold text-slate-400 py-4 text-center capitalize">
+              <TableHead className="w-[64px] py-4 text-center text-xs font-semibold capitalize text-ui-muted">
                 Views
               </TableHead>
-              <TableHead className="text-xs font-semibold text-slate-400 py-4 text-center capitalize">
+              <TableHead className="w-[64px] py-4 text-center text-xs font-semibold capitalize text-ui-muted">
                 Saves
               </TableHead>
-              <TableHead className="text-xs font-semibold text-slate-400 py-4 text-center capitalize">
+              <TableHead className="w-[116px] py-4 text-center text-xs font-semibold capitalize text-ui-muted">
                 Last Viewed
               </TableHead>
-              <TableHead className="text-xs font-semibold text-slate-400 py-4 text-right px-6 capitalize">
+              <TableHead className="w-[192px] px-4 py-4 text-right text-xs font-semibold capitalize text-ui-muted">
                 Actions
               </TableHead>
             </TableRow>
@@ -1264,30 +1230,30 @@ export function DecksTable({
               Array(3)
                 .fill(0)
                 .map((_, i) => (
-                  <TableRow key={i} className="border-border">
+                  <TableRow key={i} className="border-ui-border">
                     <TableCell className="px-6 py-4">
-                      <div className="h-4 w-40 bg-surface-lowest animate-pulse rounded-none" />
+                      <div className="h-4 w-40 animate-pulse rounded-md bg-ui-subtle" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-4 w-28 bg-surface-lowest animate-pulse rounded-none" />
+                      <div className="h-4 w-28 animate-pulse rounded-md bg-ui-subtle" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-4 w-24 bg-surface-lowest animate-pulse rounded-none" />
+                      <div className="h-4 w-24 animate-pulse rounded-md bg-ui-subtle" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-8 w-24 bg-surface-lowest animate-pulse rounded-none mx-auto" />
+                      <div className="mx-auto h-8 w-24 animate-pulse rounded-md bg-ui-subtle" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-4 w-8 bg-surface-lowest animate-pulse rounded-none mx-auto" />
+                      <div className="mx-auto h-4 w-8 animate-pulse rounded-md bg-ui-subtle" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-4 w-8 bg-surface-lowest animate-pulse rounded-none mx-auto" />
+                      <div className="mx-auto h-4 w-8 animate-pulse rounded-md bg-ui-subtle" />
                     </TableCell>
                     <TableCell className="py-4">
-                      <div className="h-4 w-24 bg-surface-lowest animate-pulse rounded-none mx-auto" />
+                      <div className="mx-auto h-4 w-24 animate-pulse rounded-md bg-ui-subtle" />
                     </TableCell>
                     <TableCell className="px-6 py-4 text-right">
-                      <div className="h-8 w-20 bg-surface-lowest animate-pulse rounded-none ml-auto" />
+                      <div className="ml-auto h-8 w-20 animate-pulse rounded-md bg-ui-subtle" />
                     </TableCell>
                   </TableRow>
                 ))
@@ -1295,7 +1261,7 @@ export function DecksTable({
               <TableRow className="border-transparent">
                 <TableCell
                   colSpan={8}
-                  className="p-20 text-center text-slate-500 text-sm"
+                  className="p-20 text-center text-sm text-ui-muted"
                 >
                   {emptyMessage}
                 </TableCell>
@@ -1326,7 +1292,7 @@ export function DecksTable({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-ui-destructive text-ui-surface hover:opacity-90"
               onClick={(e) => {
                 e.preventDefault();
                 void handleConfirmDelete();

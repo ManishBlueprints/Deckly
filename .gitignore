@@ -11,9 +11,29 @@ Uncodixfy.md
 AGENTS.md
 audit.md
 
-node_modules
-dist
-dist-ssr
+# Dependencies and generated builds
+node_modules/
+dist/
+dist-ssr/
+storybook-static/
+
+# Test output. Playwright baselines under tests/visual/__snapshots__ are
+# intentionally versioned and must not be ignored.
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+
+# Tool caches and incremental compiler state
+.vite/
+.eslintcache
+*.tsbuildinfo
+
+# Local design/review output. Product assets and approved visual baselines are
+# committed, so do not add broad image rules such as *.png, *.jpg, or *.svg.
+/artifacts/
+/design-qa.md
 *.local
 .VSCodeCounter
 testsprite_tests
@@ -32,9 +52,12 @@ testsprite_tests
 *.sln
 *.sw?
 
-.env
+# Environment secrets. Commit templates, never populated environment files.
+.env*
 .env.local
+!.env.example
+!.env.*.example
 
-# Documentation Hub (Founder Data Room)
+# Private documentation hub (copied to the private docs repository manually)
 docs/
 snippets/

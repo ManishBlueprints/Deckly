@@ -362,6 +362,7 @@ describe("deckService.getDecksWithAnalytics", () => {
             display_order: 0,
             pages: [],
             created_at: "2026-05-14T00:00:00.000Z",
+            unique_visitors: 2,
           },
         ],
         error: null,
@@ -378,15 +379,7 @@ describe("deckService.getDecksWithAnalytics", () => {
     ]);
     mocks.queueResponse("deck_stats.select", {
       data: [
-        { deck_id: "deck-1", updated_at: "2026-05-15T00:00:00.000Z" },
-      ],
-      error: null,
-    });
-    mocks.queueResponse("deck_page_views.select", {
-      data: [
-        { deck_id: "deck-1", visitor_id: "visitor-1" },
-        { deck_id: "deck-1", visitor_id: "visitor-1" },
-        { deck_id: "deck-1", visitor_id: "visitor-2" },
+        { deck_id: "deck-1", updated_at: "2026-05-15T00:00:00.000Z", total_time_seconds: 90 },
       ],
       error: null,
     });
@@ -415,6 +408,7 @@ describe("deckService.getDecksWithAnalytics", () => {
       last_viewed_at: "2026-05-15T00:00:00.000Z",
       active_link_count: 2,
       total_link_count: 3,
+      avg_attention_seconds: 45,
     });
     expect(decks[0].tags).toEqual([
       { id: "tag-1", name: "Investor", color: "blue", deleted_at: null },

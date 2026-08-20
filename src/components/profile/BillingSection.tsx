@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { TIER_CONFIG, type Tier } from "../../constants/tiers";
 import { billingHistoryQueryKey } from "../../hooks/useSubscriptionState";
 import { subscriptionService, type Subscription } from "../../services/subscriptionService";
-import { cn } from "../../utils/cn";
+import { cn } from "../../lib/utils";
 import { formatBillingAmount, formatBillingDate, invoiceDate, planLabelForCode } from "../../utils/billingPresentation";
 import { productAnalytics } from "../../services/productAnalytics";
 
@@ -102,7 +102,7 @@ export function BillingSection({
       <dialog
         ref={cancelDialogRef}
         onCancel={(event) => { event.preventDefault(); setCancelConfirmOpen(false); }}
-        className="fixed left-1/2 top-1/2 m-0 max-h-[calc(100dvh-2rem)] w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto border border-border bg-surface-lowest p-0 text-foreground backdrop:bg-black/75"
+        className="fixed left-1/2 top-1/2 m-0 max-h-[calc(100dvh-2rem)] w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto border border-border bg-surface-lowest p-0 text-foreground backdrop:bg-ui-scrim/75"
         aria-labelledby="cancel-subscription-title"
       >
         <div className="p-6">
@@ -112,7 +112,7 @@ export function BillingSection({
           </p>
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button type="button" disabled={billingBusy} onClick={() => setCancelConfirmOpen(false)} className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground">Keep plan</button>
-            <button type="button" disabled={billingBusy} onClick={() => void cancelAtRenewal()} className="border border-red-500/50 bg-red-500/10 px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-red-300 hover:bg-red-500/20 disabled:opacity-50">
+            <button type="button" disabled={billingBusy} onClick={() => void cancelAtRenewal()} className="border border-ui-destructive/50 bg-ui-destructive/10 px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-ui-destructive hover:bg-ui-destructive/20 disabled:opacity-50">
               {billingBusy ? "Scheduling…" : "Cancel at renewal"}
             </button>
           </div>
@@ -178,13 +178,13 @@ export function BillingSection({
           )}
 
           {subscription?.cancel_at_period_end && (
-            <div className="mt-4 border border-amber-400/25 bg-amber-400/5 p-4 text-sm leading-relaxed text-amber-100/90">
+            <div className="mt-4 border border-ui-warning/25 bg-ui-warning/5 p-4 text-sm leading-relaxed text-ui-warning">
               Cancellation is scheduled. Access remains available until {formatBillingDate(subscription.current_period_end)} and cannot be reactivated after it ends.
             </div>
           )}
 
           {requiresPaymentAction && (
-            <div className="mt-4 border border-amber-400/25 bg-amber-400/5 p-4 text-sm leading-relaxed text-amber-100/90">
+            <div className="mt-4 border border-ui-warning/25 bg-ui-warning/5 p-4 text-sm leading-relaxed text-ui-warning">
               Payment action is needed. Razorpay is processing or has exhausted a payment attempt; access remains governed by your recorded paid period.
             </div>
           )}
@@ -195,7 +195,7 @@ export function BillingSection({
                 <p className="text-sm font-medium text-foreground">Need to stop renewals?</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Cancellation takes effect at the end of the paid billing period.</p>
               </div>
-              <button type="button" disabled={billingBusy} onClick={() => setCancelConfirmOpen(true)} className="shrink-0 border border-red-500/45 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-red-300 hover:bg-red-500/10 disabled:opacity-50">Cancel subscription</button>
+              <button type="button" disabled={billingBusy} onClick={() => setCancelConfirmOpen(true)} className="shrink-0 border border-ui-destructive/45 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-ui-destructive hover:bg-ui-destructive/10 disabled:opacity-50">Cancel subscription</button>
             </div>
           )}
         </div>
@@ -206,7 +206,7 @@ export function BillingSection({
           <div>
             <h3 id="billing-history-title" className="text-base font-semibold text-foreground">Billing history</h3>
             <p className="mt-1 text-xs text-muted-foreground">Invoices from every subscription, including paid, pending, expired, and cancelled attempts.</p>
-            {historyQuery.data?.stale && <p className="mt-2 text-xs text-amber-200/90">Showing saved history while Razorpay is temporarily unavailable.</p>}
+            {historyQuery.data?.stale && <p className="mt-2 text-xs text-ui-warning">Showing saved history while Razorpay is temporarily unavailable.</p>}
             {historyQuery.data?.sync_pending && <p className="mt-2 text-xs text-muted-foreground">Older invoices are still synchronizing in the background.</p>}
           </div>
           {historyQuery.isFetching && <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Refreshing</p>}

@@ -54,6 +54,7 @@ export interface Deck {
   active_link_count?: number;
   total_link_count?: number;
   deck_link_id?: string;
+  unique_visitors?: number;
 }
 
 export interface DeckLink {
@@ -76,6 +77,7 @@ export interface DeckWithAnalytics extends Deck {
   total_views: number;
   save_count: number;
   last_viewed_at: string | null;
+  avg_attention_seconds?: number;
   tags?: LibraryTag[];
 }
 
