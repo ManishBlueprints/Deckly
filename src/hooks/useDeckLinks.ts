@@ -37,6 +37,28 @@ async function invalidateDeckLinkRelatedQueries(
   await Promise.all(invalidations);
 }
 
+async function captureDeckLinkCountEvent(
+  event: "deck_link_created" | "deck_link_deleted",
+  deckId: string,
+  userId: string | undefined,
+  linkId: string,
+  extra: { is_primary: boolean; event_id: string } | { event_id: string },
+) {
+  try {
+    const links = await deckLinkService.listDeckLinks(deckId, userId);
+    await productAnalytics.capture(event, {
+      workspace_id: userId,
+      source_surface: "content_library",
+      deck_id: deckId,
+      link_id: linkId,
+      link_count_after: links.length,
+      ...extra,
+    });
+  } catch (error) {
+    console.warn("Deck link count telemetry failed", error);
+  }
+}
+
 export function useDeckLinks(
   deckId?: string,
   userId?: string,
@@ -70,13 +92,7 @@ export function useCreateDeckLink(deckId?: string, userId?: string) {
     onSuccess: async (link) => {
       if (!deckId) return;
       await invalidateDeckLinkRelatedQueries(queryClient, deckId, userId);
-      const links = await deckLinkService.listDeckLinks(deckId, userId);
-      productAnalytics.capture("deck_link_created", {
-        workspace_id: userId,
-        source_surface: "content_library",
-        deck_id: deckId,
-        link_id: link.id,
-        link_count_after: links.length,
+      await captureDeckLinkCountEvent("deck_link_created", deckId, userId, link.id, {
         is_primary: link.is_primary,
         event_id: `link:${link.id}:created`,
       });
@@ -150,13 +166,7 @@ export function useDeleteDeckLink(deckId?: string, userId?: string) {
     onSuccess: async (_data, linkId) => {
       if (!deckId) return;
       await invalidateDeckLinkRelatedQueries(queryClient, deckId, userId);
-      const links = await deckLinkService.listDeckLinks(deckId, userId);
-      productAnalytics.capture("deck_link_deleted", {
-        workspace_id: userId,
-        source_surface: "content_library",
-        deck_id: deckId,
-        link_id: linkId,
-        link_count_after: links.length,
+      await captureDeckLinkCountEvent("deck_link_deleted", deckId, userId, linkId, {
         event_id: `link:${linkId}:deleted`,
       });
     },

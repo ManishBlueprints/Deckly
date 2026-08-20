@@ -22,8 +22,12 @@ const billingWebhook = readFileSync(
 
 describe("product analytics integration contracts", () => {
   it("captures synchronous upload completion before navigation", () => {
-    expect(uploadWorkflow.indexOf('productAnalytics.capture("deck_upload_completed"'))
-      .toBeLessThan(uploadWorkflow.lastIndexOf("navigate(returnToRoom"));
+    const uploadCaptureIndex = uploadWorkflow.indexOf('productAnalytics.capture("deck_upload_completed"');
+    const returnToRoomNavigationIndex = uploadWorkflow.lastIndexOf("navigate(returnToRoom");
+
+    expect(uploadCaptureIndex).toBeGreaterThanOrEqual(0);
+    expect(returnToRoomNavigationIndex).toBeGreaterThanOrEqual(0);
+    expect(uploadCaptureIndex).toBeLessThan(returnToRoomNavigationIndex);
   });
 
   it("captures asynchronous upload completion at authoritative publication", () => {

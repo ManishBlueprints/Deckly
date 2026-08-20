@@ -38,6 +38,7 @@ import {
   SignedUrlMeta,
   unlockViewerDeck,
 } from "./viewerPublicAccess";
+import { captureCreatorFirstExternalView } from "./viewerAnalytics";
 
 const SIGNED_URL_REFRESH_RETRY_DELAYS_MS = [1000, 2000, 4000] as const;
 const SIGNED_URL_RECOVERY_RETRY_MS = 5000;
@@ -194,16 +195,11 @@ function Viewer() {
 
       if (!suppressAnalytics && result.isUnlocked && result.analyticsDeck) {
         analyticsService.trackDeckView(result.analyticsDeck);
-        if (!result.isOwner) {
-          const visitorId = analyticsService.getVisitorId();
-          productAnalytics.capture("creator_first_external_view_received", {
-            workspace_id: result.analyticsDeck.user_id,
-            source_surface: "deck_viewer",
-            deck_id: result.analyticsDeck.id,
-            link_id: result.analyticsDeck.deck_link_id || undefined,
-            event_id: `external-view:${result.analyticsDeck.id}:${result.analyticsDeck.deck_link_id ?? "primary"}:${visitorId}`,
-          });
-        }
+        captureCreatorFirstExternalView({
+          deck: result.analyticsDeck,
+          isOwner: result.isOwner,
+          suppressAnalytics,
+        });
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load deck.");
@@ -409,6 +405,7 @@ function Viewer() {
                 } else {
                   analyticsService.trackDeckView(deck);
                 }
+                captureCreatorFirstExternalView({ deck, isOwner });
               } catch {
                 setError("Failed to unlock document payload.");
               }

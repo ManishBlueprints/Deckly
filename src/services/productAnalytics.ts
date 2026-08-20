@@ -12,17 +12,24 @@ export type AnalyticsSourceSurface =
   | "upgrade_prompt"
   | "billing";
 
-export type UpgradeSource =
-  | "profile_direct"
-  | "data_room_limit"
-  | "document_analytics_gate"
-  | "ai_summary_limit"
-  | "document_format_gate"
-  | "document_access_gate"
-  | "download_controls_gate"
-  | "watermark_gate"
-  | "data_room_access_gate"
-  | "unknown_feature_gate";
+export const UPGRADE_SOURCES = [
+  "profile_direct",
+  "data_room_limit",
+  "document_analytics_gate",
+  "ai_summary_limit",
+  "document_format_gate",
+  "document_access_gate",
+  "download_controls_gate",
+  "watermark_gate",
+  "data_room_access_gate",
+  "unknown_feature_gate",
+] as const;
+
+export type UpgradeSource = (typeof UPGRADE_SOURCES)[number];
+
+export function isUpgradeSource(value: unknown): value is UpgradeSource {
+  return typeof value === "string" && (UPGRADE_SOURCES as readonly string[]).includes(value);
+}
 
 type CommonProperties = {
   workspace_id?: string;

@@ -56,3 +56,16 @@ Deno.test("rejects incomplete scheduled-plan updates before writing billing stat
   }
   expect(rejected, "A scheduled plan update must include both fields");
 });
+
+Deno.test("returns the billing interval for the synchronized plan", async () => {
+  const applied = await applyProviderSubscription({
+    rpc: () => Promise.resolve({ error: null }),
+  } as never, {
+    id: "sub_test",
+    status: "active",
+  }, {
+    fallbackPlanCode: "RAISE_YEARLY",
+  });
+
+  expect(applied.billingInterval === "yearly", "Expected the applied yearly plan interval");
+});

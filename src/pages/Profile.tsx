@@ -724,7 +724,8 @@ function TierSection({ currentTier, upgradeSource, onManageBilling, refreshBilli
   );
   const [upgradeTarget, setUpgradeTarget] = useState<Exclude<Tier, "FREE"> | null>(null);
   const { session } = useAuth();
-  const pricingSessionIdRef = useRef(crypto.randomUUID());
+  const pricingSessionIdRef = useRef("pending");
+  const pricingTierRef = useRef(currentTier);
   const [billingBusy, setBillingBusy] = useState(false);
   const shouldReduceMotion = useReducedMotion();
   const tierKeys: Tier[] = ["FREE", "PRO", "PRO_PLUS", "RAISE"];
@@ -751,7 +752,7 @@ function TierSection({ currentTier, upgradeSource, onManageBilling, refreshBilli
     productAnalytics.capture("pricing_viewed", {
       workspace_id: session.user.id,
       source_surface: "profile_pricing",
-      plan: currentTier,
+      plan: pricingTierRef.current,
       upgrade_source: upgradeSource,
       pricing_session_id: pricingSessionId,
       event_id: `pricing:${pricingSessionId}:viewed`,
@@ -760,7 +761,7 @@ function TierSection({ currentTier, upgradeSource, onManageBilling, refreshBilli
       productAnalytics.capture("pricing_engaged", {
         workspace_id: session.user.id,
         source_surface: "profile_pricing",
-        plan: currentTier,
+        plan: pricingTierRef.current,
         upgrade_source: upgradeSource,
         pricing_session_id: pricingSessionId,
         engagement_seconds: engagementSeconds,
@@ -768,7 +769,7 @@ function TierSection({ currentTier, upgradeSource, onManageBilling, refreshBilli
       });
     }, engagementSeconds * 1000));
     return () => engagementTimers.forEach(window.clearTimeout);
-  }, [currentTier, session?.user?.id, upgradeSource]);
+  }, [session?.user?.id, upgradeSource]);
 
   const beginCheckout = async (tier: Exclude<Tier, "FREE">) => {
     if (!session?.user) return toast.error("Please sign in again before subscribing.");

@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
           workspace_id: local.user_id,
           source_surface: "billing_webhook",
           plan: applied.planCode,
-          billing_interval: local.billing_interval,
+          billing_interval: applied.billingInterval,
           provider_event_type: eventType,
           failure_code: postHogEvent === "payment_failed" ? "subscription_halted" : undefined,
           $insert_id: `razorpay:${eventId}:${postHogEvent}`,
