@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { Button } from "../ui/button";
+import { productAnalytics } from "../../services/productAnalytics";
 
 interface DeckLinkManagerModalProps {
   deck: Deck | null;
@@ -132,6 +133,13 @@ export function DeckLinkManagerModal({
       const { origin, pathWithQuery } = splitShareUrl(link.share_url);
       const draftPath = linkDrafts[link.id] ?? pathWithQuery;
       await navigator.clipboard.writeText(buildShareUrl(origin, draftPath));
+      productAnalytics.capture("deck_link_copied", {
+        workspace_id: deck?.user_id,
+        source_surface: "content_library",
+        deck_id: link.deck_id,
+        link_id: link.id,
+        is_primary: link.is_primary,
+      });
       setCopiedLinkId(link.id);
       setTimeout(
         () => setCopiedLinkId((currentLinkId) => (currentLinkId === link.id ? null : currentLinkId)),

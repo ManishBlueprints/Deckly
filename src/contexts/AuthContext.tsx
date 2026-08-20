@@ -8,6 +8,7 @@ import { userService } from "../services/userService";
 import { UserProfile, BrandingSettings } from "../types";
 import { useProfile, useBranding } from "../hooks/useAuthQueries";
 import posthog from "posthog-js";
+import { productAnalytics } from "../services/productAnalytics";
 import {
   captureSignupCompleted,
   consumePendingOAuthSignup,
@@ -111,10 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Sync PostHog Identity
   useEffect(() => {
     if (session?.user) {
-      posthog.identify(session.user.id, {
-        email: session.user.email,
-        full_name: profile?.full_name,
-      });
+      productAnalytics.identifyWorkspace(session.user.id, profile?.tier);
       Sentry.setUser({
         id: session.user.id,
         email: session.user.email,

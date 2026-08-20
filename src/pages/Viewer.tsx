@@ -21,6 +21,7 @@ import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { deckService } from "../services/deckService";
 import { analyticsService } from "../services/analyticsService";
+import { productAnalytics } from "../services/productAnalytics";
 import { useAuth } from "../contexts/AuthContext";
 import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { Deck } from "../types";
@@ -193,6 +194,16 @@ function Viewer() {
 
       if (!suppressAnalytics && result.isUnlocked && result.analyticsDeck) {
         analyticsService.trackDeckView(result.analyticsDeck);
+        if (!result.isOwner) {
+          const visitorId = analyticsService.getVisitorId();
+          productAnalytics.capture("creator_first_external_view_received", {
+            workspace_id: result.analyticsDeck.user_id,
+            source_surface: "deck_viewer",
+            deck_id: result.analyticsDeck.id,
+            link_id: result.analyticsDeck.deck_link_id || undefined,
+            event_id: `external-view:${result.analyticsDeck.id}:${result.analyticsDeck.deck_link_id ?? "primary"}:${visitorId}`,
+          });
+        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load deck.");
@@ -296,7 +307,7 @@ function Viewer() {
 
   const requestDownload = useCallback(async (requestId: string) => {
     if (!deck) throw new Error("Deck not loaded");
-    return deckService.requestDeckDownload(
+    const download = await deckService.requestDeckDownload(
       slug ?? deck.slug,
       signedUrlMeta.current?.password,
       handle ?? null,
@@ -306,6 +317,14 @@ function Viewer() {
         viewerEmail,
       },
     );
+    productAnalytics.capture("document_downloaded", {
+      workspace_id: deck.user_id,
+      source_surface: "deck_viewer",
+      deck_id: deck.id,
+      link_id: deck.deck_link_id || undefined,
+      event_id: `download:${requestId}`,
+    });
+    return download;
   }, [deck, handle, slug, viewerEmail]);
 
   useEffect(() => {
@@ -529,6 +548,7 @@ function Viewer() {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         featureName="AI summaries"
+        upgradeSource="ai_summary_limit"
       />
 
       {deck && (

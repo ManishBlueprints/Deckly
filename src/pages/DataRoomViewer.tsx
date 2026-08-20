@@ -25,6 +25,7 @@ import { dataRoomService } from "../services/dataRoomService";
 import { dataRoomFolderService } from "../services/dataRoomFolderService";
 import { dataRoomLibraryService } from "../services/dataRoomLibraryService";
 import { analyticsService } from "../services/analyticsService";
+import { productAnalytics } from "../services/productAnalytics";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
@@ -233,6 +234,19 @@ function DataRoomViewer() {
   }, [session, room?.id, isSaved, saveToLibraryMutation, pendingAction, room, handle]);
 
   // Track view when a document is selected
+  const viewedRoomId = room?.id;
+  const viewedRoomWorkspaceId = room?.user_id;
+
+  useEffect(() => {
+    if (isUnlocked && viewedRoomId) {
+      productAnalytics.capture("data_room_viewed", {
+        workspace_id: viewedRoomWorkspaceId,
+        source_surface: "room_viewer",
+        room_id: viewedRoomId,
+      });
+    }
+  }, [isUnlocked, viewedRoomId, viewedRoomWorkspaceId]);
+
   useEffect(() => {
     if (isUnlocked && selectedDeck && room) {
       analyticsService.trackDeckView(
@@ -343,7 +357,7 @@ function DataRoomViewer() {
 
   const requestSelectedDeckDownload = useCallback(async (requestId: string) => {
     if (!selectedDeck || !room || !handle) throw new Error("Deck not loaded");
-    return dataRoomService.requestDeckDownload(
+    const download = await dataRoomService.requestDeckDownload(
       handle,
       room.slug,
       selectedDeck.id,
@@ -354,6 +368,14 @@ function DataRoomViewer() {
         viewerEmail,
       },
     );
+    productAnalytics.capture("document_downloaded", {
+      workspace_id: room.user_id,
+      source_surface: "room_viewer",
+      deck_id: selectedDeck.id,
+      room_id: room.id,
+      event_id: `download:${requestId}`,
+    });
+    return download;
   }, [handle, room, selectedDeck, viewerEmail]);
 
   useEffect(() => {
@@ -643,6 +665,7 @@ function DataRoomViewer() {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         featureName="AI summaries"
+        upgradeSource="ai_summary_limit"
       />
 
       {room && (

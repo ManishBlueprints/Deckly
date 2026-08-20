@@ -10,6 +10,7 @@ import { TIER_CONFIG } from "../constants/tiers";
 import { useTierFeatureAccess } from "../hooks/useTierEntitlements";
 import { Deck, UserProfile } from "../types";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
+import { upgradeSourceForFeature } from "../services/upgradeAttribution";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { DashboardCard } from "../components/ui/DashboardCard";
 import {
@@ -347,6 +348,7 @@ function ManageDeck() {
         isOpen={showUpsell}
         onClose={() => setShowUpsell(false)}
         featureName={upsellFeature}
+        upgradeSource={upgradeSourceForFeature(upsellFeature)}
       />
     </DashboardLayout>
   );

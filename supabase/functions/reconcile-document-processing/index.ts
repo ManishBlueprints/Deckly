@@ -9,6 +9,7 @@ import {
 import { copyObject, deleteObject, headObject, readObjectRange } from "../_shared/r2.ts";
 import { timingSafeEqual } from "../_shared/billing.ts";
 import { ACTIVE_DOCUMENT_PROCESSING_STATUSES } from "../_shared/document-processing.ts";
+import { capturePostHogEvent } from "../_shared/posthog.ts";
 
 const BATCH_SIZE = 20;
 const SUBMISSION_GRACE_MS = 5 * 60 * 1000;
@@ -28,6 +29,7 @@ type ProcessingJob = {
   submission_uncertain_at: string | null;
   publish_claim_token: string | null;
   deadline_at: string;
+  created_at: string;
   updated_at: string;
 };
 
@@ -115,6 +117,22 @@ async function failJob(
   if (publishClaimToken) query = query.eq("publish_claim_token", publishClaimToken);
   const { error } = await query;
   if (error) throw error;
+  if (job.operation === "office_publish") {
+    await capturePostHogEvent("deck_upload_failed", job.user_id, {
+      workspace_id: job.user_id,
+      source_surface: "document_editor",
+      deck_id: job.deck_id,
+      file_type: "office",
+      conversion_mode: "async",
+      failure_code: code,
+      "$insert_id": `upload-job:${job.id}:failed`,
+    }).catch((analyticsError) => {
+      console.error("PostHog upload failure capture failed", {
+        jobId: job.id,
+        message: analyticsError instanceof Error ? analyticsError.message : "Unknown error",
+      });
+    });
+  }
 }
 
 async function resolveUncertainSubmission(admin: ReturnType<typeof adminClient>, job: ProcessingJob) {
@@ -191,6 +209,44 @@ function startPublishLeaseRenewal(
         .maybeSingle();
       if (error) throw error;
       if (!data) throw new PublishingLeaseLostError();
+      await capturePostHogEvent("deck_upload_completed", claimed.user_id, {
+        workspace_id: claimed.user_id,
+        source_surface: "document_editor",
+        deck_id: claimed.deck_id,
+        file_type: "office",
+        conversion_mode: "async",
+        is_edit: false,
+        "$insert_id": `upload-job:${claimed.id}:completed`,
+      }).catch((analyticsError) => {
+        console.error("PostHog upload completion capture failed", {
+          jobId: claimed.id,
+          message: analyticsError instanceof Error ? analyticsError.message : "Unknown error",
+        });
+      });
+      const { data: primaryLink, error: primaryLinkError } = await admin.from("deck_links")
+        .select("id, created_at")
+        .eq("deck_id", claimed.deck_id)
+        .eq("is_primary", true)
+        .maybeSingle();
+      if (primaryLinkError) throw primaryLinkError;
+      const primaryLinkWasCreatedForThisJob = primaryLink?.created_at
+        && Math.abs(new Date(primaryLink.created_at).getTime() - new Date(claimed.created_at).getTime()) < 10 * 60 * 1000;
+      if (primaryLink?.id && primaryLinkWasCreatedForThisJob) {
+        await capturePostHogEvent("deck_link_created", claimed.user_id, {
+          workspace_id: claimed.user_id,
+          source_surface: "document_editor",
+          deck_id: claimed.deck_id,
+          link_id: primaryLink.id,
+          link_count_after: 1,
+          is_primary: true,
+          "$insert_id": `link:${primaryLink.id}:created`,
+        }).catch((analyticsError) => {
+          console.error("PostHog primary link capture failed", {
+            jobId: claimed.id,
+            message: analyticsError instanceof Error ? analyticsError.message : "Unknown error",
+          });
+        });
+      }
     }).catch((error) => {
       failure = error;
     });

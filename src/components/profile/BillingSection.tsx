@@ -7,6 +7,7 @@ import { billingHistoryQueryKey } from "../../hooks/useSubscriptionState";
 import { subscriptionService, type Subscription } from "../../services/subscriptionService";
 import { cn } from "../../utils/cn";
 import { formatBillingAmount, formatBillingDate, invoiceDate, planLabelForCode } from "../../utils/billingPresentation";
+import { productAnalytics } from "../../services/productAnalytics";
 
 type BillingSectionProps = {
   currentTier: Tier;
@@ -60,6 +61,12 @@ export function BillingSection({
     setBillingBusy(true);
     try {
       await subscriptionService.cancel();
+      productAnalytics.capture("subscription_cancellation_requested", {
+        workspace_id: profileId,
+        source_surface: "billing",
+        plan: currentTier,
+        billing_interval: subscription?.billing_interval,
+      });
       setCancelConfirmOpen(false);
       toast.success("Cancellation is scheduled. Your access remains available through the current paid period.");
       await refreshBillingAfterAction();

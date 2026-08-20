@@ -6,6 +6,7 @@ import { DataRoomCard } from "../components/dashboard/DataRoomCard";
 import { useAuth } from "../contexts/AuthContext";
 import { TIER_CONFIG, type Tier } from "../constants/tiers";
 import { useMyEntitlements } from "../hooks/useTierEntitlements";
+import { buildUpgradeUrl } from "../services/upgradeAttribution";
 import { useDataRooms } from "../hooks/useDataRooms";
 import { cn } from "@/lib/utils";
 import { DataRoom, DataRoomDocumentSearchSummary } from "../types";
@@ -174,7 +175,7 @@ function DataRoomsPage() {
           <RoomsUpgradeBanner
             tierLabel={tierLabel}
             maxRooms={maxRooms}
-            onUpgrade={() => navigate("/profile?section=tier")}
+            onUpgrade={() => navigate(buildUpgradeUrl("data_room_limit"))}
           />
         )}
 

@@ -3,7 +3,6 @@ import { useNavigate, Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../services/supabase";
 import { Lock, Mail, CheckCircle2, User } from "lucide-react";
-import posthog from "posthog-js";
 import { toast } from "sonner";
 import leftPanelBg from "../assets/Signup Left.png";
 import logo from "../assets/Deckly.png";
@@ -17,6 +16,7 @@ import {
   markPendingOAuthSignup,
 } from "../services/signupAnalytics";
 import { getPrefilledSignupEmail } from "../utils/signupNavigation";
+import { analyticsFailureCode, productAnalytics } from "../services/productAnalytics";
 
 function Signup() {
   const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
@@ -38,7 +38,9 @@ function Signup() {
 
   useEffect(() => {
     document.title = "Sign Up | Deckly";
-    posthog.capture("user_signup_viewed");
+    productAnalytics.capture("user_signup_viewed", {
+      source_surface: "signup",
+    });
   }, []);
 
   const formatErrorMessage = (msg: string) => {
@@ -77,7 +79,10 @@ function Signup() {
     }
     setLoading(true);
     setError(null);
-    posthog.capture("user_signup_submitted", { method: "email" });
+    productAnalytics.capture("user_signup_submitted", {
+      source_surface: "signup",
+      method: "email",
+    });
 
     let shouldResetTurnstile = true;
 
@@ -113,7 +118,11 @@ function Signup() {
       const finalMessage = formatErrorMessage(friendlyMessage);
       setError(finalMessage);
       toast.error(finalMessage);
-      posthog.capture("user_signup_failed", { method: "email", error: rawMessage });
+      productAnalytics.capture("user_signup_failed", {
+        source_surface: "signup",
+        method: "email",
+        failure_code: analyticsFailureCode(err, isNetworkErrorMessage(rawMessage) ? "network_error" : "signup_failed"),
+      });
     } finally {
       setLoading(false);
       if (shouldResetTurnstile) {
@@ -125,7 +134,10 @@ function Signup() {
 
   const handleGoogleSignIn = async () => {
     markPendingOAuthSignup("google");
-    posthog.capture("user_signup_submitted", { method: "google" });
+    productAnalytics.capture("user_signup_submitted", {
+      source_surface: "signup",
+      method: "google",
+    });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -136,9 +148,10 @@ function Signup() {
       if (error) throw error;
     } catch (err: unknown) {
       clearPendingOAuthSignup();
-      posthog.capture("user_signup_failed", {
+      productAnalytics.capture("user_signup_failed", {
+        source_surface: "signup",
         method: "google",
-        error: err instanceof Error ? err.message : String(err),
+        failure_code: analyticsFailureCode(err, "oauth_failed"),
       });
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -146,7 +159,10 @@ function Signup() {
 
   const handleGitHubSignIn = async () => {
     markPendingOAuthSignup("github");
-    posthog.capture("user_signup_submitted", { method: "github" });
+    productAnalytics.capture("user_signup_submitted", {
+      source_surface: "signup",
+      method: "github",
+    });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "github",
@@ -157,9 +173,10 @@ function Signup() {
       if (error) throw error;
     } catch (err: unknown) {
       clearPendingOAuthSignup();
-      posthog.capture("user_signup_failed", {
+      productAnalytics.capture("user_signup_failed", {
+        source_surface: "signup",
         method: "github",
-        error: err instanceof Error ? err.message : String(err),
+        failure_code: analyticsFailureCode(err, "oauth_failed"),
       });
       setError(err instanceof Error ? err.message : String(err));
     }

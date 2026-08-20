@@ -42,6 +42,8 @@ import { isEmailPasswordSession } from "../services/passwordService";
 import { subscriptionService, type BillingInterval, type Subscription } from "../services/subscriptionService";
 import { useSubscriptionState } from "../hooks/useSubscriptionState";
 import { formatBillingAmount } from "../utils/billingPresentation";
+import { analyticsFailureCode, productAnalytics, type UpgradeSource } from "../services/productAnalytics";
+import { parseUpgradeSource } from "../services/upgradeAttribution";
 import { usePricingCatalog, useTierFeatureAccess } from "../hooks/useTierEntitlements";
 import type { PricingCatalog, PricingTier } from "../services/tierEntitlementService";
 
@@ -110,6 +112,7 @@ const isProfileSection = (value: string | null): value is ProfileSection =>
 function Profile() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const upgradeSource = parseUpgradeSource(searchParams.get("upgrade_source"));
   const queryClient = useQueryClient();
   const { profile, branding, session, signOutAllDevices, deleteAccount } = useAuth();
   const { markTourComplete } = useTourState();
@@ -303,7 +306,7 @@ function Profile() {
                     queryClient={queryClient}
                   />
                 )}
-                {activeSection === "tier" && <TierSection currentTier={tier} subscription={billing.subscription} refreshBilling={billing.refreshBilling} onManageBilling={() => setActiveSection("billing")} catalog={pricingCatalog.data} catalogLoading={pricingCatalog.isLoading} catalogError={pricingCatalog.error instanceof Error ? pricingCatalog.error.message : null} />}
+                {activeSection === "tier" && <TierSection currentTier={tier} upgradeSource={upgradeSource} subscription={billing.subscription} refreshBilling={billing.refreshBilling} onManageBilling={() => setActiveSection("billing")} catalog={pricingCatalog.data} catalogLoading={pricingCatalog.isLoading} catalogError={pricingCatalog.error instanceof Error ? pricingCatalog.error.message : null} />}
                 {activeSection === "billing" && <BillingSection currentTier={tier} profileId={billing.profileId} subscription={billing.subscription} subscriptionLoading={billing.subscriptionLoading} refreshBilling={billing.refreshBilling} onManagePlan={() => setActiveSection("tier")} />}
                 {activeSection === "security" && canChangePassword && (
                   <PasswordSecuritySection />
@@ -715,12 +718,13 @@ function IdentitySection({
 }
 
 /* ── Tier Section ── */
-function TierSection({ currentTier, onManageBilling, refreshBilling, subscription, catalog, catalogLoading, catalogError }: { currentTier: Tier; onManageBilling: () => void; refreshBilling: () => Promise<void>; subscription: Subscription | null | undefined; catalog: PricingCatalog | undefined; catalogLoading: boolean; catalogError: string | null }) {
+function TierSection({ currentTier, upgradeSource, onManageBilling, refreshBilling, subscription, catalog, catalogLoading, catalogError }: { currentTier: Tier; upgradeSource: UpgradeSource; onManageBilling: () => void; refreshBilling: () => Promise<void>; subscription: Subscription | null | undefined; catalog: PricingCatalog | undefined; catalogLoading: boolean; catalogError: string | null }) {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
     "yearly",
   );
   const [upgradeTarget, setUpgradeTarget] = useState<Exclude<Tier, "FREE"> | null>(null);
   const { session } = useAuth();
+  const pricingSessionIdRef = useRef(crypto.randomUUID());
   const [billingBusy, setBillingBusy] = useState(false);
   const shouldReduceMotion = useReducedMotion();
   const tierKeys: Tier[] = ["FREE", "PRO", "PRO_PLUS", "RAISE"];
@@ -740,8 +744,43 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
   };
   const billingCycleLabel = billingCycle === "yearly" ? "annual" : "monthly";
 
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const pricingSessionId = crypto.randomUUID();
+    pricingSessionIdRef.current = pricingSessionId;
+    productAnalytics.capture("pricing_viewed", {
+      workspace_id: session.user.id,
+      source_surface: "profile_pricing",
+      plan: currentTier,
+      upgrade_source: upgradeSource,
+      pricing_session_id: pricingSessionId,
+      event_id: `pricing:${pricingSessionId}:viewed`,
+    });
+    const engagementTimers = ([30, 60] as const).map((engagementSeconds) => window.setTimeout(() => {
+      productAnalytics.capture("pricing_engaged", {
+        workspace_id: session.user.id,
+        source_surface: "profile_pricing",
+        plan: currentTier,
+        upgrade_source: upgradeSource,
+        pricing_session_id: pricingSessionId,
+        engagement_seconds: engagementSeconds,
+        event_id: `pricing:${pricingSessionId}:engaged:${engagementSeconds}`,
+      });
+    }, engagementSeconds * 1000));
+    return () => engagementTimers.forEach(window.clearTimeout);
+  }, [currentTier, session?.user?.id, upgradeSource]);
+
   const beginCheckout = async (tier: Exclude<Tier, "FREE">) => {
     if (!session?.user) return toast.error("Please sign in again before subscribing.");
+    productAnalytics.capture("upgrade_clicked", {
+      workspace_id: session.user.id,
+      source_surface: "profile_pricing",
+      plan: currentTier,
+      target_plan: tier,
+      billing_interval: billingCycle,
+      upgrade_source: upgradeSource,
+      pricing_session_id: pricingSessionIdRef.current,
+    });
     setBillingBusy(true);
     let checkoutOpened = false;
     let checkoutCompleted = false;
@@ -756,6 +795,15 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
           }
 
           const change = await subscriptionService.change(tier, billingCycle as BillingInterval);
+          productAnalytics.capture("plan_changed", {
+            workspace_id: session.user.id,
+            source_surface: "profile_pricing",
+            plan: currentTier,
+            target_plan: tier,
+            billing_interval: billingCycle,
+            upgrade_source: upgradeSource,
+            pricing_session_id: pricingSessionIdRef.current,
+          });
           if (change.applied_immediately) {
             const charge = change.immediate_charge;
             toast.success(
@@ -778,6 +826,17 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
         }
       }
       const checkout = await subscriptionService.create(tier, billingCycle as BillingInterval);
+      productAnalytics.capture("checkout_started", {
+        workspace_id: session.user.id,
+        source_surface: "profile_pricing",
+        plan: currentTier,
+        target_plan: tier,
+        billing_interval: billingCycle,
+        upgrade_source: upgradeSource,
+        pricing_session_id: pricingSessionIdRef.current,
+        checkout_id: checkout.subscription_id,
+        event_id: `checkout:${checkout.subscription_id}:started`,
+      });
       const Razorpay = await subscriptionService.loadCheckout();
       new Razorpay({
         key: checkout.key_id,
@@ -789,9 +848,33 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
           checkoutCompleted = true;
           try {
             await subscriptionService.verify(checkout.subscription_id, response.razorpay_payment_id, response.razorpay_signature);
+            productAnalytics.capture("checkout_completed", {
+              workspace_id: session.user.id,
+              source_surface: "profile_pricing",
+              plan: currentTier,
+              target_plan: tier,
+              billing_interval: billingCycle,
+              upgrade_source: upgradeSource,
+              pricing_session_id: pricingSessionIdRef.current,
+              checkout_id: checkout.subscription_id,
+              event_id: `checkout:${checkout.subscription_id}:completed`,
+            });
             toast.success("Payment verified. Your plan will activate shortly.");
             await refreshBilling();
-          } catch (error) { toast.error(error instanceof Error ? error.message : "Payment verification failed."); }
+          } catch (error) {
+            productAnalytics.capture("checkout_failed", {
+              workspace_id: session.user.id,
+              source_surface: "profile_pricing",
+              plan: currentTier,
+              target_plan: tier,
+              billing_interval: billingCycle,
+              upgrade_source: upgradeSource,
+              pricing_session_id: pricingSessionIdRef.current,
+              checkout_id: checkout.subscription_id,
+              failure_code: analyticsFailureCode(error, "verification_failed"),
+            });
+            toast.error(error instanceof Error ? error.message : "Payment verification failed.");
+          }
           finally { setBillingBusy(false); }
         },
         modal: {
@@ -801,6 +884,17 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
               return;
             }
             void (async () => {
+              productAnalytics.capture("checkout_abandoned", {
+                workspace_id: session.user.id,
+                source_surface: "profile_pricing",
+                plan: currentTier,
+                target_plan: tier,
+                billing_interval: billingCycle,
+                upgrade_source: upgradeSource,
+                pricing_session_id: pricingSessionIdRef.current,
+                checkout_id: checkout.subscription_id,
+                event_id: `checkout:${checkout.subscription_id}:abandoned`,
+              });
               try {
                 await subscriptionService.abandon(checkout.subscription_id);
                 toast.message("Checkout cancelled — no payment was taken.");
@@ -816,6 +910,16 @@ function TierSection({ currentTier, onManageBilling, refreshBilling, subscriptio
       }).open();
       checkoutOpened = true;
     } catch (error) {
+      productAnalytics.capture("checkout_failed", {
+        workspace_id: session.user.id,
+        source_surface: "profile_pricing",
+        plan: currentTier,
+        target_plan: tier,
+        billing_interval: billingCycle,
+        upgrade_source: upgradeSource,
+        pricing_session_id: pricingSessionIdRef.current,
+        failure_code: analyticsFailureCode(error, "checkout_start_failed"),
+      });
       toast.error(error instanceof Error ? error.message : "Unable to start checkout.");
     } finally {
       // Checkout's handler/dismiss callback retains the busy state while it is open.

@@ -19,6 +19,7 @@ import { globalTagService } from "./globalTagService.ts";
 import { withRetry } from "../utils/resilience.ts";
 import { storageService } from "./storageService.ts";
 import { documentProcessingService } from "./documentProcessingService.ts";
+import { productAnalytics } from "./productAnalytics.ts";
 
 const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | null => {
   if (!tag) return null;
@@ -297,6 +298,12 @@ const deckCrudService = {
       };
     }
 
+    productAnalytics.capture("deck_deleted", {
+      workspace_id: userId,
+      source_surface: "content_library",
+      deck_id: id,
+      event_id: `deck:${id}:deleted`,
+    });
     return { dbDeleted: true, assetsDeleted: true };
   },
 

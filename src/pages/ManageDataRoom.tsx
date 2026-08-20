@@ -35,7 +35,7 @@ import { FolderColorKey } from "../constants/folderColors";
 import { useQueryClient } from "@tanstack/react-query";
 import { getDataRoomPreviewPath, getDataRoomShareUrl } from "../utils/url";
 import { toast } from "sonner";
-import posthog from "posthog-js";
+import { productAnalytics } from "../services/productAnalytics";
 import * as Sentry from "@sentry/react";
 import {
   AlertDialog,
@@ -458,12 +458,6 @@ function ManageDataRoom() {
         }
       }
 
-      posthog.capture(isEditMode ? "data_room_updated" : "data_room_created", {
-        room_id: isEditMode ? roomId : "new",
-        name: name.trim(),
-        document_count: documents.length,
-      });
-
       // Invalidate queries to refresh dashboard/rooms
       queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
       queryClient.invalidateQueries({
@@ -526,9 +520,10 @@ function ManageDataRoom() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       toast.success("Public link activated and copied.");
-      posthog.capture("data_room_link_copied", {
+      productAnalytics.capture("data_room_link_copied", {
+        workspace_id: profile.id,
+        source_surface: "room_manager",
         room_id: roomId,
-        slug: slug,
       });
     } catch (err) {
       console.error("Failed to publish data room", err);
@@ -1125,6 +1120,7 @@ function ManageDataRoom() {
         isOpen={showAccessUpsell}
         onClose={() => setShowAccessUpsell(false)}
         featureName="Email capture, password protection, and expiry"
+        upgradeSource="data_room_access_gate"
       />
 
       <AlertDialog

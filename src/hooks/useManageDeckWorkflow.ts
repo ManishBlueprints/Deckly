@@ -11,8 +11,8 @@ import { deckQueryKeys } from "./useDecks";
 import { userTotalStatsQueryKeys } from "./useUserTotalStats";
 import { documentProcessingService } from "../services/documentProcessingService";
 import { Deck, SlidePage, UserProfile } from "../types";
-import posthog from "posthog-js";
 import * as Sentry from "@sentry/react";
+import { analyticsFailureCode, productAnalytics } from "../services/productAnalytics";
 
 type SetState<T> = Dispatch<SetStateAction<T>>;
 
@@ -214,13 +214,10 @@ export function useManageDeckWorkflow({
       setLoading(true);
       setError(null);
       setProgressPercent(0);
-
-      posthog.capture("deck_upload_initiated", {
-        title,
-        is_edit: !!editId,
-        file_type: fileType,
-        conversion_mode: conversionMode,
-      });
+      const analyticsOperationId = typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      let analyticsWorkspaceId: string | undefined;
 
       try {
         let finalFileUrl = existingDeck?.file_url;
@@ -241,6 +238,16 @@ export function useManageDeckWorkflow({
         } = await supabase.auth.getSession();
         if (!session) throw new Error("Not authenticated");
         const userId = session.user.id;
+        analyticsWorkspaceId = userId;
+        productAnalytics.capture("deck_upload_initiated", {
+          workspace_id: userId,
+          source_surface: "document_editor",
+          deck_id: editId ?? undefined,
+          is_edit: Boolean(editId),
+          file_type: fileType,
+          conversion_mode: conversionMode,
+          event_id: `upload:${analyticsOperationId}:initiated`,
+        });
         const invalidateDeckDashboardQueries = () => {
           queryClient.invalidateQueries({
             queryKey: deckQueryKeys.list(userId),
@@ -288,11 +295,16 @@ export function useManageDeckWorkflow({
             await dataRoomService.addDocuments(returnToRoom, [prepared.deckId]);
           }
           invalidateDeckDashboardQueries();
-          posthog.capture("deck_upload_queued", {
-            deck_id: prepared.deckId ?? editId ?? "new",
+          const queuedDeckId = prepared.deckId ?? editId;
+          if (!queuedDeckId) throw new Error("Queued upload did not return a deck ID.");
+          productAnalytics.capture("deck_upload_queued", {
+            workspace_id: userId,
+            source_surface: "document_editor",
+            deck_id: queuedDeckId,
             job_id: prepared.jobId,
             file_type: fileType,
             is_edit: Boolean(editId),
+            event_id: `upload-job:${prepared.jobId}:queued`,
           });
           navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content");
           return;
@@ -349,6 +361,7 @@ export function useManageDeckWorkflow({
           }
         }
 
+        let savedDeckId = editId;
         if (editId) {
           setProgress("Updating record...");
           setProgressPercent(95);
@@ -422,6 +435,7 @@ export function useManageDeckWorkflow({
           );
 
           if (deckCreateError) throw deckCreateError;
+          savedDeckId = deckRecord?.id ?? null;
 
           if (returnToRoom && deckRecord) {
             setProgress("Linking to Data Room...");
@@ -455,14 +469,52 @@ export function useManageDeckWorkflow({
 
         invalidateDeckDashboardQueries();
 
+        if (!savedDeckId) throw new Error("Saved upload did not return a deck ID.");
+        if (editId && !file) {
+          productAnalytics.capture("deck_updated", {
+            workspace_id: userId,
+            source_surface: "document_editor",
+            deck_id: savedDeckId,
+            file_type: finalFileType,
+            conversion_mode: finalConversionMode,
+            is_edit: true,
+            event_id: `upload:${analyticsOperationId}:updated`,
+          });
+        } else {
+          productAnalytics.capture("deck_upload_completed", {
+            workspace_id: userId,
+            source_surface: "document_editor",
+            deck_id: savedDeckId,
+            file_type: finalFileType,
+            conversion_mode: finalConversionMode,
+            is_edit: Boolean(editId),
+            event_id: `upload:${analyticsOperationId}:completed`,
+          });
+          if (!editId) {
+            try {
+              const { data: primaryLink, error: primaryLinkError } = await supabase
+                .from("deck_links")
+                .select("id, is_primary")
+                .eq("deck_id", savedDeckId)
+                .eq("is_primary", true)
+                .single();
+              if (primaryLinkError) throw primaryLinkError;
+              productAnalytics.capture("deck_link_created", {
+                workspace_id: userId,
+                source_surface: "document_editor",
+                deck_id: savedDeckId,
+                link_id: primaryLink.id,
+                link_count_after: 1,
+                is_primary: true,
+                event_id: `link:${primaryLink.id}:created`,
+              });
+            } catch (analyticsError) {
+              console.warn("Primary link analytics capture was skipped", analyticsError);
+            }
+          }
+        }
+
         navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content");
-        
-        posthog.capture("deck_upload_completed", {
-          deck_id: editId || "new",
-          title,
-          file_type: fileType,
-          is_edit: !!editId,
-        });
       } catch (err: unknown) {
         console.error("Upload error:", err);
         Sentry.captureException(err);
@@ -477,9 +529,15 @@ export function useManageDeckWorkflow({
         setError(errorMsg);
         setProgress("");
         setProgressPercent(0);
-        posthog.capture("deck_upload_failed", {
-          error: errorMsg,
-          is_edit: !!editId,
+        productAnalytics.capture("deck_upload_failed", {
+          workspace_id: analyticsWorkspaceId,
+          source_surface: "document_editor",
+          deck_id: editId ?? undefined,
+          failure_code: analyticsFailureCode(err, "upload_failed"),
+          is_edit: Boolean(editId),
+          file_type: fileType,
+          conversion_mode: conversionMode,
+          event_id: `upload:${analyticsOperationId}:failed`,
         });
       } finally {
         setLoading(false);

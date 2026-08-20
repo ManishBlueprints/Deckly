@@ -60,6 +60,7 @@ import {
   getPrimaryDeckLink,
 } from "./deckLinkUi";
 import { formatLinkCreatedAt, splitShareUrl } from "./deckLinkFormatting";
+import { productAnalytics } from "../../services/productAnalytics";
 
 interface DecksTableProps {
   decks: DeckWithAnalytics[];
@@ -121,6 +122,13 @@ function DeckLinksPanel({
 
     try {
       await navigator.clipboard.writeText(link.share_url);
+      productAnalytics.capture("deck_link_copied", {
+        workspace_id: deck.user_id,
+        source_surface: "content_library",
+        deck_id: deck.id,
+        link_id: link.id,
+        is_primary: link.is_primary,
+      });
       setCopiedLinkId(link.id);
       setTimeout(() => {
         setCopiedLinkId((currentId) =>
@@ -888,6 +896,13 @@ export function DecksTable({
       }
 
       await navigator.clipboard.writeText(primaryLink.share_url);
+      productAnalytics.capture("deck_link_copied", {
+        workspace_id: deck.user_id,
+        source_surface: "content_library",
+        deck_id: deck.id,
+        link_id: primaryLink.id,
+        is_primary: true,
+      });
       setCopiedPrimaryDeckId(deck.id);
       setTimeout(
         () =>

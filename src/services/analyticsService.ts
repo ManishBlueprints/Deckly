@@ -5,6 +5,7 @@ import { assertDeckOwnership } from "./deckService.shared.ts";
 import { Deck, DeckPageStats, DeckLinkStats, DeckDownloadAnalytics, DataRoomDownloadAnalytics } from "../types";
 import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
 import { posthogConfig } from "./posthogConfig.ts";
+import { productAnalytics, sanitizeAnalyticsProperties } from "./productAnalytics.ts";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
 const posthogKey = posthogConfig.apiKey;
@@ -102,20 +103,28 @@ type AiSummaryTelemetryMetadata = {
 
 const captureEvent = (event: string, properties: Record<string, unknown>) => {
   if (!posthogKey) return;
-  posthog.capture(event, properties);
+  posthog.capture(event, sanitizeAnalyticsProperties(properties));
 };
 
 export const analyticsService = {
   // Track when someone views a deck
   trackDeckView(deck: Deck, metadata: Record<string, unknown> = {}) {
-    captureEvent("deck_viewed", {
-      ...metadata,
+    const roomId = typeof metadata.data_room_id === "string" ? metadata.data_room_id : undefined;
+    productAnalytics.capture("deck_viewed", {
+      workspace_id: deck.user_id,
+      source_surface: roomId ? "room_viewer" : "deck_viewer",
       deck_id: deck.id,
-      deck_slug: deck.slug,
-      deck_title: deck.title,
-      owner_id: deck.user_id,
-      deck_link_id: deck.deck_link_id || null,
+      link_id: deck.deck_link_id || undefined,
+      room_id: roomId,
     });
+    if (metadata.email_captured) {
+      productAnalytics.capture("email_captured", {
+        workspace_id: deck.user_id,
+        source_surface: roomId ? "room_viewer" : "deck_viewer",
+        deck_id: deck.id,
+        room_id: roomId,
+      });
+    }
   },
 
   // Track page navigation in PDF

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deckLinkService } from "../services/deckLinkService";
 import { deckQueryKeys } from "./useDecks";
+import { productAnalytics } from "../services/productAnalytics";
 
 type CreateDeckLinkInput = {
   linkName?: string;
@@ -66,9 +67,19 @@ export function useCreateDeckLink(deckId?: string, userId?: string) {
 
       return deckLinkService.createDefaultDeckLink(deckId, userId);
     },
-    onSuccess: async () => {
+    onSuccess: async (link) => {
       if (!deckId) return;
       await invalidateDeckLinkRelatedQueries(queryClient, deckId, userId);
+      const links = await deckLinkService.listDeckLinks(deckId, userId);
+      productAnalytics.capture("deck_link_created", {
+        workspace_id: userId,
+        source_surface: "content_library",
+        deck_id: deckId,
+        link_id: link.id,
+        link_count_after: links.length,
+        is_primary: link.is_primary,
+        event_id: `link:${link.id}:created`,
+      });
     },
   });
 }
@@ -84,9 +95,17 @@ export function useEnableDeckLink(deckId?: string, userId?: string) {
 
       return deckLinkService.enableDeckLink(deckId, linkId, userId);
     },
-    onSuccess: async () => {
+    onSuccess: async (link) => {
       if (!deckId) return;
       await invalidateDeckLinkRelatedQueries(queryClient, deckId, userId);
+      productAnalytics.capture("deck_link_enabled", {
+        workspace_id: userId,
+        source_surface: "content_library",
+        deck_id: deckId,
+        link_id: link.id,
+        is_primary: link.is_primary,
+        event_id: `link:${link.id}:enabled:${link.updated_at ?? Date.now()}`,
+      });
     },
   });
 }
@@ -102,9 +121,17 @@ export function useDisableDeckLink(deckId?: string, userId?: string) {
 
       return deckLinkService.disableDeckLink(deckId, linkId, userId);
     },
-    onSuccess: async () => {
+    onSuccess: async (link) => {
       if (!deckId) return;
       await invalidateDeckLinkRelatedQueries(queryClient, deckId, userId);
+      productAnalytics.capture("deck_link_disabled", {
+        workspace_id: userId,
+        source_surface: "content_library",
+        deck_id: deckId,
+        link_id: link.id,
+        is_primary: link.is_primary,
+        event_id: `link:${link.id}:disabled:${link.updated_at ?? Date.now()}`,
+      });
     },
   });
 }
@@ -120,9 +147,18 @@ export function useDeleteDeckLink(deckId?: string, userId?: string) {
 
       return deckLinkService.deleteDeckLink(deckId, linkId, userId);
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, linkId) => {
       if (!deckId) return;
       await invalidateDeckLinkRelatedQueries(queryClient, deckId, userId);
+      const links = await deckLinkService.listDeckLinks(deckId, userId);
+      productAnalytics.capture("deck_link_deleted", {
+        workspace_id: userId,
+        source_surface: "content_library",
+        deck_id: deckId,
+        link_id: linkId,
+        link_count_after: links.length,
+        event_id: `link:${linkId}:deleted`,
+      });
     },
   });
 }

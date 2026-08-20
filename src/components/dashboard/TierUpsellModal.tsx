@@ -1,11 +1,15 @@
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check, LockKeyhole, X } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
+import { productAnalytics, type UpgradeSource } from "../../services/productAnalytics";
+import { buildUpgradeUrl } from "../../services/upgradeAttribution";
 
 interface TierUpsellModalProps {
   isOpen: boolean;
   onClose: () => void;
   featureName?: string;
+  upgradeSource?: UpgradeSource;
 }
 
 const UPGRADE_BENEFITS = [
@@ -23,11 +27,26 @@ export function TierUpsellModal({
   isOpen,
   onClose,
   featureName = "Premium features",
+  upgradeSource = "unknown_feature_gate",
 }: TierUpsellModalProps) {
+  const { profile, session } = useAuth();
   const shouldReduceMotion = useReducedMotion();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current) {
+      productAnalytics.capture("upgrade_prompt_viewed", {
+        workspace_id: session?.user?.id,
+        source_surface: "upgrade_prompt",
+        plan: profile?.tier,
+        upgrade_source: upgradeSource,
+      });
+    }
+    wasOpenRef.current = isOpen;
+  }, [isOpen, profile?.tier, session?.user?.id, upgradeSource]);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -164,7 +183,7 @@ export function TierUpsellModal({
                 <button
                   type="button"
                   onClick={() => {
-                    window.location.href = "/profile?section=tier";
+                    window.location.href = buildUpgradeUrl(upgradeSource);
                   }}
                   className="group inline-flex min-h-11 w-full items-center justify-center gap-2 bg-deckly-primary px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-primary-foreground transition-colors hover:bg-deckly-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deckly-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface-lowest sm:w-auto"
                 >

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useTierFeatureAccess } from "../hooks/useTierEntitlements";
+import { buildUpgradeUrl } from "../services/upgradeAttribution";
 import { FeatureGate } from "../components/billing/FeatureGate";
 import { cn } from "@/lib/utils";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -392,7 +393,7 @@ export default function DeckAnalytics() {
           {!canUsePageAnalytics && !pageAnalytics.isLoading && (
             <FeatureGate
               access={pageAnalytics.access}
-              onUpgrade={() => navigate("/profile")}
+              onUpgrade={() => navigate(buildUpgradeUrl("document_analytics_gate"))}
             />
           )}
           {/* Detailed Engagement Chart Card */}

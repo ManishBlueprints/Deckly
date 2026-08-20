@@ -28,7 +28,13 @@ vi.mock("../services/deckLinkService", () => ({
     createDefaultDeckLink: vi.fn(async () => ({ id: "link-1" })),
     enableDeckLink: vi.fn(async () => ({ id: "link-1" })),
     disableDeckLink: vi.fn(async () => ({ id: "link-1" })),
+    deleteDeckLink: vi.fn(async () => undefined),
   },
+}));
+
+const analyticsMocks = vi.hoisted(() => ({ capture: vi.fn() }));
+vi.mock("../services/productAnalytics", () => ({
+  productAnalytics: analyticsMocks,
 }));
 
 import {
