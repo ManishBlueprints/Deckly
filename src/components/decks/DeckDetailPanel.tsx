@@ -26,7 +26,6 @@ import { cn } from "../../lib/utils";
 import { getDeckPreviewPath } from "../../utils/url";
 import { DeckLinkManagerModal } from "../dashboard/DeckLinkManagerModal";
 import { TIER_CONFIG, type Tier } from "../../constants/tiers";
-import { documentProcessingService } from "../../services/documentProcessingService";
 
 // UI Components
 import { Button } from "../ui/button";
@@ -193,14 +192,7 @@ function DeckDetailPanel({
           height: imageAssets[idx]?.height,
           links: imageAssets[idx]?.links || [],
         }));
-        const verifiedPdf = await documentProcessingService.verifyDirectPdf(upload.fileName);
-        uploadedSourcePaths.add(verifiedPdf.storagePath);
-        if (verifiedPdf.pageCount !== finalPages.length) {
-          throw new Error("PDF pages changed during verification. Please upload the file again.");
-        }
-        finalFileUrl = verifiedPdf.storagePath;
-        fileSize = verifiedPdf.fileSize;
-        pageCount = verifiedPdf.pageCount;
+        pageCount = finalPages.length;
       }
 
       const updates: Partial<Deck> = {

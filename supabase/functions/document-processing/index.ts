@@ -6,9 +6,8 @@ import {
   deleteCloudConvertJob,
   findCloudConvertJobsByTag,
 } from "../_shared/cloudconvert.ts";
-import { copyObject, deleteObject, deleteObjects, headObject, listAllObjects, presignGetUrl, presignPutUrl } from "../_shared/r2.ts";
+import { copyObject, deleteObject, deleteObjects, headObject, listAllObjects, presignPutUrl } from "../_shared/r2.ts";
 import { ACTIVE_DOCUMENT_PROCESSING_STATUSES } from "../_shared/document-processing.ts";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const OFFICE_FORMATS = new Set(["doc", "docx", "ppt", "pptx", "xls", "xlsx"]);
 const TERMINAL_STATUSES = new Set(["failed", "cancelled", "timed_out"]);
@@ -176,64 +175,6 @@ async function completeUpload(admin: ReturnType<typeof adminClient>, userId: str
   return sanitiseStatus((data ?? job) as Record<string, unknown>);
 }
 
-async function verifyDirectPdf(admin: ReturnType<typeof adminClient>, userId: string, body: RequestBody) {
-  const sourcePath = stringValue(body, "sourcePath", 500);
-  if (!sourcePath || !sourcePath.startsWith(`${userId}/uploads/decks/`) || !sourcePath.toLowerCase().endsWith(".pdf")) {
-    throw new Error("A pending PDF upload is required.");
-  }
-
-  const source = await headObject("decks", sourcePath);
-  if (!source || source.size <= 0) throw new Error("The uploaded PDF was not found.");
-
-  const { data: limit, error: limitError } = await admin.rpc("get_tier_limit_for_user", { p_user_id: userId });
-  if (limitError || !limit || typeof limit.max_viewable_document_size_bytes !== "number") {
-    throw limitError ?? new Error("Unable to determine document limits.");
-  }
-  // Copy before inspecting so a browser cannot replace its temporary upload
-  // between validation and publication. The verified key is not writable by
-  // the client-facing R2 endpoint.
-  const storagePath = `${userId}/decks/verified/${crypto.randomUUID()}.pdf`;
-  await copyObject("decks", sourcePath, storagePath);
-  const verifiedObject = await headObject("decks", storagePath);
-  if (!verifiedObject || verifiedObject.size <= 0) {
-    await deleteObject("decks", storagePath).catch(() => undefined);
-    throw new Error("The verified PDF was not found.");
-  }
-  if (verifiedObject.size > limit.max_viewable_document_size_bytes) {
-    await deleteObject("decks", storagePath).catch(() => undefined);
-    throw new Error("Document exceeds the viewable document size limit.");
-  }
-
-  const loadingTask = getDocument({ url: await presignGetUrl("decks", storagePath, 15 * 60) });
-  let document: Awaited<typeof loadingTask.promise> | null = null;
-  try {
-    document = await loadingTask.promise;
-    if (document.numPages < 1 || document.numPages > limit.max_document_pages) {
-      throw new Error(`Viewable documents are limited to ${limit.max_document_pages} pages.`);
-    }
-    const { error } = await admin.from("direct_pdf_verifications").upsert({
-      user_id: userId,
-      storage_path: storagePath,
-      size_bytes: verifiedObject.size,
-      page_count: document.numPages,
-      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-    });
-    if (error) {
-      await deleteObject("decks", storagePath).catch(() => undefined);
-      throw error;
-    }
-    await deleteObject("decks", sourcePath).catch(() => undefined);
-    return { storagePath, fileSize: verifiedObject.size, pageCount: document.numPages };
-  } catch (error) {
-    await deleteObject("decks", storagePath).catch(() => undefined);
-    await deleteObject("decks", sourcePath).catch(() => undefined);
-    throw error;
-  } finally {
-    await document?.destroy();
-    await loadingTask.destroy();
-  }
-}
-
 async function retryJob(admin: ReturnType<typeof adminClient>, userId: string, jobId: string) {
   const original = await getOwnedJob(admin, userId, jobId);
   if (!TERMINAL_STATUSES.has(String(original.status))) {
@@ -371,7 +312,6 @@ Deno.serve(async (req) => {
       if (!jobId) throw new Error("A processing job is required.");
       return json(await completeUpload(admin, user.id, jobId));
     }
-    if (action === "verify-direct-pdf") return json(await verifyDirectPdf(admin, user.id, body));
     if (action === "status") {
       const jobId = stringValue(body, "jobId", 80);
       if (!jobId) throw new Error("A processing job is required.");

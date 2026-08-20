@@ -132,11 +132,11 @@ describe("deck watermark contracts", () => {
     expect(webhookFunction).toContain("if (error) throw error;");
   });
 
-  it("requires trusted storage verification before publishing a direct PDF", () => {
-    expect(lifecycleMigration).toContain("PDF must be verified before it can be published");
-    expect(processingFunction).toContain('action === "verify-direct-pdf"');
-    expect(processingFunction).toContain("direct_pdf_verifications");
-    expect(cleanupFunction).toContain("cleanupExpiredDirectPdfVerifications");
+  it("keeps direct PDFs out of the CloudConvert processing control plane", () => {
+    expect(lifecycleMigration).not.toContain("PDF must be verified before it can be published");
+    expect(processingFunction).not.toContain('action === "verify-direct-pdf"');
+    expect(processingFunction).not.toContain("pdfjs-dist");
+    expect(cleanupFunction).not.toContain("cleanupExpiredDirectPdfVerifications");
   });
 
   it("does not expose provider or database errors from the processing endpoint", () => {

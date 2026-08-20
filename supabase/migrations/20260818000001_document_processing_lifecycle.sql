@@ -157,28 +157,12 @@ AS $$
 DECLARE
   v_limit public.tier_limits;
   v_page_count INTEGER;
-  v_verified public.direct_pdf_verifications;
-  v_requires_verification BOOLEAN;
 BEGIN
   IF NEW.status = 'DELETED' OR COALESCE(NEW.file_type, 'pdf') <> 'pdf' THEN
     RETURN NEW;
   END IF;
   IF current_setting('deckly.skip_viewable_document_verification', TRUE) = 'true' THEN
     RETURN NEW;
-  END IF;
-  v_requires_verification := TG_OP = 'INSERT' OR NEW.file_url IS DISTINCT FROM OLD.file_url;
-  IF v_requires_verification THEN
-    SELECT * INTO v_verified
-    FROM public.direct_pdf_verifications
-    WHERE user_id = NEW.user_id
-      AND storage_path = NEW.file_url
-      AND expires_at > NOW();
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'PDF must be verified before it can be published';
-    END IF;
-    IF COALESCE(NEW.file_size, 0) <> v_verified.size_bytes THEN
-      RAISE EXCEPTION 'PDF size does not match its verified storage object';
-    END IF;
   END IF;
   v_limit := public.get_tier_limit_for_user(NEW.user_id);
   IF v_limit IS NULL THEN
@@ -193,12 +177,7 @@ BEGIN
     ELSE 0
   END;
   IF v_page_count > v_limit.max_document_pages
-     OR COALESCE(NEW.page_count, 0) > v_limit.max_document_pages
-     OR (v_requires_verification AND (
-       v_page_count <> v_verified.page_count
-       OR (NEW.page_count IS NOT NULL AND NEW.page_count <> v_verified.page_count)
-       OR v_verified.page_count > v_limit.max_document_pages
-     )) THEN
+     OR COALESCE(NEW.page_count, 0) > v_limit.max_document_pages THEN
     RAISE EXCEPTION 'Document exceeds the page limit';
   END IF;
   RETURN NEW;

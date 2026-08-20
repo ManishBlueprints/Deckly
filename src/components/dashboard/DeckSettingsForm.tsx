@@ -10,7 +10,6 @@ import { normalizeSlug } from "../../utils/slug";
 import { useAuth } from "../../contexts/AuthContext";
 import { processPdfToImages as processDeckPdfToImages } from "../../workflows/deckProcessing";
 import { extractStoragePath } from "../../services/deckService.shared";
-import { documentProcessingService } from "../../services/documentProcessingService";
 
 // Sub-components
 import { ManagementSection } from "./form-sections/ManagementSection";
@@ -198,13 +197,7 @@ export function DeckSettingsForm({
           page_number: idx + 1,
           links: imageAssets[idx]?.links || [],
         }));
-        const verifiedPdf = await documentProcessingService.verifyDirectPdf(upload.fileName);
-        if (verifiedPdf.pageCount !== finalPages.length) {
-          throw new Error("PDF pages changed during verification. Please upload the file again.");
-        }
-        finalFileUrl = verifiedPdf.storagePath;
-        fileSize = verifiedPdf.fileSize;
-        pageCount = verifiedPdf.pageCount;
+        pageCount = finalPages.length;
       }
 
       const updates: Partial<Deck> = {

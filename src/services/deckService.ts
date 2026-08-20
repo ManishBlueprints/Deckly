@@ -18,7 +18,6 @@ import {
 import { globalTagService } from "./globalTagService.ts";
 import { withRetry } from "../utils/resilience.ts";
 import { storageService } from "./storageService.ts";
-import { documentProcessingService } from "./documentProcessingService.ts";
 import { productAnalytics } from "./productAnalytics.ts";
 
 const normalizeLibraryTag = (tag: LibraryTag | null | undefined): LibraryTag | null => {
@@ -180,30 +179,17 @@ const deckCrudService = {
         .replace(/-+/g, "-")
         .replace(/^-+|-+$/g, "") ||
       "untitled";
-    const { userId, fileName } = await deckStorageService.uploadDeckFile(
+    const { userId, publicUrl } = await deckStorageService.uploadDeckFile(
       file,
       normalizedSlug,
     );
-    let verifiedPdf: Awaited<ReturnType<typeof documentProcessingService.verifyDirectPdf>>;
-    try {
-      verifiedPdf = await documentProcessingService.verifyDirectPdf(fileName);
-    } catch (error) {
-      await storageService.remove("decks", [fileName]).catch(() => undefined);
-      throw error;
-    }
-    if (!Array.isArray(deckData.pages) || deckData.pages.length !== verifiedPdf.pageCount) {
-      await storageService.remove("decks", [verifiedPdf.storagePath]).catch(() => undefined);
-      throw new Error("PDF pages must be processed before the deck can be published.");
-    }
 
     const { data: deckRecord, error: deckError } = await supabase
       .from("decks")
       .insert([
         {
           ...deckData,
-          file_url: verifiedPdf.storagePath,
-          file_size: verifiedPdf.fileSize,
-          page_count: verifiedPdf.pageCount,
+          file_url: publicUrl,
           status: "PENDING",
           user_id: userId,
         },

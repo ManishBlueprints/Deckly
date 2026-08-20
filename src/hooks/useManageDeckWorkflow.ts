@@ -315,6 +315,7 @@ export function useManageDeckWorkflow({
           setProgressPercent(5);
           const upload = await deckStorageService.uploadDeckFile(file, slug, userId);
           finalFileUrl = upload.publicUrl;
+          finalFileSize = file.size;
 
           if (editId && existingDeck) {
              const previousPages = existingDeck.pages || [];
@@ -344,13 +345,7 @@ export function useManageDeckWorkflow({
               height: imageAssets[idx]?.height,
               links: imageAssets[idx]?.links || [],
             }));
-            const verifiedPdf = await documentProcessingService.verifyDirectPdf(upload.fileName);
-            if (verifiedPdf.pageCount !== finalPages.length) {
-              throw new Error("PDF pages changed during verification. Please upload the file again.");
-            }
-            finalFileUrl = verifiedPdf.storagePath;
-            finalFileSize = verifiedPdf.fileSize;
-            finalPageCount = verifiedPdf.pageCount;
+            finalPageCount = finalPages.length;
             finalStatus = "PROCESSED";
           } else if (finalConversionMode === "interactive") {
             finalStatus = "CONVERTING";

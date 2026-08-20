@@ -37,12 +37,6 @@ type PreparedOfficeUpload = {
   uploadUrl: string;
 };
 
-type VerifiedDirectPdf = {
-  storagePath: string;
-  fileSize: number;
-  pageCount: number;
-};
-
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("document-processing", { body });
   if (error) throw error;
@@ -89,10 +83,6 @@ export const documentProcessingService = {
 
   completeUpload(jobId: string) {
     return invoke<DocumentProcessingJob>({ action: "complete-upload", jobId });
-  },
-
-  verifyDirectPdf(sourcePath: string) {
-    return invoke<VerifiedDirectPdf>({ action: "verify-direct-pdf", sourcePath });
   },
 
   getStatus(jobId: string) {

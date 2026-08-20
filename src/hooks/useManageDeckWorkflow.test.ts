@@ -22,7 +22,6 @@ const spies = vi.hoisted(() => ({
   uploadDeckFile: vi.fn(),
   uploadPreparedOfficeSource: vi.fn(),
   uploadSlideImages: vi.fn(),
-  verifyDirectPdf: vi.fn(),
 }));
 
 vi.mock("../services/supabase", () => ({
@@ -58,7 +57,6 @@ vi.mock("../services/documentProcessingService", () => ({
     completeUpload: spies.completeUpload,
     prepareOfficeUpload: spies.prepareOfficeUpload,
     uploadPreparedOfficeSource: spies.uploadPreparedOfficeSource,
-    verifyDirectPdf: spies.verifyDirectPdf,
   },
 }));
 
@@ -201,11 +199,10 @@ describe("useManageDeckWorkflow upload contracts", () => {
 
     expect(setters.error).toHaveBeenCalledWith("Viewable documents are limited to 500 pages.");
     expect(spies.uploadSlideImages).not.toHaveBeenCalled();
-    expect(spies.verifyDirectPdf).not.toHaveBeenCalled();
     expect(spies.rpc).not.toHaveBeenCalled();
   });
 
-  it("publishes a verified direct PDF and leaves watermark preparation in the background", async () => {
+  it("publishes a direct PDF and leaves watermark preparation in the background", async () => {
     const file = new File(["pdf"], "deck.pdf", { type: "application/pdf" });
     spies.uploadDeckFile.mockResolvedValue({
       userId: "user-1",
@@ -216,11 +213,6 @@ describe("useManageDeckWorkflow upload contracts", () => {
       { blob: new Blob(["page"]), width: 100, height: 100, links: [] },
     ]);
     spies.uploadSlideImages.mockResolvedValue(["user-1/deck-images/deck/staging/v-1/page-1.webp"]);
-    spies.verifyDirectPdf.mockResolvedValue({
-      storagePath: "user-1/decks/verified/deck.pdf",
-      fileSize: 3,
-      pageCount: 1,
-    });
     spies.rpc.mockResolvedValue({ data: { id: "deck-1" }, error: null });
     const { result, setters } = renderWorkflow();
     const navigate = vi.fn();
@@ -231,12 +223,11 @@ describe("useManageDeckWorkflow upload contracts", () => {
       );
     });
 
-    expect(spies.verifyDirectPdf).toHaveBeenCalledWith("user-1/uploads/decks/deck.pdf");
     expect(spies.rpc).toHaveBeenCalledWith(
       "create_deck_with_primary_link",
       expect.objectContaining({
         p_allow_download: true,
-        p_file_url: "user-1/decks/verified/deck.pdf",
+        p_file_url: "user-1/uploads/decks/deck.pdf",
         p_status: "PROCESSED",
         p_watermark_enabled: true,
         p_watermark_text: "Confidential",

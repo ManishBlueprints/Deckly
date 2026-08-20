@@ -59,26 +59,6 @@ ALTER TABLE public.decks
   ADD COLUMN IF NOT EXISTS source_filename TEXT,
   ADD COLUMN IF NOT EXISTS content_revision UUID;
 
--- Direct PDFs are rasterised in the browser, but their publishable metadata
--- must come from a trusted storage inspection rather than the browser's
--- mutable deck payload.  The verification record is short lived and names an
--- immutable, server-created copy of the uploaded source.
-CREATE TABLE IF NOT EXISTS public.direct_pdf_verifications (
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  storage_path TEXT NOT NULL,
-  size_bytes BIGINT NOT NULL CHECK (size_bytes > 0),
-  page_count INTEGER NOT NULL CHECK (page_count BETWEEN 1 AND 500),
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, storage_path)
-);
-
-CREATE INDEX IF NOT EXISTS direct_pdf_verifications_expiry_idx
-  ON public.direct_pdf_verifications (expires_at);
-
-ALTER TABLE public.direct_pdf_verifications ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.direct_pdf_verifications FROM anon, authenticated;
-
 UPDATE public.decks
 SET content_revision = gen_random_uuid()
 WHERE content_revision IS NULL;

@@ -80,36 +80,6 @@ async function cleanupJob(admin: ReturnType<typeof adminClient>, job: Job) {
     .eq("id", job.id);
 }
 
-async function cleanupExpiredDirectPdfVerifications(admin: ReturnType<typeof adminClient>) {
-  const { data, error } = await admin.from("direct_pdf_verifications")
-    .select("user_id, storage_path")
-    .lte("expires_at", new Date().toISOString())
-    .order("expires_at", { ascending: true })
-    .limit(BATCH_SIZE);
-  if (error) throw error;
-
-  let cleaned = 0;
-  for (const verification of data ?? []) {
-    const { data: liveDeck, error: deckError } = await admin.from("decks")
-      .select("id")
-      .eq("user_id", verification.user_id)
-      .eq("file_url", verification.storage_path)
-      .neq("status", "DELETED")
-      .maybeSingle();
-    if (deckError) throw deckError;
-    if (!liveDeck) {
-      await deleteObject("decks", verification.storage_path).catch(() => undefined);
-    }
-    const { error: deleteError } = await admin.from("direct_pdf_verifications")
-      .delete()
-      .eq("user_id", verification.user_id)
-      .eq("storage_path", verification.storage_path);
-    if (deleteError) throw deleteError;
-    cleaned += 1;
-  }
-  return { cleaned, hasMore: (data?.length ?? 0) === BATCH_SIZE };
-}
-
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   const expectedSecret = Deno.env.get("CRON_SECRET")?.trim() ?? "";
@@ -139,10 +109,9 @@ Deno.serve(async (req) => {
         });
       }
     }
-    const directPdfCleanup = await cleanupExpiredDirectPdfVerifications(admin);
     return json({
-      cleaned: cleaned + directPdfCleanup.cleaned,
-      has_more: (data?.length ?? 0) === BATCH_SIZE || directPdfCleanup.hasMore,
+      cleaned,
+      has_more: (data?.length ?? 0) === BATCH_SIZE,
     });
   } catch (error) {
     console.error("Document processing cleanup failed", {
