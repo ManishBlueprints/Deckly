@@ -75,7 +75,7 @@ export function DataRoomCard({
           )}
           </div>
         </div>
-        {isExpired && <span className="inline-flex items-center gap-1 rounded-full bg-ui-destructive/10 px-2.5 py-1 text-xs font-medium text-ui-destructive"><AlertCircle size={13} />Expired</span>}
+        {isExpired && <span className="inline-flex items-center gap-1 rounded-full border border-ui-destructive bg-ui-destructive px-2.5 py-1 text-xs font-semibold text-ui-canvas"><AlertCircle size={13} />Expired</span>}
       </div>
 
       <div className="mt-4 min-w-0">

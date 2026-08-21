@@ -21,6 +21,9 @@ import {
   ReceiptText,
   Lock,
   Clock3,
+  Activity,
+  LogOut,
+  UserPlus,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
@@ -43,9 +46,10 @@ import { subscriptionService, type BillingInterval, type Subscription } from "..
 import { useSubscriptionState } from "../hooks/useSubscriptionState";
 import { formatBillingAmount } from "../utils/billingPresentation";
 import { analyticsFailureCode, productAnalytics, type UpgradeSource } from "../services/productAnalytics";
-import { parseUpgradeSource } from "../services/upgradeAttribution";
+import { buildUpgradeUrl, parseUpgradeSource } from "../services/upgradeAttribution";
 import { usePricingCatalog, useTierFeatureAccess } from "../hooks/useTierEntitlements";
 import type { PricingCatalog, PricingTier } from "../services/tierEntitlementService";
+import { ProfileActionCard, ProfileSectionHeader } from "../components/profile/ProfileSectionPrimitives";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -405,13 +409,29 @@ function IdentitySection({
     );
 
   const currentLogo = branding?.logo_url || penguinMascot;
+  const canUploadLogo = customLogo.access.state === "available";
+
+  const handleLogoUpgrade = () => {
+    toast.info("Upgrade to Founder to use a custom workspace logo.");
+    navigate(buildUpgradeUrl("unknown_feature_gate"));
+  };
+
+  const handleLogoAction = () => {
+    if (customLogo.isLoading || uploading) return;
+    if (!canUploadLogo) {
+      handleLogoUpgrade();
+      return;
+    }
+    fileInputRef.current?.click();
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!customLogo.isLoading && customLogo.access.state !== "available") {
-      toast.info("Custom logos are available on Founder.");
+    if (!canUploadLogo) {
+      handleLogoUpgrade();
+      e.target.value = "";
       return;
     }
 
@@ -540,12 +560,17 @@ function IdentitySection({
             </div>
             {!uploading && (
               <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!customLogo.isLoading && customLogo.access.state !== "available"}
-                className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-[8px] border-2 border-ui-surface bg-ui-primary text-ui-primary-text shadow-[var(--ui-shadow-control)] transition-all hover:scale-105 active:scale-95"
-                title={customLogo.access.state === "available" ? "Upload new logo" : "Custom logos are available on Founder"}
+                onClick={handleLogoAction}
+                disabled={customLogo.isLoading}
+                className={cn(
+                  "absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-[8px] border-2 border-ui-surface shadow-[var(--ui-shadow-control)] transition-all hover:scale-105 active:scale-95 disabled:cursor-wait disabled:opacity-60",
+                  canUploadLogo
+                    ? "bg-ui-primary text-ui-primary-text"
+                    : "bg-ui-warning/15 text-ui-warning",
+                )}
+                title={canUploadLogo ? "Upload new logo" : "Upgrade to Founder to upload a custom logo"}
               >
-                <Camera size={14} />
+                {canUploadLogo ? <Camera size={14} /> : <Crown size={14} />}
               </button>
             )}
           </div>
@@ -559,12 +584,17 @@ function IdentitySection({
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading || (!customLogo.isLoading && customLogo.access.state !== "available")}
-                className="flex items-center gap-2 rounded-[8px] border border-ui-border bg-ui-subtle px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-ui-text transition-all hover:bg-ui-elevated disabled:opacity-50"
+                onClick={handleLogoAction}
+                disabled={uploading || customLogo.isLoading}
+                className={cn(
+                  "flex items-center gap-2 rounded-[8px] border px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all disabled:cursor-wait disabled:opacity-60",
+                  canUploadLogo
+                    ? "border-ui-border bg-ui-subtle text-ui-text hover:bg-ui-elevated"
+                    : "border-ui-warning/30 bg-ui-warning/10 text-ui-warning hover:bg-ui-warning/15",
+                )}
               >
-                <Upload size={12} className="text-ui-primary" />
-                Upload
+                {canUploadLogo ? <Upload size={12} className="text-ui-primary" /> : <Crown size={12} />}
+                {canUploadLogo ? "Upload" : "Upgrade to Founder"}
               </button>
               {branding?.logo_url && (
                 <button
@@ -1266,49 +1296,54 @@ function CollaborationSection() {
   const { profile } = useAuth();
 
   return (
-    <div className="space-y-6">
-      {/* Coming Soon Badge */}
-      <div className="relative bg-surface-low border border-border p-12 flex flex-col items-center justify-center text-center">
-        <div className="absolute right-4 top-4 border border-ui-warning/20 bg-ui-warning/10 px-3 py-1">
-          <ComingSoonLabel />
-        </div>
-        <div className="w-16 h-16 bg-surface-container flex items-center justify-center mb-6">
-          <Users size={32} className="text-muted-foreground/40" />
-        </div>
-        <h3 className="text-lg font-bold text-foreground uppercase tracking-widest mb-3">
-          Multiplayer Mode
-        </h3>
-        <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
-          Invite stakeholders and co-founders to manage decks, review analytics,
-          and collaborate on data rooms in real-time.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <ProfileSectionHeader
+        icon={Users}
+        eyebrow="Team workspace"
+        title="Build together"
+        description="Invite collaborators, assign responsibilities, and keep every investor-facing asset coordinated from one workspace."
+        badge={<span className="inline-flex rounded-full border border-ui-warning/25 bg-ui-warning/10 px-3 py-1.5"><ComingSoonLabel /></span>}
+      />
 
-      {/* Current Members */}
-      <div className="bg-surface-low border border-border p-6">
-        <h3 className="text-[10px] font-bold text-foreground uppercase tracking-[0.2em] mb-4">
-          Active Members
-        </h3>
-        <div className="flex items-center gap-4 px-4 py-3 bg-surface-lowest border border-border">
-          <div className="w-10 h-10 bg-deckly-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-            {profile?.full_name?.charAt(0) || "U"}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-foreground font-bold truncate">
-              {profile?.full_name || "You"}
-            </p>
-            <p className="text-[9px] text-deckly-primary font-bold uppercase tracking-widest">
-              Workspace Owner
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 px-2 py-1 bg-deckly-primary/10 border border-deckly-primary/20">
-            <div className="w-1 h-1 bg-deckly-primary animate-pulse" />
-            <span className="text-[8px] text-deckly-primary font-bold uppercase tracking-widest">
-              Online
-            </span>
-          </div>
+      <ProfileActionCard
+        icon={Sparkles}
+        title="Collaboration is on the way"
+        description="The first release will focus on clear ownership and secure access without making the workspace feel complex."
+        tone="primary"
+      >
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            { icon: UserPlus, title: "Invite teammates", text: "Bring founders and advisers into the workspace." },
+            { icon: ShieldCheck, title: "Control access", text: "Give each member only the permissions they need." },
+            { icon: Activity, title: "Track activity", text: "See important workspace changes in one timeline." },
+          ].map(({ icon: Icon, title, text }) => (
+            <div key={title} className="rounded-[10px] border border-ui-border bg-ui-subtle/70 p-4">
+              <Icon size={17} className="text-ui-primary" aria-hidden="true" />
+              <p className="mt-3 text-xs font-semibold text-ui-text">{title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-ui-muted">{text}</p>
+            </div>
+          ))}
         </div>
-      </div>
+      </ProfileActionCard>
+
+      <ProfileActionCard
+        icon={Users}
+        title="Current workspace member"
+        description="Your account owns this workspace and currently has full administrative access."
+      >
+        <div className="flex flex-col gap-3 rounded-[10px] border border-ui-border bg-ui-subtle/70 p-3 sm:flex-row sm:items-center">
+          <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-ui-border bg-ui-surface text-sm font-semibold text-ui-text">
+            {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" /> : profile?.full_name?.charAt(0) || "U"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-ui-text">{profile?.full_name || "You"}</p>
+            <p className="mt-0.5 text-xs text-ui-muted">Workspace owner · Full access</p>
+          </div>
+          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-ui-primary/25 bg-ui-primary/10 px-3 py-1.5 text-[10px] font-semibold text-ui-primary">
+            <span className="size-1.5 rounded-full bg-ui-primary" /> Active
+          </span>
+        </div>
+      </ProfileActionCard>
     </div>
   );
 }
@@ -1362,59 +1397,53 @@ function DangerSection({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Sign Out Everywhere */}
-      <div className="bg-surface-low border border-border p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-ui-warning/10">
-            <AlertTriangle size={18} className="text-ui-warning" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-[10px] font-bold text-foreground uppercase tracking-[0.2em] mb-1.5">
-              Security: Sign Out Everywhere
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              Revoke all active sessions and sign out of all devices currently
-              logged into this account.
-            </p>
-            <button
-              onClick={handleSignOutAll}
-              disabled={signingOut}
-              className="flex items-center gap-2 border border-ui-warning/20 bg-ui-warning/10 px-6 py-2.5 text-[10px] font-bold uppercase tracking-widest text-ui-warning transition-all hover:bg-ui-warning/20 disabled:opacity-50"
-            >
-              {signingOut ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : null}
-              {signingOut ? "Revoking..." : "Revoke All Sessions"}
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <ProfileSectionHeader
+        icon={Trash2}
+        eyebrow="Account controls"
+        title="Sessions and deletion"
+        description="Manage access across your devices or permanently remove the workspace when you no longer need it."
+        tone="danger"
+      />
 
-      {/* Delete Account */}
-      <div className="bg-destructive/5 border border-destructive/20 p-6">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 bg-destructive/10 flex items-center justify-center shrink-0">
-            <Trash2 size={18} className="text-destructive" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-[10px] font-bold text-destructive uppercase tracking-[0.2em] mb-1.5">
-              Delete Account
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              Permanently destroy your workspace. This action is atomic and
-              irreversible. All decks and analytics will be purged.
-            </p>
-
-            <button
-              onClick={() => setShowConfirm(true)}
-              className="px-6 py-2.5 bg-destructive/10 hover:bg-destructive/20 text-destructive text-[10px] font-bold uppercase tracking-widest border border-destructive/20 transition-all"
-            >
-              Delete Account
-            </button>
-          </div>
+      <ProfileActionCard
+        icon={LogOut}
+        title="Sign out everywhere"
+        description="Revoke every active session, including this device. You will need to sign in again before returning to the workspace."
+        tone="warning"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-lg text-xs leading-relaxed text-ui-muted">Use this if you signed in on a shared device or suspect that another session is still active.</p>
+          <button
+            onClick={handleSignOutAll}
+            disabled={signingOut}
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-ui-warning bg-ui-warning px-4 text-sm font-semibold text-ui-canvas shadow-[var(--ui-shadow-control)] transition-all hover:brightness-95 disabled:opacity-50"
+          >
+            {signingOut ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={15} />}
+            {signingOut ? "Signing out…" : "Revoke all sessions"}
+          </button>
         </div>
-      </div>
+      </ProfileActionCard>
+
+      <ProfileActionCard
+        icon={Trash2}
+        title="Delete account"
+        description="Permanently delete your workspace, decks, links, rooms, and analytics. This cannot be reversed."
+        tone="danger"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2 rounded-[8px] border border-ui-destructive/40 bg-ui-destructive/10 px-3 py-2.5 text-xs font-medium text-ui-destructive">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+            <span>Export anything you need before continuing.</span>
+          </div>
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-[8px] border border-ui-destructive bg-ui-destructive px-4 text-sm font-semibold text-ui-canvas shadow-[var(--ui-shadow-control)] transition-all hover:brightness-95"
+          >
+            <Trash2 size={15} /> Delete account
+          </button>
+        </div>
+      </ProfileActionCard>
 
       <AlertDialog
         open={showConfirm}
@@ -1457,7 +1486,7 @@ function DangerSection({
                 event.preventDefault();
                 void handleDelete();
               }}
-              className="bg-ui-destructive text-ui-surface hover:brightness-95"
+              className="bg-ui-destructive text-ui-canvas hover:brightness-95"
             >
               {deleting ? <><Loader2 size={15} className="animate-spin" />Deleting…</> : "Permanently delete"}
             </AlertDialogAction>

@@ -12,6 +12,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # CI must never initialize browser clients against a real Supabase project.
+      # Playwright additionally blocks external HTTP(S) requests.
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
 
     steps:
       - uses: actions/checkout@v4
@@ -48,13 +53,6 @@ jobs:
 
       - name: Run system theme tests
         run: npm run test:theme
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://example.supabase.co' }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-publishable-key' }}
 
       - name: Run Build
         run: npm run build
-        env:
-          # We need these to exist for the build to pass if Vite uses them
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://example.supabase.co' }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder-publishable-key' }}

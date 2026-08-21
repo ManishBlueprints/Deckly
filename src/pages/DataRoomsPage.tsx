@@ -95,7 +95,7 @@ function DataRoomsPage() {
 
   const tier: Tier = entitlements.data?.tier ?? (profile?.tier as Tier) ?? "FREE";
   const tierLabel = entitlements.data?.label ?? TIER_CONFIG[tier].planLabel;
-  const maxRooms = entitlements.data?.limits.maxDataRooms ?? 1;
+  const maxRooms = entitlements.data?.limits.maxDataRooms ?? TIER_CONFIG[tier].maxDataRooms;
   const isUnlimited = maxRooms === -1;
   const isAtLimit = !entitlements.isLoading && !isUnlimited && rooms.length >= maxRooms;
 

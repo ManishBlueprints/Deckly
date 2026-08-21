@@ -5,6 +5,7 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:4174",
     reducedMotion: "reduce",
+    serviceWorkers: "block",
   },
   webServer: {
     command: "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4174 --strictPort",

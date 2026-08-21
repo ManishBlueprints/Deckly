@@ -10,8 +10,16 @@ const migrationSql = readFileSync(
   path.resolve(__dirname, "../../supabase/migrations/20260715000000_add_download_analytics.sql"),
   "utf8",
 );
+const entitlementMigrationSql = readFileSync(
+  path.resolve(__dirname, "../../supabase/migrations/20260716000000_unify_tier_entitlements.sql"),
+  "utf8",
+);
 const signingSource = readFileSync(
   path.resolve(__dirname, "../../supabase/functions/sign-deck-url/index.ts"),
+  "utf8",
+);
+const deleteAccountSource = readFileSync(
+  path.resolve(__dirname, "../../supabase/functions/delete-account/index.ts"),
   "utf8",
 );
 describe("download analytics contracts", () => {
@@ -83,5 +91,16 @@ describe("download analytics contracts", () => {
     expect(migrationSql).toContain("idx_deck_download_events_room_visitor");
     expect(migrationSql).not.toContain("'id', d.id, 'user_id', d.user_id, 'data_room_id'");
     expect(signingSource).toContain("p_actor_user_id: authenticatedUser?.id ?? null");
+  });
+
+  it("erases account analytics and purges events beyond tier retention", () => {
+    expect(migrationSql).toContain("erase_deck_download_events_for_account");
+    expect(migrationSql).toContain("viewer_email = NULL");
+    expect(migrationSql).toContain("extensions.digest");
+    expect(migrationSql).not.toContain("DELETE FROM public.deck_download_events WHERE owner_user_id");
+    expect(entitlementMigrationSql).toContain("purge_expired_deck_download_events");
+    expect(entitlementMigrationSql).toContain("limits.analytics_retention_days");
+    expect(entitlementMigrationSql).toContain("purge-deck-download-events");
+    expect(deleteAccountSource).toContain('rpc("erase_deck_download_events_for_account"');
   });
 });

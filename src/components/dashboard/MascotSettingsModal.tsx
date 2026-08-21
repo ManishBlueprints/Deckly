@@ -9,8 +9,11 @@ import {
   Info,
   AlertCircle,
   Check,
+  Crown,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { BrandingSettings, UserProfile } from "../../types";
 import { deckService } from "../../services/deckService";
 import { userService } from "../../services/userService";
@@ -18,6 +21,9 @@ import { useAuth } from "../../contexts/AuthContext";
 import { normalizeSlug } from "../../utils/slug";
 import penguinMascot from "../../assets/penguine.png";
 import { useTourState } from "../../contexts/TourContext";
+import { useTierFeatureAccess } from "../../hooks/useTierEntitlements";
+import { buildUpgradeUrl } from "../../services/upgradeAttribution";
+import { cn } from "../../lib/utils";
 import {
   Dialog,
   DialogBody,
@@ -52,6 +58,12 @@ export function MascotSettingsModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { markTourComplete, resetTours } = useTourState();
   const { refreshProfile } = useAuth();
+  const navigate = useNavigate();
+  const customLogo = useTierFeatureAccess(
+    userProfile?.tier,
+    "custom_logo",
+    Boolean(userProfile),
+  );
 
   // Workspace settings
   const [roomName, setRoomName] = useState(branding?.room_name || "");
@@ -108,10 +120,37 @@ export function MascotSettingsModal({
   }, [workspaceSlug, userProfile?.handle]);
 
   const currentLogo = branding?.logo_url || penguinMascot;
+  const canUploadLogo = customLogo.access.state === "available";
+
+  const handleLogoUpgrade = () => {
+    const message = "Upgrade to Founder to use a custom workspace logo.";
+    toast.info(message);
+    if (setupMode) {
+      setError("Finish workspace setup, then upgrade to Founder to add a custom logo.");
+      return;
+    }
+    onClose();
+    navigate(buildUpgradeUrl("unknown_feature_gate"));
+  };
+
+  const handleLogoAction = () => {
+    if (customLogo.isLoading || uploading) return;
+    if (!canUploadLogo) {
+      handleLogoUpgrade();
+      return;
+    }
+    fileInputRef.current?.click();
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!canUploadLogo) {
+      handleLogoUpgrade();
+      e.target.value = "";
+      return;
+    }
 
     if (file.size > 2 * 1024 * 1024) {
       setError("Image size must be less than 2MB");
@@ -353,12 +392,17 @@ export function MascotSettingsModal({
                 </div>
 
                 <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-ui-border bg-ui-subtle px-4 text-sm font-medium text-ui-text transition-colors hover:bg-ui-elevated disabled:opacity-50"
+                  onClick={handleLogoAction}
+                  disabled={uploading || customLogo.isLoading}
+                  className={cn(
+                    "flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition-colors disabled:cursor-wait disabled:opacity-60",
+                    canUploadLogo
+                      ? "border-ui-border bg-ui-subtle text-ui-text hover:bg-ui-elevated"
+                      : "border-ui-warning/30 bg-ui-warning/10 text-ui-warning hover:bg-ui-warning/15",
+                  )}
                 >
-                  <Upload size={16} className="text-ui-primary" />
-                  Upload logo
+                  {canUploadLogo ? <Upload size={16} className="text-ui-primary" /> : <Crown size={16} />}
+                  {canUploadLogo ? "Upload logo" : "Upgrade to Founder"}
                 </button>
               </div>
 
@@ -386,11 +430,17 @@ export function MascotSettingsModal({
 
                   {!uploading && (
                     <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-md border-4 border-ui-elevated bg-ui-primary text-ui-primary-text shadow-[var(--ui-shadow-control)] transition-transform hover:scale-105"
-                      title="Upload New"
+                      onClick={handleLogoAction}
+                      disabled={customLogo.isLoading}
+                      className={cn(
+                        "absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-md border-4 border-ui-elevated shadow-[var(--ui-shadow-control)] transition-transform hover:scale-105 disabled:cursor-wait disabled:opacity-60",
+                        canUploadLogo
+                          ? "bg-ui-primary text-ui-primary-text"
+                          : "bg-ui-warning/15 text-ui-warning",
+                      )}
+                      title={canUploadLogo ? "Upload new logo" : "Upgrade to Founder to upload a custom logo"}
                     >
-                      <Camera size={16} />
+                      {canUploadLogo ? <Camera size={16} /> : <Crown size={16} />}
                     </button>
                   )}
                 </div>
@@ -402,8 +452,9 @@ export function MascotSettingsModal({
                       className="mt-0.5 shrink-0 text-ui-primary"
                     />
                     <p className="text-xs leading-relaxed text-ui-muted">
-                      Your brand mascot appears in the sidebar. PNGs work best.
-                      Max 2MB.
+                      {canUploadLogo
+                        ? "Your brand mascot appears in the sidebar. PNGs work best. Max 2MB."
+                        : "Custom workspace logos are available on Founder. Your existing logo remains visible."}
                     </p>
                   </div>
 

@@ -209,44 +209,6 @@ function startPublishLeaseRenewal(
         .maybeSingle();
       if (error) throw error;
       if (!data) throw new PublishingLeaseLostError();
-      await capturePostHogEvent("deck_upload_completed", claimed.user_id, {
-        workspace_id: claimed.user_id,
-        source_surface: "document_editor",
-        deck_id: claimed.deck_id,
-        file_type: "office",
-        conversion_mode: "async",
-        is_edit: false,
-        "$insert_id": `upload-job:${claimed.id}:completed`,
-      }).catch((analyticsError) => {
-        console.error("PostHog upload completion capture failed", {
-          jobId: claimed.id,
-          message: analyticsError instanceof Error ? analyticsError.message : "Unknown error",
-        });
-      });
-      const { data: primaryLink, error: primaryLinkError } = await admin.from("deck_links")
-        .select("id, created_at")
-        .eq("deck_id", claimed.deck_id)
-        .eq("is_primary", true)
-        .maybeSingle();
-      if (primaryLinkError) throw primaryLinkError;
-      const primaryLinkWasCreatedForThisJob = primaryLink?.created_at
-        && Math.abs(new Date(primaryLink.created_at).getTime() - new Date(claimed.created_at).getTime()) < 10 * 60 * 1000;
-      if (primaryLink?.id && primaryLinkWasCreatedForThisJob) {
-        await capturePostHogEvent("deck_link_created", claimed.user_id, {
-          workspace_id: claimed.user_id,
-          source_surface: "document_editor",
-          deck_id: claimed.deck_id,
-          link_id: primaryLink.id,
-          link_count_after: 1,
-          is_primary: true,
-          "$insert_id": `link:${primaryLink.id}:created`,
-        }).catch((analyticsError) => {
-          console.error("PostHog primary link capture failed", {
-            jobId: claimed.id,
-            message: analyticsError instanceof Error ? analyticsError.message : "Unknown error",
-          });
-        });
-      }
     }).catch((error) => {
       failure = error;
     });
@@ -293,7 +255,24 @@ async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: Pr
       if (!documentMetadata || !thumbnailMetadata || !hasPdfSignature(documentBytes) || !hasWebpSignature(thumbnailBytes)) {
         throw new Error("CloudConvert output did not contain a valid PDF and WebP thumbnail.");
       }
-      if (!pageCount || pageCount > 500) throw new Error("The converted document exceeds the 500-page limit.");
+      if (pageCount === null) {
+        throw new Error("CloudConvert did not report the converted document page count.");
+      }
+      const { data: tierLimitData, error: tierLimitError } = await admin.rpc(
+        "get_tier_limit_for_user",
+        { p_user_id: claimed.user_id },
+      );
+      if (tierLimitError) throw tierLimitError;
+      const tierLimit = Array.isArray(tierLimitData) ? tierLimitData[0] : tierLimitData;
+      const maxDocumentPages = tierLimit && typeof tierLimit.max_document_pages === "number"
+        ? tierLimit.max_document_pages
+        : null;
+      if (maxDocumentPages === null) {
+        throw new Error("The document page limit is unavailable.");
+      }
+      if (pageCount > maxDocumentPages) {
+        throw new Error(`The converted document exceeds the ${maxDocumentPages}-page limit.`);
+      }
 
       await copyObject("decks", documentStagePath, documentPath);
       await copyObject("decks", thumbnailStagePath, thumbnailPath);
@@ -324,6 +303,48 @@ async function validateAndPublish(admin: ReturnType<typeof adminClient>, job: Pr
       });
       if (error) throw error;
       if (!data) throw new PublishingLeaseLostError();
+      await capturePostHogEvent("deck_upload_completed", claimed.user_id, {
+        workspace_id: claimed.user_id,
+        source_surface: "document_editor",
+        deck_id: claimed.deck_id,
+        file_type: "office",
+        conversion_mode: "async",
+        is_edit: false,
+        "$insert_id": `upload-job:${claimed.id}:completed`,
+      }).catch((analyticsError) => {
+        console.error("PostHog upload completion capture failed", {
+          jobId: claimed.id,
+          message: analyticsError instanceof Error ? analyticsError.message : "Unknown error",
+        });
+      });
+      try {
+        const { data: primaryLink, error: primaryLinkError } = await admin.from("deck_links")
+          .select("id, created_at")
+          .eq("deck_id", claimed.deck_id)
+          .eq("is_primary", true)
+          .maybeSingle();
+        if (primaryLinkError) throw primaryLinkError;
+        const primaryLinkWasCreatedForThisJob = primaryLink?.created_at
+          && Math.abs(new Date(primaryLink.created_at).getTime() - new Date(claimed.created_at).getTime()) < 10 * 60 * 1000;
+        if (primaryLink?.id && primaryLinkWasCreatedForThisJob) {
+          await capturePostHogEvent("deck_link_created", claimed.user_id, {
+            workspace_id: claimed.user_id,
+            source_surface: "document_editor",
+            deck_id: claimed.deck_id,
+            link_id: primaryLink.id,
+            link_count_after: 1,
+            is_primary: true,
+            "$insert_id": `link:${primaryLink.id}:created`,
+          });
+        }
+      } catch (analyticsError) {
+        // Publication is already committed. Analytics must never move a
+        // completed processing job back through the failure path.
+        console.error("PostHog primary link capture failed", {
+          jobId: claimed.id,
+          message: analyticsError instanceof Error ? analyticsError.message : "Unknown error",
+        });
+      }
     } else {
       if (!watermarkPath) throw new Error("Watermark revision is unavailable.");
       const [watermarkMetadata, watermarkBytes] = await Promise.all([

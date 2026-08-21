@@ -90,6 +90,7 @@ export const deckStorageService = {
 
       let attempts = 0;
       const maxAttempts = 3;
+      let publicUrl = "";
 
       while (attempts < maxAttempts) {
         try {
@@ -100,20 +101,26 @@ export const deckStorageService = {
 
           if (error) throw error;
 
-          const publicUrl = storageService.getPublicUrl("decks", fileName);
-          imageUrls[index] = publicUrl;
-          onUploaded?.(publicUrl);
-          uploadedCount++;
-
-          if (onProgress) {
-            onProgress(uploadedCount, imageBlobs.length);
-          }
-          return;
+          publicUrl = storageService.getPublicUrl("decks", fileName);
+          break;
         } catch (err) {
           attempts++;
           if (attempts === maxAttempts) throw err;
           await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
         }
+      }
+
+      imageUrls[index] = publicUrl;
+      uploadedCount++;
+      try {
+        onUploaded?.(publicUrl);
+      } catch (callbackError) {
+        console.error("Slide upload callback failed:", callbackError);
+      }
+      try {
+        onProgress?.(uploadedCount, imageBlobs.length);
+      } catch (callbackError) {
+        console.error("Slide upload progress callback failed:", callbackError);
       }
     };
 

@@ -21,8 +21,10 @@ interface AccessProtectionSectionProps {
   allowDownload?: boolean;
   setAllowDownload?: (v: boolean) => void;
   canUseDownloadControls?: boolean;
+  downloadControlsLoading?: boolean;
   onDownloadUpsell?: () => void;
   canUseAccessControls?: boolean;
+  accessControlsLoading?: boolean;
   onAccessUpsell?: () => void;
   showHeading?: boolean;
   children?: ReactNode;
@@ -35,6 +37,7 @@ interface AccessOptionCardProps {
   title: string;
   description: string;
   onChange: (checked: boolean) => void;
+  disabled?: boolean;
 }
 
 function AccessOptionCard({
@@ -44,6 +47,7 @@ function AccessOptionCard({
   title,
   description,
   onChange,
+  disabled = false,
 }: AccessOptionCardProps) {
   return (
     <div
@@ -53,7 +57,9 @@ function AccessOptionCard({
           ? "border-ui-primary/50 bg-ui-primary/10 shadow-[var(--ui-shadow-control)]"
           : "border-ui-border bg-ui-surface hover:border-ui-primary/30 hover:bg-ui-subtle",
       )}
-      onClick={() => onChange(!checked)}
+      onClick={() => {
+        if (!disabled) onChange(!checked);
+      }}
     >
       <div className="flex min-w-0 items-center gap-3.5">
         <div
@@ -77,6 +83,7 @@ function AccessOptionCard({
       <Switch
         id={id}
         checked={checked}
+        disabled={disabled}
         onCheckedChange={onChange}
         onClick={(event) => event.stopPropagation()}
         aria-label={title}
@@ -99,8 +106,10 @@ export function AccessProtectionSection({
   allowDownload,
   setAllowDownload,
   canUseDownloadControls,
+  downloadControlsLoading = false,
   onDownloadUpsell,
   canUseAccessControls = true,
+  accessControlsLoading = false,
   onAccessUpsell,
   showHeading = true,
   children,
@@ -128,6 +137,7 @@ export function AccessProtectionSection({
             icon={<Mail size={18} />}
             title="Email Required"
             description="ID authentication"
+            disabled={accessControlsLoading}
             onChange={(checked) => {
               if (checked && !canUseAccessControls) return requestAccessControl();
               setRequireEmail(checked);
@@ -140,6 +150,7 @@ export function AccessProtectionSection({
             icon={<Lock size={18} />}
             title="Gate Access"
             description="Password lock"
+            disabled={accessControlsLoading}
             onChange={(checked) => {
               if (checked && !canUseAccessControls) return requestAccessControl();
               setRequirePassword(checked);
@@ -153,6 +164,7 @@ export function AccessProtectionSection({
               icon={<Download size={18} />}
               title="Downloads"
               description={allowDownload ? "Download enabled" : "Download disabled"}
+              disabled={downloadControlsLoading}
               onChange={(checked) => {
                 if (checked && !canUseDownloadControls) {
                   onDownloadUpsell?.();
@@ -169,6 +181,7 @@ export function AccessProtectionSection({
             icon={<CalendarDays size={18} />}
             title="Expiration"
             description="Duration control"
+            disabled={accessControlsLoading}
             onChange={(checked) => {
               if (checked && !canUseAccessControls) return requestAccessControl();
               setExpiryEnabled(checked);

@@ -39,7 +39,24 @@ type PreparedOfficeUpload = {
 
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("document-processing", { body });
-  if (error) throw error;
+  if (error) {
+    const context = (error as { context?: unknown }).context;
+    if (context && typeof context === "object" && "json" in context) {
+      const parseJson = (context as { json?: unknown }).json;
+      if (typeof parseJson === "function") {
+        const payload = await parseJson.call(context).catch(() => null) as
+          | { error?: unknown; message?: unknown }
+          | null;
+        const message = typeof payload?.error === "string"
+          ? payload.error
+          : typeof payload?.message === "string"
+            ? payload.message
+            : null;
+        if (message) throw new Error(message);
+      }
+    }
+    throw error;
+  }
   if (!data || typeof data !== "object") throw new Error("Document processing returned an invalid response.");
   if (typeof (data as { error?: unknown }).error === "string") {
     throw new Error((data as { error: string }).error);

@@ -8,6 +8,7 @@ import {
 } from "../_shared/cloudconvert.ts";
 import { copyObject, deleteObject, deleteObjects, headObject, listAllObjects, presignPutUrl } from "../_shared/r2.ts";
 import { ACTIVE_DOCUMENT_PROCESSING_STATUSES } from "../_shared/document-processing.ts";
+import { mapWithConcurrency } from "../_shared/concurrency.ts";
 
 const OFFICE_FORMATS = new Set(["doc", "docx", "ppt", "pptx", "xls", "xlsx"]);
 const TERMINAL_STATUSES = new Set(["failed", "cancelled", "timed_out"]);
@@ -260,7 +261,7 @@ async function cleanupDisabledWatermark(admin: ReturnType<typeof adminClient>, u
   const { data: jobs, error: jobsError } = await admin.from("document_processing_jobs")
     .select("id, provider_job_id")
     .eq("deck_id", deckId).eq("user_id", userId).eq("operation", "watermark_publish")
-    .in("status", [...ACTIVE_DOCUMENT_PROCESSING_STATUSES, "superseded", "cancelled"]);
+    .in("status", ACTIVE_DOCUMENT_PROCESSING_STATUSES);
   if (jobsError) throw jobsError;
   const { error: cancelError } = await admin.from("document_processing_jobs")
     .update({
@@ -280,20 +281,90 @@ async function cleanupDisabledWatermark(admin: ReturnType<typeof adminClient>, u
 
 type CancellableJob = { id: string; provider_job_id: string | null };
 
-async function cancelProviderJobs(jobs: CancellableJob[]) {
+async function cancelProviderJobs(
+  jobs: CancellableJob[],
+  options: { bestEffort?: boolean } = {},
+) {
+  const bestEffort = options.bestEffort ?? false;
   const providerJobIds = new Set<string>();
-  for (const job of jobs) {
-    if (job.provider_job_id) providerJobIds.add(job.provider_job_id);
-    const taggedJobs = await findCloudConvertJobsByTag(`deckly-processing:${job.id}`);
-    taggedJobs.forEach((providerJob) => providerJobIds.add(providerJob.id));
-  }
+  const jobsMissingProviderId = jobs.filter((job) => {
+    if (job.provider_job_id) {
+      providerJobIds.add(job.provider_job_id);
+      return false;
+    }
+    return true;
+  });
+  const taggedJobGroups = await mapWithConcurrency(
+    jobsMissingProviderId,
+    5,
+    async (job) => {
+      try {
+        return await findCloudConvertJobsByTag(`deckly-processing:${job.id}`);
+      } catch (error) {
+        if (!bestEffort) throw error;
+        console.error("Provider tag lookup failed during deck deletion", {
+          jobId: job.id,
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+        return [];
+      }
+    },
+  );
+  taggedJobGroups.flat().forEach((providerJob) => providerJobIds.add(providerJob.id));
   for (const providerJobId of providerJobIds) {
     try {
       await deleteCloudConvertJob(providerJobId);
     } catch (error) {
-      if (!(error instanceof CloudConvertError) || error.status !== 404) throw error;
+      if (error instanceof CloudConvertError && error.status === 404) continue;
+      if (!bestEffort) throw error;
+      console.error("Provider cancellation failed during deck deletion", {
+        providerJobId,
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   }
+}
+
+async function deleteOwnedDeckArtifacts(
+  admin: ReturnType<typeof adminClient>,
+  userId: string,
+  deckId: string,
+  jobs: CancellableJob[],
+) {
+  const { data: deck, error: deckError } = await admin.from("decks")
+    .select("id, slug, file_url")
+    .eq("id", deckId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (deckError) throw deckError;
+  if (!deck) throw new Error("Deck not found");
+
+  const safeSlug = typeof deck.slug === "string"
+    ? deck.slug.replace(/[^a-z0-9-]/gi, "_")
+    : "";
+  const prefixes = [
+    `${userId}/watermarks/${deckId}/`,
+    `${userId}/decks/${deckId}/`,
+    ...(safeSlug ? [`${userId}/deck-images/${safeSlug}/`] : []),
+    ...jobs.map((job) => `${userId}/processing/${job.id}/`),
+  ];
+  const artifactGroups = await Promise.all(
+    prefixes.map((prefix) => listAllObjects("decks", prefix)),
+  );
+  const artifactPaths = new Set(
+    artifactGroups.flatMap((artifacts, index) =>
+      artifacts.map((artifact) => artifact.name).filter((path) => path.startsWith(prefixes[index]))
+    ),
+  );
+  if (
+    typeof deck.file_url === "string"
+    && deck.file_url.startsWith(`${userId}/`)
+    && !/^https?:\/\//i.test(deck.file_url)
+  ) {
+    artifactPaths.add(deck.file_url);
+  }
+  await deleteObjects("decks", [...artifactPaths]);
+  return artifactPaths.size;
 }
 
 Deno.serve(async (req) => {
@@ -337,13 +408,13 @@ Deno.serve(async (req) => {
       if (!deckId) throw new Error("A deck is required.");
       return json(await cleanupDisabledWatermark(admin, user.id, deckId));
     }
-    if (action === "cancel-deck-jobs") {
+    if (action === "delete-deck-artifacts") {
       const deckId = stringValue(body, "deckId", 80);
       if (!deckId) throw new Error("A deck is required.");
       const { data: jobs, error } = await admin.from("document_processing_jobs")
         .select("id, provider_job_id")
         .eq("deck_id", deckId).eq("user_id", user.id)
-        .in("status", [...ACTIVE_DOCUMENT_PROCESSING_STATUSES, "superseded", "cancelled"]);
+        .in("status", ACTIVE_DOCUMENT_PROCESSING_STATUSES);
       if (error) throw error;
       const { error: cancelError } = await admin.from("document_processing_jobs")
         .update({
@@ -354,19 +425,28 @@ Deno.serve(async (req) => {
         .eq("deck_id", deckId).eq("user_id", user.id)
         .in("status", ACTIVE_DOCUMENT_PROCESSING_STATUSES);
       if (cancelError) throw cancelError;
-      await cancelProviderJobs((jobs ?? []) as CancellableJob[]);
-      await Promise.all((jobs ?? [])
-        .map(async (job) => {
-          const prefix = `${user.id}/processing/${job.id}/`;
-          const artifacts = await listAllObjects("decks", prefix).catch(() => []);
-          await deleteObjects("decks", artifacts.map((artifact) => artifact.name).filter((path) => path.startsWith(prefix))).catch(() => undefined);
-        }));
-      return json({ cancelled: jobs?.length ?? 0 });
+      await cancelProviderJobs(
+        (jobs ?? []) as CancellableJob[],
+        { bestEffort: true },
+      );
+      const artifactsDeleted = await deleteOwnedDeckArtifacts(
+        admin,
+        user.id,
+        deckId,
+        (jobs ?? []) as CancellableJob[],
+      );
+      return json({ cancelled: jobs?.length ?? 0, artifactsDeleted });
     }
     if (action === "cancel") {
       const jobId = stringValue(body, "jobId", 80);
       if (!jobId) throw new Error("A processing job is required.");
       const job = await getOwnedJob(admin, user.id, jobId);
+      if (
+        typeof job.status !== "string"
+        || !ACTIVE_DOCUMENT_PROCESSING_STATUSES.includes(job.status)
+      ) {
+        return json({ cancelled: false });
+      }
       const { error } = await admin.from("document_processing_jobs")
         .update({
           status: "cancelled",

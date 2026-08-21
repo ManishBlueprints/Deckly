@@ -119,7 +119,11 @@ Deno.serve(async (req) => {
           await deleteCloudConvertJob(providerJob.id).catch(() => undefined);
         }
       } catch (error) {
-        if (error instanceof CloudConvertError) {
+        const isAmbiguousProviderFailure = error instanceof CloudConvertError && (
+          error.code === "request_timeout"
+          || [408, 425, 502, 503, 504].includes(error.status)
+        );
+        if (error instanceof CloudConvertError && !isAmbiguousProviderFailure) {
           failed += 1;
           await admin.from("document_processing_jobs")
             .update({

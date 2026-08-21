@@ -1006,7 +1006,8 @@ function ManageDataRoom() {
               setExpiryEnabled={setExpiryEnabled}
               expiryDate={expiryDate}
               setExpiryDate={setExpiryDate}
-              canUseAccessControls={accessControls.isLoading || accessControls.access.state === "available"}
+              canUseAccessControls={accessControls.access.state === "available"}
+              accessControlsLoading={accessControls.isLoading}
               onAccessUpsell={() => setShowAccessUpsell(true)}
               showHeading={false}
             />

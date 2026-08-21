@@ -648,7 +648,8 @@ BEGIN
     RAISE EXCEPTION 'Processing job is not publishable';
   END IF;
   IF v_job.deadline_at <= NOW() THEN RAISE EXCEPTION 'Processing job timed out'; END IF;
-  IF p_document_size_bytes <= 0 OR p_page_count NOT BETWEEN 1 AND 500 THEN
+  IF p_document_size_bytes IS NULL OR p_page_count IS NULL
+    OR p_document_size_bytes <= 0 OR p_page_count NOT BETWEEN 1 AND 500 THEN
     RAISE EXCEPTION 'Invalid generated document metadata';
   END IF;
   IF v_job.requested_watermark_enabled AND p_watermark_path IS NULL THEN

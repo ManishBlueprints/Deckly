@@ -57,14 +57,20 @@ describe("deck watermark contracts", () => {
     expect(migration).toContain("'watermark_text', CASE WHEN v_watermark_enabled");
   });
 
-  it("does not temporarily lock deck controls while entitlements load", () => {
-    expect(manageDeck).toContain('accessControls.isLoading || accessControls.access.state === "available"');
-    expect(manageDeck).toContain('downloadControls.isLoading || downloadControls.access.state === "available"');
+  it("fails access and download controls closed while entitlements load", () => {
+    expect(manageDeck).toContain('canUseAccessControls={accessControls.access.state === "available"}');
+    expect(manageDeck).toContain('canUseDownloadControls={downloadControls.access.state === "available"}');
     expect(manageDeck).toContain('watermarkControls.isLoading || watermarkControls.access.state === "available"');
-    expect(deckSettingsForm).toContain('accessControls.isLoading || accessControls.access.state === "available"');
-    expect(deckSettingsForm).toContain('downloadControls.isLoading || downloadControls.access.state === "available"');
+    expect(deckSettingsForm).toContain('canUseAccessControls={accessControls.access.state === "available"}');
+    expect(deckSettingsForm).toContain('canUseDownloadControls={downloadControls.access.state === "available"}');
     expect(deckSettingsForm).toContain('watermarkControls.isLoading || watermarkControls.access.state === "available"');
     expect(deckSettingsForm).toContain("Object.prototype.hasOwnProperty.call(TIER_CONFIG, persistedTier)");
+  });
+
+  it("rejects missing publish metadata and persists direct-upload page counts", () => {
+    expect(lifecycleMigration).toContain("p_document_size_bytes IS NULL OR p_page_count IS NULL");
+    expect(migration).toContain("p_page_count integer DEFAULT NULL");
+    expect(migration).toContain("file_size, page_count, file_type");
   });
 
   it("fails downloads closed until a generated watermarked PDF is ready", () => {

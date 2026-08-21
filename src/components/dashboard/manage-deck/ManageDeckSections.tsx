@@ -343,6 +343,8 @@ interface AccessSectionProps {
   allowDownload: boolean;
   canUseAccessControls: boolean;
   canUseDownloadControls: boolean;
+  accessControlsLoading?: boolean;
+  downloadControlsLoading?: boolean;
   viewPassword: string;
   showPasswordField: boolean;
   enableExpiry: boolean;
@@ -365,6 +367,8 @@ export function ManageDeckAccessSection({
   allowDownload,
   canUseAccessControls,
   canUseDownloadControls,
+  accessControlsLoading = false,
+  downloadControlsLoading = false,
   viewPassword,
   showPasswordField,
   enableExpiry,
@@ -422,6 +426,7 @@ export function ManageDeckAccessSection({
           </div>
           <Switch
             checked={requireEmail}
+            disabled={accessControlsLoading}
             onCheckedChange={(checked) => {
               if (checked && !canUseAccessControls) return onAccessUpsell();
               onRequireEmailChange(checked);
@@ -459,6 +464,7 @@ export function ManageDeckAccessSection({
           </div>
           <Switch
             checked={requirePassword}
+            disabled={accessControlsLoading}
             onCheckedChange={(checked) => {
               if (checked && !canUseAccessControls) return onAccessUpsell();
               onRequirePasswordChange(checked);
@@ -498,6 +504,7 @@ export function ManageDeckAccessSection({
           </div>
           <Switch
             checked={allowDownload}
+            disabled={downloadControlsLoading}
             onCheckedChange={(checked) => {
               if (checked && !canUseDownloadControls) {
                 onDownloadUpsell();
@@ -542,6 +549,7 @@ export function ManageDeckAccessSection({
           </div>
           <Switch
             checked={enableExpiry}
+            disabled={accessControlsLoading}
             onCheckedChange={(checked) => {
               if (checked && !canUseAccessControls) return onAccessUpsell();
               onEnableExpiryChange(checked);

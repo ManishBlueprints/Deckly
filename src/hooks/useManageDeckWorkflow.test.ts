@@ -61,6 +61,7 @@ vi.mock("../services/documentProcessingService", () => ({
 }));
 
 vi.mock("../workflows/deckProcessing", () => ({
+  MAX_DECK_PAGES: 500,
   processPdfToImages: spies.processPdfToImages,
 }));
 
@@ -183,13 +184,46 @@ describe("useManageDeckWorkflow upload contracts", () => {
     expect(navigate).toHaveBeenCalledWith("/content");
   });
 
+  it("uploads a raw PowerPoint directly without queuing document conversion", async () => {
+    const file = new File(["presentation"], "deck.pptx", {
+      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    });
+    spies.uploadDeckFile.mockResolvedValue({
+      userId: "user-1",
+      fileName: "user-1/uploads/decks/deck.pptx",
+      publicUrl: "user-1/uploads/decks/deck.pptx",
+    });
+    spies.rpc.mockResolvedValue({ data: { id: "deck-1" }, error: null });
+    const { result } = renderWorkflow();
+
+    await act(async () => {
+      await result.current.submitDeck(
+        submitParams({ conversionMode: "raw", file, fileType: "pptx" }),
+      );
+    });
+
+    expect(spies.prepareOfficeUpload).not.toHaveBeenCalled();
+    expect(spies.uploadPreparedOfficeSource).not.toHaveBeenCalled();
+    expect(spies.completeUpload).not.toHaveBeenCalled();
+    expect(spies.uploadDeckFile).toHaveBeenCalledWith(file, "deck", "user-1");
+    expect(spies.rpc).toHaveBeenCalledWith(
+      "create_deck_with_primary_link",
+      expect.objectContaining({
+        p_display_mode: "raw",
+        p_file_type: "pptx",
+        p_pages: [],
+        p_status: "PROCESSED",
+      }),
+    );
+  });
+
   it("rejects PDFs exceeding 500 pages before slide upload or publication", async () => {
     spies.uploadDeckFile.mockResolvedValue({
       userId: "user-1",
       fileName: "user-1/uploads/decks/deck.pdf",
       publicUrl: "user-1/uploads/decks/deck.pdf",
     });
-    spies.processPdfToImages.mockResolvedValue(Array.from({ length: 501 }, () => ({ blob: new Blob() })));
+    spies.processPdfToImages.mockRejectedValue(new Error("Viewable documents are limited to 500 pages."));
     const { result, setters } = renderWorkflow();
     const file = new File(["pdf"], "deck.pdf", { type: "application/pdf" });
 
@@ -198,6 +232,9 @@ describe("useManageDeckWorkflow upload contracts", () => {
     });
 
     expect(setters.error).toHaveBeenCalledWith("Viewable documents are limited to 500 pages.");
+    expect(spies.deleteSlideImages).toHaveBeenCalledWith([
+      "user-1/uploads/decks/deck.pdf",
+    ]);
     expect(spies.uploadSlideImages).not.toHaveBeenCalled();
     expect(spies.rpc).not.toHaveBeenCalled();
   });
@@ -228,6 +265,7 @@ describe("useManageDeckWorkflow upload contracts", () => {
       expect.objectContaining({
         p_allow_download: true,
         p_file_url: "user-1/uploads/decks/deck.pdf",
+        p_page_count: 1,
         p_status: "PROCESSED",
         p_watermark_enabled: true,
         p_watermark_text: "Confidential",
@@ -235,5 +273,63 @@ describe("useManageDeckWorkflow upload contracts", () => {
     );
     expect(setters.progress).toHaveBeenCalledWith("Preparing protected download in the background...");
     expect(navigate).toHaveBeenCalledWith("/content");
+  });
+
+  it("does not delete uploaded assets when a committed RPC response may have been lost", async () => {
+    const file = new File(["pdf"], "deck.pdf", { type: "application/pdf" });
+    spies.uploadDeckFile.mockResolvedValue({
+      userId: "user-1",
+      fileName: "user-1/uploads/decks/deck.pdf",
+      publicUrl: "user-1/uploads/decks/deck.pdf",
+    });
+    spies.processPdfToImages.mockResolvedValue([
+      { blob: new Blob(["page"]), width: 100, height: 100, links: [] },
+    ]);
+    spies.uploadSlideImages.mockResolvedValue(["user-1/deck-images/deck/staging/v-1/page-1.webp"]);
+    spies.rpc.mockResolvedValue({ data: null, error: new Error("response lost") });
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { id: "deck-1" }, error: null });
+    const query = { select: vi.fn(), eq: vi.fn(), maybeSingle };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    spies.from.mockReturnValue(query);
+    const { result } = renderWorkflow();
+
+    await act(async () => {
+      await result.current.submitDeck(submitParams({ file }));
+    });
+
+    expect(maybeSingle).toHaveBeenCalled();
+    expect(spies.deleteSlideImages).not.toHaveBeenCalled();
+  });
+
+  it("removes uploaded assets when a failed RPC created no deck reference", async () => {
+    const file = new File(["pdf"], "deck.pdf", { type: "application/pdf" });
+    spies.uploadDeckFile.mockResolvedValue({
+      userId: "user-1",
+      fileName: "user-1/uploads/decks/deck.pdf",
+      publicUrl: "user-1/uploads/decks/deck.pdf",
+    });
+    spies.processPdfToImages.mockResolvedValue([
+      { blob: new Blob(["page"]), width: 100, height: 100, links: [] },
+    ]);
+    spies.uploadSlideImages.mockResolvedValue(["user-1/deck-images/deck/staging/v-1/page-1.webp"]);
+    spies.rpc.mockResolvedValue({ data: null, error: new Error("constraint rejected") });
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const query = { select: vi.fn(), eq: vi.fn(), maybeSingle };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    spies.from.mockReturnValue(query);
+    const { result } = renderWorkflow();
+
+    await act(async () => {
+      await result.current.submitDeck(submitParams({ file }));
+    });
+
+    expect(spies.deleteSlideImages).toHaveBeenCalledWith([
+      "user-1/uploads/decks/deck.pdf",
+    ]);
+    expect(spies.deleteSlideImages).toHaveBeenCalledWith([
+      "user-1/deck-images/deck/staging/v-1/page-1.webp",
+    ]);
   });
 });

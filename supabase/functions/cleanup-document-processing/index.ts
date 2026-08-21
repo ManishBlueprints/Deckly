@@ -40,9 +40,10 @@ async function deleteProcessingPrefix(job: Job) {
 }
 
 async function cleanupJob(admin: ReturnType<typeof adminClient>, job: Job) {
-  const { data: deck } = await admin.from("decks")
+  const { data: deck, error: deckError } = await admin.from("decks")
     .select("id, status, file_url, thumbnail_url, watermarked_file_path")
     .eq("id", job.deck_id).maybeSingle();
+  if (deckError) throw deckError;
 
   if (job.status === "completed" && deck) {
     // Old replacement artifacts are deleted only after the new bundle is

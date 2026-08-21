@@ -342,6 +342,43 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.purge_expired_deck_download_events()
+RETURNS BIGINT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE v_deleted BIGINT;
+BEGIN
+  DELETE FROM public.deck_download_events event
+  WHERE EXISTS (
+    SELECT 1
+    FROM public.profiles profile
+    JOIN public.tier_limits limits ON limits.tier = profile.tier
+    WHERE profile.id = event.owner_user_id
+      AND limits.analytics_retention_days <> -1
+      AND event.downloaded_at < NOW() - make_interval(days => limits.analytics_retention_days)
+  ) OR (
+    NOT EXISTS (SELECT 1 FROM public.profiles profile WHERE profile.id = event.owner_user_id)
+    AND event.downloaded_at < NOW() - INTERVAL '30 days'
+  );
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.purge_expired_deck_download_events() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.purge_expired_deck_download_events() TO service_role;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
+    EXECUTE 'SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = ''purge-deck-download-events''';
+    EXECUTE 'SELECT cron.schedule(''purge-deck-download-events'', ''25 3 * * *'', ''SELECT public.purge_expired_deck_download_events();'')';
+  END IF;
+END;
+$$;
+
 DROP TRIGGER IF EXISTS tr_enforce_deck_limit ON public.decks;
 CREATE TRIGGER tr_enforce_deck_limit
   BEFORE INSERT OR UPDATE OF user_id, file_size, status ON public.decks

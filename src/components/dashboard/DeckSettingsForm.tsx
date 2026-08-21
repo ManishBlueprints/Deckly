@@ -8,7 +8,10 @@ import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
 import { normalizeSlug } from "../../utils/slug";
 import { useAuth } from "../../contexts/AuthContext";
-import { processPdfToImages as processDeckPdfToImages } from "../../workflows/deckProcessing";
+import {
+  MAX_DECK_PAGES,
+  processPdfToImages as processDeckPdfToImages,
+} from "../../workflows/deckProcessing";
 import { extractStoragePath } from "../../services/deckService.shared";
 
 // Sub-components
@@ -108,6 +111,7 @@ export function DeckSettingsForm({
       const assets = await processDeckPdfToImages(pdfFile, {
         scale: 1.5,
         quality: 0.8,
+        maxPages: MAX_DECK_PAGES,
         onProgress: (current: number, total: number) => {
           // Guard against divide-by-zero and clamp current to valid range
           const clampedCurrent = Math.max(0, Math.min(current, total));
@@ -117,9 +121,6 @@ export function DeckSettingsForm({
           setCompletionPercentage(percentage);
         },
       });
-      if (assets.length > 500) {
-        throw new Error("Viewable documents are limited to 500 pages.");
-      }
       return assets;
     } catch (err) {
       console.error("PDF Processing error:", err);
@@ -373,11 +374,13 @@ export function DeckSettingsForm({
         setRequirePassword={setRequirePassword}
         allowDownload={allowDownload}
         setAllowDownload={setAllowDownload}
-        canUseAccessControls={accessControls.isLoading || accessControls.access.state === "available"}
+        canUseAccessControls={accessControls.access.state === "available"}
+        accessControlsLoading={accessControls.isLoading}
         onAccessUpsell={() =>
           openUpsell("Email capture, password protection, and expiry")
         }
-        canUseDownloadControls={downloadControls.isLoading || downloadControls.access.state === "available"}
+        canUseDownloadControls={downloadControls.access.state === "available"}
+        downloadControlsLoading={downloadControls.isLoading}
         onDownloadUpsell={() => openUpsell("Download controls")}
         viewPassword={viewPassword}
         setViewPassword={setViewPassword}

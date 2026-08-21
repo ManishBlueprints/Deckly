@@ -159,6 +159,7 @@ CREATE FUNCTION public.create_deck_with_primary_link(
   p_status text DEFAULT 'PENDING',
   p_display_mode text DEFAULT 'raw',
   p_file_size bigint DEFAULT NULL,
+  p_page_count integer DEFAULT NULL,
   p_file_type text DEFAULT 'pdf',
   p_require_email boolean DEFAULT false,
   p_require_password boolean DEFAULT false,
@@ -179,11 +180,11 @@ BEGIN
 
   INSERT INTO public.decks (
     user_id, title, slug, description, file_url, pages, status, display_mode,
-    file_size, file_type, require_email, require_password, view_password,
+    file_size, page_count, file_type, require_email, require_password, view_password,
     expires_at, allow_download, watermark_enabled, watermark_text
   ) VALUES (
     p_user_id, p_title, p_slug, p_description, p_file_url, p_pages, p_status,
-    p_display_mode, p_file_size, p_file_type, p_require_email,
+    p_display_mode, p_file_size, p_page_count, p_file_type, p_require_email,
     p_require_password, p_view_password, p_expires_at, p_allow_download,
     p_watermark_enabled, p_watermark_text
   ) RETURNING * INTO v_deck;
@@ -195,10 +196,10 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.create_deck_with_primary_link(
-  uuid, text, text, text, text, jsonb, text, text, bigint, text, boolean, boolean, text, timestamptz, boolean, boolean, text
+  uuid, text, text, text, text, jsonb, text, text, bigint, integer, text, boolean, boolean, text, timestamptz, boolean, boolean, text
 ) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_deck_with_primary_link(
-  uuid, text, text, text, text, jsonb, text, text, bigint, text, boolean, boolean, text, timestamptz, boolean, boolean, text
+  uuid, text, text, text, text, jsonb, text, text, bigint, integer, text, boolean, boolean, text, timestamptz, boolean, boolean, text
 ) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.get_deck_payload(

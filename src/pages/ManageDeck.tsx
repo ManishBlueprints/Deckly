@@ -61,6 +61,7 @@ function ManageDeck() {
   const accessControls = useTierFeatureAccess(userProfile?.tier, "access_controls", Boolean(userProfile));
   const downloadControls = useTierFeatureAccess(userProfile?.tier, "deck_downloads", Boolean(userProfile));
   const watermarkControls = useTierFeatureAccess(userProfile?.tier, "deck_watermarking", Boolean(userProfile));
+  const supportsWatermark = fileType === "pdf" || conversionMode === "interactive";
 
   const { data: isSlugAvailable, isLoading: isCheckingSlug } = useCheckDeckSlug(
     slug,
@@ -95,6 +96,12 @@ function ManageDeck() {
       setUploadError(null);
     }
   }, [userProfile, uploadError]);
+
+  React.useEffect(() => {
+    if (!supportsWatermark && watermarkEnabled) {
+      setWatermarkEnabled(false);
+    }
+  }, [supportsWatermark, watermarkEnabled]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -135,8 +142,8 @@ function ManageDeck() {
     setFile(selectedFile);
     setFileType(ext);
 
-    // Every Office format follows the same durable PDF conversion path.  The
-    // existing conversion-mode control remains for legacy documents only.
+    // PowerPoint defaults to the slide-based experience; users can still pick
+    // Raw to retain the original file for the Office embed viewer.
     setConversionMode(ext === "ppt" || ext === "pptx" ? "interactive" : "raw");
 
     const baseName = selectedFile.name.includes(".")
@@ -280,8 +287,10 @@ function ManageDeck() {
               requireEmail={requireEmail}
               requirePassword={requirePassword}
               allowDownload={allowDownload}
-              canUseAccessControls={accessControls.isLoading || accessControls.access.state === "available"}
-              canUseDownloadControls={downloadControls.isLoading || downloadControls.access.state === "available"}
+              canUseAccessControls={accessControls.access.state === "available"}
+              canUseDownloadControls={downloadControls.access.state === "available"}
+              accessControlsLoading={accessControls.isLoading}
+              downloadControlsLoading={downloadControls.isLoading}
               viewPassword={viewPassword}
               showPasswordField={showPasswordField}
               enableExpiry={enableExpiry}
@@ -312,7 +321,7 @@ function ManageDeck() {
                 enabled={watermarkEnabled}
                 text={watermarkText}
                 status={existingDeck?.watermark_status}
-                isPdf={["pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx"].includes(fileType)}
+                isPdf={supportsWatermark}
                 canUseWatermarking={watermarkControls.isLoading || watermarkControls.access.state === "available"}
                 onEnabledChange={setWatermarkEnabled}
                 onTextChange={setWatermarkText}

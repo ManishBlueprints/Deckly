@@ -6,7 +6,7 @@ import { deckStorageService } from "../services/deckStorageService";
 import { supabase } from "../services/supabase";
 import { userService } from "../services/userService";
 import { dataRoomService } from "../services/dataRoomService";
-import { processPdfToImages } from "../workflows/deckProcessing";
+import { MAX_DECK_PAGES, processPdfToImages } from "../workflows/deckProcessing";
 import { deckQueryKeys } from "./useDecks";
 import { userTotalStatsQueryKeys } from "./useUserTotalStats";
 import { documentProcessingService } from "../services/documentProcessingService";
@@ -170,6 +170,7 @@ export function useManageDeckWorkflow({
       const processed = await processPdfToImages(pdfFile, {
         scale: 2,
         quality: 1,
+        maxPages: MAX_DECK_PAGES,
         onProgress: (current, total) => {
           setProgress(`Processing page ${current} of ${total}...`);
           setProgressPercent(
@@ -177,9 +178,6 @@ export function useManageDeckWorkflow({
           );
         },
       });
-      if (processed.length > 500) {
-        throw new Error("Viewable documents are limited to 500 pages.");
-      }
       return processed;
     },
     [setProgress, setProgressPercent],
@@ -218,6 +216,11 @@ export function useManageDeckWorkflow({
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       let analyticsWorkspaceId: string | undefined;
+      let uploadedSourcePath: string | null = null;
+      let uploadedSourceUrl: string | null = null;
+      let uploadedSlideImageUrls: string[] = [];
+      let uploadedAssetsCommitted = false;
+      let databaseCommitAttempted = false;
 
       try {
         let finalFileUrl = existingDeck?.file_url;
@@ -257,10 +260,10 @@ export function useManageDeckWorkflow({
           });
         };
 
-        // Office files are always converted asynchronously.  The backend
-        // creates a durable draft/outbox row before accepting bytes, so a tab
-        // closing cannot strand conversion or expose an unfinished document.
-        if (file && fileType !== "pdf") {
+        // Interactive Office files use the durable conversion pipeline. Raw
+        // Office files keep their original format and continue through the
+        // direct upload path for the Office embed viewer.
+        if (file && fileType !== "pdf" && conversionMode === "interactive") {
           setProgress("Preparing secure document conversion...");
           setProgressPercent(5);
           const prepared = await documentProcessingService.prepareOfficeUpload({
@@ -314,6 +317,8 @@ export function useManageDeckWorkflow({
           setProgress("Uploading document...");
           setProgressPercent(5);
           const upload = await deckStorageService.uploadDeckFile(file, slug, userId);
+          uploadedSourcePath = upload.fileName;
+          uploadedSourceUrl = upload.publicUrl;
           finalFileUrl = upload.publicUrl;
           finalFileSize = file.size;
 
@@ -336,8 +341,10 @@ export function useManageDeckWorkflow({
                 setProgress(`Uploading slide ${current} of ${total}...`);
                 setProgressPercent(50 + Math.round((current / total) * 45));
               },
-              stagingVersion
+              stagingVersion,
+              (imageUrl) => uploadedSlideImageUrls.push(imageUrl),
             );
+            uploadedSlideImageUrls = imageUrls;
             finalPages = imageUrls.map((url, idx) => ({
               image_url: url,
               page_number: idx + 1,
@@ -360,6 +367,7 @@ export function useManageDeckWorkflow({
         if (editId) {
           setProgress("Updating record...");
           setProgressPercent(95);
+          databaseCommitAttempted = true;
 
           const { error: dbError } = await supabase
             .from("decks")
@@ -384,6 +392,7 @@ export function useManageDeckWorkflow({
             })
             .eq("id", editId);
           if (dbError) throw dbError;
+          uploadedAssetsCommitted = true;
 
           const shouldCleanupDisabledWatermark = !watermarkEnabled && existingDeck?.watermark_enabled;
           if (shouldCleanupDisabledWatermark) {
@@ -403,6 +412,7 @@ export function useManageDeckWorkflow({
         } else {
           setProgress("Finalizing...");
           setProgressPercent(95);
+          databaseCommitAttempted = true;
 
           const { data: deckRecord, error: deckCreateError } = await supabase.rpc(
             "create_deck_with_primary_link",
@@ -416,6 +426,7 @@ export function useManageDeckWorkflow({
               p_status: finalStatus as "PENDING" | "CONVERTING" | "PROCESSED",
               p_display_mode: conversionMode,
               p_file_size: finalFileSize,
+              p_page_count: finalPageCount,
               p_file_type: fileType,
               p_require_email: requireEmail,
               p_require_password: requirePassword,
@@ -430,6 +441,7 @@ export function useManageDeckWorkflow({
           );
 
           if (deckCreateError) throw deckCreateError;
+          uploadedAssetsCommitted = true;
           savedDeckId = deckRecord?.id ?? null;
 
           if (returnToRoom && deckRecord) {
@@ -511,6 +523,45 @@ export function useManageDeckWorkflow({
 
         navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content");
       } catch (err: unknown) {
+        let shouldCleanupUploadedAssets = !uploadedAssetsCommitted;
+        if (
+          shouldCleanupUploadedAssets
+          && databaseCommitAttempted
+          && uploadedSourceUrl
+          && analyticsWorkspaceId
+        ) {
+          try {
+            let referenceQuery = supabase
+              .from("decks")
+              .select("id")
+              .eq("file_url", uploadedSourceUrl);
+            referenceQuery = editId
+              ? referenceQuery.eq("id", editId)
+              : referenceQuery.eq("user_id", analyticsWorkspaceId);
+            const { data: referencingDeck, error: referenceError } = await referenceQuery.maybeSingle();
+            if (referenceError) throw referenceError;
+            shouldCleanupUploadedAssets = !referencingDeck;
+          } catch (referenceCheckError) {
+            // A commit response can be lost after PostgreSQL has already
+            // persisted the deck. Keep the assets when their reference state
+            // cannot be established; scheduled/server cleanup can reconcile
+            // an actual orphan without corrupting a live deck.
+            shouldCleanupUploadedAssets = false;
+            console.error("Skipping uploaded asset rollback because deck references could not be verified:", referenceCheckError);
+          }
+        }
+        if (shouldCleanupUploadedAssets) {
+          if (uploadedSourcePath) {
+            await deckStorageService.deleteSlideImages([uploadedSourcePath]).catch((cleanupError) => {
+              console.error("Failed to remove orphaned uploaded document:", cleanupError);
+            });
+          }
+          if (uploadedSlideImageUrls.length > 0) {
+            await deckStorageService.deleteSlideImages(uploadedSlideImageUrls).catch((cleanupError) => {
+              console.error("Failed to remove orphaned slide images:", cleanupError);
+            });
+          }
+        }
         console.error("Upload error:", err);
         Sentry.captureException(err);
         let errorMsg = "Something went wrong. Please try again.";

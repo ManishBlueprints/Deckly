@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { checkA11y, injectAxe } from "axe-playwright";
+import { expect, test } from "../support/networkSafeTest";
 
 const stories = [
   "screens-workspace--saved-library-populated",

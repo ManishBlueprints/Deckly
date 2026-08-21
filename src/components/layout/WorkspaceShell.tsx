@@ -196,7 +196,7 @@ export function WorkspaceShell({ children, primaryAction }: WorkspaceShellProps)
         <aside className={cn("relative z-[var(--ui-layer-shell)] hidden h-dvh shrink-0 flex-col border-r border-ui-border bg-ui-surface transition-[width] duration-200 md:flex", collapsed ? "w-[76px]" : "w-[282px]")}>
           <div className={cn("flex h-[88px] items-center border-b border-ui-border px-5", collapsed ? "justify-center" : "gap-3")}>
             <img src={decklyMark} alt="" className="h-9 w-9 rounded-[10px] object-cover" />
-            {!collapsed && <span className="text-[27px] font-semibold tracking-[-0.05em]">Deckly</span>}
+            {!collapsed && <span className="text-[27px] font-semibold tracking-[-0.05em]">deckly</span>}
             <button onClick={toggleCollapsed} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} className={cn("ml-auto inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-ui-border text-ui-muted hover:bg-ui-subtle hover:text-ui-text", collapsed && "absolute -right-4 top-6 bg-ui-surface")}>
               <ChevronLeft size={18} className={cn("transition-transform", collapsed && "rotate-180")} />
             </button>
@@ -271,7 +271,7 @@ export function WorkspaceShell({ children, primaryAction }: WorkspaceShellProps)
           <header className="sticky top-0 z-[var(--ui-layer-sticky)] flex h-[88px] items-center justify-between border-b border-ui-border bg-ui-canvas/95 px-4 backdrop-blur sm:px-6 lg:px-8">
             <Link to="/" className="flex min-w-0 items-center gap-2.5 md:hidden" aria-label="Deckly overview">
               <img src={decklyMark} alt="" className="h-9 w-9 rounded-[10px] object-cover" />
-              <span className="truncate text-xl font-semibold tracking-[-0.04em]">Deckly</span>
+              <span className="truncate text-xl font-semibold tracking-[-0.04em]">deckly</span>
             </Link>
             <button onClick={() => setCommandOpen(true)} className="ml-auto mr-2 hidden h-11 w-[264px] items-center gap-3 rounded-[12px] border border-ui-border bg-ui-surface px-4 text-sm text-ui-muted shadow-[var(--ui-shadow-control)] hover:border-ui-primary/40 sm:flex">
               <Search size={18} /><span className="flex-1 text-left">Search commands…</span><kbd className="font-mono text-xs">⌘K</kbd>
@@ -396,7 +396,7 @@ export function WorkspaceShell({ children, primaryAction }: WorkspaceShellProps)
         <ThemeMenuItem label="Dark" icon={Moon} selected={preference === "dark"} onSelect={() => setTheme("dark")} />
         <ThemeMenuItem label="System" icon={Monitor} selected={preference === "system"} onSelect={() => setTheme("system")} />
         <DropdownMenuSeparator className="bg-ui-border" />
-        <DropdownMenuItem onSelect={() => void signOut().catch(() => toast.error("Failed to sign out. Please try again."))} className="gap-3 rounded-[10px] px-3 py-2.5 text-ui-destructive focus:bg-ui-destructive/10 focus:text-ui-destructive"><LogOut size={17} />Sign out</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => void signOut().catch(() => toast.error("Failed to sign out. Please try again."))} className="group gap-3 rounded-[10px] px-3 py-2.5 text-ui-text focus:bg-ui-destructive focus:text-ui-canvas data-[highlighted]:bg-ui-destructive data-[highlighted]:text-ui-canvas"><LogOut size={17} className="text-ui-destructive group-focus:text-ui-canvas group-data-[highlighted]:text-ui-canvas" />Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     );
   }

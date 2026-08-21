@@ -21,7 +21,7 @@ import { extractStoragePath } from "../../services/deckService.shared";
 import { analyticsService } from "../../services/analyticsService";
 import { useAuth } from "../../contexts/AuthContext";
 import { Deck } from "../../types";
-import { processPdfToImages } from "../../workflows/deckProcessing";
+import { MAX_DECK_PAGES, processPdfToImages } from "../../workflows/deckProcessing";
 import { cn } from "../../lib/utils";
 import { getDeckPreviewPath } from "../../utils/url";
 import { DeckLinkManagerModal } from "../dashboard/DeckLinkManagerModal";
@@ -164,12 +164,10 @@ function DeckDetailPanel({
         const imageAssets = await processPdfToImages(newFile, {
           scale: 1.5,
           quality: 0.8,
+          maxPages: MAX_DECK_PAGES,
           onProgress: (current, total) =>
             setUploadProgress(`Processing slide ${current} of ${total}...`),
         });
-        if (imageAssets.length > 500) {
-          throw new Error("Viewable documents are limited to 500 pages.");
-        }
         setUploadProgress("Uploading new PDF...");
         const upload = await deckStorageService.uploadDeckFile(newFile, editValues.slug, userId);
         uploadedSourcePaths.add(upload.fileName);

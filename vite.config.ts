@@ -173,6 +173,13 @@ export default defineConfig(({ mode }) => {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
     },
+    // These dependencies first appear behind the lazy /upload route. Without
+    // eager optimization, Vite can discover them during navigation, invalidate
+    // the active dependency graph, and answer the route imports with 504
+    // "Outdated Optimize Dep" responses.
+    optimizeDeps: {
+      include: ["pdfjs-dist", "@radix-ui/react-switch"],
+    },
     build: {
       sourcemap: "hidden",
       rollupOptions: {

@@ -203,8 +203,8 @@ const deckCrudService = {
 
   async deleteDeck(
     id: string,
-    fileUrl: string,
-    slug: string,
+    _fileUrl: string,
+    _slug: string,
     providedUserId?: string,
   ): Promise<{
     dbDeleted: boolean;
@@ -215,7 +215,7 @@ const deckCrudService = {
     const userId = await getRequiredDeckUserId(providedUserId);
     const { data: targetDeck, error: targetDeckError } = await supabase
       .from("decks")
-      .select("user_id")
+      .select("user_id, status")
       .eq("id", id)
       .maybeSingle();
 
@@ -234,20 +234,32 @@ const deckCrudService = {
 
     try {
       const processingCancellation = await supabase.functions.invoke("document-processing", {
-        body: { action: "cancel-deck-jobs", deckId: id },
+        body: { action: "delete-deck-artifacts", deckId: id },
       });
       if (processingCancellation?.error) throw processingCancellation.error;
-      // Storage deletes are not transactional. Remove the optional watermark
-      // artifacts first so a failure cannot leave a retained deck without its
-      // primary source file and slide assets.
-      await deckStorageService.deleteDeckWatermarkAssets(id, userId);
-      await deckStorageService.deleteDeckRevisionAssets(id, userId);
-      await deckStorageService.deleteDeckAssets(fileUrl, slug, userId);
+      if (
+        !processingCancellation?.data
+        || typeof processingCancellation.data !== "object"
+        || typeof processingCancellation.data.artifactsDeleted !== "number"
+      ) {
+        throw new Error("Deck artifact cleanup returned an invalid response.");
+      }
     } catch (err) {
-      console.error("Deck storage cleanup failed; deck remains hidden for retry.", {
+      if (targetDeck.status !== "DELETED") {
+        const { error: restoreError } = await supabase
+          .from("decks")
+          .update({ status: targetDeck.status, updated_at: new Date().toISOString() })
+          .eq("id", id)
+          .eq("user_id", userId);
+        if (restoreError) {
+          console.error("Failed to restore deck status after cleanup failure.", {
+            deckId: id,
+            restoreError,
+          });
+        }
+      }
+      console.error("Deck storage cleanup failed; deletion can be retried.", {
         deckId: id,
-        fileUrl,
-        slug,
         userId,
         cleanupError: err,
       });
@@ -271,8 +283,8 @@ const deckCrudService = {
         err instanceof Error ? err : new Error("Unable to finalize deck deletion.");
       console.error("Deck storage was removed; the deck remains hidden pending deletion retry.", {
         deckId: id,
-        fileUrl,
-        slug,
+        fileUrl: _fileUrl,
+        slug: _slug,
         userId,
         cleanupError,
       });

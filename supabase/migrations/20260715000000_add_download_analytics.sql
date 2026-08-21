@@ -35,6 +35,33 @@ CREATE INDEX IF NOT EXISTS idx_deck_download_events_room_visitor
   ON public.deck_download_events(data_room_id, visitor_id) WHERE data_room_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_deck_download_events_visitor
   ON public.deck_download_events(deck_id, visitor_id);
+CREATE INDEX IF NOT EXISTS idx_deck_download_events_owner_time
+  ON public.deck_download_events(owner_user_id, downloaded_at);
+
+-- Account deletion irreversibly anonymizes visitor identifiers while retaining
+-- event counts until the normal retention purge removes the history.
+CREATE OR REPLACE FUNCTION public.erase_deck_download_events_for_account(p_user_id UUID)
+RETURNS BIGINT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE v_updated BIGINT;
+BEGIN
+  UPDATE public.deck_download_events
+  SET viewer_email = NULL,
+      visitor_id = encode(
+        extensions.digest(p_user_id::TEXT || ':' || visitor_id, 'sha256'),
+        'hex'
+      )
+  WHERE owner_user_id = p_user_id;
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  RETURN v_updated;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.erase_deck_download_events_for_account(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.erase_deck_download_events_for_account(UUID) TO service_role;
 
 ALTER TABLE public.deck_download_events ENABLE ROW LEVEL SECURITY;
 

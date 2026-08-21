@@ -27,7 +27,9 @@ function userPrefixIsAllowed(userId: string, key: string): boolean {
 }
 
 function isServerManagedDeckPath(userId: string, key: string): boolean {
-  return key.startsWith(`${userId}/decks/verified/`);
+  return key.startsWith(`${userId}/decks/verified/`)
+    || new RegExp(`^${userId}/decks/[^/]+/revisions/`).test(key)
+    || key.startsWith(`${userId}/watermarks/`);
 }
 
 const responseHeaders = {
@@ -117,7 +119,10 @@ Deno.serve(async (req: Request) => {
       }
 
       for (const key of keys) {
-        if (!userPrefixIsAllowed(currentUser.user.id, key)) {
+        if (
+          !userPrefixIsAllowed(currentUser.user.id, key)
+          || isServerManagedDeckPath(currentUser.user.id, key)
+        ) {
           return buildJsonResponse({ error: "Forbidden" }, 403);
         }
       }
