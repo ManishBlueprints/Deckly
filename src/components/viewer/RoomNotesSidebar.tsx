@@ -71,7 +71,7 @@ export function RoomNotesSidebar({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/35 backdrop-blur-[2px] z-[110]"
+            className="fixed inset-0 bg-black/35 backdrop-blur-[2px] z-[var(--ui-layer-viewer)]"
           />
 
           <motion.div
@@ -79,7 +79,7 @@ export function RoomNotesSidebar({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.98 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="fixed top-4 right-4 z-[120] flex h-auto w-[min(22rem,calc(100vw-2rem))] max-h-[18rem] flex-col overflow-hidden border border-white/10 bg-[#101114] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
+            className="fixed top-4 right-4 z-[var(--ui-layer-viewer)] flex h-auto w-[min(22rem,calc(100vw-2rem))] max-h-[18rem] flex-col overflow-hidden border border-white/10 bg-[#101114] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
           >
             <div className="border-b border-white/5 bg-[#0f1116] px-4 py-3">
               <div className="flex items-center justify-between gap-3">

@@ -1,7 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Search, FileText, Check, Loader2 } from "lucide-react";
+import { Search, FileText, Check, Loader2 } from "lucide-react";
 import { Deck } from "../../types";
 import { deckService } from "../../services/deckService";
+import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import { cn } from "../../lib/utils";
 
 interface DocumentPickerProps {
   isOpen: boolean;
@@ -59,102 +70,89 @@ export function DocumentPicker({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="md" closeOnOutsideClick={!loading}>
+        <DialogHeader>
+          <DialogTitle>Add existing decks</DialogTitle>
+          <DialogDescription>
+            Select one or more decks to add to this room.
+          </DialogDescription>
+        </DialogHeader>
 
-      {/* Modal */}
-      <div className="relative bg-[#111] border border-[#333] rounded-lg shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#222]">
-          <div>
-            <h2 className="text-lg font-semibold text-white">Select Assets</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-white transition-all rounded-md bg-[#141414] border border-[#333] hover:bg-[#1a1a1a]"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="px-6 py-4 border-b border-[#222]">
-          <div className="relative group">
+        <DialogBody className="p-0">
+          <div className="border-b border-ui-border px-5 py-4 sm:px-6">
+            <div className="group relative">
             <Search
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-deckly-primary transition-colors"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted transition-colors group-focus-within:text-ui-primary"
             />
             <input
               type="text"
-              placeholder="Search assets..."
+                placeholder="Search decks..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 text-sm bg-[#141414] border border-[#333] rounded-md focus:outline-none focus:ring-1 focus:ring-deckly-primary text-white placeholder:text-slate-500 transition-all"
+                className="h-10 w-full rounded-md border border-ui-border bg-ui-surface pl-10 pr-4 text-sm text-ui-text outline-none transition-colors placeholder:text-ui-muted focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/15"
             />
           </div>
         </div>
 
-        {/* List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 relative z-10 custom-scrollbar">
+          <div className="max-h-[52vh] min-h-56 overflow-y-auto p-4 custom-scrollbar sm:p-5">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader2 size={24} className="text-deckly-primary animate-spin" />
-              <p className="text-xs text-slate-500">Accessing Vault</p>
+              <div className="flex flex-col items-center justify-center gap-3 py-16">
+                <Loader2 size={22} className="animate-spin text-ui-primary" />
+                <p className="text-sm text-ui-muted">Loading decks...</p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-              <div className="w-12 h-12 rounded-lg bg-[#141414] border border-[#333] flex items-center justify-center mb-4">
-                <FileText size={24} className="opacity-50" />
+              <div className="flex flex-col items-center justify-center py-16 text-center text-ui-muted">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-ui-border bg-ui-subtle">
+                  <FileText size={22} />
               </div>
-              <p className="text-sm">
+                <p className="text-sm font-medium text-ui-text">
                 {decks.length === 0
-                  ? "No assets available"
-                  : "No matching assets"}
+                    ? "No decks available"
+                    : "No matching decks"}
               </p>
             </div>
           ) : (
-            <div className="space-y-2 pb-2">
+              <div className="space-y-2">
               {filtered.map((deck) => {
                 const isSelected = selected.has(deck.id);
+                const thumbnailUrl = deck.thumbnail_url ?? deck.pages?.[0]?.image_url;
                 return (
                   <button
                     key={deck.id}
                     onClick={() => toggleSelect(deck.id)}
-                    className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg border transition-all duration-200 group ${
-                      isSelected
-                        ? "bg-deckly-primary/10 border-deckly-primary"
-                        : "bg-[#141414] border-[#333] hover:border-[#444] hover:bg-[#1a1a1a]"
-                    }`}
+                      className={cn(
+                        "group flex w-full items-center gap-3 rounded-lg border px-3 py-3 text-left transition-colors",
+                        isSelected
+                          ? "border-ui-primary bg-ui-primary/10"
+                          : "border-ui-border bg-ui-surface hover:bg-ui-subtle",
+                      )}
                   >
                     {/* Checkbox */}
                     <div
-                      className={`w-5 h-5 rounded flex items-center justify-center shrink-0 transition-all duration-200 ${
-                        isSelected
-                          ? "bg-deckly-primary text-[#111]"
-                          : "border border-[#444] bg-[#0f0f0f]"
-                      }`}
+                        className={cn(
+                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                          isSelected
+                            ? "border-ui-primary bg-ui-primary text-ui-primary-text"
+                            : "border-ui-border bg-ui-elevated",
+                        )}
                     >
                       {isSelected && <Check size={14} className="font-bold" />}
                     </div>
 
                     {/* Thumbnail */}
-                    <div className="w-12 h-8 rounded-md bg-[#0f0f0f] border border-[#222] overflow-hidden shrink-0 group-hover:border-[#444] transition-all">
-                      {deck.pages?.[0]?.image_url ? (
+                      <div className="h-9 w-14 shrink-0 overflow-hidden rounded-md border border-ui-border bg-ui-subtle">
+                      {thumbnailUrl ? (
                         <img
-                          src={deck.pages[0].image_url}
+                          src={thumbnailUrl}
                           alt=""
                           className="w-full h-full object-cover transition-all duration-300"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <FileText size={14} className="text-slate-600" />
+                            <FileText size={14} className="text-ui-muted" />
                         </div>
                       )}
                     </div>
@@ -162,12 +160,15 @@ export function DocumentPicker({
                     {/* Info */}
                     <div className="flex-1 min-w-0 text-left">
                       <p
-                        className={`text-sm font-semibold truncate transition-colors ${isSelected ? "text-deckly-primary" : "text-white"}`}
+                          className={cn(
+                            "truncate text-sm font-semibold",
+                            isSelected ? "text-ui-primary" : "text-ui-text",
+                          )}
                       >
                         {deck.title}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {deck.pages?.length || 0} Slides
+                        <p className="mt-0.5 text-xs text-ui-muted">
+                          {deck.pages?.length || 0} slides
                       </p>
                     </div>
                   </button>
@@ -175,32 +176,23 @@ export function DocumentPicker({
               })}
             </div>
           )}
-        </div>
+          </div>
+        </DialogBody>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-[#222] flex items-center justify-between bg-[#111]">
-          <div className="flex flex-col">
-            <span className="text-sm text-slate-400">
-              {selected.size} selected
-            </span>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-all"
-            >
+        <DialogFooter className="items-center sm:justify-between">
+          <span className="text-sm text-ui-muted">
+            {selected.size} selected
+          </span>
+          <div className="flex w-full gap-2 sm:w-auto">
+            <Button variant="ghost" onClick={onClose} className="flex-1 sm:flex-none">
               Cancel
-            </button>
-            <button
-              onClick={handleAdd}
-              disabled={selected.size === 0}
-              className="px-6 py-2 h-10 bg-deckly-primary text-slate-950 text-sm font-semibold rounded-md hover:bg-deckly-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Confirm {selected.size > 0 ? `(${selected.size})` : ""}
-            </button>
+            </Button>
+            <Button onClick={handleAdd} disabled={selected.size === 0} className="flex-1 sm:flex-none">
+              Add decks {selected.size > 0 ? `(${selected.size})` : ""}
+            </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

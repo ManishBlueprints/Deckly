@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { Lock, Eye, EyeOff, Mail, CalendarDays } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Lock, Eye, EyeOff, Mail, CalendarDays, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch } from "../../ui/switch";
 import { Label } from "../../ui/label";
 import { Input } from "../../ui/input";
 import { cn } from "@/lib/utils";
+import { PremiumFeatureIcon } from "../PremiumFeatureIcon";
 
 interface AccessProtectionSectionProps {
   requireEmail: boolean;
@@ -17,6 +18,78 @@ interface AccessProtectionSectionProps {
   setRequirePassword: (v: boolean) => void;
   viewPassword: string;
   setViewPassword: (v: string) => void;
+  allowDownload?: boolean;
+  setAllowDownload?: (v: boolean) => void;
+  canUseDownloadControls?: boolean;
+  downloadControlsLoading?: boolean;
+  onDownloadUpsell?: () => void;
+  canUseAccessControls?: boolean;
+  accessControlsLoading?: boolean;
+  onAccessUpsell?: () => void;
+  showHeading?: boolean;
+  children?: ReactNode;
+}
+
+interface AccessOptionCardProps {
+  id: string;
+  checked: boolean;
+  icon: ReactNode;
+  title: string;
+  description: string;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}
+
+function AccessOptionCard({
+  id,
+  checked,
+  icon,
+  title,
+  description,
+  onChange,
+  disabled = false,
+}: AccessOptionCardProps) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-[88px] cursor-pointer items-center justify-between gap-4 rounded-[10px] border p-4 transition-colors",
+        checked
+          ? "border-ui-primary/50 bg-ui-primary/10 shadow-[var(--ui-shadow-control)]"
+          : "border-ui-border bg-ui-surface hover:border-ui-primary/30 hover:bg-ui-subtle",
+      )}
+      onClick={() => {
+        if (!disabled) onChange(!checked);
+      }}
+    >
+      <div className="flex min-w-0 items-center gap-3.5">
+        <div
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-md border transition-colors",
+            checked
+              ? "border-ui-primary/30 bg-ui-primary/15 text-ui-primary"
+              : "border-ui-border bg-ui-subtle text-ui-muted",
+          )}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-sm font-semibold leading-tight text-ui-text">
+            <PremiumFeatureIcon tier="PRO" />
+            {title}
+          </p>
+          <p className="mt-1 text-xs text-ui-muted">{description}</p>
+        </div>
+      </div>
+      <Switch
+        id={id}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onChange}
+        onClick={(event) => event.stopPropagation()}
+        aria-label={title}
+      />
+    </div>
+  );
 }
 
 export function AccessProtectionSection({
@@ -30,91 +103,91 @@ export function AccessProtectionSection({
   setRequirePassword,
   viewPassword,
   setViewPassword,
+  allowDownload,
+  setAllowDownload,
+  canUseDownloadControls,
+  downloadControlsLoading = false,
+  onDownloadUpsell,
+  canUseAccessControls = true,
+  accessControlsLoading = false,
+  onAccessUpsell,
+  showHeading = true,
+  children,
 }: AccessProtectionSectionProps) {
   const [showPasswordField, setShowPasswordField] = useState(false);
+  const hasDownloadControl = typeof allowDownload === "boolean" && Boolean(
+    setAllowDownload && (canUseDownloadControls || onDownloadUpsell),
+  );
+  const requestAccessControl = () => onAccessUpsell?.();
 
   return (
-    <section className="space-y-6 pt-6 border-t border-white/5">
-      <div className="flex items-center gap-2 mb-2">
-        <Lock size={16} className="text-deckly-primary" />
-        <h3 className="text-sm font-medium text-white">Security & Access</h3>
-      </div>
+    <section className={cn("space-y-5", showHeading && "border-t border-ui-border pt-6")}>
+      {showHeading ? (
+        <div className="mb-2 flex items-center gap-2">
+          <Lock size={16} className="text-ui-primary" />
+          <h3 className="text-sm font-semibold text-ui-text">Security & Access</h3>
+        </div>
+      ) : null}
 
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Email Required */}
-          <div
-            className={cn(
-              "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer",
-              requireEmail
-                ? "bg-background border-deckly-primary/50"
-                : "bg-surface-container border-white/10 hover:border-white/20",
-            )}
-            onClick={() => setRequireEmail(!requireEmail)}
-          >
-            <div className="flex items-center gap-4">
-              <div
-                className={cn(
-                  "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
-                  requireEmail
-                    ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
-                    : "text-slate-500",
-                )}
-              >
-                <Mail size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white leading-tight">
-                  Email Required
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  ID Authentication
-                </p>
-              </div>
-            </div>
-            <Switch
-              id="require-email"
-              checked={requireEmail}
-              onCheckedChange={setRequireEmail}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
+          <AccessOptionCard
+            id="require-email"
+            checked={requireEmail}
+            icon={<Mail size={18} />}
+            title="Email Required"
+            description="ID authentication"
+            disabled={accessControlsLoading}
+            onChange={(checked) => {
+              if (checked && !canUseAccessControls) return requestAccessControl();
+              setRequireEmail(checked);
+            }}
+          />
 
-          {/* Gate Access */}
-          <div
-            className={cn(
-              "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer",
-              requirePassword
-                ? "bg-background border-deckly-primary/50"
-                : "bg-surface-container border-white/10 hover:border-white/20",
-            )}
-            onClick={() => setRequirePassword(!requirePassword)}
-          >
-            <div className="flex items-center gap-4">
-              <div
-                className={cn(
-                  "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
-                  requirePassword
-                    ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
-                    : "text-slate-500",
-                )}
-              >
-                <Lock size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white leading-tight">
-                  Gate Access
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">Password Lock</p>
-              </div>
-            </div>
-            <Switch
-              id="require-password"
-              checked={requirePassword}
-              onCheckedChange={setRequirePassword}
-              onClick={(e) => e.stopPropagation()}
+          <AccessOptionCard
+            id="require-password"
+            checked={requirePassword}
+            icon={<Lock size={18} />}
+            title="Gate Access"
+            description="Password lock"
+            disabled={accessControlsLoading}
+            onChange={(checked) => {
+              if (checked && !canUseAccessControls) return requestAccessControl();
+              setRequirePassword(checked);
+            }}
+          />
+
+          {hasDownloadControl && (
+            <AccessOptionCard
+              id="allow-download"
+              checked={allowDownload ?? false}
+              icon={<Download size={18} />}
+              title="Downloads"
+              description={allowDownload ? "Download enabled" : "Download disabled"}
+              disabled={downloadControlsLoading}
+              onChange={(checked) => {
+                if (checked && !canUseDownloadControls) {
+                  onDownloadUpsell?.();
+                  return;
+                }
+                setAllowDownload?.(checked);
+              }}
             />
-          </div>
+          )}
+
+          <AccessOptionCard
+            id="link-expiry"
+            checked={expiryEnabled}
+            icon={<CalendarDays size={18} />}
+            title="Expiration"
+            description="Duration control"
+            disabled={accessControlsLoading}
+            onChange={(checked) => {
+              if (checked && !canUseAccessControls) return requestAccessControl();
+              setExpiryEnabled(checked);
+              if (!checked) setExpiryDate("");
+            }}
+          />
         </div>
 
         {/* Password Reveal */}
@@ -129,7 +202,7 @@ export function AccessProtectionSection({
               <div className="space-y-2 mt-2 pb-2">
                 <Label
                   htmlFor="view-password"
-                  className="text-xs font-semibold text-slate-300"
+                  className="text-xs font-semibold text-ui-text"
                 >
                   Set Security Key
                 </Label>
@@ -141,14 +214,14 @@ export function AccessProtectionSection({
                     onChange={(e) => setViewPassword(e.target.value)}
                     placeholder="Enter strong password..."
                     className={cn(
-                      "h-11 pr-12 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 transition-all focus:bg-[#2B2B2B]",
-                      requirePassword && !viewPassword.trim() && "border-red-500/50"
+                      "h-11 rounded-md border-ui-border bg-ui-surface pr-12 text-ui-text placeholder:text-ui-muted focus-visible:ring-2 focus-visible:ring-ui-focus",
+                      requirePassword && !viewPassword.trim() && "border-ui-destructive/60"
                     )}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPasswordField(!showPasswordField)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ui-muted transition-colors hover:text-ui-text"
                   >
                     {showPasswordField ? (
                       <EyeOff size={18} />
@@ -162,49 +235,6 @@ export function AccessProtectionSection({
           )}
         </AnimatePresence>
 
-        {/* Expiration Toggle (Standalone Row) */}
-        <div
-          className={cn(
-            "flex items-center justify-between p-4 rounded-lg border transition-all duration-200 cursor-pointer mt-4",
-            expiryEnabled
-              ? "bg-background border-deckly-primary/50"
-              : "bg-surface-container border-white/10 hover:border-white/20",
-          )}
-          onClick={() => {
-            const next = !expiryEnabled;
-            setExpiryEnabled(next);
-            if (!next) setExpiryDate("");
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <div
-              className={cn(
-                "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
-                expiryEnabled
-                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
-                  : "text-slate-500",
-              )}
-            >
-              <CalendarDays size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white leading-tight">
-                Expiration
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
-            </div>
-          </div>
-          <Switch
-            id="link-expiry"
-            checked={expiryEnabled}
-            onCheckedChange={(checked) => {
-              setExpiryEnabled(checked);
-              if (!checked) setExpiryDate("");
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-
         {/* Expiration Reveal */}
         <AnimatePresence>
           {expiryEnabled && (
@@ -217,7 +247,7 @@ export function AccessProtectionSection({
               <div className="space-y-2 mt-2">
                 <Label
                   htmlFor="expiry-date"
-                  className="text-xs font-semibold text-slate-300"
+                  className="text-xs font-semibold text-ui-text"
                 >
                   Select Deadline
                 </Label>
@@ -227,12 +257,14 @@ export function AccessProtectionSection({
                   value={expiryDate}
                   onChange={(e) => setExpiryDate(e.target.value)}
                   min={new Date().toISOString().split("T")[0]}
-                  className="h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#2B2B2B] [color-scheme:dark]"
+                  className="h-11 rounded-md border-ui-border bg-ui-surface text-ui-text focus-visible:ring-2 focus-visible:ring-ui-focus"
                 />
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {children}
       </div>
     </section>
   );

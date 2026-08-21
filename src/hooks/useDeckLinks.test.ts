@@ -28,12 +28,19 @@ vi.mock("../services/deckLinkService", () => ({
     createDefaultDeckLink: vi.fn(async () => ({ id: "link-1" })),
     enableDeckLink: vi.fn(async () => ({ id: "link-1" })),
     disableDeckLink: vi.fn(async () => ({ id: "link-1" })),
+    deleteDeckLink: vi.fn(async () => undefined),
   },
+}));
+
+const analyticsMocks = vi.hoisted(() => ({ capture: vi.fn() }));
+vi.mock("../services/productAnalytics", () => ({
+  productAnalytics: analyticsMocks,
 }));
 
 import {
   deckLinkQueryKeys,
   useCreateDeckLink,
+  useDeleteDeckLink,
   useDeckLinks,
   useDisableDeckLink,
   useEnableDeckLink,
@@ -79,6 +86,22 @@ describe("useDeckLinks hooks", () => {
     expect(reactQueryMocks.invalidateQueries).toHaveBeenCalledWith({
       queryKey: deckLinkQueryKeys.deckDetail("deck-1"),
     });
+  });
+
+  it("does not reject completed create or delete mutations when count telemetry fails", async () => {
+    vi.mocked(deckLinkService.listDeckLinks).mockRejectedValueOnce(new Error("Count unavailable"));
+    const createMutation = useCreateDeckLink("deck-1", "user-1");
+
+    await expect(createMutation.mutateAsync(undefined)).resolves.toEqual({ id: "link-1" });
+    expect(analyticsMocks.capture).not.toHaveBeenCalled();
+
+    vi.mocked(deckLinkService.listDeckLinks).mockResolvedValueOnce([]);
+    analyticsMocks.capture.mockImplementationOnce(() => {
+      throw new Error("Analytics unavailable");
+    });
+    const deleteMutation = useDeleteDeckLink("deck-1", "user-1");
+
+    await expect(deleteMutation.mutateAsync("link-1")).resolves.toBeUndefined();
   });
 
   it("invalidates the same cache paths after enable and disable mutations", async () => {

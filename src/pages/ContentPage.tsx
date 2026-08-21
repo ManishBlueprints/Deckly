@@ -1,13 +1,13 @@
-import { DashboardLayout } from "../components/layout/DashboardLayout";
+import { WorkspaceShell } from "../components/layout/WorkspaceShell";
 import { ContentView } from "../components/dashboard/ContentView";
 import { ContentTour } from "../components/tours/ContentTour";
 
 function ContentPage() {
   return (
-    <DashboardLayout title="Content">
+    <WorkspaceShell title="Content" primaryAction={{ label: "New deck", href: "/upload" }}>
       <ContentTour />
       <ContentView />
-    </DashboardLayout>
+    </WorkspaceShell>
   );
 }
 

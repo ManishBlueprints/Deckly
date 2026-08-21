@@ -92,3 +92,16 @@ export function useDeckLinkStats(
         ...ANALYTICS_QUERY_CONFIG,
     });
 }
+
+export function useDeckDownloadAnalytics(
+    deckId: string | undefined,
+    ownerUserId: string | undefined,
+    enabled = true,
+) {
+    return useQuery({
+        queryKey: ["deck-download-analytics", deckId, ownerUserId],
+        queryFn: () => analyticsService.getDeckDownloadAnalytics(deckId!, ownerUserId!),
+        enabled: enabled && !!deckId && !!ownerUserId,
+        ...ANALYTICS_QUERY_CONFIG,
+    });
+}

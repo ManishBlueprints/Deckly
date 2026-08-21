@@ -8,6 +8,7 @@ import { userService } from "../services/userService";
 import { UserProfile, BrandingSettings } from "../types";
 import { useProfile, useBranding } from "../hooks/useAuthQueries";
 import posthog from "posthog-js";
+import { productAnalytics } from "../services/productAnalytics";
 import {
   captureSignupCompleted,
   consumePendingOAuthSignup,
@@ -67,7 +68,7 @@ function isPasswordRecoverySession(session: Session | null) {
   return Boolean(marker && session?.user?.id === marker.userId);
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   session: Session | null;
   passwordRecovery: boolean;
   clearPasswordRecovery: () => void;
@@ -90,6 +91,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+export function AuthContextProvider({
+  value,
+  children,
+}: {
+  value: AuthContextType;
+  children: React.ReactNode;
+}) {
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -111,10 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Sync PostHog Identity
   useEffect(() => {
     if (session?.user) {
-      posthog.identify(session.user.id, {
-        email: session.user.email,
-        full_name: profile?.full_name,
-      });
+      productAnalytics.identifyWorkspace(session.user.id, profile?.tier);
       Sentry.setUser({
         id: session.user.id,
         email: session.user.email,

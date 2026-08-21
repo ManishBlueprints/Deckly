@@ -63,7 +63,7 @@ export function DataRoomSidebar({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onToggleSidebar}
-            className="fixed inset-0 z-40 bg-black/45 backdrop-blur-sm"
+            className="fixed inset-0 z-[var(--ui-layer-viewer)] bg-black/45 backdrop-blur-sm"
           />
         )}
       </AnimatePresence>

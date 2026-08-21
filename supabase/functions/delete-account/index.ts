@@ -1,5 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { deleteObjects, listAllObjects } from "../_shared/r2.ts";
+import { CloudConvertError, deleteCloudConvertJob, findCloudConvertJobsByTag } from "../_shared/cloudconvert.ts";
+import { ACTIVE_DOCUMENT_PROCESSING_STATUSES } from "../_shared/document-processing.ts";
+import { mapWithConcurrency } from "../_shared/concurrency.ts";
+
+const PROVIDER_LOOKUP_CONCURRENCY = 5;
 
 // delete-account Edge Function
 // Verifies the caller's JWT, purges all storage objects, then deletes the
@@ -59,6 +64,55 @@ Deno.serve(async (req: Request) => {
     deletionMarked = false;
   };
 
+  const cancelDocumentProcessingJobs = async () => {
+    const activeOrUncertainStatuses = [...ACTIVE_DOCUMENT_PROCESSING_STATUSES, "superseded", "cancelled", "timed_out"];
+    const { data: jobs, error: jobsError } = await adminClient
+      .from("document_processing_jobs")
+      .select("id, provider_job_id")
+      .eq("user_id", userId)
+      .in("status", activeOrUncertainStatuses);
+    if (jobsError) throw jobsError;
+
+    const { error: cancelError } = await adminClient
+      .from("document_processing_jobs")
+      .update({ status: "cancelled", completed_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .in("status", ACTIVE_DOCUMENT_PROCESSING_STATUSES);
+    if (cancelError) throw cancelError;
+
+    const providerJobIds = new Set<string>();
+    const jobsMissingProviderId = (jobs ?? []).filter((job) => {
+      if (typeof job.provider_job_id === "string") {
+        providerJobIds.add(job.provider_job_id);
+        return false;
+      }
+      return true;
+    });
+    const taggedJobGroups = await mapWithConcurrency(
+      jobsMissingProviderId,
+      PROVIDER_LOOKUP_CONCURRENCY,
+      async (job) => {
+        try {
+          return await findCloudConvertJobsByTag(`deckly-processing:${job.id}`);
+        } catch (error) {
+          console.error("[delete-account] Provider tag lookup failed", {
+            jobId: job.id,
+            message: error instanceof Error ? error.message : "Unknown error",
+          });
+          return [];
+        }
+      },
+    );
+    taggedJobGroups.flat().forEach((providerJob) => providerJobIds.add(providerJob.id));
+    for (const providerJobId of providerJobIds) {
+      try {
+        await deleteCloudConvertJob(providerJobId);
+      } catch (error) {
+        if (!(error instanceof CloudConvertError) || error.status !== 404) throw error;
+      }
+    }
+  };
+
   try {
     const { data: deletionCanBegin, error: beginDeletionError } = await adminClient
       .rpc("begin_account_deletion", { p_user_id: userId });
@@ -80,6 +134,11 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Cancel every active or ambiguous provider job before listing R2. A
+    // CloudConvert job otherwise retains a valid presigned PUT URL and can
+    // recreate an artifact after this account's bucket prefix is purged.
+    await cancelDocumentProcessingJobs();
+
     const filePaths = (await listAllObjects("decks", userId)).map((item) => item.name);
 
     if (filePaths.length > 0) {
@@ -95,6 +154,10 @@ Deno.serve(async (req: Request) => {
         }
       }
     }
+
+    const { error: analyticsErasureError } = await adminClient
+      .rpc("erase_deck_download_events_for_account", { p_user_id: userId });
+    if (analyticsErasureError) throw analyticsErasureError;
 
     console.log(`[delete-account] Deleting auth.users row for ${userId}`);
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);

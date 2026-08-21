@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { deckService } from "../../services/deckService";
+import { documentProcessingService } from "../../services/documentProcessingService";
 import { storageService } from "../../services/storageService";
 import { supabase } from "../../services/supabase";
 import { extractStoragePath } from "../../services/storagePaths";
@@ -563,6 +564,11 @@ function DeckList({
                 <Link
                   to={getDeckPreviewPath(deck.id)}
                   onClick={(e) => {
+                    if (deck.status !== "PROCESSED") {
+                      e.preventDefault();
+                      toast.info("This document is still processing. You can edit or delete the draft while it finishes.");
+                      return;
+                    }
                     if (!profile?.handle) {
                       e.preventDefault();
                       alert(
@@ -671,11 +677,20 @@ function DeckList({
                       <h2 className="text-xl font-bold text-white leading-tight line-clamp-2 truncate flex-1 min-w-0">
                         {deck.title}
                       </h2>
+                      {deck.status !== "PROCESSED" && (
+                        <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                          Processing
+                        </span>
+                      )}
                       <div className="flex flex-shrink-0 gap-2 items-center ml-auto">
                         <ActionButton
                           onClick={(e: React.MouseEvent) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            if (deck.status !== "PROCESSED") {
+                              toast.info("Links become available once document processing is complete.");
+                              return;
+                            }
                             setSelectedDeckForLinks(deck);
                           }}
                           title="Manage Links"
@@ -686,10 +701,29 @@ function DeckList({
                             className="text-white flex-shrink-0"
                           />
                         </ActionButton>
+                        {deck.status !== "PROCESSED" && (
+                          <ActionButton
+                            onClick={(e: React.MouseEvent) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              void documentProcessingService.retryOffice(deck.id)
+                                .then(() => toast.success("Document conversion queued."))
+                                .catch((error: unknown) => toast.error(error instanceof Error ? error.message : "This document cannot be retried yet."));
+                            }}
+                            title="Retry conversion"
+                            color="secondary"
+                          >
+                            <RotateCcw size={18} strokeWidth={3} className="text-white flex-shrink-0" />
+                          </ActionButton>
+                        )}
                         <ActionButton
                           onClick={(e: React.MouseEvent) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            if (deck.status !== "PROCESSED") {
+                              toast.info("AI summaries are available once document processing is complete.");
+                              return;
+                            }
                             window.open(
                               `${getDeckPreviewPath(deck.id)}?ai=summary`,
                               "_blank",
@@ -709,6 +743,10 @@ function DeckList({
                           onClick={(e: React.MouseEvent) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            if (deck.status !== "PROCESSED") {
+                              toast.info("Analytics are available once document processing is complete.");
+                              return;
+                            }
                             setSelectedAnalyticsDeck(deck);
                           }}
                           title="Analytics"
@@ -772,7 +810,7 @@ function DeckList({
       {!loading && decks && decks.length > 0 && (
         <Link
           to="/upload"
-          className="fixed bottom-10 right-10 w-16 h-16 bg-deckly-primary rounded-full flex items-center justify-center text-white shadow-2xl shadow-deckly-primary/40 hover:scale-110 active:scale-95 transition-all z-[100] group"
+          className="fixed bottom-10 right-10 w-16 h-16 bg-deckly-primary rounded-full flex items-center justify-center text-white shadow-2xl shadow-deckly-primary/40 hover:scale-110 active:scale-95 transition-all z-[var(--ui-layer-shell)] group"
         >
           <Plus
             size={32}
@@ -848,7 +886,7 @@ function DeckList({
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-32 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl z-[200] flex items-center gap-3 border border-red-400/20"
+            className="fixed bottom-32 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl z-[var(--ui-layer-toast)] flex items-center gap-3 border border-red-400/20"
           >
             <span className="text-xs font-bold uppercase tracking-widest">
               {error}

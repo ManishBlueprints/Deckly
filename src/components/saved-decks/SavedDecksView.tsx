@@ -1,8 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { LibraryFolder, SavedDeckOrganized } from "../../types";
-import { Filter, Loader2 } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
+import { Filter, FolderPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -25,12 +24,10 @@ import { dataRoomLibraryService } from "../../services/dataRoomLibraryService";
 import { MetadataSearchMenu } from "../search/MetadataSearchMenu";
 import { useMetadataSearchState } from "../../hooks/useMetadataSearchState";
 import { ManageTagsButton } from "../shared/ManageTagsButton";
-import { cn } from "../../utils/cn";
+import { cn } from "../../lib/utils";
 import {
   filterSavedDeckRows,
   filterSavedRoomRows,
-  type SavedDeckSearchResult,
-  type SavedRoomSearchResult,
 } from "../../utils/metadataSearchAdapters";
 import { DataRoomFolderModal } from "../data-room/DataRoomFolderModal";
 import {
@@ -109,8 +106,8 @@ export function SavedLibraryView() {
 
   // --- UI state only ---
   const [selectedFolderId, setSelectedFolderId] = useState<
-    string | "uncategorized"
-  >("uncategorized");
+    string | "uncategorized" | "all"
+  >("all");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<SavedLibraryViewMode>("all");
   const search = useMetadataSearchState("saved_library");
@@ -164,7 +161,7 @@ export function SavedLibraryView() {
   const hasSearchFilters =
     search.isActive ||
     selectedTagId !== null ||
-    selectedFolderId !== "uncategorized";
+    selectedFolderId !== "all";
   useEffect(() => {
     if (selectedTagId && !tags.some((tag) => tag.id === selectedTagId)) {
       setSelectedTagId(null);
@@ -195,7 +192,7 @@ export function SavedLibraryView() {
     try {
       await actions.deleteFolder(deletingFolder);
       if (selectedFolderId === deletingFolder.id)
-        setSelectedFolderId("uncategorized");
+        setSelectedFolderId("all");
       setDeletingFolder(null);
     } catch (err) {
       const errorMessage =
@@ -320,22 +317,42 @@ export function SavedLibraryView() {
 
   const handleFolderClick = useCallback((folderId: string) => {
     setSelectedFolderId((prev) =>
-      prev === folderId ? "uncategorized" : folderId,
+      prev === folderId ? "all" : folderId,
     );
   }, []);
+
+  const recentlySavedItems = useMemo(
+    () =>
+      [
+        ...visibleDecks.map((result) => ({
+          kind: "deck" as const,
+          savedAt: result.deck.saved_at,
+          result,
+        })),
+        ...visibleSavedRooms.map((result) => ({
+          kind: "room" as const,
+          savedAt: result.room.saved_at,
+          result,
+        })),
+      ].sort(
+        (left, right) =>
+          new Date(right.savedAt).getTime() - new Date(left.savedAt).getTime(),
+      ),
+    [visibleDecks, visibleSavedRooms],
+  );
 
   // --- Loading / error / empty states ---
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center p-20 bg-deckly-background h-full min-h-[calc(100vh-140px)] gap-6">
-        <div className="w-16 h-16 bg-red-500/10 flex items-center justify-center text-red-500 rounded-full">
+      <div className="flex h-full min-h-[calc(100vh-140px)] flex-col items-center justify-center gap-6 bg-ui-canvas p-20">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-ui-destructive/10 text-ui-destructive">
           <Filter size={32} />
         </div>
         <div className="text-center space-y-2">
-          <h3 className="text-xl font-bold text-white">
+          <h3 className="text-xl font-semibold text-ui-text">
             Failed to load library
           </h3>
-          <p className="text-slate-400 max-w-sm">
+          <p className="max-w-sm text-ui-muted">
             There was a problem connecting to the server. Please check your
             connection and try again.
           </p>
@@ -344,7 +361,7 @@ export function SavedLibraryView() {
           onClick={() => {
             void handleRetryLibraryLoad();
           }}
-          className="px-8 py-3 bg-primary text-black font-bold hover:bg-primary/90 transition-all"
+          className="rounded-[14px] bg-ui-primary px-8 py-3 font-semibold text-ui-primary-text transition-opacity hover:opacity-90"
         >
           Retry Connection
         </button>
@@ -354,8 +371,8 @@ export function SavedLibraryView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-20 bg-deckly-background h-full min-h-[calc(100vh-140px)]">
-        <Loader2 className="animate-spin text-[#54e98a]" size={32} />
+      <div className="flex h-full min-h-[calc(100vh-140px)] items-center justify-center bg-ui-canvas p-20">
+        <Loader2 className="animate-spin text-ui-primary" size={32} />
       </div>
     );
   }
@@ -366,7 +383,7 @@ export function SavedLibraryView() {
       hasSearchFilters,
     );
     return (
-      <div className="min-h-[calc(100vh-140px)] bg-deckly-background overflow-hidden">
+      <div className="min-h-[calc(100vh-88px)] overflow-hidden bg-ui-canvas">
         <SavedLibraryEmptyState
           title={emptyState.title}
           description={emptyState.description}
@@ -385,22 +402,20 @@ export function SavedLibraryView() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-140px)] bg-deckly-background">
-      <main className="overflow-y-auto custom-scrollbar">
-        <div className="px-6 pb-12 md:px-12 md:pb-12 pt-0 space-y-16 w-full max-w-[1600px] mx-auto">
+    <div className="min-h-[calc(100vh-88px)] bg-ui-canvas">
+      <div className="overflow-y-auto custom-scrollbar">
+        <div className="mx-auto w-full max-w-[1440px] space-y-10 px-4 pb-12 pt-6 sm:px-6 lg:px-10 lg:pt-8">
           {/* Main Header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-0">
+          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div className="space-y-3">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#54e98a]">
-                Asset Repository
-              </span>
-              <h1 className="text-6xl font-headline font-extrabold text-[#e5e2e1] tracking-tighter">
-                Saved Library
+              <h1 className="text-3xl font-semibold tracking-[-0.04em] text-ui-text sm:text-4xl">
+                Saved library
               </h1>
+              <p className="text-sm text-ui-muted sm:text-base">Keep useful decks and rooms organized in one private place.</p>
             </div>
 
             <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-2 md:w-auto md:gap-4">
-              <div className="inline-flex min-w-0 w-full items-center border border-white/5 bg-surface-low p-1 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:flex-1 md:w-auto md:flex-none">
+              <div className="inline-flex min-w-0 w-full items-center rounded-[12px] border border-ui-border bg-ui-surface p-1 sm:flex-1 md:w-auto md:flex-none">
                 {(
                   [
                     ["all", "All"],
@@ -415,10 +430,10 @@ export function SavedLibraryView() {
                       type="button"
                       onClick={() => setViewMode(mode)}
                       className={cn(
-                        "flex-1 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] transition-all sm:px-4 sm:text-[11px] sm:tracking-[0.16em] md:flex-none",
+                        "flex-1 rounded-[9px] px-3 py-2 text-xs font-medium transition-all sm:px-4 md:flex-none",
                         active
-                          ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_rgba(34,197,94,0.2)]"
-                          : "text-muted-foreground hover:text-foreground hover:bg-surface-high",
+                          ? "bg-ui-subtle text-ui-text"
+                          : "text-ui-muted hover:bg-ui-subtle hover:text-ui-text",
                       )}
                     >
                       {label}
@@ -455,39 +470,40 @@ export function SavedLibraryView() {
                 <ManageTagsButton
                   onClick={() => setIsManageTagsModalOpen(true)}
                 />
+                <button
+                  type="button"
+                  aria-label="New folder"
+                  onClick={() => {
+                    setEditingFolder(null);
+                    setIsCreateFolderModalOpen(true);
+                  }}
+                  className="inline-flex h-10 items-center gap-2 rounded-md bg-ui-primary px-4 text-sm font-semibold text-ui-primary-text transition-opacity hover:opacity-90"
+                >
+                  <FolderPlus size={16} />
+                  <span className="hidden sm:inline">New folder</span>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Type Filter Summary */}
-          <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#bbcbbb]/35">
-            <span className="text-[#54e98a]">Saved Library</span>
-            <span className="w-1 h-1 rounded-full bg-[#bbcbbb]/15" />
-            <span>
-              {viewMode === "all"
-                ? "All items"
-                : viewMode === "decks"
-                  ? "Decks only"
-                  : "Rooms only"}
-            </span>
-          </div>
-
           {/* Folders */}
-          <div className="space-y-8">
-            <div className="flex items-center gap-4">
-              <div className="w-8 h-1 bg-[#54e98a] rounded-full" />
-              <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
-                Active Folders
-              </h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-ui-text">Folders</h2>
+                <p className="mt-1 text-sm text-ui-muted">Group saved decks and rooms around your workflow.</p>
+              </div>
+              {selectedFolderId !== "all" ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedFolderId("all")}
+                  className="text-sm font-medium text-ui-primary hover:underline"
+                >
+                  View all items
+                </button>
+              ) : null}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <FolderCard
-                isNew
-                onClick={() => {
-                  setEditingFolder(null);
-                  setIsCreateFolderModalOpen(true);
-                }}
-              />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
               {folders.map((folder) => (
                 <FolderCard
                   key={folder.id}
@@ -503,26 +519,33 @@ export function SavedLibraryView() {
                   onDelete={handleDeleteFolderRequest}
                 />
               ))}
+              <FolderCard
+                isNew
+                onClick={() => {
+                  setEditingFolder(null);
+                  setIsCreateFolderModalOpen(true);
+                }}
+              />
             </div>
           </div>
 
           {(isSavedRoomsLoading || isSavedRoomsError) && (
-            <div className="flex items-start gap-3 border border-white/5 bg-surface-low px-4 py-3">
+            <div className="flex items-start gap-3 rounded-[14px] border border-ui-border bg-ui-subtle px-4 py-3">
               {isSavedRoomsLoading ? (
                 <Loader2
-                  className="mt-0.5 animate-spin text-[#54e98a]"
+                  className="mt-0.5 animate-spin text-ui-primary"
                   size={18}
                 />
               ) : (
-                <Filter className="mt-0.5 text-red-500" size={18} />
+                <Filter className="mt-0.5 text-ui-destructive" size={18} />
               )}
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-white">
+                <p className="text-sm font-semibold text-ui-text">
                   {isSavedRoomsLoading
                     ? "Loading saved rooms"
                     : "Saved rooms unavailable"}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-ui-muted">
                   {isSavedRoomsLoading
                     ? "Decks, folders, and the view toggle remain available while room data finishes loading."
                     : "Decks, folders, and the view toggle remain available while room data is unavailable."}
@@ -531,88 +554,78 @@ export function SavedLibraryView() {
             </div>
           )}
 
-          {/* Saved Rooms */}
-          {visibleSavedRooms.length > 0 && (
-            <div className="space-y-8">
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-1 bg-[#54e98a] rounded-full" />
-                <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
-                  Saved Rooms
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                {visibleSavedRooms.map((result: SavedRoomSearchResult) => (
-                  <SavedRoomRow
-                    key={result.room.library_id}
-                    room={result.room}
-                    folders={folders}
-                    tags={tags}
-                    matchedTagNames={result.matchedTagNames}
-                    onUnsave={() => {
-                      void actions.refetch();
-                    }}
-                  />
-                ))}
+          <section className="space-y-4">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-ui-text">Recently saved</h2>
+                <p className="mt-1 text-sm text-ui-muted">
+                  {recentlySavedItems.length} {recentlySavedItems.length === 1 ? "item" : "items"}
+                  {selectedFolderId === "all" ? " across your library" : " in this folder"}
+                </p>
               </div>
             </div>
-          )}
 
-          {/* Documents */}
-          {visibleDecks.length > 0 && (
-            <div className="space-y-8">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 h-1 bg-[#54e98a] rounded-full opacity-40" />
-                  <h2 className="text-xl font-headline font-bold text-[#e5e2e1]">
-                    Saved Decks
-                  </h2>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bbcbbb]/20">
-                    Total Inventory
-                  </p>
-                  <p className="text-lg font-headline font-bold text-[#e5e2e1]">
-                    {visibleDecks.length} Active Decks
-                  </p>
-                </div>
+            <div className="overflow-hidden rounded-lg border border-ui-border bg-ui-surface">
+              <div className="hidden grid-cols-[minmax(210px,1.6fr)_minmax(100px,.7fr)_80px_minmax(100px,.7fr)_minmax(120px,.9fr)_minmax(150px,1fr)_110px_40px] gap-3 bg-ui-subtle px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-ui-muted xl:grid">
+                <span>Name</span>
+                <span>Created by / Owner</span>
+                <span>Type</span>
+                <span>Folder</span>
+                <span>Tags</span>
+                <span>Private note</span>
+                <span>Saved</span>
+                <span className="sr-only">Actions</span>
               </div>
 
-              <div className="space-y-4">
-                <AnimatePresence mode="popLayout" initial={false}>
-                  {visibleDecks.map((result: SavedDeckSearchResult) => (
+              {recentlySavedItems.length > 0 ? (
+                recentlySavedItems.map((item) =>
+                  item.kind === "deck" ? (
                     <DocumentRow
-                      key={result.deck.library_id}
-                      deck={result.deck}
+                      key={`deck-${item.result.deck.library_id}`}
+                      deck={item.result.deck}
                       folders={folders}
                       tags={tags}
-                      matchedTagNames={result.matchedTagNames}
+                      matchedTagNames={item.result.matchedTagNames}
                       onSummarize={() =>
                         window.open(
-                          `/${encodeURIComponent(result.deck.user_handle)}/${encodeURIComponent(result.deck.slug)}?ai=summary`,
+                          `/${encodeURIComponent(item.result.deck.user_handle)}/${encodeURIComponent(item.result.deck.slug)}?ai=summary`,
                           "_blank",
                           "noopener,noreferrer",
                         )
                       }
                       onMoveToFolder={(folderId) =>
-                        handleMoveToFolder(result.deck.library_id, folderId)
+                        handleMoveToFolder(item.result.deck.library_id, folderId)
                       }
                       onUpdateTags={(tagIds) =>
-                        handleUpdateTags(result.deck.library_id, tagIds)
+                        handleUpdateTags(item.result.deck.library_id, tagIds)
                       }
-                      onSaveNote={(note) =>
-                        handleSaveNote(result.deck.deck_id, note)
-                      }
-                      onUnsave={() => handleUnsaveRequest(result.deck)}
-                      isUnsaving={unsavingDeckId === result.deck.library_id}
+                      onSaveNote={(note) => handleSaveNote(item.result.deck.deck_id, note)}
+                      onUnsave={() => handleUnsaveRequest(item.result.deck)}
+                      isUnsaving={unsavingDeckId === item.result.deck.library_id}
                     />
-                  ))}
-                </AnimatePresence>
-              </div>
+                  ) : (
+                    <SavedRoomRow
+                      key={`room-${item.result.room.library_id}`}
+                      room={item.result.room}
+                      folders={folders}
+                      tags={tags}
+                      matchedTagNames={item.result.matchedTagNames}
+                      onUnsave={() => {
+                        void actions.refetch();
+                      }}
+                    />
+                  ),
+                )
+              ) : (
+                <div className="border-t border-ui-border px-6 py-14 text-center">
+                  <p className="text-sm font-semibold text-ui-text">No saved items match this view</p>
+                  <p className="mt-1 text-sm text-ui-muted">Try another folder, type, tag, or search.</p>
+                </div>
+              )}
             </div>
-          )}
+          </section>
         </div>
-      </main>
+      </div>
 
       {/* Modals */}
       <DataRoomFolderModal
@@ -653,11 +666,10 @@ export function SavedLibraryView() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Folder</AlertDialogTitle>
+            <AlertDialogTitle>Delete folder?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deletingFolder?.name}"?
-              Documents inside will not be deleted but will become
-              Uncategorized.
+              “{deletingFolder?.name}” will be removed. Its saved decks and
+              rooms will stay in your library and move to Unsorted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -665,14 +677,14 @@ export function SavedLibraryView() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-ui-destructive text-ui-primary-text hover:opacity-90"
               onClick={(e) => {
                 e.preventDefault();
                 handleConfirmDeleteFolder();
               }}
               disabled={isDeletingInProgress}
             >
-              {isDeletingInProgress ? "Deleting..." : "Delete Folder"}
+              {isDeletingInProgress ? "Deleting..." : "Delete folder"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

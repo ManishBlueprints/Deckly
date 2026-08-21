@@ -1,4 +1,4 @@
-import posthog from "posthog-js";
+import { productAnalytics } from "./productAnalytics";
 
 export type OAuthSignupMethod = "google" | "github";
 
@@ -61,9 +61,15 @@ export const consumePendingOAuthSignup = (): OAuthSignupMethod | null => {
 };
 
 export const captureSignupCompleted = (
-  user: { id: string; email?: string | null },
+  user: { id: string },
   method: "email" | OAuthSignupMethod,
 ) => {
-  posthog.identify(user.id, { email: user.email });
-  posthog.capture("user_signup_completed", { method });
+  productAnalytics.identifyWorkspace(user.id, "FREE");
+  productAnalytics.capture("user_signup_completed", {
+    workspace_id: user.id,
+    source_surface: "signup",
+    plan: "FREE",
+    method,
+    event_id: `signup:${user.id}:completed`,
+  });
 };

@@ -3,12 +3,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCheckDeckSlug } from "../hooks/useSlugValidation";
 import { useManageDeckWorkflow } from "../hooks/useManageDeckWorkflow";
+import { deckService } from "../services/deckService";
 import { useAuth } from "../contexts/AuthContext";
 import { normalizeSlug } from "../utils/slug";
 import { TIER_CONFIG } from "../constants/tiers";
+import { useTierFeatureAccess } from "../hooks/useTierEntitlements";
 import { Deck, UserProfile } from "../types";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
-import { DashboardLayout } from "../components/layout/DashboardLayout";
+import { upgradeSourceForFeature } from "../services/upgradeAttribution";
+import { WorkspaceShell } from "../components/layout/WorkspaceShell";
 import { DashboardCard } from "../components/ui/DashboardCard";
 import {
   ManageDeckAccessSection,
@@ -19,6 +22,7 @@ import {
 } from "../components/dashboard/manage-deck/ManageDeckSections";
 import { UploadTour } from "../components/tours/UploadTour";
 import { ArrowLeft } from "lucide-react";
+import { WatermarkSettingsSection } from "../components/dashboard/form-sections/WatermarkSettingsSection";
 
 function ManageDeck() {
   const [searchParams] = useSearchParams();
@@ -31,6 +35,9 @@ function ManageDeck() {
   const [description, setDescription] = useState("");
   const [requireEmail, setRequireEmail] = useState(false);
   const [requirePassword, setRequirePassword] = useState(false);
+  const [allowDownload, setAllowDownload] = useState(false);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(false);
+  const [watermarkText, setWatermarkText] = useState("");
   const [viewPassword, setViewPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string>("");
@@ -51,6 +58,10 @@ function ManageDeck() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile: authProfile } = useAuth();
   const queryClient = useQueryClient();
+  const accessControls = useTierFeatureAccess(userProfile?.tier, "access_controls", Boolean(userProfile));
+  const downloadControls = useTierFeatureAccess(userProfile?.tier, "deck_downloads", Boolean(userProfile));
+  const watermarkControls = useTierFeatureAccess(userProfile?.tier, "deck_watermarking", Boolean(userProfile));
+  const supportsWatermark = fileType === "pdf" || conversionMode === "interactive";
 
   const { data: isSlugAvailable, isLoading: isCheckingSlug } = useCheckDeckSlug(
     slug,
@@ -65,6 +76,10 @@ function ManageDeck() {
     setDescription,
     setRequireEmail,
     setRequirePassword,
+    setAllowDownload,
+    setWatermarkEnabled,
+    setWatermarkText,
+    setFileType,
     setViewPassword,
     setExpiresAt,
     setEnableExpiry,
@@ -82,12 +97,18 @@ function ManageDeck() {
     }
   }, [userProfile, uploadError]);
 
+  React.useEffect(() => {
+    if (!supportsWatermark && watermarkEnabled) {
+      setWatermarkEnabled(false);
+    }
+  }, [supportsWatermark, watermarkEnabled]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
     const ext = selectedFile.name.split(".").pop()?.toLowerCase();
-    const validExts = ["pdf", "pptx", "docx", "doc", "xlsx"];
+    const validExts = ["pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx"];
 
     // Ensure profile is loaded before proceeding with tier-sensitive checks
     if (!userProfile) {
@@ -96,12 +117,20 @@ function ManageDeck() {
     }
 
     if (!ext || !validExts.includes(ext)) {
-      alert("Please select a supported file (PDF, PPTX, DOCX, DOC, or XLSX).");
+      alert("Please select a supported file (PDF, PowerPoint, Word, or Excel).");
       return;
     }
 
     const currentTier = (userProfile.tier as keyof typeof TIER_CONFIG) || "FREE";
     const config = TIER_CONFIG[currentTier];
+
+    if (selectedFile.size > config.maxViewableDocumentSizeMB * 1024 * 1024) {
+      setUploadError(
+        `This plan supports viewable documents up to ${config.maxViewableDocumentSizeMB} MB.`,
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     if (ext !== "pdf" && !config.allowOffice) {
       setUpsellFeature(`${ext.toUpperCase()} Support`);
@@ -113,13 +142,9 @@ function ManageDeck() {
     setFile(selectedFile);
     setFileType(ext);
 
-    if (ext === "xlsx") {
-      setConversionMode("raw");
-    } else if (ext === "pptx") {
-      setConversionMode(config.allowInteractive ? "interactive" : "raw");
-    } else {
-      setConversionMode("raw");
-    }
+    // PowerPoint defaults to the slide-based experience; users can still pick
+    // Raw to retain the original file for the Office embed viewer.
+    setConversionMode(ext === "ppt" || ext === "pptx" ? "interactive" : "raw");
 
     const baseName = selectedFile.name.includes(".")
       ? selectedFile.name.substring(0, selectedFile.name.lastIndexOf("."))
@@ -141,6 +166,11 @@ function ManageDeck() {
     e.preventDefault();
     if ((!file && !editId) || !title || !slug) return;
 
+    if (watermarkEnabled && !watermarkText.trim()) {
+      setError("Enter watermark text before saving with watermarking enabled.");
+      return;
+    }
+
     if (!isSlugAvailable && !editId) {
       setError("This URL Slug is already taken. Please enter a different one.");
       return;
@@ -153,6 +183,9 @@ function ManageDeck() {
       description,
       requireEmail,
       requirePassword,
+      allowDownload,
+      watermarkEnabled,
+      watermarkText,
       viewPassword,
       expiresAt,
       conversionMode,
@@ -164,26 +197,51 @@ function ManageDeck() {
     });
   };
 
+  const handleRetryWatermark = async () => {
+    if (!existingDeck?.id) return;
+
+    setLoading(true);
+    setError(null);
+    setProgress("Retrying protected download...");
+    try {
+      await deckService.generateWatermarkedDeck(existingDeck.id);
+      setExistingDeck((current) => current
+        ? { ...current, watermark_status: "pending" }
+        : current);
+      setProgress("Watermark queued");
+      queryClient.invalidateQueries({ queryKey: ["decks", authProfile?.id] });
+    } catch (watermarkError) {
+      console.error("Watermark retry failed:", watermarkError);
+      setExistingDeck((current) => current
+        ? { ...current, watermark_status: "failed" }
+        : current);
+      setError("The watermark could not be prepared. Please retry.");
+      setProgress("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <DashboardLayout title={editId ? "Refine Deck" : "Add New Asset"}>
+    <WorkspaceShell title={editId ? "Refine Deck" : "Add New Asset"}>
       <UploadTour />
       <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto w-full space-y-6">
         {/* Back + Title */}
-        <div className="flex items-center gap-4 relative z-10 border-b border-white/5 pb-6">
+        <div className="relative z-10 flex items-center gap-4 border-b border-ui-border pb-6">
           <button
             onClick={() =>
               navigate(returnToRoom ? `/rooms/${returnToRoom}` : "/content")
             }
-            className="flex-shrink-0 w-10 h-10 rounded-md bg-surface-lowest border border-white/10 flex items-center justify-center text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 transition-all shadow-sm"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] border border-ui-border bg-ui-surface text-ui-muted shadow-sm transition-all hover:border-ui-primary/30 hover:bg-ui-subtle hover:text-ui-primary"
             title={returnToRoom ? "Return to Room" : "Return to Assets"}
           >
             <ArrowLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg md:text-xl font-semibold text-white tracking-tight truncate">
-              {editId ? "Refine Deck" : "Add New Asset"}
+            <h1 className="truncate text-lg font-semibold tracking-tight text-ui-text md:text-xl">
+              {editId ? "Refine deck" : "Add new asset"}
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5 truncate">
+            <p className="mt-0.5 truncate text-xs text-ui-muted">
               {editId
                 ? "Update your pitch deck details and slides."
                 : "Upload a document to your data room."}
@@ -191,7 +249,7 @@ function ManageDeck() {
           </div>
         </div>
 
-        <DashboardCard className="p-6 md:p-8 border-border relative overflow-hidden">
+        <DashboardCard className="relative overflow-hidden rounded-[24px] border-ui-border bg-ui-surface p-6 md:p-8">
           <form onSubmit={handleSubmit} className="flex flex-col gap-8">
             <ManageDeckUploadSection
               editId={editId}
@@ -228,12 +286,26 @@ function ManageDeck() {
             <ManageDeckAccessSection
               requireEmail={requireEmail}
               requirePassword={requirePassword}
+              allowDownload={allowDownload}
+              canUseAccessControls={accessControls.access.state === "available"}
+              canUseDownloadControls={downloadControls.access.state === "available"}
+              accessControlsLoading={accessControls.isLoading}
+              downloadControlsLoading={downloadControls.isLoading}
               viewPassword={viewPassword}
               showPasswordField={showPasswordField}
               enableExpiry={enableExpiry}
               expiresAt={expiresAt}
               onRequireEmailChange={setRequireEmail}
               onRequirePasswordChange={setRequirePassword}
+              onAllowDownloadChange={setAllowDownload}
+              onAccessUpsell={() => {
+                setUpsellFeature("Email capture, password protection and expiry");
+                setShowUpsell(true);
+              }}
+              onDownloadUpsell={() => {
+                setUpsellFeature("Download controls");
+                setShowUpsell(true);
+              }}
               onViewPasswordChange={setViewPassword}
               onTogglePasswordVisibility={() =>
                 setShowPasswordField((value) => !value)
@@ -243,7 +315,24 @@ function ManageDeck() {
                 if (!checked) setExpiresAt("");
               }}
               onExpiresAtChange={setExpiresAt}
-            />
+            >
+              <WatermarkSettingsSection
+                embedded
+                enabled={watermarkEnabled}
+                text={watermarkText}
+                status={existingDeck?.watermark_status}
+                isPdf={supportsWatermark}
+                canUseWatermarking={watermarkControls.isLoading || watermarkControls.access.state === "available"}
+                onEnabledChange={setWatermarkEnabled}
+                onTextChange={setWatermarkText}
+                onUpsell={() => {
+                  setUpsellFeature("Deck watermarking");
+                  setShowUpsell(true);
+                }}
+                onRetry={existingDeck?.watermark_status === "failed" ? handleRetryWatermark : undefined}
+                isRetrying={loading && progress === "Retrying protected download..."}
+              />
+            </ManageDeckAccessSection>
 
             <ManageDeckFeedbackSection
               loading={loading}
@@ -268,8 +357,9 @@ function ManageDeck() {
         isOpen={showUpsell}
         onClose={() => setShowUpsell(false)}
         featureName={upsellFeature}
+        upgradeSource={upgradeSourceForFeature(upsellFeature)}
       />
-    </DashboardLayout>
+    </WorkspaceShell>
   );
 }
 

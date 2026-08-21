@@ -67,6 +67,13 @@ const signDeckUrlSource = readFileSync(
   path.resolve(__dirname, "../../supabase/functions/sign-deck-url/index.ts"),
   "utf8",
 );
+const downloadControlsMigrationSql = readFileSync(
+  path.resolve(
+    __dirname,
+    "../../supabase/migrations/20260714020000_add_deck_download_controls.sql",
+  ),
+  "utf8",
+);
 const effectivePublicDeckSql = [
   initialSchemaSql,
   addDeckLinksMigrationSql,
@@ -133,6 +140,36 @@ describe("sign-deck-url revalidation contract", () => {
       'const deckSlug = typeof slug === "string" ? slug : null;',
     );
     expect(signDeckUrlSource).toContain("p_slug_or_alias: deckSlug");
+  });
+});
+
+describe("deck download controls contracts", () => {
+  it("persists a disabled-by-default deck-level permission with paid-tier enforcement", () => {
+    expect(downloadControlsMigrationSql).toContain("ADD COLUMN IF NOT EXISTS allow_download BOOLEAN NOT NULL DEFAULT FALSE");
+    expect(downloadControlsMigrationSql).toContain("Download controls require a paid plan.");
+    expect(downloadControlsMigrationSql).toContain("tr_disable_deck_downloads_on_free_downgrade");
+    expect(downloadControlsMigrationSql).toContain("p_allow_download boolean DEFAULT false");
+  });
+
+  it("exposes the effective permission across direct decks and room payloads", () => {
+    expect(downloadControlsMigrationSql).toContain("allow_download boolean");
+    expect(downloadControlsMigrationSql).toContain("COALESCE(owner_profile.tier, 'FREE') IN ('PRO', 'PRO_PLUS', 'RAISE')");
+    expect(downloadControlsMigrationSql).toContain("CREATE OR REPLACE FUNCTION public.get_data_room_payload");
+  });
+
+  it("keeps the public deck RPC alias-aware without an ambiguous no-argument overload", () => {
+    expect(downloadControlsMigrationSql).toContain("p_handle TEXT,\n  p_slug_or_alias TEXT");
+    expect(downloadControlsMigrationSql).not.toContain("CREATE OR REPLACE FUNCTION public.get_decks_public()");
+    expect(downloadControlsMigrationSql).toContain(
+      "GRANT EXECUTE ON FUNCTION public.get_decks_public(TEXT, TEXT) TO anon, authenticated",
+    );
+  });
+
+  it("requires an explicit server-authorized download intent", () => {
+    expect(signDeckUrlSource).toContain('intent !== "download"');
+    expect(signDeckUrlSource).toContain("Downloads are not permitted for this deck");
+    expect(signDeckUrlSource).toContain("presignDownloadUrl");
+    expect(signDeckUrlSource).toContain("deck_id: rawDeckId");
   });
 });
 

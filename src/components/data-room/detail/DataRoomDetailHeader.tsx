@@ -1,4 +1,4 @@
-import { ArrowLeft, Eye, Link as LinkIcon, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, Link as LinkIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { DataRoom } from "../../../types";
@@ -10,8 +10,6 @@ interface DataRoomDetailHeaderProps {
   isUpdatingShareState?: boolean;
   onCopyLink: () => void;
   onOpenPreview: () => void;
-  onSummarize: () => void;
-  summarizeDisabled?: boolean;
 }
 
 export function DataRoomDetailHeader({
@@ -21,8 +19,6 @@ export function DataRoomDetailHeader({
   isUpdatingShareState,
   onCopyLink,
   onOpenPreview,
-  onSummarize,
-  summarizeDisabled,
 }: DataRoomDetailHeaderProps) {
   const navigate = useNavigate();
 
@@ -86,15 +82,6 @@ export function DataRoomDetailHeader({
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:items-center shrink-0">
-            <button
-              onClick={onSummarize}
-              disabled={summarizeDisabled}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 text-sm font-semibold text-primary hover:bg-primary/15 transition-colors w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-primary/10"
-              title="Summarize room"
-            >
-              <Sparkles size={18} className="shrink-0" />
-              <span>Summarize</span>
-            </button>
             <button
               onClick={onCopyLink}
               disabled={isUpdatingShareState}

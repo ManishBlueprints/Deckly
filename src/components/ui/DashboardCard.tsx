@@ -1,5 +1,5 @@
 import React from "react";
-import { cn } from "../../utils/cn";
+import { cn } from "../../lib/utils";
 
 interface DashboardCardProps {
   title?: string;
@@ -21,7 +21,7 @@ export function DashboardCard({
   return (
     <div
       className={cn(
-        "rounded-none border border-border h-full bg-surface-card",
+        "h-full w-full rounded-card border border-ui-border bg-ui-surface shadow-[var(--ui-shadow-surface)]",
         !className?.includes("overflow-") && "overflow-hidden",
         className,
       )}
@@ -29,12 +29,12 @@ export function DashboardCard({
       {(title || headerAction) && (
         <div
           className={cn(
-            "px-5 py-4 border-b border-border flex flex-row items-center justify-between bg-surface-card",
+            "flex flex-row items-center justify-between border-b border-ui-border bg-ui-surface px-5 py-4",
             headerClassName,
           )}
         >
           {title && (
-            <h3 className="text-sm font-medium text-slate-200">{title}</h3>
+            <h3 className="text-sm font-medium text-ui-text">{title}</h3>
           )}
           {headerAction}
         </div>

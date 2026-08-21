@@ -5,13 +5,23 @@ import { supabase } from "../services/supabase";
 import { TutorialState, UserProfile } from "../types";
 import { useQueryClient } from "@tanstack/react-query";
 
-interface TourContextType {
+export interface TourContextType {
   hasCompletedTour: (tourId: keyof TutorialState) => boolean;
   markTourComplete: (tourId: keyof TutorialState) => Promise<void>;
   resetTours: () => Promise<void>;
 }
 
 const TourContext = createContext<TourContextType | undefined>(undefined);
+
+export function TourContextProvider({
+  value,
+  children,
+}: {
+  value: TourContextType;
+  children: React.ReactNode;
+}) {
+  return <TourContext.Provider value={value}>{children}</TourContext.Provider>;
+}
 
 export const TourProvider: React.FC<{ children: React.ReactNode }> = ({
   children,

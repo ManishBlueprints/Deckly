@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -20,10 +20,12 @@ import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { DataRoomSidebar } from "../components/viewer/DataRoomSidebar";
 import { buildDataRoomSidebarSections } from "../components/viewer/dataRoomSidebarUtils";
 import { RoomNotesSidebar } from "../components/viewer/RoomNotesSidebar";
+import { DeckDownloadButton } from "../components/viewer/DeckDownloadButton";
 import { dataRoomService } from "../services/dataRoomService";
 import { dataRoomFolderService } from "../services/dataRoomFolderService";
 import { dataRoomLibraryService } from "../services/dataRoomLibraryService";
 import { analyticsService } from "../services/analyticsService";
+import { productAnalytics } from "../services/productAnalytics";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
@@ -56,6 +58,7 @@ function DataRoomViewer() {
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"save" | "notes" | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const roomPasswordRef = useRef<string | undefined>(undefined);
 
   const { data: isSaved = false } = useIsDataRoomSaved(room?.id, session?.user?.id);
   const saveToLibraryMutation = useSaveDataRoomToLibraryMutation(session?.user?.id);
@@ -231,6 +234,19 @@ function DataRoomViewer() {
   }, [session, room?.id, isSaved, saveToLibraryMutation, pendingAction, room, handle]);
 
   // Track view when a document is selected
+  const viewedRoomId = room?.id;
+  const viewedRoomWorkspaceId = room?.user_id;
+
+  useEffect(() => {
+    if (isUnlocked && viewedRoomId) {
+      productAnalytics.capture("data_room_viewed", {
+        workspace_id: viewedRoomWorkspaceId,
+        source_surface: "room_viewer",
+        room_id: viewedRoomId,
+      });
+    }
+  }, [isUnlocked, viewedRoomId, viewedRoomWorkspaceId]);
+
   useEffect(() => {
     if (isUnlocked && selectedDeck && room) {
       analyticsService.trackDeckView(
@@ -339,6 +355,29 @@ function DataRoomViewer() {
     }
   }, [aiSummary, selectedDeck]);
 
+  const requestSelectedDeckDownload = useCallback(async (requestId: string) => {
+    if (!selectedDeck || !room || !handle) throw new Error("Deck not loaded");
+    const download = await dataRoomService.requestDeckDownload(
+      handle,
+      room.slug,
+      selectedDeck.id,
+      roomPasswordRef.current,
+      {
+        requestId,
+        visitorId: analyticsService.getVisitorId(),
+        viewerEmail,
+      },
+    );
+    productAnalytics.capture("document_downloaded", {
+      workspace_id: room.user_id,
+      source_surface: "room_viewer",
+      deck_id: selectedDeck.id,
+      room_id: room.id,
+      event_id: `download:${requestId}`,
+    });
+    return download;
+  }, [handle, room, selectedDeck, viewerEmail]);
+
   useEffect(() => {
     if (!isUnlocked || !selectedDeck) return;
     if (searchParams.get("ai") !== "summary") return;
@@ -438,6 +477,7 @@ function DataRoomViewer() {
                   room.slug,
                   password,
                 );
+                roomPasswordRef.current = password;
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const docsToSet = payloadDocs.map((deckObj: any, index: number) => {
                 const deck = deckObj as Deck & {
@@ -506,7 +546,12 @@ function DataRoomViewer() {
 
             {/* ── Main Viewer ── */}
             <div className="flex-1 flex flex-col items-stretch relative">
-            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[100] flex flex-wrap items-center gap-2 px-2 md:px-0">
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[var(--ui-layer-viewer)]">
+              {selectedDeck?.allow_download ? (
+                <DeckDownloadButton onRequestDownload={requestSelectedDeckDownload} />
+              ) : null}
+            </div>
+            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[var(--ui-layer-viewer)] flex flex-wrap items-center gap-2 px-2 md:px-0">
               <Link to="/" className="group">
                 <div className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all">
                   <ArrowLeft size={16} />
@@ -620,6 +665,7 @@ function DataRoomViewer() {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         featureName="AI summaries"
+        upgradeSource="ai_summary_limit"
       />
 
       {room && (
@@ -642,7 +688,7 @@ function DataRoomViewer() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 px-5 py-3 bg-[#111] border border-[#333] text-white rounded-lg shadow-2xl"
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[var(--ui-layer-viewer)] flex items-center gap-3 px-5 py-3 bg-[#111] border border-[#333] text-white rounded-lg shadow-2xl"
           >
             <div className="w-6 h-6 bg-deckly-primary/10 border border-deckly-primary/20 rounded-full flex items-center justify-center text-deckly-primary">
               <Check size={14} strokeWidth={3} />

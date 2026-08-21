@@ -166,7 +166,10 @@ export async function applyProviderSubscription(
     p_checkout_verified_at: options.checkoutVerifiedAt ?? null,
   });
   if (error) throw error;
-  return { planCode: effectivePlanCode };
+  return {
+    planCode: effectivePlanCode,
+    billingInterval: PLANS[effectivePlanCode].interval,
+  };
 }
 
 const invoiceStatuses = new Set(["draft", "issued", "partially_paid", "paid", "expired", "cancelled", "deleted"]);

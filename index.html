@@ -16,17 +16,28 @@
       href="/src/assets/favicon-16x16.png"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0d0d0d" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0&display=swap"
-      rel="stylesheet"
-    />
+    <meta name="theme-color" content="#f7faf8" />
+    <script>
+      (() => {
+        let preference = "system";
+        try {
+          const stored = localStorage.getItem("deckly-theme");
+          if (stored === "dark" || stored === "light" || stored === "system") {
+            preference = stored;
+          }
+        } catch {}
+        const systemDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+        const theme = preference === "system" ? (systemDark ? "dark" : "light") : preference;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.themePreference = preference;
+        document.documentElement.classList.toggle("dark", theme === "dark");
+        document.documentElement.style.colorScheme = theme;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute(
+          "content",
+          theme === "dark" ? "#111413" : "#f7faf8",
+        );
+      })();
+    </script>
     <title>Deckly | Secure Pitch Deck Sharing</title>
     <meta
       name="description"

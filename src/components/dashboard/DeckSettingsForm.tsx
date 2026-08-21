@@ -8,15 +8,22 @@ import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
 import { normalizeSlug } from "../../utils/slug";
 import { useAuth } from "../../contexts/AuthContext";
-import { processPdfToImages as processDeckPdfToImages } from "../../workflows/deckProcessing";
+import {
+  MAX_DECK_PAGES,
+  processPdfToImages as processDeckPdfToImages,
+} from "../../workflows/deckProcessing";
 import { extractStoragePath } from "../../services/deckService.shared";
 
 // Sub-components
 import { ManagementSection } from "./form-sections/ManagementSection";
 import { AccessProtectionSection } from "./form-sections/AccessProtectionSection";
+import { WatermarkSettingsSection } from "./form-sections/WatermarkSettingsSection";
 import { DangerZoneSection } from "./form-sections/DangerZoneSection";
 import { Button } from "../ui/button";
-import { Save } from "lucide-react";
+import { AlertCircle, Save } from "lucide-react";
+import { TierUpsellModal } from "./TierUpsellModal";
+import { useTierFeatureAccess } from "../../hooks/useTierEntitlements";
+import { TIER_CONFIG, type Tier } from "../../constants/tiers";
 
 interface DeckSettingsFormProps {
   deck: Deck;
@@ -36,6 +43,12 @@ export function DeckSettingsForm({
   const [requirePassword, setRequirePassword] = useState(
     deck.require_password || false,
   );
+  const [allowDownload, setAllowDownload] = useState(deck.allow_download || false);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(deck.watermark_enabled || false);
+  const [watermarkText, setWatermarkText] = useState(deck.watermark_text || "");
+  const [watermarkStatus, setWatermarkStatus] = useState(deck.watermark_status || "disabled");
+  const [showUpsell, setShowUpsell] = useState(false);
+  const [upsellFeature, setUpsellFeature] = useState("Premium features");
   const [viewPassword, setViewPassword] = useState(deck.view_password || "");
   const [expiryEnabled, setExpiryEnabled] = useState(!!deck.expires_at);
   const [expiryDate, setExpiryDate] = useState(
@@ -52,6 +65,30 @@ export function DeckSettingsForm({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const accessControls = useTierFeatureAccess(
+    profile?.tier,
+    "access_controls",
+    Boolean(profile),
+  );
+  const downloadControls = useTierFeatureAccess(
+    profile?.tier,
+    "deck_downloads",
+    Boolean(profile),
+  );
+  const watermarkControls = useTierFeatureAccess(
+    profile?.tier,
+    "deck_watermarking",
+    Boolean(profile),
+  );
+
+  const openUpsell = (feature: string) => {
+    setUpsellFeature(feature);
+    setShowUpsell(true);
+  };
+
+  useEffect(() => {
+    setWatermarkStatus(deck.watermark_status || "disabled");
+  }, [deck.id, deck.watermark_status]);
 
   // Cleanup timeout on unmount to prevent state updates on unmounted component
   useEffect(() => {
@@ -71,9 +108,10 @@ export function DeckSettingsForm({
     setUploadProgress("Initializing PDF...");
 
     try {
-      return await processDeckPdfToImages(pdfFile, {
+      const assets = await processDeckPdfToImages(pdfFile, {
         scale: 1.5,
         quality: 0.8,
+        maxPages: MAX_DECK_PAGES,
         onProgress: (current: number, total: number) => {
           // Guard against divide-by-zero and clamp current to valid range
           const clampedCurrent = Math.max(0, Math.min(current, total));
@@ -83,6 +121,7 @@ export function DeckSettingsForm({
           setCompletionPercentage(percentage);
         },
       });
+      return assets;
     } catch (err) {
       console.error("PDF Processing error:", err);
       const msg = err instanceof Error ? err.message : "Failed to process PDF";
@@ -94,6 +133,12 @@ export function DeckSettingsForm({
   };
 
   const handleSave = async () => {
+    const normalizedWatermarkText = watermarkText.trim();
+    if (watermarkEnabled && !normalizedWatermarkText) {
+      setError("Enter watermark text before saving with watermarking enabled.");
+      return;
+    }
+
     // Track the uploaded file path so it can be cleaned up if any later step fails
     let uploadedFileName: string | null = null;
     let uploadedSlideImageKeys: string[] = [];
@@ -111,6 +156,7 @@ export function DeckSettingsForm({
       let finalFileUrl = deck.file_url;
       let finalPages = deck.pages;
       let fileSize = deck.file_size;
+      let pageCount = deck.page_count ?? null;
       const finalViewPassword = requirePassword
         ? viewPassword.trim() || null
         : null;
@@ -152,6 +198,7 @@ export function DeckSettingsForm({
           page_number: idx + 1,
           links: imageAssets[idx]?.links || [],
         }));
+        pageCount = finalPages.length;
       }
 
       const updates: Partial<Deck> = {
@@ -160,9 +207,13 @@ export function DeckSettingsForm({
         file_url: finalFileUrl,
         pages: finalPages,
         file_size: fileSize,
+        page_count: pageCount,
         ...(newFile ? { extracted_text: null } : {}),
         require_email: requireEmail,
         require_password: requirePassword,
+        allow_download: allowDownload,
+        watermark_enabled: watermarkEnabled,
+        watermark_text: watermarkEnabled ? normalizedWatermarkText : null,
         view_password: finalViewPassword ?? undefined,
         expires_at:
           expiryEnabled && expiryDate
@@ -171,6 +222,31 @@ export function DeckSettingsForm({
       };
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
+
+      if (!watermarkEnabled && deck.watermark_enabled) {
+        await deckService.cleanupWatermarkedDeck(deck.id).catch((cleanupError) => {
+          console.error("Watermark cleanup failed after disabling:", cleanupError);
+        });
+      }
+
+      const shouldQueueWatermarkedDownload = watermarkEnabled &&
+        (newFile?.type === "application/pdf" || (!newFile && (!deck.file_type || deck.file_type === "pdf"))) &&
+        (
+          Boolean(newFile) ||
+          !deck.watermark_enabled ||
+          watermarkText.trim() !== (deck.watermark_text || "").trim() ||
+          deck.watermark_status !== "ready"
+        );
+      let resultingWatermarkStatus = !watermarkEnabled
+        ? "disabled"
+        : updated.watermark_status || watermarkStatus;
+      if (shouldQueueWatermarkedDownload) {
+        // The deck update trigger writes the durable watermark outbox row in
+        // the same transaction. Do not await provider work in the form.
+        setUploadProgress("Preparing protected download in the background...");
+        setWatermarkStatus("pending");
+        resultingWatermarkStatus = "pending";
+      }
 
       // Feature: Updating document replaces the physical storage blob but keeps UI intact (no slug change).
       // Cleanup the prior source file ONLY after successful DB update.
@@ -206,7 +282,10 @@ export function DeckSettingsForm({
       uploadedFileName = "";
       uploadedSlideImageKeys = [];
 
-      onUpdate(updated);
+      onUpdate({
+        ...updated,
+        watermark_status: resultingWatermarkStatus,
+      });
       setUploadProgress("Changes Synced!");
       timeoutRef.current = setTimeout(() => {
         setUploadProgress("");
@@ -247,6 +326,16 @@ export function DeckSettingsForm({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
+      const persistedTier = profile?.tier;
+      const tier = persistedTier && Object.prototype.hasOwnProperty.call(TIER_CONFIG, persistedTier)
+        ? persistedTier as Tier
+        : "FREE";
+      const maxBytes = TIER_CONFIG[tier].maxViewableDocumentSizeMB * 1024 * 1024;
+      if (file.size > maxBytes) {
+        setError(`This plan supports viewable PDFs up to ${TIER_CONFIG[tier].maxViewableDocumentSizeMB} MB.`);
+        e.target.value = "";
+        return;
+      }
       setNewFile(file);
     } else if (file) {
       alert("Please select a valid PDF file.");
@@ -283,9 +372,49 @@ export function DeckSettingsForm({
         setExpiryDate={setExpiryDate}
         requirePassword={requirePassword}
         setRequirePassword={setRequirePassword}
+        allowDownload={allowDownload}
+        setAllowDownload={setAllowDownload}
+        canUseAccessControls={accessControls.access.state === "available"}
+        accessControlsLoading={accessControls.isLoading}
+        onAccessUpsell={() =>
+          openUpsell("Email capture, password protection, and expiry")
+        }
+        canUseDownloadControls={downloadControls.access.state === "available"}
+        downloadControlsLoading={downloadControls.isLoading}
+        onDownloadUpsell={() => openUpsell("Download controls")}
         viewPassword={viewPassword}
         setViewPassword={setViewPassword}
-      />
+      >
+        <WatermarkSettingsSection
+          embedded
+          enabled={watermarkEnabled}
+          text={watermarkText}
+          status={watermarkStatus}
+          isPdf={newFile ? newFile.type === "application/pdf" : (!deck.file_type || deck.file_type === "pdf")}
+          canUseWatermarking={watermarkControls.isLoading || watermarkControls.access.state === "available"}
+          onEnabledChange={setWatermarkEnabled}
+          onTextChange={setWatermarkText}
+          onUpsell={() => openUpsell("Deck watermarking")}
+          onRetry={async () => {
+            setError(null);
+            setIsSaving(true);
+            setUploadProgress("Retrying protected download...");
+            setWatermarkStatus("pending");
+            try {
+              await deckService.generateWatermarkedDeck(deck.id);
+              onUpdate({ ...deck, watermark_status: "pending" });
+            } catch (watermarkError) {
+              console.error("Watermark retry failed:", watermarkError);
+              setWatermarkStatus("failed");
+              setError("The watermark could not be prepared. Please retry.");
+            } finally {
+              setIsSaving(false);
+              setUploadProgress("");
+            }
+          }}
+          isRetrying={watermarkStatus === "processing"}
+        />
+      </AccessProtectionSection>
 
       <div className="flex justify-end pt-6 mt-6 border-t border-white/5">
         {isProcessing && (
@@ -306,7 +435,7 @@ export function DeckSettingsForm({
         )}
         {error && !isProcessing && (
           <div className="flex-1 mr-6 p-3 bg-red-500/10 border border-red-500/20 rounded text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">error</span>
+            <AlertCircle size={14} />
             {error}
           </div>
         )}
@@ -330,6 +459,12 @@ export function DeckSettingsForm({
       </div>
 
       <DangerZoneSection onDelete={() => onDelete(deck.id)} />
+
+      <TierUpsellModal
+        isOpen={showUpsell}
+        onClose={() => setShowUpsell(false)}
+        featureName={upsellFeature}
+      />
 
       {/* Progress Notification */}
       <AnimatePresence>

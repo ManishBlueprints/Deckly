@@ -16,10 +16,12 @@ import DeckViewer from "../components/viewer/DeckViewer";
 import AccessGate from "../components/viewer/AccessGate";
 import { AuthModal } from "../components/auth/AuthModal";
 import { NotesSidebar } from "../components/viewer/NotesSidebar";
+import { DeckDownloadButton } from "../components/viewer/DeckDownloadButton";
 import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { deckService } from "../services/deckService";
 import { analyticsService } from "../services/analyticsService";
+import { productAnalytics } from "../services/productAnalytics";
 import { useAuth } from "../contexts/AuthContext";
 import { useAiSummaryPanel } from "../hooks/useAiSummaryPanel";
 import { Deck } from "../types";
@@ -36,6 +38,7 @@ import {
   SignedUrlMeta,
   unlockViewerDeck,
 } from "./viewerPublicAccess";
+import { captureCreatorFirstExternalView } from "./viewerAnalytics";
 
 const SIGNED_URL_REFRESH_RETRY_DELAYS_MS = [1000, 2000, 4000] as const;
 const SIGNED_URL_RECOVERY_RETRY_MS = 5000;
@@ -192,6 +195,11 @@ function Viewer() {
 
       if (!suppressAnalytics && result.isUnlocked && result.analyticsDeck) {
         analyticsService.trackDeckView(result.analyticsDeck);
+        captureCreatorFirstExternalView({
+          deck: result.analyticsDeck,
+          isOwner: result.isOwner,
+          suppressAnalytics,
+        });
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load deck.");
@@ -293,6 +301,28 @@ function Viewer() {
     }
   }, [aiSummary, deck]);
 
+  const requestDownload = useCallback(async (requestId: string) => {
+    if (!deck) throw new Error("Deck not loaded");
+    const download = await deckService.requestDeckDownload(
+      slug ?? deck.slug,
+      signedUrlMeta.current?.password,
+      handle ?? null,
+      {
+        requestId,
+        visitorId: analyticsService.getVisitorId(),
+        viewerEmail,
+      },
+    );
+    productAnalytics.capture("document_downloaded", {
+      workspace_id: deck.user_id,
+      source_surface: "deck_viewer",
+      deck_id: deck.id,
+      link_id: deck.deck_link_id || undefined,
+      event_id: `download:${requestId}`,
+    });
+    return download;
+  }, [deck, handle, slug, viewerEmail]);
+
   useEffect(() => {
     if (!deck || !isUnlocked) return;
     if (searchParams.get("ai") !== "summary") return;
@@ -375,6 +405,7 @@ function Viewer() {
                 } else {
                   analyticsService.trackDeckView(deck);
                 }
+                captureCreatorFirstExternalView({ deck, isOwner });
               } catch {
                 setError("Failed to unlock document payload.");
               }
@@ -387,12 +418,15 @@ function Viewer() {
             animate={{ opacity: 1 }}
             className="flex-1 flex flex-col items-stretch relative"
           >
-            {refreshWarning ? (
-              <div className="absolute top-4 right-4 z-[100] max-w-md rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                {refreshWarning}
-              </div>
-            ) : null}
-            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[100] flex flex-wrap items-center gap-2 px-2 md:px-0">
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[var(--ui-layer-viewer)] flex flex-col items-end gap-2">
+              {deck.allow_download ? <DeckDownloadButton onRequestDownload={requestDownload} /> : null}
+              {refreshWarning ? (
+                <div className="max-w-md rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                  {refreshWarning}
+                </div>
+              ) : null}
+            </div>
+            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[var(--ui-layer-viewer)] flex flex-wrap items-center gap-2 px-2 md:px-0">
               <Link to="/" className="group">
                 <div className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all">
                   <ArrowLeft size={16} />
@@ -511,6 +545,7 @@ function Viewer() {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         featureName="AI summaries"
+        upgradeSource="ai_summary_limit"
       />
 
       {deck && (
@@ -532,7 +567,7 @@ function Viewer() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 px-5 py-3 bg-[#111] border border-[#333] text-white rounded-lg shadow-2xl"
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[var(--ui-layer-viewer)] flex items-center gap-3 px-5 py-3 bg-[#111] border border-[#333] text-white rounded-lg shadow-2xl"
           >
             <div className="w-6 h-6 bg-deckly-primary/10 border border-deckly-primary/20 rounded-full flex items-center justify-center text-deckly-primary">
               <Check size={14} strokeWidth={3} />

@@ -15,6 +15,7 @@ import ImageDeckViewer from "../components/viewer/ImageDeckViewer";
 import DeckViewer from "../components/viewer/DeckViewer";
 import { AuthModal } from "../components/auth/AuthModal";
 import { NotesSidebar } from "../components/viewer/NotesSidebar";
+import { DeckDownloadButton } from "../components/viewer/DeckDownloadButton";
 import { AiSummarySidebar } from "../components/viewer/AiSummarySidebar";
 import { TierUpsellModal } from "../components/dashboard/TierUpsellModal";
 import { deckService } from "../services/deckService";
@@ -159,6 +160,15 @@ function OwnerDeckPreview() {
     }
   }, [aiSummary, deck]);
 
+  const requestDownload = useCallback(async (requestId: string) => {
+    if (!deck) throw new Error("Deck not loaded");
+    return deckService.requestDeckDownload(deck.slug, undefined, profile?.handle ?? null, {
+      requestId,
+      visitorId: `owner-${session?.user?.id ?? "preview"}`,
+      viewerEmail,
+    });
+  }, [deck, profile?.handle, session?.user?.id, viewerEmail]);
+
   useEffect(() => {
     if (!deck) return;
     if (searchParams.get("ai") !== "summary") return;
@@ -241,7 +251,10 @@ function OwnerDeckPreview() {
             animate={{ opacity: 1 }}
             className="flex-1 flex flex-col items-stretch relative"
           >
-            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[100] flex flex-wrap items-center gap-2 px-2 md:px-0">
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[var(--ui-layer-viewer)]">
+              {deck.allow_download ? <DeckDownloadButton onRequestDownload={requestDownload} /> : null}
+            </div>
+            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-[var(--ui-layer-viewer)] flex flex-wrap items-center gap-2 px-2 md:px-0">
               <Link to="/content" className="group">
                 <div className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[#111] border border-[#333] rounded-md text-slate-400 hover:text-white transition-all">
                   <ArrowLeft size={16} />
@@ -337,6 +350,7 @@ function OwnerDeckPreview() {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         featureName="AI summaries"
+        upgradeSource="ai_summary_limit"
       />
 
       {deck && (
@@ -357,7 +371,7 @@ function OwnerDeckPreview() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 px-5 py-3 bg-[#111] border border-[#333] text-white rounded-lg shadow-2xl"
+            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[var(--ui-layer-viewer)] flex items-center gap-3 px-5 py-3 bg-[#111] border border-[#333] text-white rounded-lg shadow-2xl"
           >
             <div className="w-6 h-6 bg-deckly-primary/10 border border-deckly-primary/20 rounded-full flex items-center justify-center text-deckly-primary">
               <Check size={14} strokeWidth={3} />

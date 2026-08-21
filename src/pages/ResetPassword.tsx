@@ -71,19 +71,19 @@ export default function ResetPassword() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-deckly-background flex items-center justify-center">
-        <Loader2 className="animate-spin text-deckly-primary" size={24} />
+      <main className="flex min-h-screen items-center justify-center bg-ui-canvas">
+        <Loader2 className="animate-spin text-ui-primary" size={24} />
       </main>
     );
   }
 
   if (!session || (!passwordRecovery && !complete && !requiresNewRecoveryLink)) {
     return (
-      <main className="min-h-screen bg-deckly-background flex items-center justify-center p-6">
-        <section className="w-full max-w-md border border-border bg-surface-low p-6 md:p-8 space-y-5 text-center">
-          <KeyRound className="mx-auto text-deckly-primary" size={28} />
-          <h1 className="text-xl font-bold text-white">This reset link is invalid or expired</h1>
-          <p className="text-sm text-slate-400 leading-relaxed">
+      <main className="flex min-h-screen items-center justify-center bg-ui-canvas p-6 text-ui-text">
+        <section className="w-full max-w-md space-y-5 rounded-card border border-ui-border bg-ui-surface p-6 text-center shadow-surface md:p-8">
+          <KeyRound className="mx-auto text-ui-primary" size={28} />
+          <h1 className="text-xl font-bold text-ui-text">This reset link is invalid or expired</h1>
+          <p className="text-sm text-ui-muted leading-relaxed">
             Request a new password reset email and use the most recent link.
           </p>
           <Button fullWidth onClick={() => navigate("/forgot-password")}>
@@ -95,13 +95,13 @@ export default function ResetPassword() {
   }
 
   return (
-    <main className="min-h-screen bg-deckly-background flex items-center justify-center p-6">
-      <section className="w-full max-w-md border border-border bg-surface-low p-6 md:p-8 space-y-6">
+    <main className="flex min-h-screen items-center justify-center bg-ui-canvas p-6 text-ui-text">
+      <section className="w-full max-w-md space-y-6 rounded-card border border-ui-border bg-ui-surface p-6 shadow-surface md:p-8">
         {complete ? (
           <div className="space-y-5 text-center">
-            <CheckCircle2 className="mx-auto text-deckly-primary" size={32} />
-            <h1 className="text-xl font-bold text-white">Password updated</h1>
-            <p className="text-sm text-slate-400 leading-relaxed">
+            <CheckCircle2 className="mx-auto text-ui-primary" size={32} />
+            <h1 className="text-xl font-bold text-ui-text">Password updated</h1>
+            <p className="text-sm text-ui-muted leading-relaxed">
               We&apos;ve sent a confirmation email to your account.
             </p>
             <Button fullWidth onClick={() => navigate("/", { replace: true })}>
@@ -110,9 +110,9 @@ export default function ResetPassword() {
           </div>
         ) : requiresNewRecoveryLink ? (
           <div className="space-y-5 text-center">
-            <KeyRound className="mx-auto text-deckly-primary" size={32} />
-            <h1 className="text-xl font-bold text-white">Request a new reset link</h1>
-            <p className="text-sm text-slate-400 leading-relaxed">
+            <KeyRound className="mx-auto text-ui-primary" size={32} />
+            <h1 className="text-xl font-bold text-ui-text">Request a new reset link</h1>
+            <p className="text-sm text-ui-muted leading-relaxed">
               This reset session is no longer valid. Request a new link and use it right away.
             </p>
             <Button fullWidth onClick={() => navigate("/forgot-password", { replace: true })}>
@@ -122,8 +122,8 @@ export default function ResetPassword() {
         ) : (
           <>
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-white">Choose a new password</h1>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <h1 className="text-2xl font-bold text-ui-text">Choose a new password</h1>
+              <p className="text-sm text-ui-muted leading-relaxed">
                 {PASSWORD_REQUIREMENTS_MESSAGE}
               </p>
             </div>
@@ -141,7 +141,7 @@ export default function ResetPassword() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((visible) => !visible)}
-                    className="text-slate-500 hover:text-slate-200 transition-colors"
+                    className="text-ui-muted transition-colors hover:text-ui-text"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -166,7 +166,7 @@ export default function ResetPassword() {
           </>
         )}
         {!complete && (
-          <Link to="/login" className="block text-center text-xs font-semibold text-slate-400 hover:text-deckly-primary transition-colors">
+          <Link to="/login" className="block text-center text-xs font-semibold text-ui-muted transition-colors hover:text-ui-primary">
             Back to sign in
           </Link>
         )}

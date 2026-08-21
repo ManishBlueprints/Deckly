@@ -1,8 +1,9 @@
 import { Bell } from "lucide-react";
-import { cn } from "../../utils/cn";
+import { cn } from "../../lib/utils";
 import { useUnreadCount } from "../../hooks/useNotifications";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { NotificationPanel } from "./NotificationPanel";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 interface NotificationBellProps {
   userId: string | undefined;
@@ -11,39 +12,18 @@ interface NotificationBellProps {
 export function NotificationBell({ userId }: NotificationBellProps) {
   const { count } = useUnreadCount(userId);
   const [isOpen, setIsOpen] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const bellRef = useRef<HTMLButtonElement>(null);
-
-  // Close on click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(event.target as Node) &&
-        bellRef.current &&
-        !bellRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    }
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [isOpen]);
 
   const displayCount = count > 9 ? "9+" : String(count);
 
   return (
-    <div className="relative">
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
       <button
-        ref={bellRef}
-        onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "relative p-2 rounded-lg transition-colors",
+          "relative inline-flex h-11 w-11 items-center justify-center rounded-[12px] transition-colors",
           isOpen
-            ? "bg-white/10 text-slate-100"
-            : "text-slate-500 hover:text-slate-200 hover:bg-white/5",
+            ? "bg-ui-subtle text-ui-text"
+            : "text-ui-muted hover:text-ui-text hover:bg-ui-subtle",
         )}
         aria-label={`Notifications${count > 0 ? `, ${count} unread` : ""}`}
       >
@@ -53,26 +33,18 @@ export function NotificationBell({ userId }: NotificationBellProps) {
             className={cn(
               "absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1",
               count > 9
-                ? "bg-red-500 text-white text-[8px]"
-                : "bg-red-500 text-white",
+                ? "bg-ui-destructive text-ui-surface text-[8px]"
+                : "bg-ui-destructive text-ui-surface",
             )}
           >
             {displayCount}
           </span>
         )}
       </button>
-
-      {isOpen && (
-        <div
-          ref={panelRef}
-          className="fixed inset-x-4 top-16 mt-3 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 z-50"
-        >
-          <NotificationPanel
-            userId={userId}
-            onClose={() => setIsOpen(false)}
-          />
-        </div>
-      )}
-    </div>
+      </PopoverTrigger>
+      <PopoverContent aria-label="Notifications" align="end" sideOffset={8} collisionPadding={16} className="w-auto border-0 bg-transparent p-0 shadow-none">
+        <NotificationPanel userId={userId} onClose={() => setIsOpen(false)} />
+      </PopoverContent>
+    </Popover>
   );
 }

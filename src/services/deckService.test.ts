@@ -6,8 +6,11 @@ type MockResponse = {
 };
 
 type TableChain = {
+  delete: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
   select: ReturnType<typeof vi.fn>;
   eq: ReturnType<typeof vi.fn>;
+  neq: ReturnType<typeof vi.fn>;
   in: ReturnType<typeof vi.fn>;
   order: ReturnType<typeof vi.fn>;
   maybeSingle: ReturnType<typeof vi.fn>;
@@ -43,11 +46,20 @@ const mocks = vi.hoisted(() => {
   const createTableChain = (table: string) => {
     let mode = "select";
     const chain = {
+      delete: vi.fn(() => {
+        mode = "delete";
+        return chain;
+      }),
+      update: vi.fn(() => {
+        mode = "update";
+        return chain;
+      }),
       select: vi.fn(() => {
         mode = "select";
         return chain;
       }),
       eq: vi.fn(() => chain),
+      neq: vi.fn(() => chain),
       in: vi.fn(() => chain),
       order: vi.fn(() => chain),
       maybeSingle: vi.fn(async () => consumeResponse(`${table}.${mode}.maybeSingle`)),
@@ -118,6 +130,8 @@ vi.mock("./deckStorageService", () => ({
   deckStorageService: {
     uploadDeckFile: vi.fn(),
     deleteDeckAssets: vi.fn(),
+    deleteDeckWatermarkAssets: vi.fn(),
+    deleteDeckRevisionAssets: vi.fn(),
     uploadSlideImages: vi.fn(),
     getStoragePath: vi.fn(),
   },
@@ -140,6 +154,196 @@ vi.mock("../utils/resilience", () => ({
 }));
 
 import { deckService } from "./deckService";
+import { extractStoragePath, getDeckSession, getRequiredDeckUserId } from "./deckService.shared";
+
+describe("deckService.deleteDeck", () => {
+  beforeEach(() => {
+    mocks.responseQueues.clear();
+    vi.clearAllMocks();
+  });
+
+  it("restores the deck status when primary asset cleanup fails", async () => {
+    vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
+    vi.mocked(mocks.mockSupabase.functions.invoke).mockResolvedValue({
+      data: null,
+      error: new Error("storage unavailable"),
+    });
+    mocks.queueResponse("decks.select.maybeSingle", {
+      data: { user_id: "user-1", status: "PROCESSED" },
+      error: null,
+    });
+    mocks.queueResponse("decks.update", { data: null, error: null });
+
+    await expect(deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"))
+      .rejects.toThrow("storage unavailable");
+
+    expect(mocks.mockSupabase.functions.invoke).toHaveBeenCalledWith(
+      "document-processing",
+      { body: { action: "delete-deck-artifacts", deckId: "deck-1" } },
+    );
+    const markDeletingChain = mocks.mockSupabase.from.mock.results[1]?.value as TableChain;
+    expect(markDeletingChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "DELETED" }),
+    );
+    const restoreChain = mocks.mockSupabase.from.mock.results[2]?.value as TableChain;
+    expect(restoreChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "PROCESSED" }),
+    );
+    expect(mocks.mockSupabase.from).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects a non-owned deck before attempting storage cleanup", async () => {
+    vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
+    mocks.queueResponse("decks.select.maybeSingle", {
+      data: { user_id: "user-2", status: "PROCESSED" },
+      error: null,
+    });
+
+    await expect(
+      deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"),
+    ).rejects.toThrow("Deck not found.");
+
+    expect(mocks.mockSupabase.functions.invoke).not.toHaveBeenCalled();
+  });
+
+  it("removes storage before deleting the deck row", async () => {
+    vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
+    vi.mocked(mocks.mockSupabase.functions.invoke).mockResolvedValue({
+      data: { artifactsDeleted: 3 },
+      error: null,
+    });
+    mocks.queueResponse("decks.select.maybeSingle", {
+      data: { user_id: "user-1", status: "PROCESSED" },
+      error: null,
+    });
+    mocks.queueResponse("decks.update", { data: null, error: null });
+    mocks.queueResponse("decks.delete", { data: null, error: null });
+
+    await expect(deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"))
+      .resolves.toEqual({ dbDeleted: true, assetsDeleted: true });
+
+    const markDeletingCall = mocks.mockSupabase.from.mock.invocationCallOrder[1];
+    const assetCleanupCall = vi.mocked(mocks.mockSupabase.functions.invoke).mock.invocationCallOrder[0];
+    const deleteCall = mocks.mockSupabase.from.mock.invocationCallOrder[2];
+    expect(markDeletingCall).toBeLessThan(assetCleanupCall);
+    expect(assetCleanupCall).toBeLessThan(deleteCall);
+  });
+
+  it("keeps the deck hidden when database deletion fails after storage cleanup", async () => {
+    const databaseError = new Error("database unavailable");
+    vi.mocked(getRequiredDeckUserId).mockResolvedValue("user-1");
+    vi.mocked(mocks.mockSupabase.functions.invoke).mockResolvedValue({
+      data: { artifactsDeleted: 3 },
+      error: null,
+    });
+    mocks.queueResponse("decks.select.maybeSingle", {
+      data: { user_id: "user-1", status: "PROCESSED" },
+      error: null,
+    });
+    mocks.queueResponse("decks.update", { data: null, error: null });
+    mocks.queueResponse("decks.delete", { data: null, error: databaseError });
+
+    await expect(
+      deckService.deleteDeck("deck-1", "https://cdn.example/decks/user-1/decks/deck.pdf", "deck", "user-1"),
+    ).resolves.toEqual({
+      dbDeleted: false,
+      assetsDeleted: true,
+      deletionPending: true,
+      cleanupError: databaseError,
+    });
+
+    expect(mocks.mockSupabase.functions.invoke).toHaveBeenCalledWith(
+      "document-processing",
+      { body: { action: "delete-deck-artifacts", deckId: "deck-1" } },
+    );
+    const updateChain = mocks.mockSupabase.from.mock.results[1]?.value as TableChain;
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "DELETED" }),
+    );
+  });
+});
+
+describe("deckService.getAllDecks", () => {
+  beforeEach(() => {
+    mocks.responseQueues.clear();
+    vi.clearAllMocks();
+  });
+
+  it("hydrates only the first page of each deck for picker thumbnails", async () => {
+    vi.mocked(getDeckSession).mockResolvedValue({ user: { id: "user-1" } } as never);
+    vi.mocked(extractStoragePath).mockReturnValue("user-1/decks/seed-page-1.png");
+    vi.mocked(mocks.mockSupabase.functions.invoke).mockResolvedValue({
+      data: {
+        data: [
+          {
+            path: "user-1/decks/seed-page-1.png",
+            signedUrl: "https://signed.example.com/seed-page-1.png",
+          },
+        ],
+      },
+      error: null,
+    });
+    mocks.queueResponse("decks.select", {
+      data: [
+        {
+          id: "deck-1",
+          title: "Seed",
+          slug: "seed-round",
+          file_url: "user-1/decks/seed.pdf",
+          status: "PROCESSED",
+          user_id: "user-1",
+          display_order: 0,
+          pages: [
+            { page_number: 1, image_url: "user-1/decks/seed-page-1.png" },
+            { page_number: 2, image_url: "user-1/decks/seed-page-2.png" },
+          ],
+          created_at: "2026-05-14T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    const decks = await deckService.getAllDecks();
+
+    expect(decks[0].thumbnail_url).toBe("https://signed.example.com/seed-page-1.png");
+    expect(decks[0].pages[0].image_url).toBe("user-1/decks/seed-page-1.png");
+    expect(decks[0].pages[1].image_url).toBe("user-1/decks/seed-page-2.png");
+    expect(vi.mocked(mocks.mockSupabase.functions.invoke)).toHaveBeenCalledWith(
+      "r2-storage",
+      {
+        body: {
+          action: "create-signed-urls",
+          bucket: "decks",
+          paths: ["user-1/decks/seed-page-1.png"],
+          expiresInSeconds: 3600,
+        },
+      },
+    );
+  });
+});
+
+describe("deckService watermark processing actions", () => {
+  beforeEach(() => {
+    mocks.responseQueues.clear();
+    vi.clearAllMocks();
+  });
+
+  it("accepts the durable retry job response and the cleanup response", async () => {
+    vi.mocked(mocks.mockSupabase.functions.invoke)
+      .mockResolvedValueOnce({ data: { id: "job-1", status: "queued" }, error: null })
+      .mockResolvedValueOnce({ data: { cleaned: true }, error: null });
+
+    await expect(deckService.generateWatermarkedDeck("deck-1")).resolves.toBeUndefined();
+    await expect(deckService.cleanupWatermarkedDeck("deck-1")).resolves.toBeUndefined();
+
+    expect(vi.mocked(mocks.mockSupabase.functions.invoke)).toHaveBeenNthCalledWith(1, "document-processing", {
+      body: { action: "retry-watermark", deckId: "deck-1" },
+    });
+    expect(vi.mocked(mocks.mockSupabase.functions.invoke)).toHaveBeenNthCalledWith(2, "document-processing", {
+      body: { action: "cleanup-watermark", deckId: "deck-1" },
+    });
+  });
+});
 
 describe("deckService.getDecksWithAnalytics", () => {
   beforeEach(() => {
@@ -161,6 +365,7 @@ describe("deckService.getDecksWithAnalytics", () => {
             display_order: 0,
             pages: [],
             created_at: "2026-05-14T00:00:00.000Z",
+            unique_visitors: 2,
           },
         ],
         error: null,
@@ -177,15 +382,7 @@ describe("deckService.getDecksWithAnalytics", () => {
     ]);
     mocks.queueResponse("deck_stats.select", {
       data: [
-        { deck_id: "deck-1", updated_at: "2026-05-15T00:00:00.000Z" },
-      ],
-      error: null,
-    });
-    mocks.queueResponse("deck_page_views.select", {
-      data: [
-        { deck_id: "deck-1", visitor_id: "visitor-1" },
-        { deck_id: "deck-1", visitor_id: "visitor-1" },
-        { deck_id: "deck-1", visitor_id: "visitor-2" },
+        { deck_id: "deck-1", updated_at: "2026-05-15T00:00:00.000Z", total_time_seconds: 90 },
       ],
       error: null,
     });
@@ -214,6 +411,7 @@ describe("deckService.getDecksWithAnalytics", () => {
       last_viewed_at: "2026-05-15T00:00:00.000Z",
       active_link_count: 2,
       total_link_count: 3,
+      avg_attention_seconds: 45,
     });
     expect(decks[0].tags).toEqual([
       { id: "tag-1", name: "Investor", color: "blue", deleted_at: null },

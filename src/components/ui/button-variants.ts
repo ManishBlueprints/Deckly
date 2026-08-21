@@ -6,14 +6,14 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-deckly-primary text-slate-950 shadow hover:bg-deckly-primary/90",
+          "bg-ui-primary text-ui-primary-text shadow hover:brightness-95",
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
-          "border border-white/10 bg-transparent shadow-sm hover:bg-white/5 hover:text-accent-foreground",
+          "border border-ui-border bg-transparent shadow-sm hover:bg-ui-subtle hover:text-accent-foreground",
         secondary:
-          "bg-slate-800 text-slate-100 shadow-sm hover:bg-slate-700",
-        ghost: "hover:bg-white/5 text-slate-400 hover:text-white",
+          "bg-ui-subtle text-ui-text shadow-sm hover:bg-ui-border",
+        ghost: "text-ui-muted hover:bg-ui-subtle hover:text-ui-text",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useDecks } from "../hooks/useDecks";
-import { DashboardLayout } from "../components/layout/DashboardLayout";
+import { WorkspaceShell } from "../components/layout/WorkspaceShell";
 import { DashboardView } from "../components/dashboard/DashboardView";
 import { EmptyStateOverlay } from "../components/dashboard/EmptyStateOverlay";
 import { HomeTour } from "../components/tours/HomeTour";
@@ -101,9 +101,9 @@ function Home() {
 
   if (error) {
     return (
-      <DashboardLayout title="Error">
+      <WorkspaceShell title="Error">
         <div className="flex flex-col items-center justify-center p-6 text-center py-20">
-          <div className="w-16 h-16 mb-8 text-red-500">
+          <div className="mb-8 h-16 w-16 text-ui-destructive">
             <svg
               fill="none"
               viewBox="0 0 24 24"
@@ -118,39 +118,41 @@ function Home() {
               />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">
+          <h2 className="mb-2 text-xl font-semibold text-ui-text">
             Error loading dashboard
           </h2>
-          <p className="text-slate-500 text-sm max-w-[280px] leading-relaxed mb-8">
+          <p className="mb-8 max-w-[280px] text-sm leading-relaxed text-ui-muted">
             {error}
           </p>
           <button
             onClick={() => refetch()}
-            className="px-8 py-3 bg-deckly-primary text-white rounded-xl text-sm font-bold hover:bg-opacity-90 transition-all active:scale-95"
+            className="rounded-[12px] bg-ui-primary px-8 py-3 text-sm font-semibold text-ui-primary-text"
           >
             Try Again
           </button>
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   if (loading) {
     return (
-      <DashboardLayout title="Dashboard">
-        <div className="flex flex-col items-center justify-center py-40 gap-4 text-slate-400">
-          <div className="w-10 h-10 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin" />
+      <WorkspaceShell title="Dashboard">
+        <div className="flex flex-col items-center justify-center gap-4 py-40 text-ui-muted">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-ui-primary/20 border-t-ui-primary" />
           <p className="font-medium">Loading your stats...</p>
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   return (
-    <DashboardLayout title="Dashboard">
+    <WorkspaceShell title="Dashboard">
       <HomeTour deckCount={decks.length} />
-      {decks.length === 0 ? <EmptyStateOverlay /> : <DashboardView />}
-    </DashboardLayout>
+      <div className="mx-auto w-full max-w-[1440px] px-4 pb-12 pt-6 sm:px-6 lg:px-10 lg:pt-8">
+        {decks.length === 0 ? <EmptyStateOverlay /> : <DashboardView />}
+      </div>
+    </WorkspaceShell>
   );
 }
 

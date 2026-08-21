@@ -10,6 +10,7 @@ import {
 import { withRetry } from "../utils/resilience.ts";
 import { storageService } from "./storageService.ts";
 import { extractStoragePath } from "./deckService.shared.ts";
+import { productAnalytics } from "./productAnalytics.ts";
 
 const normalizeDataRoomTag = (
   tag: DataRoomTag | null | undefined,
@@ -81,7 +82,15 @@ export const dataRoomService = {
         console.error("[dataRoomService] createDataRoom failed:", error);
         throw error;
       }
-      return data as DataRoom;
+      const room = data as DataRoom;
+      productAnalytics.capture("data_room_created", {
+        workspace_id: userId,
+        source_surface: "room_manager",
+        room_id: room.id,
+        document_count_after: 0,
+        event_id: `room:${room.id}:created`,
+      });
+      return room;
     });
   },
 
@@ -156,12 +165,25 @@ export const dataRoomService = {
         .single();
 
       if (error) throw error;
-      return data as DataRoom;
+      const room = data as DataRoom;
+      productAnalytics.capture("data_room_updated", {
+        workspace_id: room.user_id,
+        source_surface: "room_manager",
+        room_id: room.id,
+      });
+      return room;
     });
   },
 
   async publishDataRoom(id: string): Promise<DataRoom> {
-    return this.updateDataRoom(id, { is_public: true });
+    const room = await this.updateDataRoom(id, { is_public: true });
+    productAnalytics.capture("data_room_published", {
+      workspace_id: room.user_id,
+      source_surface: "room_manager",
+      room_id: room.id,
+      event_id: `room:${room.id}:published`,
+    });
+    return room;
   },
 
   async unpublishDataRoom(id: string): Promise<DataRoom> {
@@ -179,6 +201,12 @@ export const dataRoomService = {
         .eq("user_id", userId);
 
       if (error) throw error;
+      productAnalytics.capture("data_room_deleted", {
+        workspace_id: userId,
+        source_surface: "room_manager",
+        room_id: id,
+        event_id: `room:${id}:deleted`,
+      });
     });
   },
 
@@ -237,7 +265,10 @@ export const dataRoomService = {
     });
   },
 
-  async getDocuments(roomId: string, options?: { signUrls?: boolean }): Promise<DataRoomDocument[]> {
+  async getDocuments(
+    roomId: string,
+    options?: { signUrls?: boolean; signThumbnails?: boolean },
+  ): Promise<DataRoomDocument[]> {
     return withRetry(async () => {
       const { data, error } = await supabase
         .from("data_room_documents")
@@ -268,16 +299,22 @@ export const dataRoomService = {
         };
       }) as DataRoomDocument[];
 
-      // Hydrate signed URLs only when explicitly requested
-      if (options?.signUrls) {
+      // Sign every document asset only when it will be opened. List views need
+      // just the first page, which keeps large data rooms fast.
+      const signAllUrls = options?.signUrls === true;
+      const signThumbnails = options?.signThumbnails === true;
+      if (signAllUrls || signThumbnails) {
         const allPaths: string[] = [];
         documents.forEach(doc => {
           if (!doc.deck) return;
-          const mainPath = extractStoragePath(doc.deck.file_url, "decks");
-          if (mainPath) allPaths.push(mainPath);
-          
+          if (signAllUrls) {
+            const mainPath = extractStoragePath(doc.deck.file_url, "decks");
+            if (mainPath) allPaths.push(mainPath);
+          }
+           
           const pages = Array.isArray(doc.deck.pages) ? doc.deck.pages : [];
-          pages.forEach(p => {
+          const pagesToSign = signAllUrls ? pages : pages.slice(0, 1);
+          pagesToSign.forEach(p => {
             const pPath = extractStoragePath(p.image_url, "decks");
             if (pPath) allPaths.push(pPath);
           });
@@ -297,13 +334,16 @@ export const dataRoomService = {
             
             documents.forEach(doc => {
               if (!doc.deck) return;
-              const mainPath = extractStoragePath(doc.deck.file_url, "decks");
-              if (mainPath && urlMap.has(mainPath)) {
-                doc.deck.file_url = urlMap.get(mainPath)!;
+              if (signAllUrls) {
+                const mainPath = extractStoragePath(doc.deck.file_url, "decks");
+                if (mainPath && urlMap.has(mainPath)) {
+                  doc.deck.file_url = urlMap.get(mainPath)!;
+                }
               }
               
               if (Array.isArray(doc.deck.pages)) {
-                doc.deck.pages = doc.deck.pages.map(p => {
+                doc.deck.pages = doc.deck.pages.map((p, index) => {
+                  if (!signAllUrls && index > 0) return p;
                   const pPath = extractStoragePath(p.image_url, "decks");
                   if (pPath && urlMap.has(pPath)) {
                     return { ...p, image_url: urlMap.get(pPath)! };
@@ -322,6 +362,7 @@ export const dataRoomService = {
 
   async addDocuments(roomId: string, deckIds: string[]): Promise<void> {
     return withRetry(async () => {
+      const userId = await getRequiredSessionUserId();
       const count = await this.getDocumentCount(roomId);
 
       const inserts = deckIds.map((deckId, index) => ({
@@ -334,11 +375,22 @@ export const dataRoomService = {
         inserts,
       );
       if (error) throw error;
+      deckIds.forEach((deckId, index) => {
+        productAnalytics.capture("data_room_document_added", {
+          workspace_id: userId,
+          source_surface: "room_manager",
+          room_id: roomId,
+          deck_id: deckId,
+          document_count_after: count + index + 1,
+          event_id: `room:${roomId}:deck:${deckId}:added`,
+        });
+      });
     });
   },
 
   async removeDocument(roomId: string, deckId: string): Promise<void> {
     return withRetry(async () => {
+      const userId = await getRequiredSessionUserId();
       const { error } = await supabase
         .from("data_room_documents")
         .delete()
@@ -346,6 +398,15 @@ export const dataRoomService = {
         .eq("deck_id", deckId);
 
       if (error) throw error;
+      const count = await this.getDocumentCount(roomId);
+      productAnalytics.capture("data_room_document_removed", {
+        workspace_id: userId,
+        source_surface: "room_manager",
+        room_id: roomId,
+        deck_id: deckId,
+        document_count_after: count,
+        event_id: `room:${roomId}:deck:${deckId}:removed`,
+      });
     });
   },
 
@@ -645,6 +706,32 @@ export const dataRoomService = {
     }
 
     return decks;
+  },
+
+  async requestDeckDownload(
+    handle: string,
+    roomSlug: string,
+    deckId: string,
+    password?: string,
+    tracking?: { requestId: string; visitorId: string; viewerEmail?: string },
+  ): Promise<{ downloadUrl: string; filename: string }> {
+    const { data, error } = await supabase.functions.invoke("sign-deck-url", {
+      body: {
+        intent: "download",
+        handle,
+        room_slug: roomSlug,
+        deck_id: deckId,
+        password: password ?? null,
+        request_id: tracking?.requestId ?? null,
+        visitor_id: tracking?.visitorId ?? null,
+        viewer_email: tracking?.viewerEmail ?? null,
+      },
+    });
+    if (error) throw error;
+    if (!data?.download_url || !data?.filename) {
+      throw new Error("Download link was unavailable");
+    }
+    return { downloadUrl: data.download_url as string, filename: data.filename as string };
   },
 
 };
