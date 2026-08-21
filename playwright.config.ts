@@ -10,6 +10,11 @@ export default defineConfig({
     reducedMotion: "reduce",
     serviceWorkers: "block",
   },
-  webServer: { command: "npm run storybook:preview", port: 6006, reuseExistingServer: !process.env.CI },
+  webServer: {
+    command: "npm run storybook:preview",
+    url: "http://127.0.0.1:6006",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
   expect: { toHaveScreenshot: { animations: "disabled", maxDiffPixelRatio: 0.01 } },
 });

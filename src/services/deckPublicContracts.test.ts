@@ -73,7 +73,7 @@ const downloadControlsMigrationSql = readFileSync(
     "../../supabase/migrations/20260714020000_add_deck_download_controls.sql",
   ),
   "utf8",
-);
+).replace(/\r\n/g, "\n");
 const effectivePublicDeckSql = [
   initialSchemaSql,
   addDeckLinksMigrationSql,
