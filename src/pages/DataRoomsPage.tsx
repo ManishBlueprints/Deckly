@@ -9,7 +9,7 @@ import { useMyEntitlements } from "../hooks/useTierEntitlements";
 import { buildUpgradeUrl } from "../services/upgradeAttribution";
 import { useDataRooms } from "../hooks/useDataRooms";
 import { cn } from "@/lib/utils";
-import { DataRoom, DataRoomDocumentSearchSummary } from "../types";
+import { DataRoom } from "../types";
 import { DataRoomTour } from "../components/tours/DataRoomTour";
 import { useQuery } from "@tanstack/react-query";
 import { dataRoomService } from "../services/dataRoomService";
@@ -33,16 +33,9 @@ function DataRoomsPage() {
     isFetching: isFetchingDocuments,
   } = useQuery({
     queryKey: ["data-rooms", "search-document-summaries", rooms.map((room: DataRoom) => room.id)],
-    queryFn: async () => {
-      const entries = await Promise.all(
-        rooms.map(async (room: DataRoom) => {
-          const documents = await dataRoomService.getDocumentSearchSummaries(room.id);
-          return [room.id, documents] as const;
-        }),
-      );
-
-      return Object.fromEntries(entries) as Record<string, DataRoomDocumentSearchSummary[]>;
-    },
+    queryFn: () => dataRoomService.getDocumentSearchSummariesForRooms(
+      rooms.map((room: DataRoom) => room.id),
+    ),
     enabled: rooms.length > 0,
     staleTime: 30000,
   });

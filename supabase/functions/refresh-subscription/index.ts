@@ -1,4 +1,5 @@
 import { adminClient, applyProviderSubscription, corsPreflight, fetchRazorpaySubscription, json, requireUser, type PlanCode } from "../_shared/billing.ts";
+import { mapWithConcurrency } from "../_shared/concurrency.ts";
 
 // This is a customer-safe recovery path for the narrow window where Checkout
 // completes but its browser callback or Razorpay webhook is lost. It only
@@ -19,10 +20,10 @@ Deno.serve(async (req) => {
     if (error) throw error;
 
     let reconciled = 0;
-    for (const local of subscriptions ?? []) {
+    await mapWithConcurrency(subscriptions ?? [], 4, async (local) => {
       try {
         const provider = await fetchRazorpaySubscription(local.razorpay_subscription_id);
-        if (provider.status === "created") continue;
+        if (provider.status === "created") return;
 
         await applyProviderSubscription(admin, provider, {
           fallbackPlanCode: local.plan_code as PlanCode,
@@ -34,7 +35,7 @@ Deno.serve(async (req) => {
           message: error instanceof Error ? error.message : "Unknown error",
         });
       }
-    }
+    });
 
     return json({ reconciled });
   } catch (error) {

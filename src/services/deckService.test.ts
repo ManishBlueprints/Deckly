@@ -352,8 +352,7 @@ describe("deckService.getDecksWithAnalytics", () => {
   });
 
   it("hydrates deck link counts without overwriting analytics fields", async () => {
-    mocks.queueResponse("decks.select", [
-      {
+    mocks.queueResponse("decks.select", {
         data: [
           {
             id: "deck-1",
@@ -369,35 +368,18 @@ describe("deckService.getDecksWithAnalytics", () => {
           },
         ],
         error: null,
-      },
-      {
-        data: [
-          {
-            id: "deck-1",
-            deck_tags: [{ global_tags: { id: "tag-1", name: "Investor", color: "blue", deleted_at: null } }],
-          },
-        ],
-        error: null,
-      },
-    ]);
-    mocks.queueResponse("deck_stats.select", {
+      });
+    mocks.queueResponse("rpc.get_deck_list_analytics", {
       data: [
-        { deck_id: "deck-1", updated_at: "2026-05-15T00:00:00.000Z", total_time_seconds: 90 },
-      ],
-      error: null,
-    });
-    mocks.queueResponse("investor_library.select", {
-      data: [
-        { deck_id: "deck-1" },
-        { deck_id: "deck-1" },
-      ],
-      error: null,
-    });
-    mocks.queueResponse("deck_links.select", {
-      data: [
-        { deck_id: "deck-1", is_enabled: true },
-        { deck_id: "deck-1", is_enabled: false },
-        { deck_id: "deck-1", is_enabled: true },
+        {
+          deck_id: "deck-1",
+          save_count: 2,
+          active_link_count: 2,
+          total_link_count: 3,
+          last_viewed_at: "2026-05-15T00:00:00.000Z",
+          total_time_seconds: 90,
+          tags: [{ id: "tag-1", name: "Investor", color: "blue", deleted_at: null }],
+        },
       ],
       error: null,
     });

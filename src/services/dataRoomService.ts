@@ -215,14 +215,23 @@ export const dataRoomService = {
   async getDocumentSearchSummaries(
     roomId: string,
   ): Promise<DataRoomDocumentSearchSummary[]> {
+    const summaries = await this.getDocumentSearchSummariesForRooms([roomId]);
+    return summaries[roomId] || [];
+  },
+
+  async getDocumentSearchSummariesForRooms(
+    roomIds: string[],
+  ): Promise<Record<string, DataRoomDocumentSearchSummary[]>> {
+    if (roomIds.length === 0) return {};
     return withRetry(async () => {
       const { data, error } = await supabase
         .from("data_room_documents")
         .select(`
           id,
+          data_room_id,
           deck:decks ( id, title )
         `)
-        .eq("data_room_id", roomId)
+        .in("data_room_id", roomIds)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
@@ -242,7 +251,10 @@ export const dataRoomService = {
 
       const deckTagsMap = await getUserScopedDeckTags(deckIds);
 
-      return ((data || []) as Record<string, unknown>[]).map((document) => {
+      const summariesByRoom: Record<string, DataRoomDocumentSearchSummary[]> = Object.fromEntries(
+        roomIds.map((id) => [id, []]),
+      );
+      ((data || []) as Record<string, unknown>[]).forEach((document) => {
         const rawDeck = document.deck;
         const deck =
           Array.isArray(rawDeck)
@@ -253,15 +265,18 @@ export const dataRoomService = {
         const deckId = typeof deck?.id === "string" ? deck.id : "";
         const tags = deckTagsMap.get(deckId) || [];
 
-        return {
+        const roomId = typeof document.data_room_id === "string" ? document.data_room_id : "";
+        if (!summariesByRoom[roomId]) summariesByRoom[roomId] = [];
+        summariesByRoom[roomId].push({
           id: String(document.id),
           deck:
             typeof deck?.title === "string"
               ? { title: deck.title }
               : undefined,
           tags,
-        };
+        });
       });
+      return summariesByRoom;
     });
   },
 
@@ -415,15 +430,11 @@ export const dataRoomService = {
     orderedDeckIds: string[],
   ): Promise<void> {
     return withRetry(async () => {
-      const updates = orderedDeckIds.map((deckId, index) =>
-        supabase
-          .from("data_room_documents")
-          .update({ display_order: index })
-          .eq("data_room_id", roomId)
-          .eq("deck_id", deckId)
-      );
-
-      await Promise.all(updates);
+      const { error } = await supabase.rpc("reorder_data_room_documents", {
+        p_room_id: roomId,
+        p_ordered_deck_ids: orderedDeckIds,
+      });
+      if (error) throw error;
     });
   },
 

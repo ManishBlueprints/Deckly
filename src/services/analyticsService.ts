@@ -6,6 +6,7 @@ import { Deck, DeckPageStats, DeckLinkStats, DeckDownloadAnalytics, DataRoomDown
 import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
 import { posthogConfig } from "./posthogConfig.ts";
 import { productAnalytics, sanitizeAnalyticsProperties } from "./productAnalytics.ts";
+import { buildVisitorSignalFromMetric, type VisitorSignal, type VisitorSignalMetric } from "./interestSignalService.ts";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
 const posthogKey = posthogConfig.apiKey;
@@ -104,6 +105,25 @@ type AiSummaryTelemetryMetadata = {
 const captureEvent = (event: string, properties: Record<string, unknown>) => {
   if (!posthogKey) return;
   posthog.capture(event, sanitizeAnalyticsProperties(properties));
+};
+
+export type DataRoomAnalyticsBundle = {
+  analytics: {
+    totalVisitors: number;
+    perDeck: { deckId: string; title: string; visitors: number }[];
+  };
+  locations: {
+    countries: { name: string; count: number; code: string }[];
+    cities: { name: string; count: number; country: string }[];
+  };
+  documentStats: {
+    deckId: string;
+    title: string;
+    totalViews: number;
+    totalTimeSeconds: number;
+    uniqueVisitors: number;
+  }[];
+  visitorSignals: VisitorSignal[];
 };
 
 export const analyticsService = {
@@ -296,167 +316,37 @@ export const analyticsService = {
 
   // Get daily metrics for the last 7 days (optionally filtered by deck)
   async getDailyMetrics(userId: string, deckId?: string) {
-    const days = 7;
-    const labels: string[] = [];
-    const visits: number[] = [];
-    const timeSpent: number[] = [];
-    const bookmarks: number[] = [];
-    const dateKeys: string[] = []; // YYYY-MM-DD for matching
-
-    // Initialize days (Mon-Sun style, ending today)
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-
-      labels.push(d.toLocaleDateString("en-US", { weekday: "short" }));
-      dateKeys.push(d.toISOString().split("T")[0]);
-      visits.push(0);
-      timeSpent.push(0);
-      bookmarks.push(0);
-    }
-
-    try {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      sevenDaysAgo.setHours(0, 0, 0, 0);
-
-      // 1. Fetch user's deck IDs
-      let deckIdsQuery = supabase.from("decks").select("id").eq(
-        "user_id",
-        userId,
-      );
-
-      if (deckId) {
-        deckIdsQuery = deckIdsQuery.eq("id", deckId);
-      }
-
-      const { data: userDecks } = await deckIdsQuery;
-
-      const deckIds = (userDecks || []).map((d) => d.id);
-      if (deckIds.length === 0) return { labels, visits, timeSpent, bookmarks };
-
-      // 2. Fetch both page views and bookmarks in parallel
-      const [vResult, bResult] = await Promise.all([
-        supabase
-          .from("deck_page_views")
-          .select("viewed_at, visitor_id, deck_id, time_spent")
-          .in("deck_id", deckIds)
-          .gt("viewed_at", sevenDaysAgo.toISOString()),
-        supabase
-          .from("investor_library")
-          .select("created_at, deck_id")
-          .in("deck_id", deckIds)
-          .gt("created_at", sevenDaysAgo.toISOString()),
-      ]);
-
-      if (vResult.error) throw vResult.error;
-      if (bResult.error) throw bResult.error;
-
-      const vData = vResult.data || [];
-      const bData = bResult.data || [];
-
-      // Tracks unique visitor/deck combos per day to count as "one visit"
-      const dayVisitsMap = dateKeys.map(() => new Set<string>());
-
-      // Map visits to days using date keys
-      vData.forEach((v) => {
-        const vDate = new Date(v.viewed_at).toISOString().split("T")[0];
-        const index = dateKeys.indexOf(vDate);
-        if (index !== -1) {
-          // Same logic as total views: unique visitor per deck per day
-          dayVisitsMap[index].add(`${v.visitor_id}-${v.deck_id}`);
-          timeSpent[index] += Number(v.time_spent || 0);
-        }
-      });
-
-      // Map bookmarks to days
-      bData.forEach((b) => {
-        const bDate = new Date(b.created_at).toISOString().split("T")[0];
-        const index = dateKeys.indexOf(bDate);
-        if (index !== -1) {
-          bookmarks[index]++;
-        }
-      });
-
-      // Convert Sets to counts
-      dayVisitsMap.forEach((set, i) => {
-        visits[i] = set.size;
-      });
-    } catch (err) {
-      console.error("Error fetching daily metrics:", err);
-    }
-
-    return { labels, visits, timeSpent, bookmarks };
+    void userId;
+    const { data, error } = await supabase.rpc("get_user_daily_metrics", {
+      p_deck_id: deckId ?? null,
+      p_days: 7,
+    });
+    if (error) throw error;
+    const rows = (data || []) as { metric_date: string; visits: number; time_spent: number; bookmarks: number }[];
+    return {
+      labels: rows.map((row) => new Date(`${row.metric_date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" })),
+      visits: rows.map((row) => Number(row.visits || 0)),
+      timeSpent: rows.map((row) => Number(row.time_spent || 0)),
+      bookmarks: rows.map((row) => Number(row.bookmarks || 0)),
+    };
   },
 
   // Get total stats for the user dashboard (optionally filtered by deck)
   async getUserTotalStats(userId: string, deckId?: string) {
-    // 1. Fetch user's deck IDs
-    const { data: userDecks } = await supabase
-      .from("decks")
-      .select("id")
-      .eq("user_id", userId);
-
-    if (!userDecks || userDecks.length === 0) {
-      return { totalViews: 0, totalTimeSeconds: 0, totalSaves: 0, deckCount: 0 };
-    }
-
-    const deckIds = deckId ? [deckId] : userDecks.map((d) => d.id);
-
-    // 2. Fetch everything in parallel
-    const [timeResult, viewResult, saveResult] = await Promise.all([
-      // Total time
-      supabase
-        .from("deck_stats")
-        .select("total_time_seconds")
-        .in("deck_id", deckIds),
-      // Unique visitors
-      supabase
-        .from("deck_page_views")
-        .select("visitor_id, deck_id")
-        .in("deck_id", deckIds),
-      // Total saves - use count check
-      supabase
-        .from("investor_library")
-        .select("id", {
-          count: "exact",
-          head: true,
-        })
-        .in("deck_id", deckIds),
-    ]);
-
-    if (timeResult.error) {
-      console.error("Error fetching time stats:", timeResult.error);
-    }
-    if (viewResult.error) {
-      console.error("Error fetching view stats:", viewResult.error);
-    }
-    if (saveResult.error) {
-      console.error("Error fetching save counts:", saveResult.error);
-    }
-
-    const totalTimeSeconds = (timeResult.data || []).reduce(
-      (acc, curr) => acc + curr.total_time_seconds,
-      0,
-    );
-
-    let totalViews = 0;
-    if (viewResult.data) {
-      const visitorsByDeck = new Map<string, Set<string>>();
-      for (const row of viewResult.data) {
-        if (!visitorsByDeck.has(row.deck_id)) {
-          visitorsByDeck.set(row.deck_id, new Set());
-        }
-        visitorsByDeck.get(row.deck_id)!.add(row.visitor_id);
-      }
-      for (const visitors of visitorsByDeck.values()) {
-        totalViews += visitors.size;
-      }
-    }
-
-    const totalSaves = saveResult.count || 0;
-
-    return { totalViews, totalTimeSeconds, totalSaves, deckCount: userDecks.length };
+    void userId;
+    const { data, error } = await supabase.rpc("get_user_total_stats", {
+      p_deck_id: deckId ?? null,
+    });
+    if (error) throw error;
+    const stats = data && typeof data === "object" && !Array.isArray(data)
+      ? data as Record<string, unknown>
+      : {};
+    return {
+      totalViews: Number(stats.totalViews || 0),
+      totalTimeSeconds: Number(stats.totalTimeSeconds || 0),
+      totalSaves: Number(stats.totalSaves || 0),
+      deckCount: Number(stats.deckCount || 0),
+    };
   },
 
   // Get unique visitor count for a deck (distinct people, not slide views)
@@ -779,5 +669,25 @@ export const analyticsService = {
       console.warn("Error in getDataRoomDocumentStats, using fallback:", err);
       return [];
     }
+  },
+
+  async getDataRoomAnalyticsBundle(roomId: string): Promise<DataRoomAnalyticsBundle> {
+    const { data, error } = await supabase.rpc("get_data_room_analytics_bundle", {
+      p_room_id: roomId,
+    });
+    if (error) throw error;
+    const bundle = data && typeof data === "object" && !Array.isArray(data)
+      ? data as Partial<DataRoomAnalyticsBundle>
+      : {};
+    return {
+      analytics: bundle.analytics ?? { totalVisitors: 0, perDeck: [] },
+      locations: bundle.locations ?? { countries: [], cities: [] },
+      documentStats: Array.isArray(bundle.documentStats) ? bundle.documentStats : [],
+      visitorSignals: Array.isArray((bundle as { visitorMetrics?: unknown }).visitorMetrics)
+        ? ((bundle as { visitorMetrics: VisitorSignalMetric[] }).visitorMetrics)
+            .map(buildVisitorSignalFromMetric)
+            .sort((left, right) => right.signals.length - left.signals.length || right.totalTime - left.totalTime)
+        : [],
+    };
   },
 };

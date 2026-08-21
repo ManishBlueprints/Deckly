@@ -10,6 +10,7 @@ type TableChain = {
   select: ReturnType<typeof vi.fn>;
   eq: ReturnType<typeof vi.fn>;
   neq: ReturnType<typeof vi.fn>;
+  in: ReturnType<typeof vi.fn>;
   order: ReturnType<typeof vi.fn>;
   then: PromiseLike<MockResponse>["then"];
 };
@@ -37,6 +38,7 @@ const mocks = vi.hoisted(() => {
       select: vi.fn(() => chain),
       eq: vi.fn(() => chain),
       neq: vi.fn(() => chain),
+      in: vi.fn(() => chain),
       order: vi.fn(() => chain),
       then: ((resolve, reject) =>
         Promise.resolve(consumeResponse(`${table}.${mode}`)).then(resolve, reject)) as TableChain["then"],
@@ -172,5 +174,18 @@ describe("dataRoomService room slug scoping", () => {
         },
       },
     );
+  });
+
+  it("reorders room documents with one transactional RPC", async () => {
+    await dataRoomService.reorderDocuments("room-1", ["deck-2", "deck-1"]);
+
+    expect(vi.mocked(mocks.mockSupabase.rpc)).toHaveBeenCalledWith(
+      "reorder_data_room_documents",
+      {
+        p_room_id: "room-1",
+        p_ordered_deck_ids: ["deck-2", "deck-1"],
+      },
+    );
+    expect(vi.mocked(mocks.mockSupabase.from)).not.toHaveBeenCalled();
   });
 });

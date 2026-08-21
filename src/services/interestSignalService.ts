@@ -34,6 +34,32 @@ export interface VisitorSignal {
   isEngaged: boolean;
 }
 
+export type VisitorSignalMetric = Omit<
+  VisitorSignal,
+  "signals" | "slideBreakdown" | "isEngaged"
+>;
+
+export function buildVisitorSignalFromMetric(metric: VisitorSignalMetric): VisitorSignal {
+  const signals: SignalLabel[] = [];
+  if (metric.distinctDays >= 2) signals.push("Revisited");
+  if (metric.totalVisits >= 3) signals.push("Viewed multiple times");
+  if (metric.deepSlides >= 2) signals.push("Spent time on key slides");
+  if (
+    metric.daysBetweenFirstAndLast !== null
+    && metric.daysBetweenFirstAndLast <= 3
+    && metric.distinctDays >= 2
+  ) signals.push("Returned quickly");
+  if (metric.totalTime >= 60) signals.push("Extended viewing");
+
+  return {
+    ...metric,
+    totalTime: Math.round(metric.totalTime),
+    signals,
+    slideBreakdown: [],
+    isEngaged: signals.length > 0,
+  };
+}
+
 interface PageViewRow {
   visitor_id: string;
   page_number: number;

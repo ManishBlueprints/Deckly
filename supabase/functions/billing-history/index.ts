@@ -1,4 +1,5 @@
 import { adminClient, corsPreflight, json, requireUser, syncInvoicesForSubscription } from "../_shared/billing.ts";
+import { mapWithConcurrency } from "../_shared/concurrency.ts";
 
 const MAX_PAGE_SIZE = 50;
 const SYNC_STALE_AFTER_MS = 15 * 60 * 1000;
@@ -23,15 +24,13 @@ Deno.serve(async (req) => {
     const staleBefore = Date.now() - SYNC_STALE_AFTER_MS;
     let stale = false;
     let syncPending = (subscriptions ?? []).some((subscription) => subscription.invoice_history_complete !== true);
-    let interactiveSyncs = 0;
-    for (const subscription of subscriptions ?? []) {
+    const staleSubscriptions = (subscriptions ?? []).filter((subscription) => {
       const syncedAt = subscription.invoices_synced_at ? new Date(subscription.invoices_synced_at).getTime() : 0;
-      if (!syncedAt || syncedAt < staleBefore) {
-        if (interactiveSyncs >= MAX_INTERACTIVE_SUBSCRIPTION_SYNCS) {
-          syncPending = true;
-          continue;
-        }
-        interactiveSyncs += 1;
+      return !syncedAt || syncedAt < staleBefore;
+    });
+    if (staleSubscriptions.length > MAX_INTERACTIVE_SUBSCRIPTION_SYNCS) syncPending = true;
+    const interactiveSubscriptions = staleSubscriptions.slice(0, MAX_INTERACTIVE_SUBSCRIPTION_SYNCS);
+    await mapWithConcurrency(interactiveSubscriptions, 2, async (subscription) => {
         try {
           const result = await syncInvoicesForSubscription(admin, subscription, { maxPages: 1 });
           syncPending ||= result.hasMore;
@@ -39,8 +38,7 @@ Deno.serve(async (req) => {
           // A cached history is still more useful than a provider outage page.
           stale = true;
         }
-      }
-    }
+    });
 
     const { data: invoices, error: invoicesError, count } = await admin
       .from("billing_invoices")

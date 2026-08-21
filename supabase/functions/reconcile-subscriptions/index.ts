@@ -1,4 +1,5 @@
 import { adminClient, applyProviderSubscription, fetchRazorpaySubscription, json, syncInvoicesForSubscription, timingSafeEqual, type PlanCode } from "../_shared/billing.ts";
+import { mapWithConcurrency } from "../_shared/concurrency.ts";
 
 const BATCH_SIZE = 50;
 const RECONCILABLE_STATUSES = ["created", "authenticated", "active", "pending", "halted", "paused"];
@@ -43,7 +44,7 @@ Deno.serve(async (req) => {
     let reconciled = 0;
     let invoicesSynced = 0;
     let failures = 0;
-    for (const local of subscriptions ?? []) {
+    await mapWithConcurrency(subscriptions ?? [], 4, async (local) => {
       try {
         const provider = await fetchRazorpaySubscription(local.razorpay_subscription_id);
         const applied = await applyProviderSubscription(admin, provider, {
@@ -67,12 +68,12 @@ Deno.serve(async (req) => {
           message: error instanceof Error ? error.message : "Unknown error",
         });
       }
-    }
+    });
 
     // Terminal subscriptions cannot restore entitlement, but their invoices
     // can still settle or expire after cancellation. Refresh their history
     // separately so they never crowd live subscriptions out of reconciliation.
-    for (const local of terminalSubscriptions ?? []) {
+    await mapWithConcurrency(terminalSubscriptions ?? [], 4, async (local) => {
       try {
         await syncInvoicesForSubscription(admin, local, invoiceSyncOptions(local));
         invoicesSynced += 1;
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
           message: error instanceof Error ? error.message : "Unknown error",
         });
       }
-    }
+    });
 
     return json({
       reconciled,

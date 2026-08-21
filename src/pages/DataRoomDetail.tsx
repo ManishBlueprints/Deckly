@@ -9,10 +9,7 @@ import { dataRoomService } from "../services/dataRoomService";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
 import { useAuth } from "../contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  getRoomVisitorSignals,
-  VisitorSignal,
-} from "../services/interestSignalService";
+import { VisitorSignal } from "../services/interestSignalService";
 import { getDataRoomPreviewPath, getDataRoomShareUrl } from "../utils/url";
 import { useDataRoomFolders } from "../hooks/useDataRoomFolders";
 import { DataRoomFolderModal } from "../components/data-room/DataRoomFolderModal";
@@ -185,43 +182,28 @@ function DataRoomDetail() {
       setLoading(false);
 
       setSignalsLoading(true);
-      void getRoomVisitorSignals(roomId)
-        .then((signals) => {
+
+      void analyticsService
+        .getDataRoomAnalyticsBundle(roomId)
+        .then((bundle) => {
           if (requestId !== loadAllRequestIdRef.current) return;
-          setRoomSignals(signals);
+          setAnalytics(bundle.analytics);
+          setRoomLocations(bundle.locations);
+          setRoomDocumentStats(bundle.documentStats);
+          setRoomSignals(bundle.visitorSignals);
         })
-        .catch((err) => {
+        .catch((err: unknown) => {
           if (requestId !== loadAllRequestIdRef.current) return;
-          console.error("Failed to load visitor signals", err);
+          console.error("Failed to load room analytics bundle", err);
+          setAnalytics({ totalVisitors: 0, perDeck: [] });
+          setRoomLocations({ countries: [], cities: [] });
+          setRoomDocumentStats([]);
           setRoomSignals([]);
         })
         .finally(() => {
           if (requestId !== loadAllRequestIdRef.current) return;
+          setAnalyticsLoading(false);
           setSignalsLoading(false);
-        });
-
-      void analyticsService
-        .getDataRoomLocations(roomId)
-        .then((locations) => {
-          if (requestId !== loadAllRequestIdRef.current) return;
-          setRoomLocations(locations);
-        })
-        .catch((err: unknown) => {
-          if (requestId !== loadAllRequestIdRef.current) return;
-          console.error("Failed to load room locations", err);
-          setRoomLocations({ countries: [], cities: [] });
-        });
-
-      void analyticsService
-        .getDataRoomDocumentStats(roomId)
-        .then((stats) => {
-          if (requestId !== loadAllRequestIdRef.current) return;
-          setRoomDocumentStats(stats);
-        })
-        .catch((err: unknown) => {
-          if (requestId !== loadAllRequestIdRef.current) return;
-          console.error("Failed to load room document stats", err);
-          setRoomDocumentStats([]);
         });
 
       void analyticsService
@@ -240,21 +222,6 @@ function DataRoomDetail() {
           setDownloadAnalyticsLoading(false);
         });
 
-      void dataRoomService
-        .getDataRoomAnalytics(roomId, docs)
-        .then((analyticsData) => {
-          if (requestId !== loadAllRequestIdRef.current) return;
-          setAnalytics(analyticsData);
-        })
-        .catch((err) => {
-          if (requestId !== loadAllRequestIdRef.current) return;
-          console.error("Failed to load room analytics", err);
-          setAnalytics({ totalVisitors: 0, perDeck: [] });
-        })
-        .finally(() => {
-          if (requestId !== loadAllRequestIdRef.current) return;
-          setAnalyticsLoading(false);
-        });
     } catch (err) {
       if (requestId !== loadAllRequestIdRef.current) return;
       console.error("Failed to load room", err);

@@ -20,6 +20,7 @@ import type {
   AiSummaryCacheState,
   AiSummaryCacheWriteInput,
 } from "./aiSummaryCacheCore.ts";
+import { mapWithConcurrency } from "../utils/concurrency.ts";
 
 export { AI_SUMMARY_MODEL_IDENTIFIER, AI_SUMMARY_MODEL_VERSION } from "./aiConfig.ts";
 export const AI_SUMMARY_RECURSIVE_SOURCE_THRESHOLD = 4;
@@ -498,9 +499,10 @@ export const createAiSummaryInitialOrchestrator = (
           pages: sortedSources.flatMap(s => s.pages || []),
         });
       } else {
-        recursiveSourceSummaries = [];
-
-        for (const [index, source] of resolution.included_sources.entries()) {
+        recursiveSourceSummaries = await mapWithConcurrency(
+          resolution.included_sources,
+          3,
+          async (source, index) => {
           const sourceResult = await dependencies.generateSummary({
             mode: "source",
             scope: resolution,
@@ -511,10 +513,9 @@ export const createAiSummaryInitialOrchestrator = (
             pages: source.pages,
           });
 
-          recursiveSourceSummaries.push(
-            `Source ${index + 1}: ${source.title}\n${normalizeSummaryText(sourceResult.summary_text)}`,
-          );
-        }
+            return `Source ${index + 1}: ${source.title}\n${normalizeSummaryText(sourceResult.summary_text)}`;
+          },
+        );
 
         providerResult = await dependencies.generateSummary({
           mode: "aggregate",

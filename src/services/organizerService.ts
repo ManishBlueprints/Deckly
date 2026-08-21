@@ -165,19 +165,11 @@ export const organizerService = {
         throw new Error("One or more tags were not found.");
       }
 
-      for (const tagData of createdTags) {
+      if (createdTags.length > 0) {
         const { error: linkErr } = await supabase
           .from("library_folder_tags")
-          .insert([{ folder_id: finalData.id, tag_id: tagData.id }]);
-
-        if (linkErr) {
-          console.error("Failed to link folder tag:", {
-            folder_id: finalData.id,
-            tag_id: tagData.id,
-            error: linkErr,
-          });
-          throw linkErr;
-        }
+          .insert(createdTags.map((tagData) => ({ folder_id: finalData.id, tag_id: tagData.id })));
+        if (linkErr) throw linkErr;
       }
     } catch (err) {
       console.error("Critical failure during folder creation process, rolling back:", err);
@@ -291,22 +283,11 @@ export const organizerService = {
       }
 
       if (resolvedTags.length > 0) {
-        for (const tagData of resolvedTags) {
-          const { error: insertErr } = await supabase
-            .from("library_folder_tags")
-            .insert([{ folder_id: folderId, tag_id: tagData.id }]);
-
-          if (insertErr) {
-            console.error("Failed to link folder tag:", {
-              folder_id: folderId,
-              tag_id: tagData.id,
-              error: insertErr,
-            });
-            throw insertErr;
-          }
-
-          createdTags.push(tagData);
-        }
+        const { error: insertErr } = await supabase
+          .from("library_folder_tags")
+          .insert(resolvedTags.map((tagData) => ({ folder_id: folderId, tag_id: tagData.id })));
+        if (insertErr) throw insertErr;
+        createdTags.push(...resolvedTags);
       }
     } catch (err) {
       console.error(`Update failed during tag processing:`, err);

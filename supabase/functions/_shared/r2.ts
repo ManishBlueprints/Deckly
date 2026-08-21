@@ -1,4 +1,5 @@
 export type StorageBucket = "decks" | "assets";
+import { mapWithConcurrency } from "./concurrency.ts";
 
 type R2Config = {
   endpoint: URL;
@@ -385,9 +386,7 @@ export async function deleteObjects(
   bucket: StorageBucket,
   keys: string[],
 ): Promise<void> {
-  for (const key of keys) {
-    await deleteObject(bucket, key);
-  }
+  await mapWithConcurrency(keys, 8, (key) => deleteObject(bucket, key));
 }
 
 export async function readObjectRange(
@@ -554,15 +553,11 @@ export async function createSignedUrls(
   keys: string[],
   expiresInSeconds: number,
 ): Promise<Array<{ path: string; signedUrl: string | null }>> {
-  const results: Array<{ path: string; signedUrl: string | null }> = [];
-
-  for (const key of keys) {
+  return mapWithConcurrency(keys, 16, async (key) => {
     try {
-      results.push({ path: key, signedUrl: await presignGetUrl(bucket, key, expiresInSeconds) });
+      return { path: key, signedUrl: await presignGetUrl(bucket, key, expiresInSeconds) };
     } catch {
-      results.push({ path: key, signedUrl: null });
+      return { path: key, signedUrl: null };
     }
-  }
-
-  return results;
+  });
 }

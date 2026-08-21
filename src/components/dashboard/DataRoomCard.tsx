@@ -30,19 +30,7 @@ export function DataRoomCard({
     // 1. Preload Component Chunk
     import("../../pages/DataRoomDetail").catch(() => {});
 
-    // 2. Prefetch Data (Metadata + Documents - lightweight)
-    queryClient.prefetchQuery({
-      queryKey: ["data-room-meta", room.id],
-      queryFn: async () => {
-        const [docCount, analytics] = await Promise.all([
-          dataRoomService.getDocumentCount(room.id),
-          dataRoomService.getDataRoomAnalytics(room.id),
-        ]);
-        return { docCount, visitors: analytics.totalVisitors };
-      },
-      staleTime: 30000,
-    });
-
+    // The list already owns batch metadata; only preload detail documents.
     queryClient.prefetchQuery({
       queryKey: ["data-room-documents", room.id],
       queryFn: () => dataRoomService.getDocuments(room.id),
