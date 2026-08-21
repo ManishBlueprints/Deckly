@@ -64,6 +64,12 @@ type RoomVisitorActivity = VisitorSignal & {
   downloadedDocuments: DocumentDownloadSummary[];
 };
 
+function formatDownloadDate(value: unknown): string {
+  if (typeof value !== "string" || !value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
+}
+
 export function DataRoomAnalyticsPanel({
   totalVisitors,
   totalViews,
@@ -327,7 +333,7 @@ export function DataRoomAnalyticsPanel({
           <div className="space-y-3">
             {downloadAnalytics.downloaders.map((downloader, index) => (
               <div key={downloader.visitor_id} className="flex items-center justify-between gap-4 rounded-md bg-surface-low px-4 py-3">
-                <div className="min-w-0"><p className="text-sm font-semibold text-foreground truncate">{downloader.viewer_email?.toLowerCase() || `Anonymous Viewer ${index + 1}`}</p><p className="text-xs text-muted-foreground mt-1">Last download {new Date(downloader.latest_download_at).toLocaleString()}</p></div>
+                <div className="min-w-0"><p className="text-sm font-semibold text-foreground truncate">{downloader.viewer_email?.toLowerCase() || `Anonymous Viewer ${index + 1}`}</p><p className="text-xs text-muted-foreground mt-1">Last download {formatDownloadDate(downloader.latest_download_at)}</p></div>
                 <span className="text-xs font-semibold text-primary whitespace-nowrap">{downloader.total_downloads} download{downloader.total_downloads === 1 ? "" : "s"}</span>
               </div>
             ))}

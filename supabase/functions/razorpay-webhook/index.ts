@@ -1,4 +1,14 @@
 import { adminClient, applyProviderSubscription, fetchRazorpaySubscription, hmacHex, json, syncInvoicesForSubscription, timingSafeEqual, type PlanCode } from "../_shared/billing.ts";
+import { capturePostHogEvent } from "../_shared/posthog.ts";
+
+const POSTHOG_EVENT_BY_RAZORPAY_EVENT: Record<string, string> = {
+  "subscription.activated": "subscription_activated",
+  "subscription.charged": "payment_succeeded",
+  "subscription.halted": "payment_failed",
+  "subscription.cancelled": "subscription_cancelled",
+  "subscription.completed": "subscription_completed",
+  "subscription.expired": "subscription_expired",
+};
 
 function eventSubscription(payload: Record<string, unknown>): Record<string, unknown> | null {
   const candidate = (payload.payload as Record<string, unknown> | undefined)?.subscription as Record<string, unknown> | undefined;
@@ -43,7 +53,7 @@ Deno.serve(async (req) => {
 
     const { data: local, error: localError } = await admin
       .from("subscriptions")
-      .select("id, user_id, razorpay_subscription_id, plan_code")
+      .select("id, user_id, razorpay_subscription_id, plan_code, billing_interval")
       .eq("razorpay_subscription_id", subscriptionId)
       .maybeSingle();
     if (localError) throw localError;
@@ -66,6 +76,23 @@ Deno.serve(async (req) => {
       await syncInvoicesForSubscription(admin, { ...local, plan_code: applied.planCode });
     } catch (invoiceError) {
       console.error("Billing invoice synchronization failed", invoiceError);
+    }
+
+    const postHogEvent = POSTHOG_EVENT_BY_RAZORPAY_EVENT[eventType];
+    if (postHogEvent) {
+      try {
+        await capturePostHogEvent(postHogEvent, local.user_id, {
+          workspace_id: local.user_id,
+          source_surface: "billing_webhook",
+          plan: applied.planCode,
+          billing_interval: applied.billingInterval,
+          provider_event_type: eventType,
+          failure_code: postHogEvent === "payment_failed" ? "subscription_halted" : undefined,
+          $insert_id: `razorpay:${eventId}:${postHogEvent}`,
+        });
+      } catch (analyticsError) {
+        console.error("Billing analytics delivery failed", analyticsError);
+      }
     }
 
     await admin.from("billing_events").update({

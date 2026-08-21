@@ -4,6 +4,7 @@ import { vi } from "vitest";
 
 const mockList = vi.fn();
 const mockRemove = vi.fn();
+const mockUpload = vi.fn();
 const mockGetPublicUrl = vi.fn((bucket: string, path: string) => `https://cdn.example/${bucket}/${path}`);
 const mockExtractStoragePath = vi.fn();
 
@@ -11,6 +12,7 @@ vi.mock("./storageService.ts", () => ({
   storageService: {
     list: mockList,
     remove: mockRemove,
+    upload: mockUpload,
     getPublicUrl: mockGetPublicUrl,
   },
 }));
@@ -24,6 +26,7 @@ describe("deckStorageService", () => {
   beforeEach(() => {
     mockList.mockReset();
     mockRemove.mockReset();
+    mockUpload.mockReset();
     mockGetPublicUrl.mockClear();
     mockExtractStoragePath.mockReset();
   });
@@ -59,6 +62,33 @@ describe("deckStorageService", () => {
       "decks",
       ["user-123/deck-images/my-deck/page-1.webp"],
     );
+  });
+
+  it("does not retry a completed upload when notification callbacks throw", async () => {
+    mockUpload.mockResolvedValue({ error: null });
+    const onUploaded = vi.fn(() => {
+      throw new Error("consumer failed");
+    });
+    const onProgress = vi.fn(() => {
+      throw new Error("progress failed");
+    });
+    const { deckStorageService } = await import("./deckStorageService.ts");
+
+    const urls = await deckStorageService.uploadSlideImages(
+      "user-123",
+      "deck",
+      [new Blob(["slide"])],
+      onProgress,
+      "v-1",
+      onUploaded,
+    );
+
+    expect(mockUpload).toHaveBeenCalledTimes(1);
+    expect(onUploaded).toHaveBeenCalledTimes(1);
+    expect(onProgress).toHaveBeenCalledTimes(1);
+    expect(urls).toEqual([
+      "https://cdn.example/decks/user-123/deck-images/deck/staging/v-1/page-1.webp",
+    ]);
   });
 
   it("removes every watermark revision for the deleted deck only", async () => {

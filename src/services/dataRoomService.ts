@@ -10,6 +10,7 @@ import {
 import { withRetry } from "../utils/resilience.ts";
 import { storageService } from "./storageService.ts";
 import { extractStoragePath } from "./deckService.shared.ts";
+import { productAnalytics } from "./productAnalytics.ts";
 
 const normalizeDataRoomTag = (
   tag: DataRoomTag | null | undefined,
@@ -81,7 +82,15 @@ export const dataRoomService = {
         console.error("[dataRoomService] createDataRoom failed:", error);
         throw error;
       }
-      return data as DataRoom;
+      const room = data as DataRoom;
+      productAnalytics.capture("data_room_created", {
+        workspace_id: userId,
+        source_surface: "room_manager",
+        room_id: room.id,
+        document_count_after: 0,
+        event_id: `room:${room.id}:created`,
+      });
+      return room;
     });
   },
 
@@ -156,12 +165,25 @@ export const dataRoomService = {
         .single();
 
       if (error) throw error;
-      return data as DataRoom;
+      const room = data as DataRoom;
+      productAnalytics.capture("data_room_updated", {
+        workspace_id: room.user_id,
+        source_surface: "room_manager",
+        room_id: room.id,
+      });
+      return room;
     });
   },
 
   async publishDataRoom(id: string): Promise<DataRoom> {
-    return this.updateDataRoom(id, { is_public: true });
+    const room = await this.updateDataRoom(id, { is_public: true });
+    productAnalytics.capture("data_room_published", {
+      workspace_id: room.user_id,
+      source_surface: "room_manager",
+      room_id: room.id,
+      event_id: `room:${room.id}:published`,
+    });
+    return room;
   },
 
   async unpublishDataRoom(id: string): Promise<DataRoom> {
@@ -179,6 +201,12 @@ export const dataRoomService = {
         .eq("user_id", userId);
 
       if (error) throw error;
+      productAnalytics.capture("data_room_deleted", {
+        workspace_id: userId,
+        source_surface: "room_manager",
+        room_id: id,
+        event_id: `room:${id}:deleted`,
+      });
     });
   },
 
@@ -334,6 +362,7 @@ export const dataRoomService = {
 
   async addDocuments(roomId: string, deckIds: string[]): Promise<void> {
     return withRetry(async () => {
+      const userId = await getRequiredSessionUserId();
       const count = await this.getDocumentCount(roomId);
 
       const inserts = deckIds.map((deckId, index) => ({
@@ -346,11 +375,22 @@ export const dataRoomService = {
         inserts,
       );
       if (error) throw error;
+      deckIds.forEach((deckId, index) => {
+        productAnalytics.capture("data_room_document_added", {
+          workspace_id: userId,
+          source_surface: "room_manager",
+          room_id: roomId,
+          deck_id: deckId,
+          document_count_after: count + index + 1,
+          event_id: `room:${roomId}:deck:${deckId}:added`,
+        });
+      });
     });
   },
 
   async removeDocument(roomId: string, deckId: string): Promise<void> {
     return withRetry(async () => {
+      const userId = await getRequiredSessionUserId();
       const { error } = await supabase
         .from("data_room_documents")
         .delete()
@@ -358,6 +398,15 @@ export const dataRoomService = {
         .eq("deck_id", deckId);
 
       if (error) throw error;
+      const count = await this.getDocumentCount(roomId);
+      productAnalytics.capture("data_room_document_removed", {
+        workspace_id: userId,
+        source_surface: "room_manager",
+        room_id: roomId,
+        deck_id: deckId,
+        document_count_after: count,
+        event_id: `room:${roomId}:deck:${deckId}:removed`,
+      });
     });
   },
 

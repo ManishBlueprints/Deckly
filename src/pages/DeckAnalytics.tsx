@@ -23,9 +23,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useTierFeatureAccess } from "../hooks/useTierEntitlements";
+import { buildUpgradeUrl } from "../services/upgradeAttribution";
 import { FeatureGate } from "../components/billing/FeatureGate";
 import { cn } from "@/lib/utils";
-import { DashboardLayout } from "../components/layout/DashboardLayout";
+import { WorkspaceShell } from "../components/layout/WorkspaceShell";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { InterestSignalBadge } from "../components/dashboard/InterestSignalBadge";
@@ -143,6 +144,7 @@ export default function DeckAnalytics() {
   const isRefreshing =
     canViewAnalytics && (statsFetching || bookmarksFetching || signalsFetching || uniqueFetching || locationsFetching || linksFetching || downloadsFetching);
   const totalSaves = bookmarks.length;
+  const downloaders = downloadAnalytics?.downloaders ?? [];
   const downloadsByLink = useMemo(
     () => new Map((downloadAnalytics?.links ?? []).map((link) => [link.link_id, link])),
     [downloadAnalytics],
@@ -219,20 +221,20 @@ export default function DeckAnalytics() {
 
   if (loading) {
     return (
-      <DashboardLayout title="Deck Analytics">
+      <WorkspaceShell title="Deck Analytics">
         <div className="flex-1 flex flex-col items-center justify-center py-40 gap-4 text-slate-400">
           <div className="w-10 h-10 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin" />
           <p className="font-medium font-bold uppercase tracking-widest text-[10px]">
             Gathering Insights...
           </p>
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   if (hasLoadingError) {
     return (
-      <DashboardLayout title="Deck Analytics">
+      <WorkspaceShell title="Deck Analytics">
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="max-w-md w-full bg-white border border-slate-200 rounded-[40px] p-12 text-center shadow-sm">
             <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500 mx-auto mb-8">
@@ -263,13 +265,13 @@ export default function DeckAnalytics() {
             </div>
           </div>
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   if (accessRestricted) {
     return (
-      <DashboardLayout title="Deck Analytics">
+      <WorkspaceShell title="Deck Analytics">
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="max-w-md w-full bg-white border border-slate-200 rounded-[40px] p-12 text-center shadow-sm">
             <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto mb-8">
@@ -290,15 +292,15 @@ export default function DeckAnalytics() {
             </Button>
           </div>
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   return (
-    <DashboardLayout title={`${deck?.title || "Deck"} Analytics`}>
-      <div className="flex-1 -m-8 relative">
+    <WorkspaceShell title={`${deck?.title || "Deck"} Analytics`}>
+      <div className="relative min-w-0 flex-1 overflow-x-hidden bg-ui-canvas">
         {/* ═══════════════ HEADER SECTION ═══════════════ */}
-        <div className="pt-6 md:pt-8 pb-6 md:pb-8 px-4 md:px-6 border-b border-[#222] bg-background relative overflow-hidden">
+        <div className="relative overflow-hidden border-b border-ui-border bg-ui-canvas px-4 pb-6 pt-6 md:px-6 md:pb-8 md:pt-8">
           {/* Background Indicator for Refreshing */}
           <AnimatePresence>
             {isRefreshing && (
@@ -306,13 +308,13 @@ export default function DeckAnalytics() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="absolute top-4 md:top-8 right-4 md:right-8 z-50 flex items-center gap-2 px-3 py-1.5 bg-[#141414] border border-[#333] rounded-md"
+                className="absolute right-4 top-4 z-[var(--ui-layer-sticky)] flex items-center gap-2 rounded-[10px] border border-ui-border bg-ui-elevated px-3 py-1.5 md:right-8 md:top-8"
               >
                 <Loader2
                   size={14}
-                  className="text-deckly-primary animate-spin"
+                  className="animate-spin text-ui-primary"
                 />
-                <span className="text-[11px] font-medium text-slate-300">
+                <span className="text-[11px] font-medium text-ui-muted">
                   Syncing
                 </span>
               </motion.div>
@@ -322,14 +324,14 @@ export default function DeckAnalytics() {
           <div className="max-w-6xl mx-auto flex items-center gap-3 md:gap-6 mt-6 md:mt-0">
             <button
               onClick={() => navigate("/content")}
-              className="flex-shrink-0 w-10 h-10 rounded-md bg-surface-lowest border border-white/5 flex items-center justify-center text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 transition-all shadow-sm"
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] border border-ui-border bg-ui-surface text-ui-muted shadow-sm transition-all hover:border-ui-primary/30 hover:bg-ui-subtle hover:text-ui-primary"
               title="Return to Content"
             >
               <ArrowLeft size={18} />
             </button>
 
             <div className="flex-1 min-w-0 flex items-center gap-3">
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-md bg-[#111] border border-[#222] flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-ui-border bg-ui-surface md:h-12 md:w-12">
                 {deck?.pages?.[0]?.image_url ? (
                   <img
                     src={deck.pages[0].image_url}
@@ -337,14 +339,14 @@ export default function DeckAnalytics() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <FileText size={20} className="text-slate-500" />
+                  <FileText size={20} className="text-ui-muted" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg md:text-2xl font-semibold text-white tracking-tight truncate">
+                <h1 className="truncate text-lg font-semibold tracking-tight text-ui-text md:text-2xl">
                   {deck?.title}
                 </h1>
-                <p className="text-xs text-slate-400 mt-0.5 truncate">
+                <p className="mt-0.5 truncate text-xs text-ui-muted">
                   {deck?.description || "Analytics and viewer engagement"}
                 </p>
               </div>
@@ -353,7 +355,7 @@ export default function DeckAnalytics() {
         </div>
 
         {/* ═══════════════ STATS ROW ═══════════════ */}
-        <div className="bg-background px-4 md:px-6 overflow-x-auto scrollbar-hide py-4 relative z-10">
+        <div className="relative z-10 overflow-x-auto bg-ui-canvas px-4 py-4 scrollbar-hide md:px-6">
           <div className="max-w-6xl mx-auto min-w-[320px] pb-1 md:pb-0">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <StatItem
@@ -391,18 +393,18 @@ export default function DeckAnalytics() {
           {!canUsePageAnalytics && !pageAnalytics.isLoading && (
             <FeatureGate
               access={pageAnalytics.access}
-              onUpgrade={() => navigate("/profile")}
+              onUpgrade={() => navigate(buildUpgradeUrl("document_analytics_gate"))}
             />
           )}
           {/* Detailed Engagement Chart Card */}
-          <div className="bg-surface-card rounded-lg p-4 md:p-8 shadow-sm">
+          <div className="rounded-[24px] border border-ui-border bg-ui-surface p-4 shadow-[var(--ui-shadow-surface)] md:p-8">
             <div className="flex flex-col space-y-8">
               <div className="flex flex-col md:flex-row md:items-center gap-6">
                 <div className="flex items-center gap-3 md:flex-1">
-                  <div className="w-8 h-8 rounded-md bg-[#1a1a1a] flex items-center justify-center border border-[#333]">
-                    <BarChart3 size={16} className="text-deckly-primary" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-ui-border bg-ui-subtle">
+                    <BarChart3 size={16} className="text-ui-primary" />
                   </div>
-                  <h3 className="text-sm font-semibold text-white tracking-tight">
+                  <h3 className="text-sm font-semibold tracking-tight text-ui-text">
                     {activeTab === "LINKS" ? "Link Performance" : "Engagement per Slide"}
                   </h3>
                 </div>
@@ -420,8 +422,8 @@ export default function DeckAnalytics() {
                       label: tab.label,
                       shortLabel: tab.shortLabel,
                     }))}
-                    tabsListClassName="bg-[#141414] border border-[#333]"
-                    triggerClassName="text-slate-400 data-[state=active]:bg-deckly-primary data-[state=active]:text-slate-950"
+                    tabsListClassName="bg-ui-subtle border border-ui-border"
+                    triggerClassName="text-ui-muted data-[state=active]:bg-ui-primary data-[state=active]:text-ui-primary-text"
                   />
                 </div>
                 <div className="hidden md:block md:flex-1" /> {/* Spacer for symmetry */}
@@ -854,11 +856,11 @@ export default function DeckAnalytics() {
                   {downloadAnalytics?.total_downloads ?? 0} downloads
                 </Badge>
               </div>
-              {(downloadAnalytics?.downloaders.length ?? 0) === 0 ? (
+              {downloaders.length === 0 ? (
                 <p className="py-8 text-center text-sm text-slate-500">No downloads recorded yet.</p>
               ) : (
                 <div className="space-y-3">
-                  {downloadAnalytics!.downloaders.map((downloader, index) => (
+                  {downloaders.map((downloader, index) => (
                     <div key={downloader.visitor_id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-md bg-surface-low px-4 py-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-white truncate">
@@ -1112,7 +1114,7 @@ export default function DeckAnalytics() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </WorkspaceShell>
   );
 }
 

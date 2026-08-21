@@ -142,4 +142,60 @@ describe("analyticsService ownership gates", () => {
       { p_deck_id: "deck-1" },
     );
   });
+
+  it("normalizes partial deck-download analytics RPC responses", async () => {
+    mocks.queueResponse("decks.select.maybeSingle", {
+      data: { id: "deck-1" },
+      error: null,
+    });
+    vi.mocked(mocks.mockSupabase.rpc).mockImplementationOnce(async () => ({
+      data: {
+        total_downloads: 3,
+        unique_downloaders: 2,
+        direct_link_downloads: 1,
+        data_room_downloads: 2,
+        downloaders_truncated: false,
+        links: null,
+        data_rooms: undefined,
+        downloaders: null,
+      },
+      error: null,
+    }));
+
+    await expect(
+      analyticsService.getDeckDownloadAnalytics("deck-1", "user-1"),
+    ).resolves.toEqual({
+      total_downloads: 3,
+      unique_downloaders: 2,
+      direct_link_downloads: 1,
+      data_room_downloads: 2,
+      downloaders_truncated: false,
+      links: [],
+      data_rooms: [],
+      downloaders: [],
+    });
+  });
+
+  it("normalizes partial data-room download analytics RPC responses", async () => {
+    vi.mocked(mocks.mockSupabase.rpc).mockImplementationOnce(async () => ({
+      data: {
+        total_downloads: 4,
+        unique_downloaders: 3,
+        downloaders_truncated: true,
+        documents: null,
+        downloaders: undefined,
+      },
+      error: null,
+    }));
+
+    await expect(
+      analyticsService.getDataRoomDownloadAnalytics("room-1"),
+    ).resolves.toEqual({
+      total_downloads: 4,
+      unique_downloaders: 3,
+      downloaders_truncated: true,
+      documents: [],
+      downloaders: [],
+    });
+  });
 });

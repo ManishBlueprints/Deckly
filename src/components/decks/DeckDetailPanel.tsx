@@ -16,13 +16,16 @@ import {
 } from "lucide-react";
 import { deckService } from "../../services/deckService";
 import { deckStorageService } from "../../services/deckStorageService";
+import { storageService } from "../../services/storageService";
+import { extractStoragePath } from "../../services/deckService.shared";
 import { analyticsService } from "../../services/analyticsService";
 import { useAuth } from "../../contexts/AuthContext";
 import { Deck } from "../../types";
-import { processPdfToImages } from "../../workflows/deckProcessing";
+import { MAX_DECK_PAGES, processPdfToImages } from "../../workflows/deckProcessing";
 import { cn } from "../../lib/utils";
 import { getDeckPreviewPath } from "../../utils/url";
 import { DeckLinkManagerModal } from "../dashboard/DeckLinkManagerModal";
+import { TIER_CONFIG, type Tier } from "../../constants/tiers";
 
 // UI Components
 import { Button } from "../ui/button";
@@ -40,6 +43,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
+import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 
 interface DeckDetailPanelProps {
   deck: Deck;
@@ -140,12 +144,16 @@ function DeckDetailPanel({
   };
 
   const handleSave = async () => {
+    const uploadedSourcePaths = new Set<string>();
+    let uploadedSlideImageKeys: string[] = [];
+
     setIsSaving(true);
     setUploadProgress("Saving changes...");
     try {
       let finalFileUrl = deck.file_url;
       let finalPages = deck.pages;
       let fileSize = deck.file_size;
+      let pageCount = deck.page_count ?? null;
       const finalViewPassword = requirePassword
         ? viewPassword.trim() || null
         : null;
@@ -153,23 +161,29 @@ function DeckDetailPanel({
       if (!userId) throw new Error("Not authenticated");
 
       if (newFile) {
-        setUploadProgress("Uploading new PDF...");
-        const upload = await deckStorageService.uploadDeckFile(newFile, editValues.slug, userId);
-        finalFileUrl = upload.publicUrl;
-        fileSize = newFile.size;
-
         const imageAssets = await processPdfToImages(newFile, {
           scale: 1.5,
           quality: 0.8,
+          maxPages: MAX_DECK_PAGES,
           onProgress: (current, total) =>
             setUploadProgress(`Processing slide ${current} of ${total}...`),
         });
+        setUploadProgress("Uploading new PDF...");
+        const upload = await deckStorageService.uploadDeckFile(newFile, editValues.slug, userId);
+        uploadedSourcePaths.add(upload.fileName);
+        finalFileUrl = upload.publicUrl;
+        fileSize = newFile.size;
         setUploadProgress(`Uploading ${imageAssets.length} new slides...`);
-        const imageUrls = await deckService.uploadSlideImages(
+        const stagingVersion = `v-${Date.now()}`;
+        const imageUrls = await deckStorageService.uploadSlideImages(
           userId,
           editValues.slug,
           imageAssets.map((asset) => asset.blob),
+          undefined,
+          stagingVersion,
+          (imageUrl) => uploadedSlideImageKeys.push(imageUrl),
         );
+        uploadedSlideImageKeys = imageUrls;
         finalPages = imageUrls.map((url, idx) => ({
           image_url: url,
           page_number: idx + 1,
@@ -177,6 +191,7 @@ function DeckDetailPanel({
           height: imageAssets[idx]?.height,
           links: imageAssets[idx]?.links || [],
         }));
+        pageCount = finalPages.length;
       }
 
       const updates: Partial<Deck> = {
@@ -185,6 +200,7 @@ function DeckDetailPanel({
         file_url: finalFileUrl,
         pages: finalPages,
         file_size: fileSize,
+        page_count: pageCount,
         ...(newFile ? { extracted_text: null } : {}),
         require_email: requireEmail,
         require_password: requirePassword,
@@ -201,30 +217,60 @@ function DeckDetailPanel({
       }
 
       const updated = await deckService.updateDeck(deck.id, updates, userId);
-      let watermarkGenerationFailed = false;
-      if (newFile && deck.watermark_enabled) {
-        setUploadProgress("Preparing watermarked download...");
-        try {
-          await deckService.generateWatermarkedDeck(deck.id);
-        } catch (watermarkError) {
-          console.error("Watermark generation failed after replacing the deck source:", watermarkError);
-          watermarkGenerationFailed = true;
+
+      if (newFile) {
+        const previousFilePath = extractStoragePath(deck.file_url, "decks");
+        const currentFilePath = extractStoragePath(finalFileUrl, "decks");
+        if (previousFilePath && previousFilePath !== currentFilePath) {
+          await storageService.remove("decks", [previousFilePath]).catch((cleanupError) => {
+            console.warn("Failed to clean up replaced document:", cleanupError);
+          });
         }
+
+        const previousSlideImages = (deck.pages ?? []).map((page) => page.image_url);
+        const currentSlideImages = new Set(finalPages.map((page) => page.image_url));
+        const staleSlideImages = previousSlideImages.filter(
+          (imageUrl) => !currentSlideImages.has(imageUrl),
+        );
+        if (staleSlideImages.length > 0) {
+          await deckStorageService.deleteSlideImages(staleSlideImages).catch((cleanupError) => {
+            console.warn("Failed to clean up replaced slide images:", cleanupError);
+          });
+        }
+      }
+
+      uploadedSourcePaths.clear();
+      uploadedSlideImageKeys = [];
+      let watermarkGenerationStatus: "pending" | undefined;
+      if (newFile && deck.watermark_enabled) {
+        setUploadProgress("Preparing protected download in the background...");
+        // Updating a PDF source queues its watermark transactionally. The
+        // current protected download remains live until the replacement is
+        // ready, so this panel must not await provider work.
+        watermarkGenerationStatus = "pending";
       }
       onUpdate({
         ...updated,
-        ...(watermarkGenerationFailed ? { watermark_status: "failed" } : {}),
+        ...(watermarkGenerationStatus ? { watermark_status: watermarkGenerationStatus } : {}),
       });
       setUploadProgress(
-        watermarkGenerationFailed
-          ? "Saved, but the watermark could not be prepared. Retry from deck settings."
-          : "Saved!",
+        watermarkGenerationStatus === "pending" ? "Saved! Preparing protected download." : "Saved!",
       );
       setTimeout(() => {
         onClose();
         setUploadProgress("");
-      }, watermarkGenerationFailed ? 2500 : 1000);
+      }, watermarkGenerationStatus === "pending" ? 1800 : 1000);
     } catch (err: unknown) {
+      if (uploadedSourcePaths.size > 0) {
+        await storageService.remove("decks", [...uploadedSourcePaths]).catch((cleanupError) => {
+          console.error("Failed to remove orphaned uploaded document:", cleanupError);
+        });
+      }
+      if (uploadedSlideImageKeys.length > 0) {
+        await deckStorageService.deleteSlideImages(uploadedSlideImageKeys).catch((cleanupError) => {
+          console.error("Failed to remove orphaned slide images:", cleanupError);
+        });
+      }
       alert(
         "Failed to update deck: " +
           (err instanceof Error ? err.message : String(err)),
@@ -238,6 +284,13 @@ function DeckDetailPanel({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
+      const tier = (profile?.tier ?? "FREE") as Tier;
+      const maxBytes = TIER_CONFIG[tier].maxViewableDocumentSizeMB * 1024 * 1024;
+      if (file.size > maxBytes) {
+        alert(`This plan supports viewable PDFs up to ${TIER_CONFIG[tier].maxViewableDocumentSizeMB} MB.`);
+        e.target.value = "";
+        return;
+      }
       setNewFile(file);
     } else if (file) {
       alert("Please select a valid PDF file.");
@@ -262,21 +315,11 @@ function DeckDetailPanel({
   };
 
   return (
-    <div className="fixed inset-0 z-[300] flex justify-end">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-      />
-
-      <motion.div
-        initial={{ x: "100%" }}
-        animate={{ x: 0 }}
-        exit={{ x: "100%" }}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="relative w-full max-w-xl bg-slate-900 h-full shadow-2xl overflow-y-auto border-l border-white/5 flex flex-col"
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        presentation="sheet-right"
+        hideClose
+        className="max-w-xl rounded-none border-white/5 bg-slate-900 p-0 text-white"
       >
         <header className="sticky top-0 z-20 bg-slate-900/80 backdrop-blur-xl p-6 border-b border-white/5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-4">
@@ -286,9 +329,9 @@ function DeckDetailPanel({
             >
               <X size={24} />
             </button>
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+            <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
               Asset Intelligence
-            </h2>
+            </DialogTitle>
           </div>
           <div className="flex items-center space-x-2">
             <a
@@ -646,14 +689,14 @@ function DeckDetailPanel({
             {isSaving ? uploadProgress || "Saving" : "Sync Changes"}
           </Button>
         </div>
-      </motion.div>
+      </DialogContent>
       <DeckLinkManagerModal
         deck={deck}
         workspaceSlug={profile?.handle}
         isOpen={isLinkManagerOpen}
         onClose={() => setIsLinkManagerOpen(false)}
       />
-    </div>
+    </Dialog>
   );
 }
 

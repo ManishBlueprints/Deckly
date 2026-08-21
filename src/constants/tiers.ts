@@ -12,6 +12,7 @@ export interface TierConfig {
   allowOffice: boolean;
   maxDecks: number;
   maxFileSizeMB: number;
+  maxViewableDocumentSizeMB: number;
   maxDecksPerDay: number;
   maxDecksPerRoom: number;
   aiSummariesPerDay: number;
@@ -33,6 +34,7 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     allowOffice: false,
     maxDecks: 5,
     maxFileSizeMB: 100,
+    maxViewableDocumentSizeMB: 50,
     maxDecksPerDay: 30,
     maxDecksPerRoom: 5,
     aiSummariesPerDay: 2,
@@ -52,11 +54,12 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     allowOffice: true,
     maxDecks: 25,
     maxFileSizeMB: 500,
+    maxViewableDocumentSizeMB: 50,
     maxDecksPerDay: 30,
     maxDecksPerRoom: 25,
     aiSummariesPerDay: 20,
     aiChatsPerDay: 20,
-    supportedFormats: ["PDF", "XLSX", "DOCX", "PPTX"],
+    supportedFormats: ["PDF", "XLS", "XLSX", "DOC", "DOCX", "PPT", "PPTX"],
     teamMembers: 1,
     prioritySupport: false,
     pricingFeatures: ["Unlimited viewers", "Basic page-level and drop-off analytics", "Basic visitor alerts and engagement signals", "Email capture, password and expiry", "Download controls", "Deckly branding", "20 AI credits per day"],
@@ -71,11 +74,12 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     allowOffice: true,
     maxDecks: 150,
     maxFileSizeMB: 3072,
+    maxViewableDocumentSizeMB: 200,
     maxDecksPerDay: 30,
     maxDecksPerRoom: 150,
     aiSummariesPerDay: 200,
     aiChatsPerDay: 200,
-    supportedFormats: ["PDF", "XLSX", "DOCX", "PPTX"],
+    supportedFormats: ["PDF", "XLS", "XLSX", "DOC", "DOCX", "PPT", "PPTX"],
     teamMembers: 2,
     prioritySupport: false,
     pricingFeatures: ["Unlimited viewers", "Full-history link analytics", "Page-level and drop-off analytics", "Visitor alerts and engagement signals", "Email capture, password and expiry", "Download controls", "Custom logo and colours", "200 AI credits per day"],
@@ -90,11 +94,12 @@ export const TIER_CONFIG: Record<Tier, TierConfig> = {
     allowOffice: true,
     maxDecks: 1000,
     maxFileSizeMB: 15360,
+    maxViewableDocumentSizeMB: 200,
     maxDecksPerDay: 30,
     maxDecksPerRoom: 1000,
     aiSummariesPerDay: 500,
     aiChatsPerDay: 500,
-    supportedFormats: ["PDF", "XLSX", "DOCX", "PPTX"],
+    supportedFormats: ["PDF", "XLS", "XLSX", "DOC", "DOCX", "PPT", "PPTX"],
     teamMembers: 5,
     prioritySupport: true,
     pricingFeatures: ["Unlimited viewers", "Full-history link analytics with export", "Page-level and drop-off analytics", "Visitor alerts and engagement signals", "Email capture, password and expiry", "Granular download controls by room and folder", "Deck watermarking", "White-label branding and custom domain", "NDA gate, access groups and audit trail", "500 AI credits per day"],

@@ -275,6 +275,31 @@ describe("metadataSearch", () => {
     expect(results[0].room.library_id).toBe("1");
   });
 
+  it("shows saved decks and rooms from every folder in the all view", () => {
+    const filter = createDefaultMetadataSearchFilter("saved_library");
+
+    const decks = filterSavedDeckRows(
+      [
+        makeSavedDeck({ library_id: "1", folder_id: null }),
+        makeSavedDeck({ library_id: "2", folder_id: "folder-1" }),
+      ],
+      filter,
+      "all",
+      null,
+    );
+    const rooms = filterSavedRoomRows(
+      [
+        makeSavedRoom({ library_id: "1", folder_id: null }),
+        makeSavedRoom({ library_id: "2", folder_id: "folder-1" }),
+      ],
+      filter,
+      "all",
+    );
+
+    expect(decks).toHaveLength(2);
+    expect(rooms).toHaveLength(2);
+  });
+
   it("does not match saved rooms when a tag filter is active", () => {
     const filter: MetadataSearchFilterState =
       createDefaultMetadataSearchFilter("saved_library");

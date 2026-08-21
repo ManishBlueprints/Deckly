@@ -1,6 +1,5 @@
 import { useAuth } from "../../contexts/AuthContext";
 import { useEffect, useMemo, useState } from "react";
-import { ContentStatsCard } from "./ContentStatsCard";
 import { DecksTable } from "./DecksTable";
 import { useDecks } from "../../hooks/useDecks";
 import { useUserTotalStats } from "../../hooks/useUserTotalStats";
@@ -13,6 +12,8 @@ import { filterContentLibraryDecks } from "../../utils/metadataSearchAdapters";
 import { ManageTagsModal } from "../saved-decks/ManageTagsModal";
 import { ManageTagsButton } from "../shared/ManageTagsButton";
 import { DeckWithAnalytics, LibraryTag } from "../../types";
+import { WorkspacePage, SummaryLine } from "../layout/page-patterns";
+import { Circle } from "lucide-react";
 
 export function ContentView() {
   const { session, profile } = useAuth();
@@ -155,19 +156,12 @@ export function ContentView() {
   };
 
   return (
-    <div className="space-y-12 pb-12 animate-in fade-in duration-700 relative">
-      {/* Header Section */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="flex flex-col gap-2">
-          <span className="text-primary text-[10px] font-bold uppercase tracking-[0.3em]">
-            Manage your assets and track engagement across all your decks.
-          </span>
-          <h1 className="text-5xl font-bold tracking-tight text-white mb-2">
-            Content Library
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-2 md:gap-4">
+    <WorkspacePage
+      title="Content"
+      description="Manage your decks, links, and engagement."
+      summary={<SummaryLine><Circle size={9} fill="currentColor" className="text-ui-primary" /><span><strong className="font-mono font-medium text-ui-text">{decks.length}</strong> decks</span><span>·</span><span><strong className="font-mono font-medium text-ui-text">{stats?.totalViews || 0}</strong> total views</span></SummaryLine>}
+      toolbar={
+        <div className="flex flex-col gap-3 rounded-[18px] border border-ui-border bg-ui-surface p-3 sm:flex-row sm:items-center">
           <MetadataSearchMenu
             filter={search.filter}
             isActive={hasActiveSearch}
@@ -196,7 +190,8 @@ export function ContentView() {
             label="Edit Tags"
           />
         </div>
-      </div>
+      }
+    >
 
       {/* Subtle refresh indicator */}
       {isRefreshing && !loading && (
@@ -207,13 +202,6 @@ export function ContentView() {
           </span>
         </div>
       )}
-
-      <ContentStatsCard
-        totalViews={stats?.totalViews || 0}
-        totalTimeSeconds={stats?.totalTimeSeconds || 0}
-        totalSaves={stats?.totalSaves || 0}
-        loading={loading}
-      />
 
       <DecksTable
         decks={filteredDecks}
@@ -237,6 +225,6 @@ export function ContentView() {
         onUpdate={handleUpdateTag}
         onDelete={handleDeleteTag}
       />
-    </div>
+    </WorkspacePage>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, FileText } from "lucide-react";
-import { DashboardLayout } from "../components/layout/DashboardLayout";
+import { WorkspaceShell } from "../components/layout/WorkspaceShell";
 import { Button } from "../components/ui/button";
 import { DeckSettingsForm } from "../components/dashboard/DeckSettingsForm";
 import { deckService } from "../services/deckService";
@@ -30,20 +30,20 @@ export default function EditDeck() {
 
   if (loading) {
     return (
-      <DashboardLayout title="Edit Asset">
+      <WorkspaceShell title="Edit Asset">
         <div className="flex-1 flex flex-col items-center justify-center py-40 gap-4 text-slate-400">
           <div className="w-10 h-10 border-2 border-deckly-primary/20 border-t-deckly-primary rounded-full animate-spin" />
           <p className="font-medium font-bold uppercase tracking-widest text-[10px]">
             Loading Asset Details...
           </p>
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   if (!deck) {
     return (
-      <DashboardLayout title="Edit Asset">
+      <WorkspaceShell title="Edit Asset">
         <div className="flex-1 flex flex-col items-center justify-center py-40 gap-4 text-slate-400">
           <p className="font-medium font-bold uppercase tracking-widest text-xs">
             Asset not found.
@@ -52,12 +52,12 @@ export default function EditDeck() {
             Return to Dashboard
           </Button>
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   return (
-    <DashboardLayout title={`${deck?.title || "Edit Asset"}`}>
+    <WorkspaceShell title={`${deck?.title || "Edit Asset"}`}>
       <div className="flex-1 relative space-y-4 max-w-4xl mx-auto w-full md:px-6">
         {/* ═══════════════ HEADER SECTION ═══════════════ */}
         <div className="relative py-4 px-4 md:px-0 border-b border-white/5">
@@ -128,6 +128,6 @@ export default function EditDeck() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </WorkspaceShell>
   );
 }

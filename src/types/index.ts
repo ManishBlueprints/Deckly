@@ -45,11 +45,16 @@ export interface Deck {
   display_mode?: "raw" | "interactive";
   expires_at?: string | null;
   extracted_text?: string | null;
+  thumbnail_url?: string | null;
+  page_count?: number | null;
+  source_filename?: string | null;
+  content_revision?: string;
   investor_note?: string;
   user_handle?: string;
   active_link_count?: number;
   total_link_count?: number;
   deck_link_id?: string;
+  unique_visitors?: number;
 }
 
 export interface DeckLink {
@@ -72,6 +77,7 @@ export interface DeckWithAnalytics extends Deck {
   total_views: number;
   save_count: number;
   last_viewed_at: string | null;
+  avg_attention_seconds?: number;
   tags?: LibraryTag[];
 }
 

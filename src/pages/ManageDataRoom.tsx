@@ -19,7 +19,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { useCheckDataRoomSlug } from "../hooks/useSlugValidation";
-import { DashboardLayout } from "../components/layout/DashboardLayout";
+import { WorkspaceShell } from "../components/layout/WorkspaceShell";
 import { DocumentPicker } from "../components/dashboard/DocumentPicker";
 import { RoomDocumentList } from "../components/dashboard/RoomDocumentList";
 import { AccessProtectionSection } from "../components/dashboard/form-sections/AccessProtectionSection";
@@ -35,7 +35,7 @@ import { FolderColorKey } from "../constants/folderColors";
 import { useQueryClient } from "@tanstack/react-query";
 import { getDataRoomPreviewPath, getDataRoomShareUrl } from "../utils/url";
 import { toast } from "sonner";
-import posthog from "posthog-js";
+import { productAnalytics } from "../services/productAnalytics";
 import * as Sentry from "@sentry/react";
 import {
   AlertDialog,
@@ -159,7 +159,9 @@ function ManageDataRoom() {
         setExpiryDate(room.expires_at ? room.expires_at.split("T")[0] : "");
         setIsPublic(!!room.is_public);
 
-        const docs = await dataRoomService.getDocuments(roomId!);
+        const docs = await dataRoomService.getDocuments(roomId!, {
+          signThumbnails: true,
+        });
         setDocuments(docs);
       } catch (err) {
         console.error("Failed to load room", err);
@@ -173,7 +175,9 @@ function ManageDataRoom() {
 
   const refreshDocuments = useCallback(async () => {
     if (!roomId) return;
-    const docs = await dataRoomService.getDocuments(roomId);
+    const docs = await dataRoomService.getDocuments(roomId, {
+      signThumbnails: true,
+    });
     setDocuments(docs);
   }, [roomId]);
 
@@ -236,7 +240,9 @@ function ManageDataRoom() {
         try {
           await dataRoomService.addDocuments(roomId!, deckIds);
           queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
-          const docs = await dataRoomService.getDocuments(roomId!);
+          const docs = await dataRoomService.getDocuments(roomId!, {
+            signThumbnails: true,
+          });
           setDocuments(docs);
         } catch (err) {
           console.error("Failed to add documents", err);
@@ -452,12 +458,6 @@ function ManageDataRoom() {
         }
       }
 
-      posthog.capture(isEditMode ? "data_room_updated" : "data_room_created", {
-        room_id: isEditMode ? roomId : "new",
-        name: name.trim(),
-        document_count: documents.length,
-      });
-
       // Invalidate queries to refresh dashboard/rooms
       queryClient.invalidateQueries({ queryKey: ["data-rooms"] });
       queryClient.invalidateQueries({
@@ -520,9 +520,10 @@ function ManageDataRoom() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       toast.success("Public link activated and copied.");
-      posthog.capture("data_room_link_copied", {
+      productAnalytics.capture("data_room_link_copied", {
+        workspace_id: profile.id,
+        source_surface: "room_manager",
         room_id: roomId,
-        slug: slug,
       });
     } catch (err) {
       console.error("Failed to publish data room", err);
@@ -552,32 +553,32 @@ function ManageDataRoom() {
 
   if (loading) {
     return (
-      <DashboardLayout title="Data Rooms" showFab={false}>
+      <WorkspaceShell title="Data Rooms">
         <div className="flex items-center justify-center py-20">
           <Loader2 size={24} className="text-deckly-primary animate-spin" />
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   return (
-    <DashboardLayout title="Data Rooms" showFab={false}>
+    <WorkspaceShell title="Data Rooms">
       <DataRoomCreateTour isEditMode={isEditMode} />
-      <div className="max-w-3xl mx-auto w-full px-4 md:px-6 space-y-6 pb-20 pt-6">
+      <div className="mx-auto w-full max-w-3xl space-y-5 px-4 pb-24 pt-5 sm:px-6 sm:pt-6 md:space-y-6">
         {/* Back + Title */}
-        <div className="flex items-center gap-4 relative z-10 border-b border-white/5 pb-6">
+        <div className="relative z-10 flex items-center gap-3 border-b border-ui-border pb-5 sm:gap-4 sm:pb-6">
           <button
             onClick={() => navigate("/rooms")}
-            className="flex-shrink-0 w-10 h-10 rounded-md bg-surface-lowest border border-white/10 flex items-center justify-center text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 transition-all shadow-sm"
+            className="flex size-10 flex-shrink-0 items-center justify-center rounded-md border border-ui-border bg-ui-surface text-ui-muted shadow-[var(--ui-shadow-control)] transition-colors hover:border-ui-primary/30 hover:bg-ui-subtle hover:text-ui-primary"
             title="Return to Rooms"
           >
             <ArrowLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg md:text-xl font-semibold text-white tracking-tight truncate">
+            <h1 className="truncate text-lg font-semibold tracking-tight text-ui-text md:text-xl">
               {isEditMode ? "Edit Data Room" : "Create Data Room"}
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5 truncate">
+            <p className="mt-0.5 truncate text-xs text-ui-muted">
               {isEditMode ? "Data Room Configuration" : "Room Initiation"}  
             </p>
           </div>
@@ -586,15 +587,15 @@ function ManageDataRoom() {
         {/* ──── Section 1: Room Identity ──── */}
         <div 
           data-tour="room-branding"
-          className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative"
+          className="relative overflow-hidden rounded-[10px] border border-ui-border bg-ui-surface shadow-[var(--ui-shadow-surface)]"
         >
-          <div className="px-6 py-4 border-b border-white/5">
-            <h2 className="text-sm font-medium text-white">Room Branding</h2>
+          <div className="border-b border-ui-border bg-ui-subtle/60 px-4 py-4 sm:px-6">
+            <h2 className="text-sm font-semibold text-ui-text">Room Branding</h2>
           </div>
-          <div className="p-6 space-y-6">
+          <div className="space-y-5 p-4 sm:space-y-6 sm:p-6">
             {/* Icon */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-              <div className="w-16 h-16 rounded-md bg-surface-container flex items-center justify-center overflow-hidden shrink-0 relative group">
+            <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-4 sm:flex sm:gap-6">
+              <div className="group relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-ui-border bg-ui-subtle">
                 {iconPreview ? (
                   <>
                     <img
@@ -611,32 +612,32 @@ function ManageDataRoom() {
                     >
                       <Trash2
                         size={18}
-                        className="text-white hover:text-red-400 transition-colors"
+                        className="text-ui-primary-text transition-colors hover:text-ui-destructive"
                       />
                     </button>
                   </>
                 ) : uploadingIcon ? (
                   <Loader2
                     size={20}
-                    className="text-deckly-primary animate-spin"
+                    className="animate-spin text-ui-primary"
                   />
                 ) : (
                   <Image
                     size={24}
-                    className="text-slate-500 group-hover:text-deckly-primary transition-colors duration-300"
+                    className="text-ui-muted transition-colors duration-300 group-hover:text-ui-primary"
                   />
                 )}
               </div>
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-slate-300">
+              <div className="min-w-0 space-y-2">
+                <p className="text-xs font-semibold text-ui-text">
                   Room Image
                 </p>
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                   <label
                     htmlFor="room-icon-upload"
-                    className="inline-flex items-center justify-center h-9 px-4 bg-surface-container border border-white/10 hover:border-white/20 rounded-md text-sm font-medium text-white cursor-pointer transition-all"
+                    className="inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-md border border-ui-border bg-ui-subtle px-3 text-sm font-medium text-ui-text transition-colors hover:border-ui-primary/30 hover:bg-ui-elevated sm:h-9 sm:w-auto sm:px-4"
                   >
-                    <Upload size={14} className="mr-2 text-deckly-primary" />
+                    <Upload size={14} className="mr-2 text-ui-primary" />
                     {iconPreview ? "Modify Image" : "Upload Image"}
                     <input
                       id="room-icon-upload"
@@ -647,16 +648,16 @@ function ManageDataRoom() {
                       onChange={handleIconUpload}
                     />
                   </label>
-                  <p className="text-xs text-slate-500">
-                    Ideal size: 256x256 • Max 1MB
+                  <p className="text-[11px] leading-4 text-ui-muted sm:text-xs">
+                    256×256 recommended · Max 1MB
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="room-display-name" className="text-xs font-semibold text-slate-300">
-                Display Name <span className="text-deckly-primary">*</span>
+              <label htmlFor="room-display-name" className="text-xs font-semibold text-ui-text">
+                Display Name <span className="text-ui-primary">*</span>
               </label>
               <input
                 id="room-display-name"
@@ -665,18 +666,18 @@ function ManageDataRoom() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Proposal: Alpha Series"
-                className="w-full h-11 px-4 bg-surface-container border border-white/10 rounded-md text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary transition-all placeholder:text-slate-500 focus:bg-surface-container"
+                className="h-11 w-full rounded-md border border-ui-border bg-ui-surface px-4 text-sm text-ui-text transition-colors placeholder:text-ui-muted focus:outline-none focus:ring-2 focus:ring-ui-focus"
               />
             </div>
 
             {/* Slug */}
             <div className="space-y-2">
-              <label htmlFor="room-internal-url" className="text-xs font-semibold text-slate-300">
-                Internal URL <span className="text-deckly-primary">*</span>
+              <label htmlFor="room-internal-url" className="text-xs font-semibold text-ui-text">
+                Internal URL <span className="text-ui-primary">*</span>
               </label>
-              <div className="flex gap-3">
-                <div className="flex-1 flex items-center bg-surface-container border border-white/10 rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-deckly-primary transition-all focus-within:bg-surface-container h-11 relative">
-                  <span className="pl-3 pr-1 text-sm text-deckly-primary select-none whitespace-nowrap">
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                <div className="relative flex h-11 min-w-0 flex-1 items-center overflow-hidden rounded-md border border-ui-border bg-ui-surface transition-colors focus-within:ring-2 focus-within:ring-ui-focus">
+                  <span className="select-none whitespace-nowrap pl-3 pr-1 text-sm font-medium text-ui-primary">
                     /{profile?.handle}/room/
                   </span>
                   <input
@@ -686,33 +687,33 @@ function ManageDataRoom() {
                     value={slug}
                     onChange={(e) => setSlug(normalizeSlug(e.target.value))}
                     placeholder="alpha-series"
-                    className="flex-1 h-full pr-3 bg-transparent text-sm text-white focus:outline-none placeholder:text-slate-500"
+                    className="h-full min-w-0 flex-1 bg-transparent pr-3 text-sm text-ui-text placeholder:text-ui-muted focus:outline-none"
                   />
                   {isCheckingSlug && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <Loader2
                         size={14}
-                        className="text-slate-500 animate-spin"
+                        className="animate-spin text-ui-muted"
                       />
                     </div>
                   )}
                 </div>
                 {slug && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
                       onClick={() => void handleCopyLink()}
                       disabled={isExpired || publishing}
-                      className="flex items-center justify-center w-11 h-11 bg-surface-container border border-white/10 rounded-md text-slate-400 hover:text-white transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed group relative"
+                      className="group relative flex size-11 shrink-0 items-center justify-center rounded-md border border-ui-border bg-ui-surface text-ui-muted transition-colors hover:border-ui-primary/30 hover:text-ui-primary disabled:cursor-not-allowed disabled:opacity-50"
                       title={isExpired ? "Link Expired" : "Copy share link"}
                     >
                       {copied ? (
-                        <Check size={16} className="text-deckly-primary" />
+                        <Check size={16} className="text-ui-primary" />
                       ) : (
                         <Copy size={16} />
                       )}
                       
                       {isExpired && (
-                        <div className="absolute -top-1 px-1.5 py-0.5 bg-red-500 text-[8px] text-white font-bold rounded uppercase tracking-tighter whitespace-nowrap">
+                        <div className="absolute -top-1 whitespace-nowrap rounded bg-ui-destructive px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tighter text-ui-primary-text">
                           Expired
                         </div>
                       )}
@@ -724,7 +725,7 @@ function ManageDataRoom() {
                           const expiryEl = document.getElementById('security-section');
                           expiryEl?.scrollIntoView({ behavior: 'smooth' });
                         }}
-                        className="h-11 px-4 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-500 rounded-md text-xs font-bold transition-all flex items-center gap-2"
+                        className="flex h-11 items-center gap-2 rounded-md border border-ui-destructive/25 bg-ui-destructive/10 px-4 text-xs font-bold text-ui-destructive transition-colors hover:bg-ui-destructive/15"
                       >
                         <Plus size={14} />
                         Reactivate Link
@@ -734,7 +735,7 @@ function ManageDataRoom() {
                     {isEditMode && roomId && (
                       <button
                         onClick={() => window.open(getDataRoomPreviewPath(roomId), "_blank", "noopener,noreferrer")}
-                        className="flex items-center justify-center w-11 h-11 bg-surface-container border border-white/10 rounded-md text-slate-400 hover:text-white transition-all shrink-0"
+                        className="flex size-11 shrink-0 items-center justify-center rounded-md border border-ui-border bg-ui-surface text-ui-muted transition-colors hover:border-ui-primary/30 hover:text-ui-primary"
                         title="Open private preview"
                       >
                         <ExternalLink size={16} />
@@ -744,7 +745,7 @@ function ManageDataRoom() {
                     {isEditMode && roomId && isPublic && (
                       <button
                         onClick={() => void handleMakePrivate()}
-                        className="flex items-center justify-center w-11 h-11 bg-red-500/10 border border-red-500/20 rounded-md text-red-400 hover:bg-red-500/20 transition-all shrink-0"
+                        className="flex size-11 shrink-0 items-center justify-center rounded-md border border-ui-destructive/25 bg-ui-destructive/10 text-ui-destructive transition-colors hover:bg-ui-destructive/15"
                         title="Disable public link"
                       >
                         <EyeOff size={16} />
@@ -753,7 +754,7 @@ function ManageDataRoom() {
                   </div>
                 )}
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-ui-muted">
                 {isPublic ? "Public link active" : "Private until you copy the link"}
               </p>
               <AnimatePresence>
@@ -765,7 +766,7 @@ function ManageDataRoom() {
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -5 }}
-                      className="text-xs text-red-500 flex items-center gap-1.5"
+                      className="flex items-center gap-1.5 text-xs text-ui-destructive"
                     >
                       <AlertCircle size={14} />
                       This slug is already taken
@@ -778,7 +779,7 @@ function ManageDataRoom() {
                     <motion.p
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="text-xs text-emerald-500 flex items-center gap-1.5"
+                      className="flex items-center gap-1.5 text-xs text-ui-primary"
                     >
                       <CheckCircle2 size={14} />
                       URL Available
@@ -786,15 +787,15 @@ function ManageDataRoom() {
                   )}
               </AnimatePresence>
               {slug && (
-                <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
-                  <LinkIcon size={12} className="text-deckly-primary" />
-                  {shareUrl}
+                <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-ui-muted">
+                  <LinkIcon size={12} className="shrink-0 text-ui-primary" />
+                  <span className="truncate">{shareUrl}</span>
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="room-contextual-brief" className="text-xs font-semibold text-slate-300">
+              <label htmlFor="room-contextual-brief" className="text-xs font-semibold text-ui-text">
                 Contextual Brief
               </label>
               <textarea
@@ -804,7 +805,7 @@ function ManageDataRoom() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Additional room context..."
                 rows={3}
-                className="w-full px-4 py-3 bg-surface-container border border-white/10 rounded-md text-sm text-white focus:outline-none focus:ring-1 focus:ring-deckly-primary transition-all placeholder:text-slate-500 focus:bg-surface-container resize-none"
+                className="w-full resize-none rounded-md border border-ui-border bg-ui-surface px-4 py-3 text-sm text-ui-text transition-colors placeholder:text-ui-muted focus:outline-none focus:ring-2 focus:ring-ui-focus"
               />
             </div>
           </div>
@@ -905,14 +906,14 @@ function ManageDataRoom() {
         {/* ──── Section 2: Documents ──── */}
         <div 
           data-tour="room-assets"
-          className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative"
+          className="relative overflow-hidden rounded-[10px] border border-ui-border bg-ui-surface shadow-[var(--ui-shadow-surface)]"
         >
-          <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-white">YOUR ASSETS</h2>
+          <div className="flex items-center justify-between border-b border-ui-border bg-ui-subtle/60 px-4 py-4 sm:px-6">
+            <h2 className="text-sm font-semibold text-ui-text">Documents</h2>
             {documents.length > 0 && (
               <button
                 onClick={() => setPickerOpen(true)}
-                className="flex items-center gap-2 h-8 px-3 bg-surface-container border border-white/10 hover:border-white/20 text-white rounded-md text-xs font-medium transition-all"
+                className="flex h-9 items-center gap-2 rounded-md border border-ui-border bg-ui-surface px-3 text-xs font-medium text-ui-text transition-colors hover:border-ui-primary/30 hover:text-ui-primary"
               >
                 <Plus size={14} />
                 Add Assets
@@ -921,28 +922,29 @@ function ManageDataRoom() {
           </div>
           <div className="p-4">
             {documents.length === 0 ? (
-              <div
+              <button
+                type="button"
                 onClick={() => setPickerOpen(true)}
-                className="group cursor-pointer border border-dashed border-white/10 hover:border-deckly-primary/30 bg-surface-container hover:bg-surface-card rounded-md p-8 text-center transition-all flex flex-col items-center gap-4"
+                className="group flex w-full cursor-pointer flex-col items-center gap-3 rounded-md border border-dashed border-ui-border bg-ui-subtle p-6 text-center transition-colors hover:border-ui-primary/40 hover:bg-ui-elevated focus-visible:ring-2 focus-visible:ring-ui-focus sm:gap-4 sm:p-8"
               >
-                <div className="w-12 h-12 flex items-center justify-center transition-all">
+                <div className="flex size-12 items-center justify-center rounded-md border border-ui-border bg-ui-surface transition-colors group-hover:border-ui-primary/30">
                   <Plus
                     size={24}
-                    className="text-slate-500 group-hover:text-deckly-primary transition-colors"
+                    className="text-ui-muted transition-colors group-hover:text-ui-primary"
                   />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-sm font-semibold text-ui-text">
                     Add documents to your room
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-ui-muted">
                     Existing assets will be bundled into a secure link
                   </p>
                 </div>
-                <button className="mt-2 h-9 px-4 bg-deckly-primary text-slate-950 font-semibold text-sm rounded-md hover:bg-deckly-primary/90 transition-all">
+                <span className="mt-1 inline-flex h-10 items-center rounded-md bg-ui-primary px-4 text-sm font-semibold text-ui-primary-text shadow-[var(--ui-shadow-control)] sm:mt-2">
                   Add Assets
-                </button>
-              </div>
+                </span>
+              </button>
             ) : (
                       <RoomDocumentList
                 documents={documents}
@@ -985,14 +987,14 @@ function ManageDataRoom() {
         <div 
           id="security-section"
           data-tour="room-security"
-          className="bg-surface-card border border-white/5 rounded-lg overflow-hidden relative"
+          className="relative overflow-hidden rounded-[10px] border border-ui-border bg-ui-surface shadow-[var(--ui-shadow-surface)]"
         >
-          <div className="px-6 py-4 border-b border-white/5">
-            <h2 className="text-sm font-medium text-white">
+          <div className="border-b border-ui-border bg-ui-subtle/70 px-4 py-4 sm:px-6">
+            <h2 className="text-sm font-semibold text-ui-text">
               Security & Access
             </h2>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <AccessProtectionSection
               requireEmail={requireEmail}
               setRequireEmail={setRequireEmail}
@@ -1005,7 +1007,9 @@ function ManageDataRoom() {
               expiryDate={expiryDate}
               setExpiryDate={setExpiryDate}
               canUseAccessControls={accessControls.access.state === "available"}
+              accessControlsLoading={accessControls.isLoading}
               onAccessUpsell={() => setShowAccessUpsell(true)}
+              showHeading={false}
             />
           </div>
         </div>
@@ -1023,7 +1027,7 @@ function ManageDataRoom() {
         )}
 
         {/* ──── Save Button ──── */}
-        <div className="flex justify-end pt-4 border-t border-white/5">
+        <div className="flex justify-end border-t border-ui-border pt-4">
           <button
             onClick={handleSave}
             disabled={
@@ -1032,7 +1036,7 @@ function ManageDataRoom() {
               !slug.trim() ||
               (!isEditMode && !isSlugAvailable)
             }
-            className="flex items-center justify-center w-full sm:w-auto px-8 h-11 bg-deckly-primary text-slate-950 font-semibold text-sm rounded-md hover:bg-deckly-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex h-11 w-full items-center justify-center rounded-md bg-ui-primary px-8 text-sm font-semibold text-ui-primary-text shadow-[var(--ui-shadow-control)] transition-colors hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {saving ? (
               <Loader2 size={16} className="animate-spin mr-2" />
@@ -1119,6 +1123,7 @@ function ManageDataRoom() {
         isOpen={showAccessUpsell}
         onClose={() => setShowAccessUpsell(false)}
         featureName="Email capture, password protection, and expiry"
+        upgradeSource="data_room_access_gate"
       />
 
       <AlertDialog
@@ -1154,7 +1159,7 @@ function ManageDataRoom() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </DashboardLayout>
+    </WorkspaceShell>
   );
 }
 

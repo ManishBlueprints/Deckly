@@ -109,8 +109,8 @@ DROP FUNCTION IF EXISTS public.get_decks_public();
 DROP FUNCTION IF EXISTS public.get_decks_public(TEXT, TEXT);
 
 CREATE OR REPLACE FUNCTION public.get_decks_public(
-  p_handle TEXT DEFAULT NULL,
-  p_slug_or_alias TEXT DEFAULT NULL
+  p_handle TEXT,
+  p_slug_or_alias TEXT
 )
 RETURNS TABLE (
   id uuid, user_id uuid, title text, slug text, description text, status text,
@@ -130,17 +130,6 @@ FROM public.resolve_public_deck_link(p_handle, p_slug_or_alias) resolved
 JOIN public.decks d ON d.id = resolved.deck_id
 JOIN public.profiles owner_profile ON owner_profile.id = d.user_id;
 $$;
-
-CREATE OR REPLACE FUNCTION public.get_decks_public()
-RETURNS TABLE (
-  id uuid, user_id uuid, title text, slug text, description text, status text,
-  file_size bigint, display_order integer, require_email boolean,
-  require_password boolean, expires_at timestamptz, created_at timestamptz,
-  updated_at timestamptz, file_type text, display_mode text, user_handle text,
-  allow_download boolean
-)
-LANGUAGE sql SECURITY DEFINER SET search_path = public
-AS $$ SELECT * FROM public.get_decks_public(NULL, NULL); $$;
 
 CREATE OR REPLACE FUNCTION public.get_deck_payload(
   p_handle TEXT,

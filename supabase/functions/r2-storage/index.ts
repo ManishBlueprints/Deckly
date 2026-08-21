@@ -26,6 +26,12 @@ function userPrefixIsAllowed(userId: string, key: string): boolean {
   return key === userId || key.startsWith(`${userId}/`);
 }
 
+function isServerManagedDeckPath(userId: string, key: string): boolean {
+  return key.startsWith(`${userId}/decks/verified/`)
+    || new RegExp(`^${userId}/decks/[^/]+/revisions/`).test(key)
+    || key.startsWith(`${userId}/watermarks/`);
+}
+
 const responseHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -89,7 +95,7 @@ Deno.serve(async (req: Request) => {
         return buildJsonResponse({ error: "Missing key" }, 400);
       }
 
-      if (!userPrefixIsAllowed(currentUser.user.id, key)) {
+      if (!userPrefixIsAllowed(currentUser.user.id, key) || isServerManagedDeckPath(currentUser.user.id, key)) {
         return buildJsonResponse({ error: "Forbidden" }, 403);
       }
 
@@ -113,7 +119,10 @@ Deno.serve(async (req: Request) => {
       }
 
       for (const key of keys) {
-        if (!userPrefixIsAllowed(currentUser.user.id, key)) {
+        if (
+          !userPrefixIsAllowed(currentUser.user.id, key)
+          || isServerManagedDeckPath(currentUser.user.id, key)
+        ) {
           return buildJsonResponse({ error: "Forbidden" }, 403);
         }
       }

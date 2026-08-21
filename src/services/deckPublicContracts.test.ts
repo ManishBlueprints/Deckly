@@ -157,6 +157,14 @@ describe("deck download controls contracts", () => {
     expect(downloadControlsMigrationSql).toContain("CREATE OR REPLACE FUNCTION public.get_data_room_payload");
   });
 
+  it("keeps the public deck RPC alias-aware without an ambiguous no-argument overload", () => {
+    expect(downloadControlsMigrationSql).toContain("p_handle TEXT,\n  p_slug_or_alias TEXT");
+    expect(downloadControlsMigrationSql).not.toContain("CREATE OR REPLACE FUNCTION public.get_decks_public()");
+    expect(downloadControlsMigrationSql).toContain(
+      "GRANT EXECUTE ON FUNCTION public.get_decks_public(TEXT, TEXT) TO anon, authenticated",
+    );
+  });
+
   it("requires an explicit server-authorized download intent", () => {
     expect(signDeckUrlSource).toContain('intent !== "download"');
     expect(signDeckUrlSource).toContain("Downloads are not permitted for this deck");

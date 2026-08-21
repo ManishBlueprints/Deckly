@@ -9,8 +9,11 @@ import {
   Info,
   AlertCircle,
   Check,
+  Crown,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { BrandingSettings, UserProfile } from "../../types";
 import { deckService } from "../../services/deckService";
 import { userService } from "../../services/userService";
@@ -18,6 +21,17 @@ import { useAuth } from "../../contexts/AuthContext";
 import { normalizeSlug } from "../../utils/slug";
 import penguinMascot from "../../assets/penguine.png";
 import { useTourState } from "../../contexts/TourContext";
+import { useTierFeatureAccess } from "../../hooks/useTierEntitlements";
+import { buildUpgradeUrl } from "../../services/upgradeAttribution";
+import { cn } from "../../lib/utils";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 
 interface MascotSettingsModalProps {
   isOpen: boolean;
@@ -44,6 +58,12 @@ export function MascotSettingsModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { markTourComplete, resetTours } = useTourState();
   const { refreshProfile } = useAuth();
+  const navigate = useNavigate();
+  const customLogo = useTierFeatureAccess(
+    userProfile?.tier,
+    "custom_logo",
+    Boolean(userProfile),
+  );
 
   // Workspace settings
   const [roomName, setRoomName] = useState(branding?.room_name || "");
@@ -100,10 +120,37 @@ export function MascotSettingsModal({
   }, [workspaceSlug, userProfile?.handle]);
 
   const currentLogo = branding?.logo_url || penguinMascot;
+  const canUploadLogo = customLogo.access.state === "available";
+
+  const handleLogoUpgrade = () => {
+    const message = "Upgrade to Founder to use a custom workspace logo.";
+    toast.info(message);
+    if (setupMode) {
+      setError("Finish workspace setup, then upgrade to Founder to add a custom logo.");
+      return;
+    }
+    onClose();
+    navigate(buildUpgradeUrl("unknown_feature_gate"));
+  };
+
+  const handleLogoAction = () => {
+    if (customLogo.isLoading || uploading) return;
+    if (!canUploadLogo) {
+      handleLogoUpgrade();
+      return;
+    }
+    fileInputRef.current?.click();
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!canUploadLogo) {
+      handleLogoUpgrade();
+      e.target.value = "";
+      return;
+    }
 
     if (file.size > 2 * 1024 * 1024) {
       setError("Image size must be less than 2MB");
@@ -200,50 +247,32 @@ export function MascotSettingsModal({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={setupMode ? undefined : onClose}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-          />
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !setupMode && !uploading && !saving) onClose();
+      }}
+    >
+      <DialogContent
+        size="md"
+        closeOnOutsideClick={!setupMode && !uploading && !saving}
+        hideClose={setupMode}
+        className="max-h-[calc(100dvh-2rem)]"
+      >
+        <DialogHeader>
+          <DialogTitle>Workspace settings</DialogTitle>
+          <DialogDescription>
+            Manage your workspace identity, branding, and public URL.
+          </DialogDescription>
+        </DialogHeader>
 
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="relative w-full max-w-md bg-surface-card border-x border-t sm:border border-white/5 rounded-none overflow-hidden shadow-2xl"
-          >
-            {/* Header */}
-            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-surface-card">
-              <div>
-                <h2 className="text-lg font-bold text-white">
-                  Workspace Settings
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Manage your branding and public URL
-                </p>
-              </div>
-              <button
-                onClick={onClose}
-                style={setupMode ? { display: "none" } : undefined}
-                className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-none transition-colors"
-                disabled={uploading || saving}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 max-h-[80vh] sm:max-h-[calc(100vh-140px)] overflow-y-auto custom-scrollbar pb-32 sm:pb-6">
+        <DialogBody className="space-y-6">
               {/* Workspace Identity Section */}
               <div className="space-y-6">
                 <div>
                   <label
                     htmlFor="workspace-name"
-                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1"
+                    className="mb-2 block text-xs font-medium text-ui-text"
                   >
                     Workspace Name
                   </label>
@@ -253,7 +282,7 @@ export function MascotSettingsModal({
                     type="text"
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
-                    className="w-full px-4 py-3 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary transition-all shadow-inner"
+                    className="h-10 w-full rounded-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-text outline-none transition-colors placeholder:text-ui-muted focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/15"
                     placeholder="e.g. Acme Corp"
                   />
                 </div>
@@ -261,7 +290,7 @@ export function MascotSettingsModal({
                 <div>
                   <label
                     htmlFor="profile-name"
-                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1"
+                    className="mb-2 block text-xs font-medium text-ui-text"
                   >
                     User Name
                   </label>
@@ -271,7 +300,7 @@ export function MascotSettingsModal({
                     type="text"
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
-                    className="w-full px-4 py-3 bg-background border border-border rounded-none text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary transition-all shadow-inner"
+                    className="h-10 w-full rounded-md border border-ui-border bg-ui-surface px-3 text-sm text-ui-text outline-none transition-colors placeholder:text-ui-muted focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/15"
                     placeholder="e.g. Your Name"
                   />
                 </div>
@@ -279,13 +308,13 @@ export function MascotSettingsModal({
                 <div>
                   <label
                     htmlFor="workspace-slug"
-                    className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-3 ml-1"
+                    className="mb-2 block text-xs font-medium text-ui-text"
                   >
                     Workspace Slug (URL)
                   </label>
                   <div className="relative">
-                    <div className="flex items-center bg-background border border-border rounded-none overflow-hidden focus-within:ring-1 focus-within:ring-primary/40 focus-within:border-primary transition-all shadow-inner">
-                      <span className="pl-4 pr-1 text-xs text-muted-foreground select-none">
+                    <div className="flex h-10 items-center overflow-hidden rounded-md border border-ui-border bg-ui-surface transition-colors focus-within:border-ui-primary focus-within:ring-2 focus-within:ring-ui-primary/15">
+                      <span className="select-none pl-3 pr-1 text-xs text-ui-muted">
                         /
                       </span>
                       <input
@@ -296,19 +325,19 @@ export function MascotSettingsModal({
                         onChange={(e) =>
                           setWorkspaceSlug(normalizeSlug(e.target.value))
                         }
-                        className="flex-1 py-3 pr-4 bg-transparent text-sm text-foreground focus:outline-none placeholder:text-muted-foreground"
+                        className="min-w-0 flex-1 bg-transparent pr-3 text-sm text-ui-text outline-none placeholder:text-ui-muted"
                         placeholder="workspace-slug"
                       />
                       <div className="pr-4">
                         {isCheckingSlug ? (
                           <Loader2
                             size={14}
-                            className="text-muted-foreground animate-spin"
+                            className="animate-spin text-ui-muted"
                           />
                         ) : isSlugAvailable === true ? (
-                          <Check size={14} className="text-primary" />
+                          <Check size={14} className="text-ui-primary" />
                         ) : isSlugAvailable === false ? (
-                          <X size={14} className="text-red-500" />
+                          <X size={14} className="text-ui-destructive" />
                         ) : null}
                       </div>
                     </div>
@@ -319,7 +348,7 @@ export function MascotSettingsModal({
                       <motion.div
                         initial={{ opacity: 0, y: -5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mt-2 flex items-center gap-2 text-red-500"
+                        className="mt-2 flex items-center gap-2 text-ui-destructive"
                       >
                         <AlertCircle size={14} />
                         <span className="text-[10px] font-bold uppercase tracking-wider">
@@ -334,7 +363,7 @@ export function MascotSettingsModal({
                       <motion.div
                         initial={{ opacity: 0, y: -5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mt-2 flex items-center gap-2 text-slate-500"
+                        className="mt-2 flex items-center gap-2 text-ui-muted"
                       >
                         <Info size={14} />
                         <span className="text-[10px] font-bold uppercase tracking-wider">
@@ -349,13 +378,13 @@ export function MascotSettingsModal({
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-none flex gap-3"
+                        className="mt-3 flex gap-3 rounded-lg border border-ui-destructive/20 bg-ui-destructive/10 p-3"
                       >
                         <AlertCircle
                           size={16}
-                          className="text-red-500 shrink-0 mt-0.5"
+                          className="mt-0.5 shrink-0 text-ui-destructive"
                         />
-                        <p className="text-[10px] text-red-500 font-bold uppercase tracking-[0.15em] leading-relaxed">
+                        <p className="text-xs font-medium leading-relaxed text-ui-destructive">
                           Warning: Changing this breaks all shared links.
                         </p>
                       </motion.div>
@@ -363,21 +392,26 @@ export function MascotSettingsModal({
                 </div>
 
                 <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-surface-low hover:bg-surface-high text-white text-[10px] font-bold uppercase tracking-widest rounded-none border border-white/5 transition-all disabled:opacity-50"
+                  onClick={handleLogoAction}
+                  disabled={uploading || customLogo.isLoading}
+                  className={cn(
+                    "flex h-10 w-full items-center justify-center gap-2 rounded-md border px-4 text-sm font-medium transition-colors disabled:cursor-wait disabled:opacity-60",
+                    canUploadLogo
+                      ? "border-ui-border bg-ui-subtle text-ui-text hover:bg-ui-elevated"
+                      : "border-ui-warning/30 bg-ui-warning/10 text-ui-warning hover:bg-ui-warning/15",
+                  )}
                 >
-                  <Upload size={14} className="text-primary" />
-                  Upload Logo
+                  {canUploadLogo ? <Upload size={16} className="text-ui-primary" /> : <Crown size={16} />}
+                  {canUploadLogo ? "Upload logo" : "Upgrade to Founder"}
                 </button>
               </div>
 
-              <div className="h-px bg-white/5" />
+              <div className="h-px bg-ui-border" />
 
               {/* Logo / Mascot Section */}
               <div className="flex flex-col items-center">
                 <div className="relative group/mascot">
-                  <div className="w-32 h-32 bg-surface-low rounded-none border border-white/5 overflow-hidden flex items-center justify-center p-4">
+                  <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-ui-border bg-ui-subtle p-4">
                     <img
                       src={currentLogo}
                       alt="Mascot Preview"
@@ -385,10 +419,10 @@ export function MascotSettingsModal({
                     />
 
                     {uploading && (
-                          <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
+                          <div className="absolute inset-0 flex items-center justify-center bg-ui-scrim/60 backdrop-blur-[2px]">
                         <Loader2
                           size={24}
-                          className="text-primary animate-spin"
+                          className="animate-spin text-ui-primary"
                         />
                       </div>
                     )}
@@ -396,24 +430,31 @@ export function MascotSettingsModal({
 
                   {!uploading && (
                     <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="absolute -bottom-2 -right-2 w-9 h-9 bg-primary text-black rounded-none flex items-center justify-center shadow-xl hover:scale-110 active:scale-95 transition-all border-4 border-surface-card"
-                      title="Upload New"
+                      onClick={handleLogoAction}
+                      disabled={customLogo.isLoading}
+                      className={cn(
+                        "absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-md border-4 border-ui-elevated shadow-[var(--ui-shadow-control)] transition-transform hover:scale-105 disabled:cursor-wait disabled:opacity-60",
+                        canUploadLogo
+                          ? "bg-ui-primary text-ui-primary-text"
+                          : "bg-ui-warning/15 text-ui-warning",
+                      )}
+                      title={canUploadLogo ? "Upload new logo" : "Upgrade to Founder to upload a custom logo"}
                     >
-                      <Camera size={16} />
+                      {canUploadLogo ? <Camera size={16} /> : <Crown size={16} />}
                     </button>
                   )}
                 </div>
 
                 <div className="mt-8 w-full space-y-4">
-                  <div className="bg-surface-low rounded-none p-4 border border-white/5 flex gap-3">
+                  <div className="flex gap-3 rounded-lg border border-ui-border bg-ui-subtle p-4">
                     <Info
                       size={16}
-                      className="text-primary shrink-0 mt-0.5"
+                      className="mt-0.5 shrink-0 text-ui-primary"
                     />
-                    <p className="text-[10px] text-slate-400 leading-relaxed font-bold uppercase tracking-widest">
-                      Your brand mascot appears in the sidebar. PNGs work best.
-                      Max 2MB.
+                    <p className="text-xs leading-relaxed text-ui-muted">
+                      {canUploadLogo
+                        ? "Your brand mascot appears in the sidebar. PNGs work best. Max 2MB."
+                        : "Custom workspace logos are available on Founder. Your existing logo remains visible."}
                     </p>
                   </div>
 
@@ -425,7 +466,7 @@ export function MascotSettingsModal({
                         (workspaceSlug !== userProfile?.handle &&
                           !isSlugAvailable)
                       }
-                      className="w-full py-3.5 bg-primary text-black font-bold uppercase tracking-[0.2em] text-[10px] rounded-none hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                      className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-ui-primary px-4 text-sm font-semibold text-ui-primary-text transition-opacity hover:opacity-90 disabled:opacity-40"
                     >
                       {saving ? (
                         <Loader2 size={16} className="animate-spin" />
@@ -443,7 +484,7 @@ export function MascotSettingsModal({
                       <button
                         onClick={handleResetLogo}
                         disabled={uploading}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-none border border-red-500/20 transition-all disabled:opacity-50 text-[10px] font-bold uppercase tracking-widest"
+                        className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-ui-destructive/20 bg-ui-destructive/10 px-4 text-sm font-medium text-ui-destructive transition-colors hover:bg-ui-destructive/15 disabled:opacity-50"
                         title="Reset to Default"
                       >
                         <Trash2 size={16} />
@@ -452,10 +493,10 @@ export function MascotSettingsModal({
                     )}
 
                     {!setupMode && (
-                      <div className="pt-4 mt-4 border-t border-white/5 space-y-4">
-                        <div className="flex items-center gap-2 text-slate-500">
+                      <div className="mt-4 space-y-3 border-t border-ui-border pt-4">
+                        <div className="flex items-center gap-2 text-ui-muted">
                           <Info size={14} />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">
+                          <span className="text-xs font-medium">
                             Tutorial Settings
                           </span>
                         </div>
@@ -473,7 +514,7 @@ export function MascotSettingsModal({
                               setError(message || "Failed to reset tutorials.");
                             }
                           }}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-none border border-white/10 transition-all text-[10px] font-bold uppercase tracking-widest"
+                          className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-ui-border bg-ui-surface px-4 text-sm font-medium text-ui-muted transition-colors hover:bg-ui-subtle hover:text-ui-text"
                         >
                           <RotateCcw size={16} className="opacity-50" />
                           Reset All Tutorials
@@ -485,11 +526,11 @@ export function MascotSettingsModal({
               </div>
 
               {error && (
-                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-none text-[10px] font-bold uppercase tracking-widest text-red-400 text-center animate-shake">
+                <div className="animate-shake rounded-lg border border-ui-destructive/20 bg-ui-destructive/10 p-3 text-center text-sm text-ui-destructive">
                   {error}
                 </div>
               )}
-            </div>
+        </DialogBody>
 
             <input
               type="file"
@@ -498,9 +539,7 @@ export function MascotSettingsModal({
               accept="image/*"
               onChange={handleFileChange}
             />
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+      </DialogContent>
+    </Dialog>
   );
 }

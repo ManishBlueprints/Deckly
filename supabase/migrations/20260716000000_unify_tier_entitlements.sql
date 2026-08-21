@@ -9,6 +9,18 @@ ALTER TABLE public.tier_limits
   ADD COLUMN IF NOT EXISTS ai_credits_per_day INTEGER,
   ADD COLUMN IF NOT EXISTS planned_team_members INTEGER;
 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.tier_limits
+    WHERE tier NOT IN ('FREE', 'PRO', 'PRO_PLUS', 'RAISE')
+  ) THEN
+    RAISE EXCEPTION 'Unsupported tier limits must be migrated before applying canonical tier limits';
+  END IF;
+END;
+$$;
+
 UPDATE public.tier_limits
 SET
   display_name = CASE tier
@@ -330,6 +342,43 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.purge_expired_deck_download_events()
+RETURNS BIGINT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE v_deleted BIGINT;
+BEGIN
+  DELETE FROM public.deck_download_events event
+  WHERE EXISTS (
+    SELECT 1
+    FROM public.profiles profile
+    JOIN public.tier_limits limits ON limits.tier = profile.tier
+    WHERE profile.id = event.owner_user_id
+      AND limits.analytics_retention_days <> -1
+      AND event.downloaded_at < NOW() - make_interval(days => limits.analytics_retention_days)
+  ) OR (
+    NOT EXISTS (SELECT 1 FROM public.profiles profile WHERE profile.id = event.owner_user_id)
+    AND event.downloaded_at < NOW() - INTERVAL '30 days'
+  );
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.purge_expired_deck_download_events() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.purge_expired_deck_download_events() TO service_role;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
+    EXECUTE 'SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = ''purge-deck-download-events''';
+    EXECUTE 'SELECT cron.schedule(''purge-deck-download-events'', ''25 3 * * *'', ''SELECT public.purge_expired_deck_download_events();'')';
+  END IF;
+END;
+$$;
+
 DROP TRIGGER IF EXISTS tr_enforce_deck_limit ON public.decks;
 CREATE TRIGGER tr_enforce_deck_limit
   BEFORE INSERT OR UPDATE OF user_id, file_size, status ON public.decks
@@ -380,6 +429,10 @@ BEGIN
     RAISE EXCEPTION 'Data room not found';
   END IF;
   v_config := public.get_tier_limit_for_user(v_owner);
+  IF v_config IS NULL THEN
+    RAISE EXCEPTION 'Unable to determine tier limits';
+  END IF;
+
   SELECT count(*)::INTEGER INTO v_count FROM public.data_room_documents WHERE data_room_id = NEW.data_room_id;
   IF v_count >= v_config.max_decks_per_room THEN
     RAISE EXCEPTION 'Data room document limit reached (% documents)', v_config.max_decks_per_room;
@@ -562,7 +615,7 @@ BEGIN
     AND (v_retention = -1 OR dpv.viewed_at >= NOW() - make_interval(days => v_retention))
   WHERE dl.deck_id = p_deck_id
   GROUP BY dl.id, dl.link_name, dl.link_alias, dl.is_primary, dl.is_enabled, dl.created_at
-  ORDER BY total_views DESC, dl.created_at ASC;
+  ORDER BY 6 DESC, dl.created_at ASC;
 END;
 $$;
 

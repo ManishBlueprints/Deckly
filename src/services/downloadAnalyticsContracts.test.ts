@@ -10,8 +10,16 @@ const migrationSql = readFileSync(
   path.resolve(__dirname, "../../supabase/migrations/20260715000000_add_download_analytics.sql"),
   "utf8",
 );
+const entitlementMigrationSql = readFileSync(
+  path.resolve(__dirname, "../../supabase/migrations/20260716000000_unify_tier_entitlements.sql"),
+  "utf8",
+);
 const signingSource = readFileSync(
   path.resolve(__dirname, "../../supabase/functions/sign-deck-url/index.ts"),
+  "utf8",
+);
+const deleteAccountSource = readFileSync(
+  path.resolve(__dirname, "../../supabase/functions/delete-account/index.ts"),
   "utf8",
 );
 describe("download analytics contracts", () => {
@@ -30,6 +38,23 @@ describe("download analytics contracts", () => {
     expect(migrationSql).toContain("source_type = 'data_room'");
     expect(migrationSql).toContain("get_deck_download_analytics");
     expect(migrationSql).toContain("get_data_room_download_analytics");
+  });
+
+  it("preserves history and names after deck or room deletion", () => {
+    expect(migrationSql).toContain("deck_id UUID NOT NULL,");
+    expect(migrationSql).toContain("owner_user_id UUID NOT NULL,");
+    expect(migrationSql).toContain("data_room_id UUID,");
+    expect(migrationSql).not.toContain("deck_id UUID NOT NULL REFERENCES public.decks");
+    expect(migrationSql).not.toContain("owner_user_id UUID NOT NULL REFERENCES auth.users");
+    expect(migrationSql).not.toContain("data_room_id UUID REFERENCES public.data_rooms");
+    expect(migrationSql).toContain("deck_title_snapshot TEXT");
+    expect(migrationSql).toContain("data_room_name_snapshot TEXT");
+    expect(migrationSql).toContain("v_deck.title");
+    expect(migrationSql).toContain("v_data_room_name");
+    expect(migrationSql).toContain("array_agg(e.data_room_name_snapshot ORDER BY e.downloaded_at DESC)");
+    expect(migrationSql).toContain("array_agg(e.deck_title_snapshot ORDER BY e.downloaded_at DESC)");
+    expect(migrationSql).toContain("GROUP BY e.data_room_id");
+    expect(migrationSql).toContain("GROUP BY COALESCE(rd.deck_id, e.deck_id)");
   });
 
   it("includes current room documents with zero downloads and preserves historical downloader files", () => {
@@ -58,7 +83,7 @@ describe("download analytics contracts", () => {
 
   it("keeps owner IDs out of public payloads and bounds downloader results", () => {
     expect(migrationSql).toContain("p_actor_user_id UUID DEFAULT NULL");
-    expect(migrationSql).toContain("IF p_actor_user_id IS NOT NULL AND p_actor_user_id = v_owner_user_id THEN");
+    expect(migrationSql).toContain("IF p_actor_user_id IS NOT NULL AND p_actor_user_id = v_deck.user_id THEN");
     expect(migrationSql).toContain("p_limit INTEGER DEFAULT 100");
     expect(migrationSql).toContain("LIMIT v_limit");
     expect(migrationSql).toContain("p_offset INTEGER DEFAULT 0");
@@ -66,5 +91,16 @@ describe("download analytics contracts", () => {
     expect(migrationSql).toContain("idx_deck_download_events_room_visitor");
     expect(migrationSql).not.toContain("'id', d.id, 'user_id', d.user_id, 'data_room_id'");
     expect(signingSource).toContain("p_actor_user_id: authenticatedUser?.id ?? null");
+  });
+
+  it("erases account analytics and purges events beyond tier retention", () => {
+    expect(migrationSql).toContain("erase_deck_download_events_for_account");
+    expect(migrationSql).toContain("viewer_email = NULL");
+    expect(migrationSql).toContain("extensions.digest");
+    expect(migrationSql).not.toContain("DELETE FROM public.deck_download_events WHERE owner_user_id");
+    expect(entitlementMigrationSql).toContain("purge_expired_deck_download_events");
+    expect(entitlementMigrationSql).toContain("limits.analytics_retention_days");
+    expect(entitlementMigrationSql).toContain("purge-deck-download-events");
+    expect(deleteAccountSource).toContain('rpc("erase_deck_download_events_for_account"');
   });
 });

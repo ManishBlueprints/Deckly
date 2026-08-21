@@ -1,5 +1,5 @@
 import { Eye, Bookmark, TrendingUp, FileEdit, Mail } from "lucide-react";
-import { cn } from "../../utils/cn";
+import { cn } from "../../lib/utils";
 import { useMarkAsRead } from "../../hooks/useNotifications";
 import { toast } from "sonner";
 import type { Notification, NotificationType } from "../../types";
@@ -9,14 +9,14 @@ interface NotificationItemProps {
 }
 
 const TYPE_CONFIG: Record<NotificationType, { icon: typeof Eye; color: string }> = {
-  deck_view: { icon: Eye, color: "text-blue-400" },
-  deck_save: { icon: Bookmark, color: "text-amber-400" },
-  signal_threshold: { icon: TrendingUp, color: "text-red-400" },
-  deck_update: { icon: FileEdit, color: "text-purple-400" },
-  admin_message: { icon: Mail, color: "text-emerald-400" },
+  deck_view: { icon: Eye, color: "text-ui-info" },
+  deck_save: { icon: Bookmark, color: "text-ui-warning" },
+  signal_threshold: { icon: TrendingUp, color: "text-ui-destructive" },
+  deck_update: { icon: FileEdit, color: "text-ui-info" },
+  admin_message: { icon: Mail, color: "text-ui-primary" },
 };
 
-const DEFAULT_CONFIG = { icon: Eye, color: "text-slate-400" };
+const DEFAULT_CONFIG = { icon: Eye, color: "text-ui-muted" };
 
 function formatTimeAgo(dateStr: string): string {
   const now = new Date();
@@ -58,23 +58,21 @@ export function NotificationItem({ notification }: NotificationItemProps) {
       disabled={markAsRead.isPending}
       className={cn(
         "w-full text-left px-4 py-3 flex items-start gap-3 transition-colors disabled:opacity-70",
-        isUnread
-          ? "bg-white/[0.03] hover:bg-white/[0.06]"
-          : "hover:bg-white/[0.03]",
+        isUnread ? "bg-ui-subtle hover:bg-ui-surface" : "hover:bg-ui-subtle",
       )}
     >
       {/* Unread indicator */}
       <div className="pt-1 shrink-0">
         {isUnread && (
-          <div className="w-1.5 h-1.5 rounded-full bg-[#54e98a]" />
+          <div className="h-1.5 w-1.5 rounded-full bg-ui-primary" />
         )}
       </div>
 
       {/* Icon */}
       <div
         className={cn(
-          "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-          isUnread ? "bg-white/10" : "bg-white/5",
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-ui-border",
+          isUnread ? "bg-ui-elevated" : "bg-ui-subtle",
         )}
       >
         <Icon size={16} className={config.color} />
@@ -82,13 +80,13 @@ export function NotificationItem({ notification }: NotificationItemProps) {
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium text-slate-100 truncate leading-tight">
+        <p className="truncate text-[13px] font-medium leading-tight text-ui-text">
           {notification.title}
         </p>
-        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">
+        <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-ui-muted">
           {notification.message}
         </p>
-        <p className="text-[10px] text-slate-600 mt-1 font-medium">
+        <p className="mt-1 text-[10px] font-medium text-ui-muted">
           {formatTimeAgo(notification.created_at)}
         </p>
       </div>

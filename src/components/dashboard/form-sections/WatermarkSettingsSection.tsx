@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
-import { Droplets, Lock } from "lucide-react";
+import { Droplets } from "lucide-react";
 import { Switch } from "../../ui/switch";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { cn } from "@/lib/utils";
+import { PremiumFeatureIcon } from "../PremiumFeatureIcon";
 
 interface WatermarkSettingsSectionProps {
   enabled: boolean;
@@ -16,6 +17,7 @@ interface WatermarkSettingsSectionProps {
   onUpsell: () => void;
   onRetry?: () => Promise<void>;
   isRetrying?: boolean;
+  embedded?: boolean;
 }
 
 export function WatermarkSettingsSection({
@@ -29,6 +31,7 @@ export function WatermarkSettingsSection({
   onUpsell,
   onRetry,
   isRetrying = false,
+  embedded = false,
 }: WatermarkSettingsSectionProps) {
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,16 +80,13 @@ export function WatermarkSettingsSection({
         : null;
 
   return (
-    <section className="space-y-4 pt-6 border-t border-white/5">
-      <div className="flex items-center gap-2">
-        <Droplets size={16} className="text-deckly-primary" />
-        <h3 className="text-sm font-medium text-white">Watermark</h3>
-        {!canUseWatermarking && (
-          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            <Lock size={12} /> Raise feature
-          </span>
-        )}
-      </div>
+    <section className={cn("space-y-4", !embedded && "pt-6 border-t border-white/5")}>
+      {!embedded && (
+        <div className="flex items-center gap-2">
+          <Droplets size={16} className="text-deckly-primary" />
+          <h3 className="text-sm font-medium text-white">Watermark</h3>
+        </div>
+      )}
 
       <div
         className={cn(
@@ -94,10 +94,16 @@ export function WatermarkSettingsSection({
           enabled ? "bg-background border-deckly-primary/50" : "bg-surface-container border-white/10",
           !isPdf && "opacity-75",
         )}
-        onClick={() => requestChange(!enabled)}
+        onClick={() => {
+          if (!isPdf && !enabled) return;
+          requestChange(!enabled);
+        }}
       >
         <div>
-          <p className="text-sm font-semibold text-white">Watermark enabled</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+            <PremiumFeatureIcon tier="RAISE" />
+            Watermark enabled
+          </p>
           <p className="mt-0.5 text-xs text-slate-500">Shown on every shared PDF page and protected download.</p>
         </div>
         <Switch

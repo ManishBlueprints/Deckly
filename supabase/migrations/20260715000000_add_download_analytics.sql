@@ -3,8 +3,10 @@ BEGIN;
 CREATE TABLE IF NOT EXISTS public.deck_download_events (
   id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
   request_id UUID NOT NULL UNIQUE,
-  deck_id UUID NOT NULL REFERENCES public.decks(id) ON DELETE CASCADE,
-  owner_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  -- Immutable IDs and snapshots preserve download history after parent deletion.
+  deck_id UUID NOT NULL,
+  owner_user_id UUID NOT NULL,
+  deck_title_snapshot TEXT,
   visitor_id TEXT NOT NULL,
   viewer_email TEXT,
   source_type TEXT NOT NULL CHECK (source_type IN ('deck_link', 'data_room')),
@@ -13,7 +15,8 @@ CREATE TABLE IF NOT EXISTS public.deck_download_events (
   deck_link_name_snapshot TEXT,
   deck_link_alias_snapshot TEXT,
   deck_link_is_primary_snapshot BOOLEAN,
-  data_room_id UUID REFERENCES public.data_rooms(id) ON DELETE CASCADE,
+  data_room_id UUID,
+  data_room_name_snapshot TEXT,
   downloaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT deck_download_events_source_check CHECK (
     (source_type = 'deck_link' AND deck_link_id IS NOT NULL AND data_room_id IS NULL)
@@ -32,6 +35,33 @@ CREATE INDEX IF NOT EXISTS idx_deck_download_events_room_visitor
   ON public.deck_download_events(data_room_id, visitor_id) WHERE data_room_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_deck_download_events_visitor
   ON public.deck_download_events(deck_id, visitor_id);
+CREATE INDEX IF NOT EXISTS idx_deck_download_events_owner_time
+  ON public.deck_download_events(owner_user_id, downloaded_at);
+
+-- Account deletion irreversibly anonymizes visitor identifiers while retaining
+-- event counts until the normal retention purge removes the history.
+CREATE OR REPLACE FUNCTION public.erase_deck_download_events_for_account(p_user_id UUID)
+RETURNS BIGINT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE v_updated BIGINT;
+BEGIN
+  UPDATE public.deck_download_events
+  SET viewer_email = NULL,
+      visitor_id = encode(
+        extensions.digest(p_user_id::TEXT || ':' || visitor_id, 'sha256'),
+        'hex'
+      )
+  WHERE owner_user_id = p_user_id;
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  RETURN v_updated;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.erase_deck_download_events_for_account(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.erase_deck_download_events_for_account(UUID) TO service_role;
 
 ALTER TABLE public.deck_download_events ENABLE ROW LEVEL SECURITY;
 
@@ -63,17 +93,18 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_owner_user_id UUID;
+  v_deck RECORD;
   v_link RECORD;
+  v_data_room_name TEXT;
   v_email TEXT;
 BEGIN
   IF p_request_id IS NULL OR p_deck_id IS NULL OR trim(COALESCE(p_visitor_id, '')) = '' THEN
     RAISE EXCEPTION 'Invalid download analytics payload';
   END IF;
 
-  SELECT user_id INTO v_owner_user_id FROM public.decks WHERE id = p_deck_id;
+  SELECT user_id, title INTO v_deck FROM public.decks WHERE id = p_deck_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'Deck not found'; END IF;
-  IF p_actor_user_id IS NOT NULL AND p_actor_user_id = v_owner_user_id THEN
+  IF p_actor_user_id IS NOT NULL AND p_actor_user_id = v_deck.user_id THEN
     RETURN;
   END IF;
 
@@ -89,24 +120,27 @@ BEGIN
     IF NOT FOUND THEN RAISE EXCEPTION 'Invalid deck link'; END IF;
 
     INSERT INTO public.deck_download_events (
-      request_id, deck_id, owner_user_id, visitor_id, viewer_email, source_type,
+      request_id, deck_id, owner_user_id, deck_title_snapshot, visitor_id, viewer_email, source_type,
       deck_link_id, deck_link_name_snapshot, deck_link_alias_snapshot,
       deck_link_is_primary_snapshot
     ) VALUES (
-      p_request_id, p_deck_id, v_owner_user_id, left(p_visitor_id, 200), v_email,
+      p_request_id, p_deck_id, v_deck.user_id, v_deck.title, left(p_visitor_id, 200), v_email,
       'deck_link', v_link.id, v_link.link_name, v_link.link_alias, v_link.is_primary
     ) ON CONFLICT (request_id) DO NOTHING;
   ELSIF p_data_room_id IS NOT NULL AND p_deck_link_id IS NULL THEN
+    SELECT name INTO v_data_room_name FROM public.data_rooms WHERE id = p_data_room_id;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Data room not found'; END IF;
     IF NOT EXISTS (
       SELECT 1 FROM public.data_room_documents
       WHERE data_room_id = p_data_room_id AND deck_id = p_deck_id
     ) THEN RAISE EXCEPTION 'Deck is not in data room'; END IF;
 
     INSERT INTO public.deck_download_events (
-      request_id, deck_id, owner_user_id, visitor_id, viewer_email, source_type, data_room_id
+      request_id, deck_id, owner_user_id, deck_title_snapshot, visitor_id, viewer_email, source_type,
+      data_room_id, data_room_name_snapshot
     ) VALUES (
-      p_request_id, p_deck_id, v_owner_user_id, left(p_visitor_id, 200), v_email,
-      'data_room', p_data_room_id
+      p_request_id, p_deck_id, v_deck.user_id, v_deck.title, left(p_visitor_id, 200), v_email,
+      'data_room', p_data_room_id, v_data_room_name
     ) ON CONFLICT (request_id) DO NOTHING;
   ELSE
     RAISE EXCEPTION 'Download source must be a deck link or data room';
@@ -152,12 +186,18 @@ BEGIN
     GROUP BY e.deck_link_id, dl.link_name, dl.link_alias, dl.is_primary, dl.is_enabled,
       e.deck_link_name_snapshot, e.deck_link_alias_snapshot, e.deck_link_is_primary_snapshot
   ), rooms AS (
-    SELECT e.data_room_id, COALESCE(dr.name, 'Deleted data room') AS room_name,
+    SELECT e.data_room_id,
+      COALESCE(
+        max(dr.name),
+        (array_agg(e.data_room_name_snapshot ORDER BY e.downloaded_at DESC)
+          FILTER (WHERE e.data_room_name_snapshot IS NOT NULL))[1],
+        'Deleted data room'
+      ) AS room_name,
       count(*)::int AS total_downloads, count(DISTINCT e.visitor_id)::int AS unique_downloaders,
       max(e.downloaded_at) AS latest_download_at
     FROM events e LEFT JOIN public.data_rooms dr ON dr.id = e.data_room_id
     WHERE e.source_type = 'data_room'
-    GROUP BY e.data_room_id, dr.name
+    GROUP BY e.data_room_id
   ), downloaders AS (
     SELECT visitor_id, max(viewer_email) FILTER (WHERE viewer_email IS NOT NULL) AS viewer_email,
       count(*)::int AS total_downloads, max(downloaded_at) AS latest_download_at
@@ -208,14 +248,19 @@ BEGIN
     SELECT count(*)::int AS total_downloads, count(DISTINCT visitor_id)::int AS unique_downloaders FROM events
   ), documents AS (
     SELECT COALESCE(rd.deck_id, e.deck_id) AS deck_id,
-      COALESCE(d.title, 'Deleted deck') AS title,
+      COALESCE(
+        max(d.title),
+        (array_agg(e.deck_title_snapshot ORDER BY e.downloaded_at DESC)
+          FILTER (WHERE e.deck_title_snapshot IS NOT NULL))[1],
+        'Deleted deck'
+      ) AS title,
       count(e.id)::int AS total_downloads,
       count(DISTINCT e.visitor_id)::int AS unique_downloaders,
       max(e.downloaded_at) AS latest_download_at
     FROM room_documents rd
     FULL OUTER JOIN events e ON e.deck_id = rd.deck_id
     LEFT JOIN public.decks d ON d.id = COALESCE(rd.deck_id, e.deck_id)
-    GROUP BY COALESCE(rd.deck_id, e.deck_id), d.title
+    GROUP BY COALESCE(rd.deck_id, e.deck_id)
   ), downloader_summaries AS (
     SELECT visitor_id,
       max(viewer_email) FILTER (WHERE viewer_email IS NOT NULL) AS viewer_email,
@@ -228,13 +273,19 @@ BEGIN
     ORDER BY total_downloads DESC, latest_download_at DESC, visitor_id ASC
     LIMIT v_limit OFFSET v_offset
   ), downloader_document_summaries AS (
-    SELECT e.visitor_id, e.deck_id, COALESCE(d.title, 'Deleted deck') AS title,
+    SELECT e.visitor_id, e.deck_id,
+      COALESCE(
+        max(d.title),
+        (array_agg(e.deck_title_snapshot ORDER BY e.downloaded_at DESC)
+          FILTER (WHERE e.deck_title_snapshot IS NOT NULL))[1],
+        'Deleted deck'
+      ) AS title,
       count(*)::int AS total_downloads, 1::int AS unique_downloaders,
       max(e.downloaded_at) AS latest_download_at
     FROM events e
     JOIN paged_downloaders pd ON pd.visitor_id = e.visitor_id
     LEFT JOIN public.decks d ON d.id = e.deck_id
-    GROUP BY e.visitor_id, e.deck_id, d.title
+    GROUP BY e.visitor_id, e.deck_id
   ), downloader_documents AS (
     SELECT visitor_id,
       jsonb_agg(jsonb_build_object(

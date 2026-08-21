@@ -9,6 +9,7 @@ export type FeatureKey =
   | "access_controls"
   | "deck_downloads"
   | "deck_watermarking"
+  | "office_conversion"
   | "custom_logo"
   | "team_collaboration"
   | "custom_colours"
@@ -25,6 +26,8 @@ export interface TierLimits {
   maxDocumentsPerRoom: number;
   storageLimitBytes: number;
   maxFileSizeBytes: number;
+  maxViewableDocumentSizeBytes: number;
+  maxDocumentPages: number;
   analyticsRetentionDays: number;
   aiCreditsPerDay: number;
   plannedTeamMembers: number;
@@ -74,6 +77,7 @@ const VALID_FEATURES = new Set<FeatureKey>([
   "access_controls",
   "deck_downloads",
   "deck_watermarking",
+  "office_conversion",
   "custom_logo",
   "team_collaboration",
   "custom_colours",
@@ -96,6 +100,8 @@ function parseLimits(value: unknown): TierLimits | null {
     maxDocumentsPerRoom: asNumber(input.maxDocumentsPerRoom),
     storageLimitBytes: asNumber(input.storageLimitBytes),
     maxFileSizeBytes: asNumber(input.maxFileSizeBytes),
+    maxViewableDocumentSizeBytes: asNumber(input.maxViewableDocumentSizeBytes),
+    maxDocumentPages: asNumber(input.maxDocumentPages),
     analyticsRetentionDays: asNumber(input.analyticsRetentionDays),
     aiCreditsPerDay: asNumber(input.aiCreditsPerDay),
     plannedTeamMembers: asNumber(input.plannedTeamMembers),

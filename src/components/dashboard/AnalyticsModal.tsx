@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
-  X,
   BarChart3,
   Clock,
   Eye,
@@ -20,6 +19,8 @@ import { FeatureGate } from "../billing/FeatureGate";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
+import { TIER_CONFIG } from "../../constants/tiers";
+import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 
 interface AnalyticsModalProps {
   deck: Deck;
@@ -39,7 +40,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
   );
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const tierLabel = pageAnalytics.data?.tiers.find((entry) => entry.tier === profile?.tier)?.label
-    ?? (profile?.tier === "PRO" ? "Share" : profile?.tier === "PRO_PLUS" ? "Founder" : profile?.tier === "RAISE" ? "Raise" : "Free");
+    ?? TIER_CONFIG[profile?.tier ?? "FREE"].planLabel;
 
   useEffect(() => {
     let mounted = true;
@@ -90,7 +91,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
       mounted = false;
       clearTimeout(timeoutId);
     };
-  }, [canUsePageAnalytics, deck.id, isPro, pageAnalytics.isLoading, refreshTrigger, session, userId]);
+  }, [canUsePageAnalytics, deck.id, isPro, pageAnalytics.isLoading, refreshTrigger, userId]);
 
   const handleRetry = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -135,47 +136,28 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
   }, [dropOffStats]);
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-      />
-
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative w-full max-w-xl bg-slate-900 border border-white/10 rounded-[32px] overflow-hidden shadow-2xl"
-      >
-        <header className="p-6 md:p-8 border-b border-white/5 flex items-center justify-between">
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="md" className="bg-ui-surface-elevated p-0 text-ui-text" hideClose={false}>
+        <header className="flex items-center justify-between border-b border-ui-border p-6 md:p-8">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-deckly-primary/10 text-deckly-primary rounded-2xl flex items-center justify-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-ui-primary/10 text-ui-primary">
               <BarChart3 size={24} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-bold text-white tracking-tight">
+                <DialogTitle className="text-xl font-bold tracking-tight text-ui-text">
                   Deck Insights
-                </h3>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                  <History size={10} className="text-deckly-primary" />
+                </DialogTitle>
+                <div className="flex items-center gap-1.5 rounded-md border border-ui-border bg-ui-subtle px-2 py-0.5 text-[9px] font-bold uppercase tracking-tighter text-ui-muted">
+                  <History size={10} className="text-ui-primary" />
                   {tierLabel}
                 </div>
               </div>
-              <p className="text-sm text-slate-400 font-medium truncate max-w-[240px]">
+              <p className="max-w-[240px] truncate text-sm font-medium text-ui-muted">
                 {deck.title}
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all"
-          >
-            <X size={20} />
-          </button>
         </header>
 
         <div className="p-6 md:p-8 max-h-[70vh] overflow-y-auto">
@@ -183,21 +165,21 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
             <FeatureGate access={pageAnalytics.access} />
           ) : loading ? (
             <div className="py-20 flex flex-col items-center gap-4">
-              <Loader2 className="animate-spin text-deckly-primary" size={32} />
-              <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">
+              <Loader2 className="animate-spin text-ui-primary" size={32} />
+              <p className="text-xs font-bold uppercase tracking-widest text-ui-muted">
                 Analyzing Engagement
               </p>
             </div>
           ) : error ? (
             <div className="py-20 flex flex-col items-center gap-6 text-center">
-              <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-ui-destructive/10 text-ui-destructive">
                 <AlertCircle size={32} />
               </div>
               <div className="space-y-2">
-                <h4 className="text-white font-bold">
+                <h4 className="font-bold text-ui-text">
                   {error === "timeout" ? "Request Timed Out" : "Sync Failed"}
                 </h4>
-                <p className="text-slate-500 text-sm max-w-[280px] leading-relaxed mx-auto">
+                <p className="mx-auto max-w-[280px] text-sm leading-relaxed text-ui-muted">
                   {error === "timeout"
                     ? "The data is taking longer than usual to load. This can happen on slow networks."
                     : "We couldn't sync your analytics. This might be a temporary connection issue."}
@@ -207,7 +189,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                 variant="outline"
                 onClick={handleRetry}
                 icon={RefreshCcw}
-                className="bg-white/5 border-white/10 hover:bg-white/10 text-white"
+                className="border-ui-border bg-ui-subtle text-ui-text hover:bg-ui-surface"
               >
                 Try Again
               </Button>
@@ -217,42 +199,42 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
               <div className="grid grid-cols-2 gap-4">
                 <Card
                   variant="solid"
-                  className="p-5 border-white/10 bg-white/[0.02]"
+                  className="border-ui-border bg-ui-subtle p-5"
                 >
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-deckly-primary/10 text-deckly-primary rounded-xl flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ui-primary/10 text-ui-primary">
                       <Eye size={20} />
                     </div>
-                    <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-ui-muted">
                       Total Views
                     </span>
                   </div>
-                  <div className="text-3xl font-bold text-white leading-none">
+                  <div className="text-3xl font-bold leading-none text-ui-text">
                     {totalViews}
                   </div>
                 </Card>
 
                 <Card
                   variant="solid"
-                  className="p-5 border-white/10 bg-white/[0.02]"
+                  className="border-ui-border bg-ui-subtle p-5"
                 >
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-deckly-secondary/10 text-deckly-secondary rounded-xl flex items-center justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ui-chart-3/10 text-ui-chart-3">
                       <Clock size={20} />
                     </div>
-                    <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-ui-muted">
                       Avg. Session
                     </span>
                   </div>
-                  <div className="text-3xl font-bold text-white leading-none">
+                  <div className="text-3xl font-bold leading-none text-ui-text">
                     {avgTimePerView}s
                   </div>
                 </Card>
               </div>
 
-              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
+              <div className="rounded-lg border border-ui-border bg-ui-subtle p-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-                  <h4 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-ui-text">
                     {activeTab === "retention"
                       ? "Drop-off Analysis"
                       : "Engagement per Slide"}
@@ -261,13 +243,13 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                     value={activeTab}
                     onValueChange={(v) => setActiveTab(v as "views" | "time" | "retention")}
                   >
-                    <TabsList className="bg-white/5 p-1 h-auto rounded-xl gap-1">
+                    <TabsList className="h-auto gap-1 rounded-lg bg-ui-surface p-1">
                       {(["views", "time", "retention"] as const).map((tab) => (
                         <TabsTrigger
                           key={tab}
                           value={tab}
                           className={cn(
-                            "px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all data-[state=active]:bg-deckly-primary data-[state=active]:text-white shadow-none",
+                            "rounded-md px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest shadow-none transition-all data-[state=active]:bg-ui-primary data-[state=active]:text-ui-primary-text",
                           )}
                         >
                           {tab === "views"
@@ -282,7 +264,7 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                 </div>
 
                 {stats.length === 0 ? (
-                  <div className="py-12 text-center text-slate-500 italic text-sm font-medium">
+                  <div className="py-12 text-center text-sm font-medium italic text-ui-muted">
                     No activity recorded yet for this deck.
                   </div>
                 ) : (
@@ -293,16 +275,16 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                         <motion.div
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="mb-8 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center gap-4"
+                          className="mb-8 flex items-center gap-4 rounded-lg border border-ui-destructive/20 bg-ui-destructive/10 p-4"
                         >
-                          <div className="w-10 h-10 rounded-xl bg-red-500 text-white flex items-center justify-center shrink-0">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ui-destructive text-ui-primary-text">
                             <AlertCircle size={20} />
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-red-400 uppercase tracking-widest mb-0.5">
+                            <p className="mb-0.5 text-xs font-bold uppercase tracking-widest text-ui-destructive">
                               Churn Alert
                             </p>
-                            <p className="text-sm text-slate-300 font-medium leading-tight">
+                            <p className="text-sm font-medium leading-tight text-ui-text">
                               Slide {criticalSlide.page_number} has the highest
                               drop-off rate (
                               {criticalSlide.dropOffPercent.toFixed(0)}%).
@@ -334,10 +316,10 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                             key={s.page_number}
                             className="flex items-center gap-4"
                           >
-                            <span className="text-[10px] font-bold text-slate-600 w-8">
+                            <span className="w-8 text-[10px] font-bold text-ui-muted">
                               Pg {s.page_number}
                             </span>
-                            <div className="flex-1 h-7 bg-white/5 rounded-lg overflow-hidden relative">
+                            <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-ui-surface">
                               <motion.div
                                 initial={{ width: 0 }}
                                 animate={{
@@ -350,17 +332,17 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
                                 className={cn(
                                   "h-full flex items-center justify-end px-3 rounded-lg",
                                   activeTab === "views"
-                                    ? "bg-deckly-primary"
+                                    ? "bg-ui-chart-1"
                                     : activeTab === "time"
-                                      ? "bg-deckly-secondary"
+                                      ? "bg-ui-chart-3"
                                       : percentage > 40
-                                        ? "bg-red-500"
+                                        ? "bg-ui-destructive"
                                         : percentage > 20
                                           ? "bg-orange-500"
-                                          : "bg-deckly-primary/40",
+                                          : "bg-ui-chart-1/40",
                                 )}
                               >
-                                <span className="text-[9px] font-bold text-white shadow-sm">
+                                <span className="text-[9px] font-bold text-ui-primary-text shadow-sm">
                                   {activeTab === "views"
                                     ? s.total_views
                                     : activeTab === "time"
@@ -380,16 +362,16 @@ function AnalyticsModal({ deck, onClose }: AnalyticsModalProps) {
           )}
         </div>
 
-        <footer className="p-6 bg-white/[0.01] border-t border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase tracking-widest">
-            <Zap size={14} className="text-deckly-primary" /> Real-time Sync
+        <footer className="flex items-center justify-between border-t border-ui-border bg-ui-subtle p-6">
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-ui-muted">
+            <Zap size={14} className="text-ui-primary" /> Real-time Sync
           </div>
           <Button onClick={onClose} size="sm" className="px-6">
             Done
           </Button>
         </footer>
-      </motion.div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

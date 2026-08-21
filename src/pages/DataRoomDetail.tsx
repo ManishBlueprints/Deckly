@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useParams, useNavigate } from "react-router-dom";
 import { FileText, FolderInput, Loader2, Plus } from "lucide-react";
-import { DashboardLayout } from "../components/layout/DashboardLayout";
+import { WorkspaceShell } from "../components/layout/WorkspaceShell";
 import { DocumentPicker } from "../components/dashboard/DocumentPicker";
 import { DataRoom, DataRoomDocument, DataRoomDownloadAnalytics } from "../types";
 import { dataRoomService } from "../services/dataRoomService";
@@ -549,19 +549,19 @@ function DataRoomDetail() {
   /* ── loading state ── */
   if (loading) {
     return (
-      <DashboardLayout title="Data Rooms" showFab={false}>
+      <WorkspaceShell title="Data Rooms">
         <div className="flex items-center justify-center py-32">
           <Loader2 size={28} className="text-deckly-primary animate-spin" />
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   if (!room) return null;
 
   return (
-    <DashboardLayout title="Data Rooms" showFab={false}>
-      <div className="space-y-4 md:space-y-6 pb-28 md:pb-12">
+    <WorkspaceShell title="Data Rooms">
+      <div className="space-y-4 px-4 pb-28 sm:px-6 md:space-y-6 md:pb-12 lg:px-8">
         <DataRoomDetailHeader
           room={room}
           isPublic={!!room.is_public}
@@ -670,7 +670,7 @@ function DataRoomDetail() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-ui-destructive text-ui-canvas hover:brightness-95"
               onClick={(e) => {
                 e.preventDefault();
                 handleDeleteRoom();
@@ -742,7 +742,7 @@ function DataRoomDetail() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-ui-destructive text-ui-canvas hover:brightness-95"
               onClick={(e) => {
                 e.preventDefault();
                 void handleDeleteFolder();
@@ -755,7 +755,7 @@ function DataRoomDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-    </DashboardLayout>
+    </WorkspaceShell>
   );
 }
 
@@ -813,7 +813,7 @@ function DataRoomContentSection({
   onEditDeck: (deckId: string) => void;
 }) {
   return (
-    <div className="space-y-6 md:space-y-8">
+    <div className="space-y-5 md:space-y-6">
       <DataRoomContentToolbar
         onNewDeck={onNewDeck}
         onAddExisting={onAddExisting}
@@ -859,30 +859,30 @@ function DataRoomContentSection({
         onDeleteFolder={onDeleteFolder}
       />
 
-      <div className="rounded-xl md:rounded-2xl border border-white/5 bg-[#111] overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-white/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="overflow-hidden rounded-lg border border-ui-border bg-ui-surface">
+        <div className="flex flex-col gap-3 border-b border-ui-border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="flex items-center gap-3 min-w-0">
-            <FileText size={14} className="text-slate-400" />
-            <h2 className="text-base sm:text-lg font-semibold text-[#e5e2e1] truncate">
+            <FileText size={16} className="text-ui-muted" />
+            <h2 className="truncate text-base font-semibold text-ui-text">
               {activeFolderId
                 ? folders.find((folder) => folder.id === activeFolderId)?.name ??
                   "Documents / Decks"
-                : "Unorganized Documents"}
+                : "Uncategorized documents"}
             </h2>
-            <span className="inline-flex items-center rounded-full border border-white/5 bg-white/5 px-2.5 py-0.5 text-[10px] font-bold text-slate-400">
+            <span className="inline-flex items-center rounded-md border border-ui-border bg-ui-subtle px-2 py-0.5 text-[10px] font-semibold text-ui-muted">
               {visibleDocuments.length}
             </span>
           </div>
         </div>
         {visibleDocuments.length === 0 ? (
-          <div className="px-4 py-16 sm:px-6 sm:py-20 flex flex-col items-center gap-3 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-600">
+          <div className="flex flex-col items-center gap-3 px-4 py-14 text-center sm:px-6">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-ui-border bg-ui-subtle text-ui-muted">
               <FileText size={22} />
             </div>
-            <p className="text-sm font-bold text-slate-400">
+            <p className="text-sm font-semibold text-ui-text">
               {documents.length === 0 ? "No assets yet" : "No matching assets"}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-ui-muted">
               {documents.length === 0
                 ? "Add decks to gate them inside this room."
                 : "Try another title, tag, or clear the current search."}
@@ -906,7 +906,7 @@ function DataRoomContentSection({
             ) : null}
           </div>
         ) : (
-          <div className="p-3 sm:p-4">
+          <div className="p-2 sm:p-3">
             <RoomDocumentList
               documents={visibleDocuments}
               documentMatchInfo={documentMatchInfo}

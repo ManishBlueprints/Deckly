@@ -22,6 +22,7 @@ import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { Switch } from "../../ui/switch";
 import { Button } from "../../ui/button";
+import { PremiumFeatureIcon } from "../PremiumFeatureIcon";
 
 interface UploadSectionProps {
   editId: string | null;
@@ -60,8 +61,8 @@ export function ManageDeckUploadSection({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-1">
-        <Upload size={16} className="text-deckly-primary" />
-        <h3 className="text-sm font-medium text-white">
+        <Upload size={16} className="text-ui-primary" />
+        <h3 className="text-sm font-medium text-ui-text">
           {editId ? "Replace Document" : "Upload Document"}
         </h3>
       </div>
@@ -79,31 +80,31 @@ export function ManageDeckUploadSection({
         id="tour-upload-dropzone"
         aria-label="Upload document"
         className={cn(
-          "relative group cursor-pointer border border-border border-dashed rounded-lg p-8 md:p-12 text-center transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-deckly-primary/50",
+          "group relative cursor-pointer rounded-[14px] border border-dashed border-ui-border bg-ui-subtle p-8 text-center outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ui-focus/40 md:p-12",
           file
-            ? "border-deckly-primary/30 bg-surface-container"
-            : "bg-surface-low hover:bg-surface-container hover:border-border",
+            ? "border-ui-primary/40 bg-ui-subtle"
+            : "hover:border-ui-primary/40 hover:bg-ui-elevated",
           loading || disabled ? "opacity-30 cursor-not-allowed" : "",
         )}
       >
         <div className="flex flex-col items-center gap-3">
           {file ? (
-            <div className="w-12 h-12 rounded-lg bg-[#2B2B2B] border border-border flex items-center justify-center">
-              <CheckCircle2 size={24} className="text-deckly-primary" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-[12px] border border-ui-border bg-ui-surface">
+              <CheckCircle2 size={24} className="text-ui-primary" />
             </div>
           ) : (
-            <div className="w-12 h-12 rounded-lg bg-[#2B2B2B] border border-border flex items-center justify-center group-hover:border-border transition-colors">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[12px] border border-ui-border bg-ui-surface transition-colors group-hover:border-ui-primary/40">
               <Upload
                 size={24}
-                className="text-slate-500 group-hover:text-deckly-primary transition-colors"
+                className="text-ui-muted transition-colors group-hover:text-ui-primary"
               />
             </div>
           )}
           <div>
-            <p className="text-sm font-medium text-white">
+            <p className="text-sm font-medium text-ui-text">
               {file ? file.name : "Click to select a document"}
             </p>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="mt-1 text-xs text-ui-muted">
               {file
                 ? `${(file.size / 1024 / 1024).toFixed(1)} MB`
                 : "PPTX, DOCX, DOC, XLSX, OR PDF (MAX 50MB)"}
@@ -127,25 +128,25 @@ export function ManageDeckUploadSection({
       )}
 
       {file && fileType !== "pdf" && (
-        <div className="p-4 md:p-6 rounded-lg border border-white/5 bg-surface-lowest flex flex-col gap-4 mt-4">
+        <div className="mt-4 flex flex-col gap-4 rounded-[14px] border border-ui-border bg-ui-subtle p-4 md:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-ui-text">
                 Experience Mode
               </p>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="mt-1 text-xs text-ui-muted">
                 How should visitors see this?
               </p>
             </div>
-            <div className="flex bg-background border border-white/5 p-1 rounded-md w-fit">
+            <div className="flex w-fit rounded-[10px] border border-ui-border bg-ui-surface p-1">
               <button
                 type="button"
                 onClick={() => onConversionModeChange("raw")}
                 className={cn(
                   "px-4 py-1.5 text-xs font-medium rounded transition-all",
                   conversionMode === "raw"
-                    ? "bg-surface-card text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-300",
+                    ? "bg-ui-primary text-ui-primary-text shadow-sm"
+                    : "text-ui-muted hover:text-ui-text",
                 )}
               >
                 RAW
@@ -162,20 +163,16 @@ export function ManageDeckUploadSection({
                 className={cn(
                   "px-4 py-1.5 text-xs font-medium rounded transition-all flex items-center gap-2",
                   conversionMode === "interactive"
-                    ? "bg-surface-card text-white shadow-sm"
-                    : "text-slate-500 hover:text-slate-300",
+                    ? "bg-ui-primary text-ui-primary-text shadow-sm"
+                    : "text-ui-muted hover:text-ui-text",
                 )}
               >
+                <PremiumFeatureIcon tier="PRO" />
                 INTERACTIVE
-                {!config.allowInteractive && (
-                  <span className="bg-background text-slate-400 border border-white/5 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                    PRO
-                  </span>
-                )}
               </button>
             </div>
           </div>
-          <p className="text-xs text-slate-500 italic">
+          <p className="text-xs italic text-ui-muted">
             {conversionMode === "interactive"
               ? "We will convert your document into a smooth, slide-based presentation."
               : "Visitors will see the original document in a high-fidelity embed viewer."}
@@ -214,17 +211,17 @@ export function ManageDeckDetailsSection({
   onDescriptionChange,
 }: DetailsSectionProps) {
   return (
-    <div className="space-y-6 pt-6 border-t border-white/5">
+    <div className="space-y-6 border-t border-ui-border pt-6">
       <div className="flex items-center gap-2 mb-2">
-        <FileText size={16} className="text-deckly-primary" />
-        <h3 className="text-sm font-medium text-white">Asset Specifications</h3>
+        <FileText size={16} className="text-ui-primary" />
+        <h3 className="text-sm font-medium text-ui-text">Asset specifications</h3>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label
             htmlFor="title"
-            className="text-xs font-semibold text-slate-300"
+            className="text-xs font-semibold text-ui-text"
           >
             Asset Title
           </Label>
@@ -234,20 +231,20 @@ export function ManageDeckDetailsSection({
             onChange={(e) => onTitleChange(e.target.value)}
             required
             placeholder="e.g. Series A Pitch Deck - v2"
-            className="h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 transition-all focus:bg-[#2B2B2B]"
+            className="h-11 rounded-[14px] border-ui-border bg-ui-surface text-ui-text transition-all placeholder:text-ui-muted focus-visible:ring-ui-focus"
           />
         </div>
 
         <div className="space-y-2">
           <Label
             htmlFor="slug"
-            className="text-xs font-semibold text-slate-300"
+            className="text-xs font-semibold text-ui-text"
           >
             URL Slug
           </Label>
           <div className="relative group/slug">
             <div className="absolute left-5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pointer-events-none z-10">
-              <span className="text-sm text-deckly-primary whitespace-nowrap">
+              <span className="whitespace-nowrap text-sm text-ui-primary">
                 {authHandle || userProfile?.handle || "..."}/
               </span>
             </div>
@@ -259,7 +256,7 @@ export function ManageDeckDetailsSection({
               placeholder="my-pitch"
               disabled={!!editId}
               className={cn(
-                "h-11 rounded-md border-white/10 bg-[#2B2B2B] focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-[#2B2B2B] disabled:opacity-50",
+                "h-11 rounded-[14px] border-ui-border bg-ui-surface text-ui-text transition-all focus-visible:ring-ui-focus disabled:opacity-50",
                 "pl-8",
               )}
               style={
@@ -272,7 +269,7 @@ export function ManageDeckDetailsSection({
             />
             {isCheckingSlug && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <Loader2 size={16} className="text-slate-500 animate-spin" />
+                <Loader2 size={16} className="animate-spin text-ui-muted" />
               </div>
             )}
           </div>
@@ -286,7 +283,7 @@ export function ManageDeckDetailsSection({
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -5 }}
-                  className="mt-1.5 text-xs text-red-500 flex items-center gap-1.5"
+                  className="mt-1.5 flex items-center gap-1.5 text-xs text-ui-destructive"
                 >
                   <AlertCircle size={14} />
                   This slug is already taken
@@ -300,7 +297,7 @@ export function ManageDeckDetailsSection({
                   key="slug-available"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="mt-1.5 text-xs text-emerald-500 flex items-center gap-1.5"
+                  className="mt-1.5 flex items-center gap-1.5 text-xs text-ui-primary"
                 >
                   <CheckCircle2 size={14} />
                   URL Available
@@ -308,11 +305,11 @@ export function ManageDeckDetailsSection({
               )}
           </AnimatePresence>
           {editId ? (
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="mt-1 text-xs text-ui-muted">
               Links are permanent to prevent breaks.
             </p>
           ) : (
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="mt-1 text-xs text-ui-muted">
               Your URL: deckly.com/{authHandle || userProfile?.handle || "..."}/
               {slug || "your-slug"}
             </p>
@@ -323,7 +320,7 @@ export function ManageDeckDetailsSection({
       <div className="space-y-2">
         <Label
           htmlFor="description"
-          className="text-xs font-semibold text-slate-300"
+          className="text-xs font-semibold text-ui-text"
         >
           Description
         </Label>
@@ -333,7 +330,7 @@ export function ManageDeckDetailsSection({
           onChange={(e) => onDescriptionChange(e.target.value)}
           placeholder="Briefly explain what this document contains..."
           rows={3}
-          className="flex w-full rounded-md border border-white/10 bg-[#2B2B2B] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-deckly-primary focus:bg-[#2B2B2B] transition-all resize-none"
+          className="flex w-full resize-none rounded-[14px] border border-ui-border bg-ui-surface px-3 py-2 text-sm text-ui-text transition-all placeholder:text-ui-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus/40"
         />
       </div>
     </div>
@@ -346,6 +343,8 @@ interface AccessSectionProps {
   allowDownload: boolean;
   canUseAccessControls: boolean;
   canUseDownloadControls: boolean;
+  accessControlsLoading?: boolean;
+  downloadControlsLoading?: boolean;
   viewPassword: string;
   showPasswordField: boolean;
   enableExpiry: boolean;
@@ -359,6 +358,7 @@ interface AccessSectionProps {
   onTogglePasswordVisibility: () => void;
   onEnableExpiryChange: (checked: boolean) => void;
   onExpiresAtChange: (value: string) => void;
+  children?: React.ReactNode;
 }
 
 export function ManageDeckAccessSection({
@@ -367,6 +367,8 @@ export function ManageDeckAccessSection({
   allowDownload,
   canUseAccessControls,
   canUseDownloadControls,
+  accessControlsLoading = false,
+  downloadControlsLoading = false,
   viewPassword,
   showPasswordField,
   enableExpiry,
@@ -380,27 +382,27 @@ export function ManageDeckAccessSection({
   onTogglePasswordVisibility,
   onEnableExpiryChange,
   onExpiresAtChange,
+  children,
 }: AccessSectionProps) {
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   return (
     <div
       id="tour-security-panel"
-      className="pt-6 border-t border-white/5 space-y-6"
+      className="space-y-6 border-t border-ui-border pt-6"
     >
       <div className="flex items-center gap-2 mb-2">
-        <Lock size={16} className="text-deckly-primary" />
-        <h3 className="text-sm font-medium text-white">Security & Access</h3>
-        {!canUseAccessControls && <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground"><Lock size={12} /> Share feature</span>}
+        <Lock size={16} className="text-ui-primary" />
+        <h3 className="text-sm font-medium text-ui-text">Security & access</h3>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div
           className={cn(
-            "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
+            "flex items-center justify-between rounded-[14px] border p-4 transition-all duration-200",
             requireEmail
-              ? "bg-background border-deckly-primary"
-              : "bg-[#2B2B2B] border-white/10",
+              ? "border-ui-primary bg-ui-subtle"
+              : "border-ui-border bg-ui-surface",
           )}
         >
           <div className="flex items-center gap-4">
@@ -408,19 +410,23 @@ export function ManageDeckAccessSection({
               className={cn(
                 "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
                 requireEmail
-                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
-                  : "text-slate-500",
+                  ? "rounded-[10px] bg-ui-primary/10 text-ui-primary"
+                  : "text-ui-muted",
               )}
             >
               <Mail size={18} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Email Required</p>
-              <p className="text-xs text-slate-500 mt-0.5">ID Authentication</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-ui-text">
+                <PremiumFeatureIcon tier="PRO" />
+                Email Required
+              </p>
+              <p className="mt-0.5 text-xs text-ui-muted">ID authentication</p>
             </div>
           </div>
           <Switch
             checked={requireEmail}
+            disabled={accessControlsLoading}
             onCheckedChange={(checked) => {
               if (checked && !canUseAccessControls) return onAccessUpsell();
               onRequireEmailChange(checked);
@@ -431,10 +437,10 @@ export function ManageDeckAccessSection({
 
         <div
           className={cn(
-            "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
+            "flex items-center justify-between rounded-[14px] border p-4 transition-all duration-200",
             requirePassword
-              ? "bg-background border-deckly-primary"
-              : "bg-[#2B2B2B] border-white/10",
+              ? "border-ui-primary bg-ui-subtle"
+              : "border-ui-border bg-ui-surface",
           )}
         >
           <div className="flex items-center gap-4">
@@ -442,19 +448,23 @@ export function ManageDeckAccessSection({
               className={cn(
                 "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
                 requirePassword
-                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
-                  : "text-slate-500",
+                  ? "rounded-[10px] bg-ui-primary/10 text-ui-primary"
+                  : "text-ui-muted",
               )}
             >
               <Lock size={18} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Gate Access</p>
-              <p className="text-xs text-slate-500 mt-0.5">Password Lock</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-ui-text">
+                <PremiumFeatureIcon tier="PRO" />
+                Gate Access
+              </p>
+              <p className="mt-0.5 text-xs text-ui-muted">Password lock</p>
             </div>
           </div>
           <Switch
             checked={requirePassword}
+            disabled={accessControlsLoading}
             onCheckedChange={(checked) => {
               if (checked && !canUseAccessControls) return onAccessUpsell();
               onRequirePasswordChange(checked);
@@ -465,10 +475,10 @@ export function ManageDeckAccessSection({
 
         <div
           className={cn(
-            "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
+            "flex items-center justify-between rounded-[14px] border p-4 transition-all duration-200",
             allowDownload
-              ? "bg-background border-deckly-primary"
-              : "bg-[#2B2B2B] border-white/10",
+              ? "border-ui-primary bg-ui-subtle"
+              : "border-ui-border bg-ui-surface",
           )}
         >
           <div className="flex items-center gap-4">
@@ -476,38 +486,46 @@ export function ManageDeckAccessSection({
               className={cn(
                 "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
                 allowDownload
-                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
-                  : "text-slate-500",
+                  ? "rounded-[10px] bg-ui-primary/10 text-ui-primary"
+                  : "text-ui-muted",
               )}
             >
               <Download size={18} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Downloads</p>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-ui-text">
+                <PremiumFeatureIcon tier="PRO" />
+                Downloads
+              </p>
+              <p className="mt-0.5 text-xs text-ui-muted">
                 {allowDownload ? "Download enabled" : "Download disabled"}
               </p>
             </div>
           </div>
           <Switch
             checked={allowDownload}
+            disabled={downloadControlsLoading}
             onCheckedChange={(checked) => {
-              if (!canUseDownloadControls) {
+              if (checked && !canUseDownloadControls) {
                 onDownloadUpsell();
                 return;
               }
               onAllowDownloadChange(checked);
             }}
-            aria-label="Allow investors to download this deck"
+            aria-label={
+              canUseDownloadControls
+                ? "Allow investors to download this deck"
+                : "Allow investors to download this deck, available on Share"
+            }
           />
         </div>
 
         <div
           className={cn(
-            "flex items-center justify-between p-4 rounded-lg border transition-all duration-200",
+            "flex items-center justify-between rounded-[14px] border p-4 transition-all duration-200",
             enableExpiry
-              ? "bg-background border-deckly-primary"
-              : "bg-[#2B2B2B] border-white/10",
+              ? "border-ui-primary bg-ui-subtle"
+              : "border-ui-border bg-ui-surface",
           )}
         >
           <div className="flex items-center gap-4">
@@ -515,19 +533,23 @@ export function ManageDeckAccessSection({
               className={cn(
                 "w-10 h-10 flex items-center justify-center transition-colors shrink-0 aspect-square",
                 enableExpiry
-                  ? "bg-deckly-primary/10 text-deckly-primary rounded-md"
-                  : "text-slate-500",
+                  ? "rounded-[10px] bg-ui-primary/10 text-ui-primary"
+                  : "text-ui-muted",
               )}
             >
               <CalendarDays size={18} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Expiration</p>
-              <p className="text-xs text-slate-500 mt-0.5">Duration Control</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-ui-text">
+                <PremiumFeatureIcon tier="PRO" />
+                Expiration
+              </p>
+              <p className="mt-0.5 text-xs text-ui-muted">Duration control</p>
             </div>
           </div>
           <Switch
             checked={enableExpiry}
+            disabled={accessControlsLoading}
             onCheckedChange={(checked) => {
               if (checked && !canUseAccessControls) return onAccessUpsell();
               onEnableExpiryChange(checked);
@@ -548,7 +570,7 @@ export function ManageDeckAccessSection({
             <div className="space-y-2 mt-4">
               <Label
                 htmlFor="password"
-                className="text-xs font-semibold text-slate-300"
+                className="text-xs font-semibold text-ui-text"
               >
                 Viewing Password
               </Label>
@@ -560,12 +582,12 @@ export function ManageDeckAccessSection({
                   onChange={(e) => onViewPasswordChange(e.target.value)}
                   placeholder="Create a strong password"
                   required={requirePassword}
-                  className="h-11 rounded-md border-white/10 bg-surface-lowest focus-visible:ring-1 focus-visible:ring-deckly-primary text-white placeholder:text-slate-500 pr-12 transition-all focus:bg-background"
+                  className="h-11 rounded-[14px] border-ui-border bg-ui-surface pr-12 text-ui-text transition-all placeholder:text-ui-muted focus-visible:ring-ui-focus"
                 />
                 <button
                   type="button"
                   onClick={onTogglePasswordVisibility}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ui-muted transition-colors hover:text-ui-text"
                   aria-label={
                     showPasswordField ? "Hide password" : "Show password"
                   }
@@ -589,7 +611,7 @@ export function ManageDeckAccessSection({
             <div className="space-y-2 mt-4">
               <Label
                 htmlFor="expiry"
-                className="text-xs font-semibold text-slate-300"
+                className="text-xs font-semibold text-ui-text"
               >
                 Expiry Date
               </Label>
@@ -599,12 +621,14 @@ export function ManageDeckAccessSection({
                 value={expiresAt}
                 onChange={(e) => onExpiresAtChange(e.target.value)}
                 min={today}
-                className="h-11 rounded-md border-white/10 bg-surface-lowest focus-visible:ring-1 focus-visible:ring-deckly-primary text-white transition-all focus:bg-background [color-scheme:dark]"
+                className="h-11 rounded-[14px] border-ui-border bg-ui-surface text-ui-text transition-all focus-visible:ring-ui-focus"
               />
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {children}
     </div>
   );
 }
@@ -638,11 +662,11 @@ export function ManageDeckFeedbackSection({
                 {progress}
               </span>
             </div>
-            <span className="text-xs font-semibold text-slate-500">
+            <span className="text-xs font-semibold text-ui-muted">
               {progressPercent}%
             </span>
           </div>
-          <div className="relative h-1.5 w-full bg-[#222] rounded-full overflow-hidden">
+          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-ui-border">
             <motion.div
               className="absolute top-0 left-0 h-full bg-deckly-primary"
               initial={{ width: 0 }}
@@ -659,7 +683,7 @@ export function ManageDeckFeedbackSection({
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
-          className="flex items-center gap-3 bg-red-500/10 p-4 rounded-md border border-red-500/20 text-red-500 mt-4"
+          className="mt-4 flex items-center gap-3 rounded-[14px] border border-ui-destructive/20 bg-ui-destructive/10 p-4 text-ui-destructive"
         >
           <AlertCircle size={18} className="shrink-0" />
           <span className="text-sm font-medium">{error}</span>
@@ -683,17 +707,17 @@ export function ManageDeckActionsSection({
   onCancel,
 }: ActionsSectionProps) {
   return (
-    <div className="flex flex-col gap-3 pt-6 border-t border-white/5">
+    <div className="flex flex-col gap-3 border-t border-ui-border pt-6">
       <Button
         id="tour-upload-finalize"
         type="submit"
         disabled={loading}
         aria-busy={loading}
-        className="h-12 rounded-md bg-deckly-primary hover:bg-deckly-primary/90 text-slate-950 font-semibold text-sm transition-all"
+        className="h-12 rounded-[14px] bg-ui-primary text-sm font-semibold text-ui-primary-text transition-opacity hover:opacity-90"
       >
         {loading ? (
           <div className="flex items-center gap-2">
-            <Loader2 size={16} className="animate-spin text-slate-950" />
+            <Loader2 size={16} className="animate-spin" />
             Syncing Data...
           </div>
         ) : (
@@ -707,7 +731,7 @@ export function ManageDeckActionsSection({
       <button
         type="button"
         onClick={onCancel}
-        className="w-full h-11 text-slate-400 hover:text-deckly-primary hover:bg-deckly-primary/5 hover:border-deckly-primary/20 font-medium text-sm rounded-md transition-all flex items-center justify-center border border-white/5"
+        className="flex h-11 w-full items-center justify-center rounded-[14px] border border-ui-border text-sm font-medium text-ui-muted transition-all hover:border-ui-primary/30 hover:bg-ui-subtle hover:text-ui-primary"
       >
         <ArrowLeft size={16} className="mr-2" />
         {returnToRoom ? "Return to Data Room" : "Return to Assets"}

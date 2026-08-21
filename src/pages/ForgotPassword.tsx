@@ -11,10 +11,12 @@ import {
   requestPasswordResetEmail,
 } from "../services/passwordService";
 import { getPrefilledPasswordResetEmail } from "../utils/passwordResetNavigation";
+import { useTheme } from "../contexts/ThemeContext";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function ForgotPassword() {
+  const { theme } = useTheme();
   const location = useLocation();
   const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
   const captchaRequired = import.meta.env.PROD;
@@ -94,26 +96,26 @@ export default function ForgotPassword() {
   };
 
   return (
-    <main className="min-h-screen bg-deckly-background flex items-center justify-center p-6">
-      <section className="w-full max-w-md border border-border bg-surface-low p-6 md:p-8 space-y-6">
+    <main className="flex min-h-screen items-center justify-center bg-ui-canvas p-6 text-ui-text">
+      <section className="w-full max-w-md space-y-6 rounded-card border border-ui-border bg-ui-surface p-6 shadow-surface md:p-8">
         <div className="space-y-2">
           <Link
             to="/login"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-deckly-primary transition-colors"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-ui-muted transition-colors hover:text-ui-primary"
           >
             <ArrowLeft size={14} /> Back to sign in
           </Link>
-          <h1 className="text-2xl font-bold text-white">Reset your password</h1>
-          <p className="text-sm text-slate-400 leading-relaxed">
+          <h1 className="text-2xl font-bold text-ui-text">Reset your password</h1>
+          <p className="text-sm text-ui-muted leading-relaxed">
             Enter your email and we&apos;ll send instructions to reset your password.
           </p>
         </div>
 
         {submitted ? (
           <div className="space-y-5">
-            <div className="border border-deckly-primary/30 bg-deckly-primary/10 p-4 flex gap-3">
-              <CheckCircle2 className="text-deckly-primary shrink-0" size={20} />
-              <p className="text-sm text-slate-200 leading-relaxed">
+            <div className="flex gap-3 rounded-sm border border-ui-primary/30 bg-ui-primary/10 p-4">
+              <CheckCircle2 className="shrink-0 text-ui-primary" size={20} />
+              <p className="text-sm text-ui-text leading-relaxed">
                 If an account exists for this email, password reset instructions are on their way.
               </p>
             </div>
@@ -180,7 +182,7 @@ export default function ForgotPassword() {
               onSuccess={setCaptchaToken}
               onExpire={() => setCaptchaToken(null)}
               onError={() => setCaptchaToken(null)}
-              options={{ theme: "dark" }}
+              options={{ theme }}
             />
           </div>
         )}

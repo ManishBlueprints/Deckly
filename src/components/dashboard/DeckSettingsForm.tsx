@@ -8,7 +8,10 @@ import { supabase } from "../../services/supabase";
 import { Deck } from "../../types";
 import { normalizeSlug } from "../../utils/slug";
 import { useAuth } from "../../contexts/AuthContext";
-import { processPdfToImages as processDeckPdfToImages } from "../../workflows/deckProcessing";
+import {
+  MAX_DECK_PAGES,
+  processPdfToImages as processDeckPdfToImages,
+} from "../../workflows/deckProcessing";
 import { extractStoragePath } from "../../services/deckService.shared";
 
 // Sub-components
@@ -17,9 +20,10 @@ import { AccessProtectionSection } from "./form-sections/AccessProtectionSection
 import { WatermarkSettingsSection } from "./form-sections/WatermarkSettingsSection";
 import { DangerZoneSection } from "./form-sections/DangerZoneSection";
 import { Button } from "../ui/button";
-import { Save } from "lucide-react";
+import { AlertCircle, Save } from "lucide-react";
 import { TierUpsellModal } from "./TierUpsellModal";
 import { useTierFeatureAccess } from "../../hooks/useTierEntitlements";
+import { TIER_CONFIG, type Tier } from "../../constants/tiers";
 
 interface DeckSettingsFormProps {
   deck: Deck;
@@ -104,9 +108,10 @@ export function DeckSettingsForm({
     setUploadProgress("Initializing PDF...");
 
     try {
-      return await processDeckPdfToImages(pdfFile, {
+      const assets = await processDeckPdfToImages(pdfFile, {
         scale: 1.5,
         quality: 0.8,
+        maxPages: MAX_DECK_PAGES,
         onProgress: (current: number, total: number) => {
           // Guard against divide-by-zero and clamp current to valid range
           const clampedCurrent = Math.max(0, Math.min(current, total));
@@ -116,6 +121,7 @@ export function DeckSettingsForm({
           setCompletionPercentage(percentage);
         },
       });
+      return assets;
     } catch (err) {
       console.error("PDF Processing error:", err);
       const msg = err instanceof Error ? err.message : "Failed to process PDF";
@@ -150,6 +156,7 @@ export function DeckSettingsForm({
       let finalFileUrl = deck.file_url;
       let finalPages = deck.pages;
       let fileSize = deck.file_size;
+      let pageCount = deck.page_count ?? null;
       const finalViewPassword = requirePassword
         ? viewPassword.trim() || null
         : null;
@@ -191,6 +198,7 @@ export function DeckSettingsForm({
           page_number: idx + 1,
           links: imageAssets[idx]?.links || [],
         }));
+        pageCount = finalPages.length;
       }
 
       const updates: Partial<Deck> = {
@@ -199,6 +207,7 @@ export function DeckSettingsForm({
         file_url: finalFileUrl,
         pages: finalPages,
         file_size: fileSize,
+        page_count: pageCount,
         ...(newFile ? { extracted_text: null } : {}),
         require_email: requireEmail,
         require_password: requirePassword,
@@ -220,7 +229,7 @@ export function DeckSettingsForm({
         });
       }
 
-      const shouldGenerateWatermarkedDownload = watermarkEnabled &&
+      const shouldQueueWatermarkedDownload = watermarkEnabled &&
         (newFile?.type === "application/pdf" || (!newFile && (!deck.file_type || deck.file_type === "pdf"))) &&
         (
           Boolean(newFile) ||
@@ -228,21 +237,15 @@ export function DeckSettingsForm({
           watermarkText.trim() !== (deck.watermark_text || "").trim() ||
           deck.watermark_status !== "ready"
         );
-      let watermarkGenerationError: unknown = null;
-      let resultingWatermarkStatus = updated.watermark_status || watermarkStatus;
-      if (shouldGenerateWatermarkedDownload) {
-        setUploadProgress("Preparing watermarked download...");
-        setWatermarkStatus("processing");
-        try {
-          await deckService.generateWatermarkedDeck(deck.id);
-          setWatermarkStatus("ready");
-          resultingWatermarkStatus = "ready";
-        } catch (watermarkError) {
-          console.error("Watermark generation failed after deck settings update:", watermarkError);
-          watermarkGenerationError = watermarkError;
-          setWatermarkStatus("failed");
-          resultingWatermarkStatus = "failed";
-        }
+      let resultingWatermarkStatus = !watermarkEnabled
+        ? "disabled"
+        : updated.watermark_status || watermarkStatus;
+      if (shouldQueueWatermarkedDownload) {
+        // The deck update trigger writes the durable watermark outbox row in
+        // the same transaction. Do not await provider work in the form.
+        setUploadProgress("Preparing protected download in the background...");
+        setWatermarkStatus("pending");
+        resultingWatermarkStatus = "pending";
       }
 
       // Feature: Updating document replaces the physical storage blob but keeps UI intact (no slug change).
@@ -283,12 +286,6 @@ export function DeckSettingsForm({
         ...updated,
         watermark_status: resultingWatermarkStatus,
       });
-      if (watermarkGenerationError) {
-        setError("Changes were saved, but the watermark could not be prepared. Retry watermark before sharing a download.");
-        setUploadProgress("");
-        setNewFile(null);
-        return;
-      }
       setUploadProgress("Changes Synced!");
       timeoutRef.current = setTimeout(() => {
         setUploadProgress("");
@@ -329,6 +326,16 @@ export function DeckSettingsForm({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
+      const persistedTier = profile?.tier;
+      const tier = persistedTier && Object.prototype.hasOwnProperty.call(TIER_CONFIG, persistedTier)
+        ? persistedTier as Tier
+        : "FREE";
+      const maxBytes = TIER_CONFIG[tier].maxViewableDocumentSizeMB * 1024 * 1024;
+      if (file.size > maxBytes) {
+        setError(`This plan supports viewable PDFs up to ${TIER_CONFIG[tier].maxViewableDocumentSizeMB} MB.`);
+        e.target.value = "";
+        return;
+      }
       setNewFile(file);
     } else if (file) {
       alert("Please select a valid PDF file.");
@@ -368,44 +375,46 @@ export function DeckSettingsForm({
         allowDownload={allowDownload}
         setAllowDownload={setAllowDownload}
         canUseAccessControls={accessControls.access.state === "available"}
+        accessControlsLoading={accessControls.isLoading}
         onAccessUpsell={() =>
           openUpsell("Email capture, password protection, and expiry")
         }
         canUseDownloadControls={downloadControls.access.state === "available"}
+        downloadControlsLoading={downloadControls.isLoading}
         onDownloadUpsell={() => openUpsell("Download controls")}
         viewPassword={viewPassword}
         setViewPassword={setViewPassword}
-      />
-
-      <WatermarkSettingsSection
-        enabled={watermarkEnabled}
-        text={watermarkText}
-        status={watermarkStatus}
-        isPdf={newFile ? newFile.type === "application/pdf" : (!deck.file_type || deck.file_type === "pdf")}
-        canUseWatermarking={watermarkControls.access.state === "available"}
-        onEnabledChange={setWatermarkEnabled}
-        onTextChange={setWatermarkText}
-        onUpsell={() => openUpsell("Deck watermarking")}
-        onRetry={async () => {
-          setError(null);
-          setIsSaving(true);
-          setUploadProgress("Preparing watermarked download...");
-          setWatermarkStatus("processing");
-          try {
-            await deckService.generateWatermarkedDeck(deck.id);
-            setWatermarkStatus("ready");
-            onUpdate({ ...deck, watermark_status: "ready" });
-          } catch (watermarkError) {
-            console.error("Watermark retry failed:", watermarkError);
-            setWatermarkStatus("failed");
-            setError("The watermark could not be prepared. Please retry.");
-          } finally {
-            setIsSaving(false);
-            setUploadProgress("");
-          }
-        }}
-        isRetrying={watermarkStatus === "processing"}
-      />
+      >
+        <WatermarkSettingsSection
+          embedded
+          enabled={watermarkEnabled}
+          text={watermarkText}
+          status={watermarkStatus}
+          isPdf={newFile ? newFile.type === "application/pdf" : (!deck.file_type || deck.file_type === "pdf")}
+          canUseWatermarking={watermarkControls.isLoading || watermarkControls.access.state === "available"}
+          onEnabledChange={setWatermarkEnabled}
+          onTextChange={setWatermarkText}
+          onUpsell={() => openUpsell("Deck watermarking")}
+          onRetry={async () => {
+            setError(null);
+            setIsSaving(true);
+            setUploadProgress("Retrying protected download...");
+            setWatermarkStatus("pending");
+            try {
+              await deckService.generateWatermarkedDeck(deck.id);
+              onUpdate({ ...deck, watermark_status: "pending" });
+            } catch (watermarkError) {
+              console.error("Watermark retry failed:", watermarkError);
+              setWatermarkStatus("failed");
+              setError("The watermark could not be prepared. Please retry.");
+            } finally {
+              setIsSaving(false);
+              setUploadProgress("");
+            }
+          }}
+          isRetrying={watermarkStatus === "processing"}
+        />
+      </AccessProtectionSection>
 
       <div className="flex justify-end pt-6 mt-6 border-t border-white/5">
         {isProcessing && (
@@ -426,7 +435,7 @@ export function DeckSettingsForm({
         )}
         {error && !isProcessing && (
           <div className="flex-1 mr-6 p-3 bg-red-500/10 border border-red-500/20 rounded text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">error</span>
+            <AlertCircle size={14} />
             {error}
           </div>
         )}

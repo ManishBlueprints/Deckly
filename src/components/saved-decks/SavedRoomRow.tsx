@@ -1,16 +1,12 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LibraryFolder, LibraryTag, SavedDataRoomOrganized } from "../../types";
-import { cn } from "../../utils/cn";
 import { getDataRoomPath } from "../../utils/url";
 import { useAuth } from "../../contexts/AuthContext";
-import { TagChip } from "./TagChip";
 import { LibraryActionMenu } from "./LibraryActionMenu";
 import { SavedItemNoteCard } from "./SavedItemNoteCard";
+import { SavedLibraryItemRow } from "./SavedLibraryItemRow";
 import {
   useDataRoomNotes,
   useSaveDataRoomNoteMutation,
@@ -203,80 +199,18 @@ export const SavedRoomRow = memo(function SavedRoomRow({
     : null;
 
   return (
-    <motion.div
-      className={cn(
-        "bg-surface-card border border-white/5 p-6 flex flex-col md:flex-row items-center gap-6 group hover:border-[#54e98a]/20 transition-all",
-        unsaveMutation.isPending && "opacity-50 pointer-events-none",
-      )}
-    >
-      <div className="w-full flex flex-col xl:flex-row xl:items-center gap-4 sm:gap-5">
-        <div className="hidden md:block shrink-0 text-[#bbcbbb]/10 group-hover:text-[#bbcbbb]/30 transition-colors pointer-events-none">
-          <GripVertical size={20} />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <Link
-                  to={savedRoomHref ?? "#"}
-                  className="text-lg font-headline font-bold text-[#e5e2e1] hover:text-[#54e98a] transition-colors truncate"
-                >
-                  {room.title}
-                </Link>
-                <span className="text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-1 border border-white/10 text-[#bbcbbb]/40">
-                  Saved Room
-                </span>
-                {room.is_deleted && (
-                  <span className="text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-1 border border-amber-500/30 text-amber-400">
-                    Deleted
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {effectiveHandle && (
-                  <>
-                    <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
-                      {effectiveHandle}
-                    </span>
-                    <span className="w-1 h-1 bg-[#bbcbbb]/10 rounded-full" />
-                  </>
-                )}
-                <span className="text-[10px] font-bold uppercase text-[#bbcbbb]/30 tracking-widest">
-                  Saved {savedDateStr}
-                </span>
-                {currentFolder && (
-                  <>
-                    <span className="w-1 h-1 bg-[#bbcbbb]/10 rounded-full" />
-                    <span className="text-[10px] font-bold uppercase text-[#54e98a] tracking-widest">
-                      Folder {currentFolder.name}
-                    </span>
-                  </>
-                )}
-              </div>
-              {matchedTagNames.length > 0 && (
-                <p className="mt-2 text-[11px] text-[#54e98a] leading-relaxed">
-                  Matched by tag{matchedTagNames.length > 1 ? "s" : ""}:{" "}
-                  {matchedTagNames.slice(0, 3).join(", ")}
-                  {matchedTagNames.length > 3
-                    ? ` +${matchedTagNames.length - 3} more`
-                    : ""}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {room.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {room.tags.map((tag) => (
-                <TagChip key={tag.id} tag={tag} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <SavedItemNoteCard
+    <SavedLibraryItemRow
+      title={room.title}
+      href={savedRoomHref}
+      creator={effectiveHandle || "Unknown owner"}
+      type="Room"
+      folder={currentFolder}
+      tags={room.tags}
+      savedDateLabel={savedDateStr}
+      matchedTagNames={matchedTagNames}
+      unavailable={Boolean(room.is_deleted)}
+      className={unsaveMutation.isPending ? "pointer-events-none opacity-50" : undefined}
+      note={<SavedItemNoteCard
           note={note}
           isEditing={isEditingNote}
           isSaving={isSavingNote}
@@ -287,10 +221,9 @@ export const SavedRoomRow = memo(function SavedRoomRow({
           onSave={handleNoteSave}
           onDiscard={handleNoteDiscard}
           onKeyDown={handleNoteKeyDown}
-        />
-
-        <div className="shrink-0 flex items-center gap-2 justify-end self-start xl:self-auto">
-          <LibraryActionMenu
+          compact
+        />}
+      actions={<LibraryActionMenu
             item={{
               title: room.title,
               folder_id: room.folder_id,
@@ -309,9 +242,7 @@ export const SavedRoomRow = memo(function SavedRoomRow({
             onMoveToFolder={(folderId) => moveFolderMutation.mutate(folderId)}
             onUnsave={() => unsaveMutation.mutate()}
           />
-        </div>
-
-      </div>
-    </motion.div>
+      }
+    />
   );
 });

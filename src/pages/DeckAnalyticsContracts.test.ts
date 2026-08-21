@@ -17,4 +17,10 @@ describe("DeckAnalytics link analytics states", () => {
     expect(pageSource).toContain("linkStats.length === 0 ? (");
     expect(pageSource).toContain("refetch: refetchLinkStats");
   });
+
+  it("uses a guarded downloader list for download activity", () => {
+    expect(pageSource).toContain("const downloaders = downloadAnalytics?.downloaders ?? [];");
+    expect(pageSource).toContain("downloaders.length === 0 ? (");
+    expect(pageSource).toContain("downloaders.map((downloader, index) => (");
+  });
 });

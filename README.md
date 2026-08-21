@@ -1,187 +1,146 @@
-# 🚀 Deckly | Easy Pitchdeck Workspace
+<p align="center">
+  <a href="https://deckly.space">
+    <img src="src/assets/Deckly.png" alt="Deckly logo" width="96" />
+  </a>
+</p>
 
-### A shared deck workspace for founders and investors (https://deckly.space)
+<h1 align="center">Deckly</h1>
 
-**Deckly** is an open-source pitch deck workspace built for both founders and investors. Founders can share and update decks effortlessly, while investors get a clean system to manage, review, and remember what matters. Designed for speed, privacy, and simplicity.
+<p align="center">
+  <strong>The open-source pitch deck workspace for founders and investors.</strong>
+</p>
 
----
+<p align="center">
+  Share investor-ready decks, protect sensitive documents, and understand engagement—all from one focused workspace.
+</p>
 
-## Key Features
+<p align="center">
+  <a href="https://deckly.space">Explore Deckly</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/ManishBlueprints/Deckly">GitHub</a>
+</p>
 
-- **Smooth, App-Like Deck Viewing**  
-  A custom slide-based viewer that turns static PDFs into fast, responsive experiences with a native-app feel on any device.
+<p align="center">
+  <a href="https://github.com/ManishBlueprints/Deckly/actions/workflows/ci.yml"><img src="https://github.com/ManishBlueprints/Deckly/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="AGPL-3.0 license" /></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D24-339933?logo=node.js&logoColor=white" alt="Node.js 24 or newer" />
+  <a href="https://github.com/ManishBlueprints/Deckly/stargazers"><img src="https://img.shields.io/github/stars/ManishBlueprints/Deckly?style=flat&logo=github" alt="GitHub stars" /></a>
+</p>
 
-- **Client-Side Rendering**  
-  Decks are processed directly in the browser into high-resolution slides, reducing backend load and improving privacy and speed.
+<p align="center">
+  <img src="src/assets/screen.png" alt="Deckly dashboard showing pitch deck engagement analytics" width="100%" />
+</p>
 
-- **Same-Link Deck Updates**  
-  Replace or update your pitch deck while keeping the **same shareable link** — no need to resend links after small fixes or iterations.
+## Why Deckly?
 
-- **Data Rooms (Multiple Decks)**  
-  Group related decks into data rooms for structured sharing during fundraising or reviews.
+Deckly gives founders a polished, secure way to share fundraising materials and gives investors the context they need to evaluate them. Keep a stable link while decks evolve, organize related documents into data rooms, and turn viewer activity into actionable signals.
 
-- **Link Expiration & Access Control**  
-  Set expiration dates, disable downloads, and control how your deck is accessed.
+## Features
 
-- **One-Click Sharing**  
-  Instant share links with clipboard feedback for a frictionless workflow.
+| | Feature | What it does |
+| --- | --- | --- |
+| 📤 | **Share without resend cycles** | Update a deck behind the same link, so the latest version is always available. |
+| 🗂️ | **Purpose-built data rooms** | Group decks and supporting materials for structured fundraising or review workflows. |
+| 🔐 | **Access controls** | Protect material with password gates, expiry dates, download controls, and optional email capture. |
+| 📈 | **Engagement analytics** | See views, time spent, slide-level drop-offs, saves, and revisit signals. |
+| ✨ | **Investor-focused AI summaries** | Generate concise summaries to help reviewers understand a deck faster. |
+| 📝 | **Private investor workspace** | Save decks, add notes, tag startups, and return to opportunities with full context. |
+| 📱 | **Fast everywhere** | Browse responsive, app-like slide viewing experiences on desktop and mobile. |
+| 🛡️ | **Privacy-first foundation** | Use client-side PDF rendering, minimal data collection, and row-level security controls. |
 
-- **Investor-Friendly Experience**  
-  Investors can save decks, add private notes, tag startups, and revisit decks without losing context.
+## How it works
 
-- **AI-Powered Deck Summaries**  
-  Automatically generate concise, investor-focused summaries to quickly understand what a deck is about.
+1. **Upload and organize** your pitch decks and supporting material.
+2. **Share a protected link** or assemble a data room for a fundraising process.
+3. **Track engagement** to understand which viewers and slides are attracting attention.
+4. **Iterate confidently** by updating the document without changing its share URL.
 
-- **Built-in Analytics**  
-  Track deck engagement, slide drop-offs, and revisit signals using PostHog — with configurable analytics retention.
+## Tech stack
 
-- **Privacy-First by Design**  
-  No forced email capture, optional anonymous viewing, and minimal data collection by default.
+- **Frontend:** React 19, Vite, and TypeScript
+- **UI:** Tailwind CSS, shadcn/ui, and Radix UI
+- **Backend:** Supabase Auth, PostgreSQL, Row Level Security, Storage, and Edge Functions
+- **Data fetching:** TanStack Query
+- **Document processing:** pdf.js in the browser and CloudConvert for supported office documents
+- **Storage and delivery:** Cloudflare R2
+- **Observability:** PostHog and Sentry
 
-- **Mobile-First UI**  
-  Native app feel with bottom navigation and responsive dashboard layouts, optimized for founders on the move.
-
-- **Secure Account Deletion**  
-  Permanent and recursive data purging ensures all storage assets and database records are permanently wiped upon account closure.
-
----
-
-## 🛠️ Tech Stack
-
-- **Framework**: [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
-- **Backend**: [Supabase](https://supabase.com/) (PostgreSQL + RLS + Storage)
-- **Data Fetching**: [TanStack Query v5](https://tanstack.com/query/latest)
-- **PDF Engine**: [pdf.js](https://mozilla.github.io/pdf.js/) (Client-side rendering)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)
-- **Analytics**: [PostHog](https://posthog.com/)
-
----
-
-## 📁 Project Architecture
-
-```text
-src/
-├── components/     # Shared UI plus feature-facing dashboard/viewer sections
-├── contexts/       # Auth, Tier Gating, and Branding state
-├── hooks/          # Query hooks and workflow hooks
-├── pages/          # Route containers like Viewer, DataRoomViewer, ManageDeck
-├── services/       # Composed service facade + focused service modules
-├── workflows/      # Shared document/deck processing flows
-└── utils/          # URL generation, resilience, slug helpers
-```
-
-Recent internal cleanup moved the repo toward clearer boundaries:
-
-- `ManageDeck` now uses a workflow hook and split presentational sections
-- shared PDF/document processing lives in `src/workflows/deckProcessing.ts`
-- `deckService` is a composed facade over storage, branding, and library modules
-- auth/session lookup is being standardized through shared service helpers
-
-Whether you want to self-host your own private Data Room or contribute to the next generation of founder tools, the code is yours to explore, modify, and deploy under the **GNU AGPL v3**.
-
-## 📜 License
-
-Deckly is licensed under the **GNU Affero General Public License v3 (AGPL-3.0)**.
-
-### Section 13: Network Interaction & Source Distribution
-
-> [!IMPORTANT]
-> Because Deckly is licensed under the AGPL, **Section 13 (Remote Network Interaction)** is in effect. If you modify the software and run it on a server for other users to interact with over a network, you **must** provide those users with an opportunity to receive the Corresponding Source of your modified version.
-
-#### How to provide "Corresponding Source":
-
-1.  **Keep the Source Link:** We recommend keeping a "View Source" or "Source Code" link in the footer of your deployed application that points to your public repository (e.g., on GitHub or GitLab).
-2.  **Facilitate Access:** The source code must be provided through a standard or customary means of facilitating copying of software, at no charge.
-3.  **Complete Source:** The source you provide must include all modifications, scripts, and interface definition files needed to generate, install, and run the version you have deployed.
-
-For more details, see the full [LICENSE](./LICENSE) file.
-
-## 🚀 Getting Started
+## Quick start
 
 ### Prerequisites
 
-- **Node.js**: v20+
-- **Docker**: Required for local Supabase development environment.
-- **Supabase CLI**: (Optional) Use `npx supabase` or install globally.
+- Node.js 24 or newer
+- Docker, for local Supabase development
+- Supabase CLI, available through `npx supabase` or a global installation
 
-### Canonical Supabase Files
-
-Deckly keeps the install surface intentionally small:
-
-- [`supabase/migrations/`](./supabase/migrations) is the canonical, executable database history that Supabase replays.
-- [`supabase/schema.sql`](./supabase/schema.sql) is a human-readable reference only; provision fresh environments through migrations rather than applying it directly.
-- [`supabase/seed.sql`](./supabase/seed.sql) stays minimal and non-production.
-- [`supabase/bootstrap/verify.sql`](./supabase/bootstrap/verify.sql) verifies a fresh install.
-- [`scripts/bootstrap-supabase.mjs`](./scripts/bootstrap-supabase.mjs) is the one command entrypoint.
-
-### Fresh Install
-
-1. **Clone and install**
-
-   ```bash
-   git clone https://github.com/ManishBlueprints/Deckly.git
-   cd Deckly
-   npm install
-   cp .env.example .env.local
-   ```
-
-2. **Configure app env**
-
-   Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for your target project.
-   For local development they usually point at:
-
-   ```bash
-   VITE_SUPABASE_URL=http://127.0.0.1:54321
-   VITE_SUPABASE_PUBLISHABLE_KEY=your_local_publishable_key
-   ```
-
-3. **Bootstrap Supabase**
-
-   - Local stack:
-
-     ```bash
-     npm run supabase:bootstrap -- local
-     ```
-
-   - Fresh linked Supabase project:
-
-     ```bash
-     npx supabase login
-     npm run supabase:bootstrap -- remote --project-ref YOUR_PROJECT_REF
-     ```
-
-     Optional but recommended:
-
-     ```bash
-     SUPABASE_DB_PASSWORD=your_database_password
-     SUPABASE_ADMIN_EMAIL=you@yourcompany.com
-     ```
-
-   The bootstrap script will link the project, push the migrations, seed the database, and run a verification query.
-
-### Local Development
+### 1. Clone and install
 
 ```bash
-npm run dev
+git clone https://github.com/ManishBlueprints/Deckly.git
+cd Deckly
+npm install
+cp .env.example .env.local
 ```
 
-If you want to refresh the local database again later, rerun:
+### 2. Configure the app
+
+At minimum, add your Supabase project details to `.env.local`:
+
+```bash
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_PUBLISHABLE_KEY=your_local_publishable_key
+```
+
+See [`.env.example`](.env.example) for optional analytics, storage, document-processing, email, and billing configuration. Never commit real secrets.
+
+### 3. Bootstrap Supabase
+
+For a local stack:
 
 ```bash
 npm run supabase:bootstrap -- local
 ```
 
-### Quality Checks
+For a fresh linked Supabase project:
+
+```bash
+npx supabase login
+npm run supabase:bootstrap -- remote --project-ref YOUR_PROJECT_REF
+```
+
+The bootstrap command links the target project, applies migrations, loads the minimal seed data, and verifies the installation. Provide `SUPABASE_DB_PASSWORD` and optionally `SUPABASE_ADMIN_EMAIL` when bootstrapping a remote project.
+
+### 4. Start developing
+
+```bash
+npm run dev
+```
+
+Open the Vite URL printed in your terminal, normally `http://localhost:5173`.
+
+## Self-hosting and deployment
+
+Deckly is designed to run in your own Supabase project. The executable database history lives in [`supabase/migrations/`](supabase/migrations/); [`supabase/schema.sql`](supabase/schema.sql) is a readable reference, not a provisioning script.
+
+For a production deployment:
+
+1. Create and bootstrap a Supabase project with the remote command above.
+2. Configure the browser-safe variables and required Edge Function secrets from [`.env.example`](.env.example).
+3. Configure Cloudflare R2 and CloudConvert if you need private asset delivery or office-document conversion.
+4. Build and deploy the Vite app through your preferred static host.
+
+## Quality checks
+
+Run the same checks used by continuous integration before opening a pull request:
 
 ```bash
 npm run type-check
 npm run lint
 npm test
+npm run build
 ```
 
-### Docker Development
-
-The project includes a pre-configured Docker setup using **Node 20-alpine**.
+### Docker development
 
 ```bash
 docker-compose up
@@ -189,22 +148,16 @@ docker-compose up
 
 The application will be available at `http://localhost:5173`.
 
-### Open-Source Self-Hosting
+## Contributing
 
-If you are replicating Deckly in your own Supabase account:
+Contributions are welcome. Please open an issue to discuss substantial changes, fork the repository, create a focused branch, and submit a pull request using the included template. Before submitting, run the [quality checks](#quality-checks) and describe how you tested the change.
 
-1. Run `npx supabase login`.
-2. Create a fresh Supabase project.
-3. Bootstrap it with `npm run supabase:bootstrap -- remote --project-ref YOUR_PROJECT_REF`.
-4. Set the required app env vars in `.env.local`.
-5. Start the app with `npm run dev`.
+## License
 
-If you want an initial admin email, pass `SUPABASE_ADMIN_EMAIL` during bootstrap or insert your own row into `public.admin_emails` after setup.
+Deckly is available under the [GNU Affero General Public License v3.0](LICENSE).
+
+Under AGPL-3.0 Section 13, if you modify Deckly and make that modified version available for users to interact with over a network, you must offer those users access to the corresponding source code of your version. A visible source link in your deployed application is a practical way to meet this obligation.
 
 ---
 
-## 📖 Extended Documentation
-
-Coming Soon
-
-Built with ❤️ for the startup community. Star this repo if you find it useful.
+Built for founders and investors who want a better way to share the story behind a company.

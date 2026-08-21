@@ -25,7 +25,7 @@ export const RestartTourButton: React.FC = () => {
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
       onClick={handleRestart}
-      className="fixed bottom-8 right-24 z-[95] flex items-center gap-2 px-4 py-2.5 bg-surface-card border border-white/5 text-slate-400 hover:text-white transition-all shadow-2xl rounded-none group overflow-hidden"
+      className="fixed bottom-8 right-24 z-[var(--ui-layer-tour)] flex items-center gap-2 px-4 py-2.5 bg-surface-card border border-white/5 text-slate-400 hover:text-white transition-all shadow-2xl rounded-none group overflow-hidden"
       title="Restart Tutorial"
     >
       <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />

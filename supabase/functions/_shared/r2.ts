@@ -184,6 +184,7 @@ async function presignUrl(
   options: {
     expiresInSeconds?: number;
     query?: Record<string, string | number | boolean | undefined>;
+    headers?: Record<string, string | undefined>;
   } = {},
 ): Promise<string> {
   const config = getR2Config();
@@ -210,21 +211,33 @@ async function presignUrl(
   url.searchParams.set("X-Amz-Credential", `${config.accessKeyId}/${credentialScope}`);
   url.searchParams.set("X-Amz-Date", amzDate);
   url.searchParams.set("X-Amz-Expires", String(expiresInSeconds));
-  url.searchParams.set("X-Amz-SignedHeaders", "host");
+  const canonicalHeaderEntries = Object.entries({
+    host: url.host,
+    ...Object.fromEntries(
+      Object.entries(options.headers ?? {})
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => [key.toLowerCase(), value!.trim().replace(/\s+/g, " ")]),
+    ),
+  }).sort(([left], [right]) => left.localeCompare(right));
+  const signedHeaders = canonicalHeaderEntries.map(([key]) => key).join(";");
+  const canonicalHeaders = canonicalHeaderEntries
+    .map(([key, value]) => `${key}:${value}\n`)
+    .join("");
+
+  url.searchParams.set("X-Amz-SignedHeaders", signedHeaders);
 
   const canonicalUri = url.pathname
     .split("/")
     .map((segment) => encodePathSegment(decodeURIComponent(segment)))
     .join("/")
     .replace(/%2F/g, "/");
-  const canonicalHeaders = `host:${url.host}\n`;
   const payloadHash = "UNSIGNED-PAYLOAD";
   const canonicalRequest = [
     method.toUpperCase(),
     canonicalUri,
     canonicalQueryString(url),
     canonicalHeaders,
-    "host",
+    signedHeaders,
     payloadHash,
   ].join("\n");
 
@@ -267,6 +280,19 @@ export function presignGetUrl(
   return presignUrl("GET", bucket, key, { expiresInSeconds });
 }
 
+export function presignRangeGetUrl(
+  bucket: StorageBucket,
+  key: string,
+  endByte: number,
+  expiresInSeconds = 60,
+): Promise<string> {
+  const range = `bytes=0-${Math.max(0, Math.floor(endByte))}`;
+  return presignUrl("GET", bucket, key, {
+    expiresInSeconds,
+    headers: { range },
+  });
+}
+
 export function presignDownloadUrl(
   bucket: StorageBucket,
   key: string,
@@ -297,17 +323,30 @@ export function presignDeleteUrl(
   return presignUrl("DELETE", bucket, key, { expiresInSeconds });
 }
 
+export function presignHeadUrl(
+  bucket: StorageBucket,
+  key: string,
+  expiresInSeconds = 60,
+): Promise<string> {
+  return presignUrl("HEAD", bucket, key, { expiresInSeconds });
+}
+
 export async function uploadObject(
   bucket: StorageBucket,
   key: string,
   body: BodyInit,
-  options: { contentType?: string; expiresInSeconds?: number } = {},
+  options: {
+    contentType?: string;
+    expiresInSeconds?: number;
+    signal?: AbortSignal;
+  } = {},
 ): Promise<void> {
   const signedUrl = await presignPutUrl(bucket, key, options.expiresInSeconds);
   const response = await fetch(signedUrl, {
     method: "PUT",
     body,
     headers: options.contentType ? { "Content-Type": options.contentType } : undefined,
+    signal: options.signal,
   });
 
   if (!response.ok) {
@@ -348,6 +387,78 @@ export async function deleteObjects(
 ): Promise<void> {
   for (const key of keys) {
     await deleteObject(bucket, key);
+  }
+}
+
+export async function readObjectRange(
+  bucket: StorageBucket,
+  key: string,
+  endByte = 31,
+): Promise<Uint8Array | null> {
+  const range = `bytes=0-${Math.max(0, Math.floor(endByte))}`;
+  const signedUrl = await presignRangeGetUrl(bucket, key, endByte);
+  const response = await fetch(signedUrl, { headers: { Range: range } });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`R2 range read failed (${response.status})`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+export type StorageObjectMetadata = {
+  size: number;
+  contentType: string | null;
+  etag: string | null;
+  lastModified: string | null;
+};
+
+export async function headObject(
+  bucket: StorageBucket,
+  key: string,
+): Promise<StorageObjectMetadata | null> {
+  const signedUrl = await presignHeadUrl(bucket, key);
+  const response = await fetch(signedUrl, { method: "HEAD" });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`R2 object lookup failed (${response.status})`);
+  }
+
+  const rawContentLength = response.headers.get("content-length")?.trim();
+  const contentLength = rawContentLength && /^\d+$/.test(rawContentLength)
+    ? Number(rawContentLength)
+    : Number.NaN;
+  if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
+    throw new Error("R2 object lookup returned an invalid content length.");
+  }
+
+  return {
+    size: contentLength,
+    contentType: response.headers.get("content-type"),
+    etag: response.headers.get("etag"),
+    lastModified: response.headers.get("last-modified"),
+  };
+}
+
+export async function copyObject(
+  bucket: StorageBucket,
+  sourceKey: string,
+  destinationKey: string,
+  expiresInSeconds = 900,
+): Promise<void> {
+  const config = getR2Config();
+  const copySource = `/${storageBucketName(config, bucket)}/${encodeKey(sourceKey)}`;
+  const signedUrl = await presignUrl("PUT", bucket, destinationKey, {
+    expiresInSeconds,
+    headers: { "x-amz-copy-source": copySource },
+  });
+  const response = await fetch(signedUrl, {
+    method: "PUT",
+    headers: { "x-amz-copy-source": copySource },
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(`R2 copy failed (${response.status}): ${message.slice(0, 240)}`);
   }
 }
 

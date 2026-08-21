@@ -18,7 +18,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { cn } from "../../utils/cn";
+import { cn } from "../../lib/utils";
+
+const ROOM_DOCUMENT_ACTION_CLASS =
+  "flex size-8 shrink-0 items-center justify-center rounded-[4px] border transition-colors active:scale-95";
+
+const ROOM_DOCUMENT_TAG_ACTION_CLASS =
+  "border-ui-chart-3/25 bg-ui-chart-3/10 text-ui-chart-3 hover:border-ui-chart-3/40 hover:bg-ui-chart-3/15 hover:text-ui-chart-3";
+
+const ROOM_DOCUMENT_FOLDER_ACTION_CLASS =
+  "border-ui-info/25 bg-ui-info/10 text-ui-info hover:border-ui-info/40 hover:bg-ui-info/15 hover:text-ui-info";
 
 interface RoomDocumentListProps {
   documents: DataRoomDocument[];
@@ -96,6 +105,7 @@ export function RoomDocumentList({
           const isDragging = dragIndex === index;
           const isDragOver = dragOverIndex === index;
           const signedUrl = signedThumbnails[doc.deck_id];
+          const thumbnailUrl = signedUrl || deck?.pages?.[0]?.image_url;
           const currentTagIds = (doc.tags || []).map((tag) => tag.id);
           const matchedTagNames = documentMatchInfo[doc.id]?.matchedTagNames ?? [];
           const currentFolder =
@@ -116,49 +126,49 @@ export function RoomDocumentList({
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={() => handleDrop(index)}
               onDragEnd={handleDragEnd}
-              className={`flex items-center gap-4 px-4 py-3 rounded-md border transition-all duration-300 group ${
+              className={`group flex items-center gap-3 rounded-md border px-3 py-2.5 transition-colors ${
                 isDragging
-                  ? "opacity-40 border-primary/50 bg-[#2B2B2B]"
+                  ? "border-ui-primary/50 bg-ui-subtle opacity-40"
                   : isDragOver
-                    ? "border-white/10 bg-surface-card scale-[1.01]"
-                    : "bg-[#2B2B2B] border-white/5 hover:border-primary/30"
+                    ? "border-ui-primary bg-ui-subtle"
+                    : "border-ui-border bg-ui-surface hover:border-ui-primary/30 hover:bg-ui-subtle"
               }`}
             >
               {/* Drag handle */}
-              <div className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-deckly-primary transition-colors">
+              <div className="cursor-grab text-ui-muted transition-colors hover:text-ui-primary active:cursor-grabbing">
                 <GripVertical size={18} />
               </div>
 
               {/* Order number */}
-              <span className="text-[10px] font-semibold text-slate-500 w-6 text-center shrink-0 uppercase tracking-wider">
+              <span className="w-6 shrink-0 text-center font-mono text-[10px] font-semibold text-ui-muted">
                 {String(index + 1).padStart(2, "0")}
               </span>
 
               {/* Thumbnail */}
-              <div className="w-12 h-10 rounded-md bg-background border border-white/10 overflow-hidden shrink-0 group-hover:border-deckly-primary/30 transition-all">
-                {signedUrl || deck?.pages?.[0]?.image_url ? (
+              <div className="h-10 w-12 shrink-0 overflow-hidden rounded-md border border-ui-border bg-ui-subtle transition-colors group-hover:border-ui-primary/30">
+                {thumbnailUrl ? (
                   <img
-                    src={signedUrl || deck?.pages?.[0]?.image_url}
+                    src={thumbnailUrl}
                     alt=""
                     className="w-full h-full object-cover transition-all duration-500"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <FileText size={16} className="text-slate-700" />
+                    <FileText size={16} className="text-ui-muted" />
                   </div>
                 )}
               </div>
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-white truncate group-hover:text-deckly-primary transition-colors">
+                <p className="truncate text-xs font-semibold text-ui-text transition-colors group-hover:text-ui-primary">
                   {deck?.title || "Untitled Asset"}
                 </p>
-                <p className="text-[10px] font-medium text-slate-500 mt-0.5 whitespace-nowrap">
+                <p className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-ui-muted">
                   {deck?.pages?.length || 0} Slides
                 </p>
                 {matchedTagNames.length > 0 && (
-                  <p className="mt-1 text-[11px] text-emerald-400 leading-relaxed">
+                  <p className="mt-1 text-[11px] leading-relaxed text-ui-primary">
                     Matched by tag{matchedTagNames.length > 1 ? "s" : ""}:{" "}
                     {matchedTagNames.slice(0, 3).join(", ")}
                     {matchedTagNames.length > 3
@@ -167,8 +177,8 @@ export function RoomDocumentList({
                   </p>
                 )}
                 <div className="mt-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider">
-                  <span className="text-slate-600">Folder:</span>
-                  <span className="text-slate-300 truncate max-w-[140px]">
+                  <span className="text-ui-muted">Folder:</span>
+                  <span className="max-w-[140px] truncate text-ui-text">
                     {currentFolder?.name ?? "Unorganized"}
                   </span>
                 </div>
@@ -181,13 +191,13 @@ export function RoomDocumentList({
                       <TagChip key={tag.id} tag={tag} className="px-2 py-0.5" />
                     ))}
                     {doc.tags.length > 3 && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                      <span className="text-[10px] font-semibold text-ui-muted">
                         +{doc.tags.length - 3} More
                       </span>
                     )}
                   </div>
                 ) : (
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                  <span className="text-[10px] font-semibold text-ui-muted">
                     No Tags
                   </span>
                 )}
@@ -199,24 +209,28 @@ export function RoomDocumentList({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
-                        className="w-8 h-8 flex items-center justify-center bg-background border border-white/10 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/20 rounded-md transition-all active:scale-95"
+                        className={cn(
+                          ROOM_DOCUMENT_ACTION_CLASS,
+                          ROOM_DOCUMENT_TAG_ACTION_CLASS,
+                        )}
                         title={currentTagIds.length > 0 ? `${currentTagIds.length} tag(s) applied` : "Manage tags"}
+                        aria-label={currentTagIds.length > 0 ? `Manage tags, ${currentTagIds.length} applied` : "Manage tags"}
                       >
                         <Tag size={14} />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
-                      className="w-80 p-0 overflow-hidden border-white/10 bg-[#151515] shadow-[0_24px_80px_-20px_rgba(0,0,0,0.85)]"
+                      className="w-80 overflow-hidden border-ui-border bg-ui-elevated p-0 shadow-[var(--ui-shadow-overlay)]"
                       onEscapeKeyDown={() => setTagFilterQuery("")}
                     >
-                      <div className="border-b border-white/5 bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3">
+                      <div className="border-b border-ui-border bg-ui-subtle px-4 py-3">
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#bbcbbb]/40">
+                            <p className="text-xs font-semibold text-ui-text">
                               Apply tags
                             </p>
-                            <p className="mt-1 text-xs text-slate-400">
+                            <p className="mt-1 text-xs text-ui-muted">
                               {currentTagIds.length > 0
                                 ? `${currentTagIds.length} selected`
                                 : "Pick one or more tags"}
@@ -225,7 +239,7 @@ export function RoomDocumentList({
                           <button
                             type="button"
                             onClick={() => onUpdateDocumentTags(doc.id, [])}
-                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-300 transition-colors hover:border-white/20 hover:text-white"
+                            className="rounded-md border border-ui-border bg-ui-surface px-2.5 py-1.5 text-xs font-medium text-ui-muted transition-colors hover:bg-ui-elevated hover:text-ui-text"
                           >
                             Clear all
                           </button>
@@ -236,7 +250,7 @@ export function RoomDocumentList({
                             value={tagFilterQuery}
                             onChange={(e) => setTagFilterQuery(e.target.value)}
                             placeholder="Search tags..."
-                            className="w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-white placeholder:text-slate-500 outline-none transition focus:border-emerald-500/30 focus:ring-1 focus:ring-emerald-500/20"
+                            className="w-full rounded-md border border-ui-border bg-ui-surface px-3 py-2 text-xs text-ui-text outline-none placeholder:text-ui-muted focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/15"
                           />
                         </div>
                       </div>
@@ -244,10 +258,10 @@ export function RoomDocumentList({
                       <div className="max-h-72 overflow-y-auto p-2 custom-scrollbar">
                         {filteredTags.length === 0 ? (
                           <div className="px-3 py-8 text-center">
-                            <p className="text-sm font-medium text-slate-400">
+                            <p className="text-sm font-medium text-ui-text">
                               No tags found
                             </p>
-                            <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-slate-600">
+                            <p className="mt-1 text-xs text-ui-muted">
                               Try a different search
                             </p>
                           </div>
@@ -267,15 +281,15 @@ export function RoomDocumentList({
                                 className={cn(
                                   "flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition-all",
                                   isSelected
-                                    ? "border-emerald-500/25 bg-emerald-500/10"
-                                    : "border-transparent hover:border-white/10 hover:bg-white/[0.04]",
+                                    ? "border-ui-primary/30 bg-ui-primary/10"
+                                    : "border-transparent hover:border-ui-border hover:bg-ui-subtle",
                                 )}
                               >
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center justify-between gap-2">
                                     <TagChip tag={tag} size="md" className="shrink-0" />
                                     {isSelected && (
-                                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-400">
+                                      <span className="text-[10px] font-semibold text-ui-primary">
                                         Applied
                                       </span>
                                     )}
@@ -294,8 +308,12 @@ export function RoomDocumentList({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
-                        className="w-8 h-8 flex items-center justify-center bg-background border border-white/10 text-slate-400 hover:text-white hover:border-white/20 rounded-md transition-all active:scale-95"
+                        className={cn(
+                          ROOM_DOCUMENT_ACTION_CLASS,
+                          ROOM_DOCUMENT_FOLDER_ACTION_CLASS,
+                        )}
                         title="Move to folder"
+                        aria-label="Move to folder"
                       >
                         <FolderInput size={14} />
                       </button>
@@ -322,7 +340,7 @@ export function RoomDocumentList({
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => onRemove(doc.deck_id)}
-                        className="text-red-400 focus:text-red-400"
+                        className="text-ui-destructive focus:text-ui-destructive"
                       >
                         Remove from room
                       </DropdownMenuItem>
@@ -333,7 +351,7 @@ export function RoomDocumentList({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="w-8 h-8 flex items-center justify-center bg-background border border-white/10 text-slate-400 hover:text-white hover:border-white/20 rounded-md transition-all active:scale-95"
+                      className="flex h-8 w-8 items-center justify-center rounded-md border border-ui-border bg-ui-elevated text-ui-muted transition-colors hover:border-ui-primary/30 hover:text-ui-text"
                       title="Document actions"
                     >
                       <MoreVertical size={14} />
@@ -365,7 +383,7 @@ export function RoomDocumentList({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => onRemove(doc.deck_id)}
-                      className="text-red-400 focus:text-red-400"
+                      className="text-ui-destructive focus:text-ui-destructive"
                     >
                       Remove from data room
                     </DropdownMenuItem>

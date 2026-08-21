@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Check, Loader2, X } from "lucide-react";
 
 import { useAuth } from "../../contexts/AuthContext";
 import { useTourState } from "../../contexts/TourContext";
 import { userService } from "../../services/userService";
 import { UserProfile } from "../../types";
-import { cn } from "../../utils/cn";
+import { cn } from "../../lib/utils";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
 
 const ONBOARDING_ROLE_OPTIONS = [
   "Founder",
@@ -138,23 +138,10 @@ export function AboutYouOnboardingModal({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={canDismiss ? onClose : undefined}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-          />
-
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="relative w-full max-w-4xl bg-surface-lowest border border-border overflow-hidden shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)]"
-          >
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && canDismiss && !saving) onClose?.(); }}>
+      <DialogContent size="xl" closeOnOutsideClick={canDismiss && !saving} hideClose className="p-0">
+          <DialogTitle className="sr-only">Help us personalize your workspace</DialogTitle>
+          <DialogDescription className="sr-only">Tell us about your role and primary use case.</DialogDescription>
             <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-surface-low">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
@@ -312,9 +299,7 @@ export function AboutYouOnboardingModal({
                 </div>
               )}
             </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+      </DialogContent>
+    </Dialog>
   );
 }
