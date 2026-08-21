@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useMemo, useState, type CSSProperties } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
+import { toast } from "sonner";
 import { GlobalTag } from "../../types";
 import {
   DEFAULT_FOLDER_COLOR,
@@ -11,6 +12,9 @@ import {
 import { MAX_TAGS_PER_FOLDER } from "../../constants/folderValidation";
 import { DataRoomModalShell } from "./shared/DataRoomModalShell";
 import { ColorSwatchPicker } from "./shared/ColorSwatchPicker";
+import { useTheme } from "../../contexts/ThemeContext";
+import { asItemColorVariables, getAccessibleColorSet } from "../../utils/accessibleColor";
+import { Button } from "../ui/button";
 
 interface DataRoomFolderModalProps {
   isOpen: boolean;
@@ -35,6 +39,7 @@ export function DataRoomFolderModal({
   existingTags,
   initialData,
 }: DataRoomFolderModalProps) {
+  const { theme } = useTheme();
   const nameInputId = useId();
   const tagInputId = useId();
   const [name, setName] = useState("");
@@ -54,19 +59,6 @@ export function DataRoomFolderModal({
     setShowSuggestions(false);
     setIsSaving(false);
   }, [isOpen, initialData]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
 
   const selectedTags = useMemo(
     () => existingTags.filter((tag) => selectedTagIds.includes(tag.id)),
@@ -132,6 +124,11 @@ export function DataRoomFolderModal({
         tagIds: selectedTagIds,
       });
       onClose();
+    } catch (error) {
+      console.error("Failed to save data room folder", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save folder.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -141,14 +138,15 @@ export function DataRoomFolderModal({
     <DataRoomModalShell
       isOpen={isOpen}
       onClose={onClose}
-      panelClassName="pointer-events-auto w-full max-w-md rounded-none border border-border bg-surface-card shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] overflow-hidden"
+      ariaLabel={initialData ? "Edit folder" : "Create folder"}
+      panelClassName="w-full max-w-md rounded-lg border-ui-border bg-ui-elevated text-ui-text shadow-[var(--ui-shadow-overlay)]"
     >
-      <div className="p-8 space-y-8">
-          <div className="space-y-3">
-            <h2 className="text-2xl font-headline font-bold text-foreground tracking-tight">
+      <div className="space-y-6 p-6 sm:p-7">
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold tracking-tight text-ui-text">
               {initialData ? "Edit Folder" : "Create New Folder"}
             </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed font-medium">
+            <p className="text-sm leading-relaxed text-ui-muted">
               {initialData
                 ? "Update your collection's name, color, and tags."
                 : "Organize your investment pipeline by creating a dedicated collection for specific sectors, stages, or research themes."}
@@ -159,7 +157,7 @@ export function DataRoomFolderModal({
             <div className="space-y-2.5">
               <label
                 htmlFor={nameInputId}
-                className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1"
+                className="block text-xs font-medium text-ui-muted"
               >
                 FOLDER NAME
               </label>
@@ -170,28 +168,27 @@ export function DataRoomFolderModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Q1 FinTech Research"
-                className="w-full bg-surface-low border border-border px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all font-medium"
+                className="h-11 w-full rounded-md border border-ui-border bg-ui-surface px-3.5 text-sm text-ui-text outline-none transition-colors placeholder:text-ui-muted focus:border-ui-primary/45 focus:ring-2 focus:ring-ui-primary/15"
                 autoFocus
               />
             </div>
 
             <div className="space-y-2.5">
-              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1">
+              <div className="text-xs font-medium text-ui-muted">
                 FOLDER IDENTITY
               </div>
               <ColorSwatchPicker
                 colors={FOLDER_PICKER_COLORS}
                 value={selectedColor}
                 onChange={(value) => setSelectedColor(value as FolderColorKey)}
-                className="ml-1"
-                swatchClassName="rounded-none"
+                swatchClassName="border-ui-border"
               />
             </div>
 
             <div className="space-y-3">
               <label
                 htmlFor={tagInputId}
-                className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground block ml-1"
+                className="block text-xs font-medium text-ui-muted"
               >
                 ADD TAGS
               </label>
@@ -215,7 +212,7 @@ export function DataRoomFolderModal({
                       <button
                         type="button"
                         onClick={() => removeTag(tag.id)}
-                        className="text-[color:var(--tag-color)] opacity-50 hover:opacity-100 hover:text-red-400 transition-all"
+                        className="text-[color:var(--tag-color)] opacity-50 transition-all hover:text-ui-destructive hover:opacity-100"
                       >
                         <X size={10} strokeWidth={3} />
                       </button>
@@ -238,7 +235,7 @@ export function DataRoomFolderModal({
                   onBlur={() => setShowSuggestions(false)}
                   onKeyDown={(e) => e.key === "Enter" && addTagFromQuery()}
                   placeholder="Add more tags..."
-                  className="w-full bg-surface-low border border-border px-4 py-3.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/20 transition-all font-medium pr-10"
+                  className="h-11 w-full rounded-md border border-ui-border bg-ui-surface px-3.5 pr-10 text-sm text-ui-text outline-none transition-colors placeholder:text-ui-muted focus:border-ui-primary/45 focus:ring-2 focus:ring-ui-primary/15"
                 />
                 <button
                   type="button"
@@ -268,8 +265,8 @@ export function DataRoomFolderModal({
                           className="w-full px-4 py-2 hover:bg-surface-highest cursor-pointer flex items-center gap-2 text-left"
                         >
                           <div
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: suggestion.color }}
+                            className="h-2 w-2 rounded-full border border-[var(--item-color-border)] bg-[var(--item-color)]"
+                            style={asItemColorVariables(getAccessibleColorSet(suggestion.color, theme))}
                           />
                           <span className="text-sm font-medium text-foreground">
                             {suggestion.name}
@@ -283,28 +280,28 @@ export function DataRoomFolderModal({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-6 pt-2">
-            <button
+          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+            <Button
               type="button"
               onClick={onClose}
-              className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
+              variant="outline"
+              className="rounded-md text-xs normal-case tracking-normal"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => void handleSubmit()}
               disabled={isSaving || !name.trim()}
-              className="px-8 py-3.5 bg-primary text-primary-foreground font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-primary/90 hover:shadow-[0_0_20px_hsla(142,76%,62%,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none"
+              loading={isSaving}
+              className="rounded-md text-xs normal-case tracking-normal"
             >
-              {isSaving ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : initialData ? (
+              {initialData ? (
                 "Save Changes"
               ) : (
                 "Create Folder"
               )}
-            </button>
+            </Button>
           </div>
       </div>
     </DataRoomModalShell>

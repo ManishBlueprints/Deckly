@@ -2,11 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../services/supabase";
-import { Lock, Mail, CheckCircle2, User } from "lucide-react";
-import posthog from "posthog-js";
+import { ArrowRight, Lock, Mail, CheckCircle2, User } from "lucide-react";
 import { toast } from "sonner";
-import leftPanelBg from "../assets/Signup Left.png";
-import logo from "../assets/Deckly.png";
+import { AuthSignalPanel } from "../components/auth/AuthSignalPanel";
 import { Button } from "../components/ui/button";
 import { FormInput } from "../components/ui/form-input";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
@@ -17,6 +15,7 @@ import {
   markPendingOAuthSignup,
 } from "../services/signupAnalytics";
 import { getPrefilledSignupEmail } from "../utils/signupNavigation";
+import { analyticsFailureCode, productAnalytics } from "../services/productAnalytics";
 
 function Signup() {
   const captchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
@@ -38,7 +37,9 @@ function Signup() {
 
   useEffect(() => {
     document.title = "Sign Up | Deckly";
-    posthog.capture("user_signup_viewed");
+    productAnalytics.capture("user_signup_viewed", {
+      source_surface: "signup",
+    });
   }, []);
 
   const formatErrorMessage = (msg: string) => {
@@ -77,7 +78,10 @@ function Signup() {
     }
     setLoading(true);
     setError(null);
-    posthog.capture("user_signup_submitted", { method: "email" });
+    productAnalytics.capture("user_signup_submitted", {
+      source_surface: "signup",
+      method: "email",
+    });
 
     let shouldResetTurnstile = true;
 
@@ -113,7 +117,11 @@ function Signup() {
       const finalMessage = formatErrorMessage(friendlyMessage);
       setError(finalMessage);
       toast.error(finalMessage);
-      posthog.capture("user_signup_failed", { method: "email", error: rawMessage });
+      productAnalytics.capture("user_signup_failed", {
+        source_surface: "signup",
+        method: "email",
+        failure_code: analyticsFailureCode(err, isNetworkErrorMessage(rawMessage) ? "network_error" : "signup_failed"),
+      });
     } finally {
       setLoading(false);
       if (shouldResetTurnstile) {
@@ -125,7 +133,10 @@ function Signup() {
 
   const handleGoogleSignIn = async () => {
     markPendingOAuthSignup("google");
-    posthog.capture("user_signup_submitted", { method: "google" });
+    productAnalytics.capture("user_signup_submitted", {
+      source_surface: "signup",
+      method: "google",
+    });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -136,9 +147,10 @@ function Signup() {
       if (error) throw error;
     } catch (err: unknown) {
       clearPendingOAuthSignup();
-      posthog.capture("user_signup_failed", {
+      productAnalytics.capture("user_signup_failed", {
+        source_surface: "signup",
         method: "google",
-        error: err instanceof Error ? err.message : String(err),
+        failure_code: analyticsFailureCode(err, "oauth_failed"),
       });
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -146,7 +158,10 @@ function Signup() {
 
   const handleGitHubSignIn = async () => {
     markPendingOAuthSignup("github");
-    posthog.capture("user_signup_submitted", { method: "github" });
+    productAnalytics.capture("user_signup_submitted", {
+      source_surface: "signup",
+      method: "github",
+    });
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "github",
@@ -157,99 +172,28 @@ function Signup() {
       if (error) throw error;
     } catch (err: unknown) {
       clearPendingOAuthSignup();
-      posthog.capture("user_signup_failed", {
+      productAnalytics.capture("user_signup_failed", {
+        source_surface: "signup",
         method: "github",
-        error: err instanceof Error ? err.message : String(err),
+        failure_code: analyticsFailureCode(err, "oauth_failed"),
       });
       setError(err instanceof Error ? err.message : String(err));
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-deckly-background">
-      {/* Left Panel - Hero - Hidden on Mobile */}
-      <div className="hidden md:flex md:w-1/2 relative flex-col p-12 lg:p-20 overflow-hidden min-h-screen border-r border-[#22C55E]/20">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-80"
-          style={{ backgroundImage: `url(${leftPanelBg})` }}
-        />
-        {/* Dark Overlay */}
-        <div className="absolute inset-0 bg-black/60" />
-
-        {/* Spacer to push content to middle */}
-        <div className="flex-1" />
-
-        {/* Center Content - Logo, Headline, Paragraph */}
-        <div className="relative z-10 flex flex-col justify-center">
-          {/* DECKLY Logo */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="flex items-center gap-3 mb-10"
-          >
-            <img src={logo} alt="Deckly" className="w-10 h-10 object-contain" />
-            <span className="text-[#22C55E] text-2xl font-bold tracking-widest">
-              DECKLY
-            </span>
-          </motion.div>
-
-          {/* Headline */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <h1 className="text-4xl lg:text-6xl font-bold text-white leading-[1.1] mb-6 tracking-tight">
-              Pitchdeck
-              <br />
-              Management
-              <br />
-              Workspace
-              <br />
-              <span className="text-[#22C55E]">That Works.</span>
-            </h1>
-            <p className="text-slate-400 text-lg leading-relaxed max-w-[420px]">
-              Manage your entire deal flow in one secure workspace.
-            </p>
-          </motion.div>
-        </div>
-
-        {/* Spacer to push badges to bottom */}
-        <div className="flex-1" />
-
-        {/* Bottom Content - Badges */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="relative z-10 flex gap-4 mt-auto"
-        >
-          <div className="bg-white/5 backdrop-blur-sm border-l-2 border-[#22C55E] px-4 py-3 min-w-[140px]">
-            <p className="text-[#22C55E] text-xs font-semibold uppercase tracking-wider mb-1">
-              BUILT FOR
-            </p>
-            <p className="text-white text-lg font-bold">Founders</p>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm border-l-2 border-[#22C55E] px-4 py-3 min-w-[140px]">
-            <p className="text-[#22C55E] text-xs font-semibold uppercase tracking-wider mb-1">
-              DETAILED
-            </p>
-            <p className="text-white text-lg font-bold">AI Powered</p>
-          </div>
-        </motion.div>
-      </div>
+    <div className="flex min-h-screen flex-col bg-ui-canvas text-ui-text md:flex-row">
+      <AuthSignalPanel mode="signup" />
 
       {/* Right Panel - Sign In Form */}
-      <div className="w-full md:w-1/2 bg-deckly-background flex flex-col items-center justify-center relative z-10 min-h-screen p-8 md:p-12 lg:p-24 overflow-y-auto">
+      <main className="relative z-10 flex min-h-screen w-full flex-col items-center justify-center overflow-y-auto bg-ui-canvas p-8 md:w-1/2 md:p-12 lg:p-24">
         <div className="w-full max-w-[420px]">
           {/* Header */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white tracking-tight mb-2">
-              Sign Up
+            <h2 className="mb-2 text-2xl font-bold tracking-tight text-ui-text">
+              Create your account
             </h2>
-            <p className="text-slate-500 text-sm">
+            <p className="text-sm text-ui-muted">
               Create your workspace account
             </p>
           </div>
@@ -258,7 +202,7 @@ function Signup() {
           <div className="space-y-3 mb-6">
             <button
               onClick={handleGoogleSignIn}
-              className="w-full flex items-center justify-center gap-3 py-3 bg-white/5 border border-white/10 rounded-lg text-slate-300 font-medium text-sm hover:bg-white/10 transition-all"
+              className="flex w-full items-center justify-center gap-3 rounded-md border border-ui-border bg-ui-surface py-3 text-sm font-medium text-ui-text transition-colors hover:bg-ui-subtle"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
@@ -282,7 +226,7 @@ function Signup() {
             </button>
             <button
               onClick={handleGitHubSignIn}
-              className="w-full flex items-center justify-center gap-3 py-3 bg-white/5 border border-white/10 rounded-lg text-slate-300 font-medium text-sm hover:bg-white/10 transition-all"
+              className="flex w-full items-center justify-center gap-3 rounded-md border border-ui-border bg-ui-surface py-3 text-sm font-medium text-ui-text transition-colors hover:bg-ui-subtle"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
@@ -296,11 +240,11 @@ function Signup() {
 
           {/* Divider */}
           <div className="flex items-center w-full gap-4 mb-6">
-            <div className="h-px bg-white/10 flex-1" />
-            <span className="text-xs uppercase font-medium tracking-wider text-slate-500">
-              OR EMAIL
+            <div className="h-px flex-1 bg-ui-border" />
+            <span className="text-xs font-medium uppercase tracking-wider text-ui-muted">
+              Or use email
             </span>
-            <div className="h-px bg-white/10 flex-1" />
+            <div className="h-px flex-1 bg-ui-border" />
           </div>
 
           <AnimatePresence mode="wait">
@@ -314,10 +258,10 @@ function Signup() {
                 <div className="w-16 h-16 bg-deckly-primary/20 text-deckly-primary rounded-full flex items-center justify-center mb-6">
                   <CheckCircle2 size={32} />
                 </div>
-                <h2 className="text-xl font-bold text-white mb-2">
+                <h2 className="mb-2 text-xl font-bold text-ui-text">
                   Check your email
                 </h2>
-                <p className="text-slate-400 text-sm leading-relaxed">
+                <p className="text-sm leading-relaxed text-ui-muted">
                   We've sent a confirmation link to <strong>{email}</strong>.
                   Please confirm your email before logging in. Redirecting
                   shortly...
@@ -331,7 +275,7 @@ function Signup() {
                 className="flex flex-col gap-3"
               >
                 <FormInput
-                  label="Full Name"
+                  label="Full name"
                   type="text"
                   placeholder="John Doe"
                   icon={User}
@@ -341,7 +285,7 @@ function Signup() {
                 />
 
                 <FormInput
-                  label="Email Address"
+                  label="Work email"
                   type="email"
                   placeholder="name@company.com"
                   icon={Mail}
@@ -361,6 +305,10 @@ function Signup() {
                   minLength={8}
                 />
 
+                <p className="-mt-1 px-1 text-xs text-ui-muted">
+                  8+ characters with uppercase, lowercase, number and symbol
+                </p>
+
                 {error && (
                   <div className="bg-deckly-accent/10 border border-deckly-accent/20 text-deckly-accent text-xs font-bold p-3 rounded-xl text-center">
                     {error}
@@ -375,7 +323,7 @@ function Signup() {
                       onSuccess={(token) => setCaptchaToken(token)}
                       onExpire={() => setCaptchaToken(null)}
                       onError={() => setCaptchaToken(null)}
-                      options={{ theme: "dark" }}
+                      options={{ theme: "light" }}
                     />
                   </div>
                 )}
@@ -393,9 +341,10 @@ function Signup() {
                     size="lg"
                     loading={loading}
                     disabled={loading || (captchaRequired && (!captchaSiteKey || !captchaToken))}
-                    className="w-full h-12 bg-[#22C55E] text-black font-semibold text-sm uppercase tracking-wider rounded-lg hover:bg-[#22C55E]/90 transition-colors flex items-center justify-center"
+                    className="flex h-12 w-full items-center justify-center rounded-md bg-ui-primary text-sm font-semibold normal-case tracking-normal text-ui-primary-text transition-colors hover:bg-ui-primary/90"
                   >
-                    SIGN UP
+                    <span>Create account</span>
+                    <ArrowRight size={18} />
                   </Button>
                 </div>
               </motion.form>
@@ -403,24 +352,24 @@ function Signup() {
           </AnimatePresence>
 
           <div className="mt-4 text-center">
-            <p className="text-sm text-slate-500 font-bold">
+            <p className="text-sm font-bold text-ui-muted">
               Already have an account?{" "}
               <Link
                 to="/login"
-                className="text-deckly-primary hover:text-deckly-primary/80 transition-colors"
+                className="text-ui-primary transition-colors hover:text-ui-primary/80"
               >
-                Sign In
+                Sign in
               </Link>
             </p>
           </div>
 
-          <p className="mt-6 text-[10px] text-slate-600 font-bold text-center leading-relaxed italic opacity-80">
+          <p className="mt-6 text-center text-[10px] font-bold italic leading-relaxed text-ui-muted opacity-80">
             By signing up you agree to our{" "}
             <a
               href="https://deckly.space/terms"
               target="_blank"
               rel="noreferrer noopener"
-              className="underline cursor-pointer hover:text-slate-400 transition-colors"
+              className="cursor-pointer underline transition-colors hover:text-ui-text"
             >
               terms and conditions
             </a>{" "}
@@ -429,13 +378,13 @@ function Signup() {
               href="https://deckly.space/privacy"
               target="_blank"
               rel="noreferrer noopener"
-              className="underline cursor-pointer hover:text-slate-400 transition-colors"
+              className="cursor-pointer underline transition-colors hover:text-ui-text"
             >
               privacy policy
             </a>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

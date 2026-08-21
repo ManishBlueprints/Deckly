@@ -19,7 +19,7 @@ const FormTextarea = React.forwardRef<HTMLTextAreaElement, FormTextareaProps>(
         {label && (
           <Label 
             htmlFor={textareaId}
-            className="text-sm font-medium text-slate-400 px-1"
+            className="px-1 text-sm font-medium text-ui-muted"
           >
             {label}
           </Label>
@@ -30,14 +30,14 @@ const FormTextarea = React.forwardRef<HTMLTextAreaElement, FormTextareaProps>(
             id={textareaId}
             className={cn(
               error && "border-destructive focus-visible:ring-destructive",
-              "min-h-[120px] bg-slate-900 border-white/10 rounded-none focus-visible:bg-slate-800 transition-all",
+              "min-h-[120px] rounded-none border-ui-border bg-ui-surface transition-all focus-visible:bg-ui-subtle",
               className
             )}
             {...props}
           />
         </div>
         {error && (
-          <span className="text-xs text-red-500 px-1 font-medium animate-in fade-in slide-in-from-top-1">
+          <span className="animate-in fade-in slide-in-from-top-1 px-1 text-xs font-medium text-ui-destructive">
             {error}
           </span>
         )}

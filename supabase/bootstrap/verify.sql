@@ -56,10 +56,6 @@ BEGIN
     RAISE EXCEPTION 'Missing column: public.deck_links.link_alias';
   END IF;
 
-  IF to_regprocedure('public.get_decks_public()') IS NULL THEN
-    RAISE EXCEPTION 'Missing function: public.get_decks_public()';
-  END IF;
-
   IF to_regprocedure('public.get_decks_public(text,text)') IS NULL THEN
     RAISE EXCEPTION 'Missing function: public.get_decks_public(text,text)';
   END IF;

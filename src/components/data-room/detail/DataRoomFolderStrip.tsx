@@ -13,7 +13,6 @@ interface DataRoomFolderStripProps {
   onEditFolder: (folder: DataRoomFolderWithTags) => void;
   onUpdateFolderTags: (folder: DataRoomFolderWithTags, tagIds: string[]) => Promise<void> | void;
   onDeleteFolder: (folder: DataRoomFolderWithTags) => void;
-  onSummarizeFolder: (folder: DataRoomFolderWithTags) => void;
 }
 
 export function DataRoomFolderStrip({
@@ -27,10 +26,9 @@ export function DataRoomFolderStrip({
   onEditFolder,
   onUpdateFolderTags,
   onDeleteFolder,
-  onSummarizeFolder,
 }: DataRoomFolderStripProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center gap-3">
         <h3 className="text-base sm:text-lg font-semibold text-foreground">Folders</h3>
         <span className="inline-flex items-center rounded-md border border-border bg-surface-low px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
@@ -43,7 +41,7 @@ export function DataRoomFolderStrip({
           Loading folders...
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(220px,280px))]">
           {folders.map((folder) => (
             <DataRoomFolderCard
               key={folder.id}
@@ -58,16 +56,15 @@ export function DataRoomFolderStrip({
               }
               onEdit={onEditFolder}
               onDelete={onDeleteFolder}
-              onSummarize={onSummarizeFolder}
             />
           ))}
           <button
             type="button"
             aria-label="Create folder"
             onClick={onCreateFolder}
-            className="h-[160px] rounded-md border border-dashed border-border bg-surface-card flex flex-col items-center justify-center gap-2.5 text-muted-foreground hover:text-foreground hover:border-border hover:bg-surface-high transition-colors"
+            className="flex h-[128px] flex-col items-center justify-center gap-2.5 rounded-lg border border-dashed border-ui-border bg-ui-surface text-ui-muted transition-colors hover:border-ui-primary/40 hover:bg-ui-subtle hover:text-ui-text"
           >
-            <span className="w-9 h-9 rounded-md border border-border bg-surface-low flex items-center justify-center">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-ui-border bg-ui-subtle">
               <FolderOpen size={18} />
             </span>
             <span className="text-[9px] font-semibold uppercase tracking-[0.15em]">

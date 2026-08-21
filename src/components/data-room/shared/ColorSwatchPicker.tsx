@@ -1,6 +1,8 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
+import { useTheme } from "../../../contexts/ThemeContext";
+import { asItemColorVariables, getAccessibleColorSet } from "../../../utils/accessibleColor";
 
 export interface ColorSwatchOption {
   key: string;
@@ -27,6 +29,7 @@ export function ColorSwatchPicker({
   checkClassName,
   renderLabel,
 }: ColorSwatchPickerProps) {
+  const { theme } = useTheme();
   return (
     <div className={cn("flex flex-wrap gap-3", className)}>
       {colors.map((color) => {
@@ -37,16 +40,16 @@ export function ColorSwatchPicker({
             type="button"
             onClick={() => onChange(color.key)}
             className={cn(
-              "w-8 h-8 rounded-full border transition-all flex items-center justify-center",
+              "flex h-8 w-8 items-center justify-center rounded-full border border-[var(--item-color-border)] bg-[var(--item-color)] transition-all",
               isSelected ? "scale-110 border-primary/50" : "border-border hover:scale-105",
               swatchClassName,
             )}
-            style={{ backgroundColor: color.hex }}
+            style={asItemColorVariables(getAccessibleColorSet(color.hex, theme))}
             title={color.label}
             aria-label={color.label}
           >
             {isSelected && (
-              <Check size={14} className={checkClassName ?? "text-primary-foreground/80"} />
+              <Check size={14} className={checkClassName ?? "text-[var(--item-color-foreground)]"} />
             )}
             {renderLabel?.(color)}
           </button>

@@ -16,6 +16,8 @@ import {
   METADATA_SEARCH_DATE_PRESETS,
 } from "../../types";
 import { cn } from "@/lib/utils";
+import { useTheme } from "../../contexts/ThemeContext";
+import { asItemColorVariables, getAccessibleColorSet } from "../../utils/accessibleColor";
 
 const DATE_PRESET_LABELS: Record<MetadataSearchDatePreset, string> = {
   today: "Today",
@@ -69,6 +71,7 @@ export function MetadataSearchMenu({
   filterEmptyMessage = "No filters available",
   mobileIconOnly = false,
 }: MetadataSearchMenuProps) {
+  const { theme } = useTheme();
   const activeSummary = buildActiveSummary(
     filter,
     selectedFilterId ? filterOptions.find((option) => option.id === selectedFilterId)?.name : null,
@@ -97,14 +100,14 @@ export function MetadataSearchMenu({
           type="button"
           aria-label={triggerLabel}
           className={cn(
-            "inline-flex h-11 w-full min-w-0 items-center justify-between border border-border bg-surface-low px-4 text-sm font-semibold text-foreground shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition-all hover:border-primary/35 hover:bg-surface-high md:w-[220px]",
-            mobileIconOnly && "relative h-11 w-11 shrink-0 justify-center rounded-sm px-0 md:w-[220px] md:justify-between md:px-4",
-            isActive && "border-primary/45 bg-primary/10 text-foreground shadow-[0_14px_34px_rgba(34,197,94,0.10)]",
+            "inline-flex h-10 w-full min-w-0 items-center justify-between rounded-md border border-ui-border bg-ui-subtle px-3.5 text-sm font-semibold text-ui-text shadow-control transition-colors hover:border-ui-primary/35 hover:bg-ui-elevated md:w-[220px]",
+            mobileIconOnly && "relative h-10 w-10 shrink-0 justify-center px-0 md:w-[220px] md:justify-between md:px-3.5",
+            isActive && "border-ui-primary/45 bg-ui-primary/10 text-ui-text",
             className,
           )}
         >
           <span className={cn("flex min-w-0 items-center gap-2.5", mobileIconOnly && "gap-0 md:gap-2.5")}>
-            <Search size={17} className={cn("shrink-0 text-muted-foreground", isActive && "text-primary")} />
+            <Search size={17} className={cn("shrink-0 text-ui-muted", isActive && "text-ui-primary")} />
             <span className={cn("leading-none", mobileIconOnly && "hidden md:inline")}>
               {triggerLabel}
             </span>
@@ -112,14 +115,14 @@ export function MetadataSearchMenu({
 
           <span className={cn("flex items-center gap-2", mobileIconOnly && "hidden md:flex")}>
             {typeof resultCount === "number" && isActive ? (
-              <Badge variant="secondary" className="h-5 border-0 bg-primary/15 px-1.5 text-[10px] leading-none text-primary">
+              <Badge variant="secondary" className="h-5 border-0 bg-ui-primary/15 px-1.5 text-[10px] leading-none text-ui-primary">
                 {resultCount}
               </Badge>
             ) : null}
             {isActive ? (
               <Badge
                 variant="outline"
-                className="max-w-[120px] truncate border-primary/25 bg-primary/10 text-[10px] leading-none text-primary"
+                className="max-w-[120px] truncate border-ui-primary/25 bg-ui-primary/10 text-[10px] leading-none text-ui-primary"
               >
                 {activeSummary}
               </Badge>
@@ -127,35 +130,35 @@ export function MetadataSearchMenu({
             <SlidersHorizontal size={15} className="shrink-0 opacity-70" />
           </span>
           {mobileIconOnly && isActive ? (
-            <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary md:hidden" />
+            <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-ui-primary md:hidden" />
           ) : null}
         </button>
       </PopoverTrigger>
 
       <PopoverContent
-        align="center"
-        sideOffset={10}
-        className="w-[calc(100vw-1.5rem)] max-w-[320px] space-y-5 border border-border bg-popover/95 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+        align="end"
+        sideOffset={8}
+        className="w-[calc(100vw-1.5rem)] max-w-[360px] space-y-4 rounded-lg border border-ui-border bg-ui-elevated p-4 text-ui-text shadow-overlay"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-primary">Page Search</p>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Filter the current page by name or date.
+            <p className="text-sm font-semibold text-ui-text">Search this page</p>
+            <p className="mt-1 text-xs leading-5 text-ui-muted">
+              Filter by name, date, or available tags.
             </p>
           </div>
           <button
             type="button"
             onClick={onClear}
             disabled={!isActive}
-            className="inline-flex items-center gap-1 px-0 py-0 text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-primary disabled:pointer-events-none disabled:opacity-40"
+            className="inline-flex h-8 items-center gap-1 rounded-sm px-2 text-xs font-medium text-ui-muted transition-colors hover:bg-ui-subtle hover:text-ui-text disabled:pointer-events-none disabled:opacity-40"
           >
             <X size={12} />
             Clear
           </button>
         </div>
 
-        <div className={cn("grid border border-border bg-surface-low", filterOptions.length > 0 ? "grid-cols-3" : "grid-cols-2")}>
+        <div className={cn("grid rounded-md bg-ui-subtle p-1", filterOptions.length > 0 ? "grid-cols-3" : "grid-cols-2")}>
           <ModeButton
             active={filter.mode === "name"}
             icon={<Search size={16} />}
@@ -179,10 +182,10 @@ export function MetadataSearchMenu({
         </div>
 
         {filter.mode === "name" ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <label
               htmlFor={`${fieldIdPrefix}-query`}
-              className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-xs font-medium text-ui-muted"
             >
               Search query
             </label>
@@ -194,20 +197,20 @@ export function MetadataSearchMenu({
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder={namePlaceholder}
               aria-label="Search by name"
-              className="h-12 border-primary/35 bg-surface-low px-4 text-base text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/40"
+              className="h-11 rounded-md border-ui-border bg-ui-surface px-3.5 text-sm text-ui-text shadow-none placeholder:text-ui-muted focus-visible:border-ui-primary/45 focus-visible:ring-ui-primary/20"
             />
           </div>
         ) : filter.mode === "filter" ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <label className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              <label className="text-xs font-medium text-ui-muted">
                 Available filters
               </label>
               <button
                 type="button"
                 onClick={() => onFilterChange?.(null)}
                 disabled={!selectedFilterId}
-                className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-primary disabled:pointer-events-none disabled:opacity-40"
+                className="inline-flex items-center gap-1 text-xs font-medium text-ui-muted transition-colors hover:text-ui-text disabled:pointer-events-none disabled:opacity-40"
               >
                 <X size={11} />
                 Clear
@@ -215,7 +218,7 @@ export function MetadataSearchMenu({
             </div>
 
             {filterOptions.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border bg-surface-low px-4 py-6 text-sm text-muted-foreground">
+              <div className="rounded-md border border-dashed border-ui-border bg-ui-subtle px-4 py-6 text-sm text-ui-muted">
                 {filterEmptyMessage}
               </div>
             ) : (
@@ -230,23 +233,20 @@ export function MetadataSearchMenu({
                         onFilterChange?.(isSelected ? null : option.id)
                       }
                       className={cn(
-                        "flex w-full items-center justify-between rounded-md border px-4 py-3 text-left transition-all",
+                        "flex w-full items-center justify-between rounded-md border px-3 py-2.5 text-left transition-colors",
                         isSelected
-                          ? "border-primary/35 bg-primary/12"
-                          : "border-border bg-surface-low hover:border-primary/20 hover:bg-surface-high",
+                          ? "border-ui-primary/35 bg-ui-primary/10"
+                          : "border-ui-border bg-ui-surface hover:border-ui-primary/20 hover:bg-ui-subtle",
                       )}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <span
-                          className="h-3 w-3 shrink-0 rounded-full"
-                          style={{ backgroundColor: option.color }}
-                        />
-                        <span className="truncate text-sm font-semibold text-foreground">
+                        <span className="h-3 w-3 shrink-0 rounded-full bg-[var(--item-color-border)]" style={asItemColorVariables(getAccessibleColorSet(option.color, theme))} />
+                        <span className="truncate text-sm font-medium text-ui-text">
                           {option.name}
                         </span>
                       </div>
                       {isSelected ? (
-                        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ui-primary">
                           Applied
                         </span>
                       ) : null}
@@ -259,7 +259,7 @@ export function MetadataSearchMenu({
         ) : (
           <div className="space-y-3">
             <div className="space-y-3">
-              <label className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              <label className="text-xs font-medium text-ui-muted">
                 Date range
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -279,7 +279,7 @@ export function MetadataSearchMenu({
                 <div className="space-y-1">
                   <label
                     htmlFor={`${fieldIdPrefix}-start-date`}
-                    className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
+                    className="text-xs font-medium text-ui-muted"
                   >
                     Start
                   </label>
@@ -292,13 +292,13 @@ export function MetadataSearchMenu({
                       onCustomDateRangeChange(event.target.value, filter.date.endDate)
                     }
                     aria-label="Custom start date"
-                    className="h-10 border-primary/35 bg-surface-low px-3 text-sm text-foreground focus-visible:ring-primary/40"
+                    className="h-10 rounded-md border-ui-border bg-ui-surface px-3 text-sm text-ui-text focus-visible:ring-ui-primary/20"
                   />
                 </div>
                 <div className="space-y-1">
                   <label
                     htmlFor={`${fieldIdPrefix}-end-date`}
-                    className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
+                    className="text-xs font-medium text-ui-muted"
                   >
                     End
                   </label>
@@ -311,7 +311,7 @@ export function MetadataSearchMenu({
                       onCustomDateRangeChange(filter.date.startDate, event.target.value)
                     }
                     aria-label="Custom end date"
-                    className="h-10 border-primary/35 bg-surface-low px-3 text-sm text-foreground focus-visible:ring-primary/40"
+                    className="h-10 rounded-md border-ui-border bg-ui-surface px-3 text-sm text-ui-text focus-visible:ring-ui-primary/20"
                   />
                 </div>
               </div>
@@ -361,10 +361,10 @@ function ModeButton({ active, icon, label, onClick }: ModeButtonProps) {
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex min-h-[48px] items-center justify-center gap-2.5 border-y-0 px-3 py-2.5 text-[13px] font-bold uppercase tracking-[0.12em] transition-all first:border-r",
+        "inline-flex min-h-9 items-center justify-center gap-2 rounded-sm px-3 py-2 text-xs font-medium transition-colors",
         active
-          ? "border-primary/45 bg-primary/12 text-primary shadow-[inset_0_0_0_1px_rgba(34,197,94,0.15)]"
-          : "border-border text-muted-foreground hover:bg-background/40 hover:text-foreground",
+          ? "bg-ui-surface text-ui-primary shadow-control"
+          : "text-ui-muted hover:bg-ui-surface/70 hover:text-ui-text",
       )}
     >
       {icon}
@@ -385,10 +385,10 @@ function DatePresetButton({ preset, active, onClick }: DatePresetButtonProps) {
       type="button"
       onClick={onClick}
       className={cn(
-        "border px-3 py-3 text-[11px] font-bold uppercase tracking-[0.12em] transition-all",
+        "rounded-md border px-3 py-2.5 text-xs font-medium transition-colors",
         active
-          ? "border-primary/35 bg-primary/12 text-foreground"
-          : "border-border bg-surface-low text-muted-foreground hover:border-primary/20 hover:text-foreground",
+          ? "border-ui-primary/35 bg-ui-primary/10 text-ui-text"
+          : "border-ui-border bg-ui-surface text-ui-muted hover:border-ui-primary/20 hover:text-ui-text",
       )}
     >
       {DATE_PRESET_LABELS[preset]}

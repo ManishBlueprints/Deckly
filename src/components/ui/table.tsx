@@ -7,6 +7,7 @@ const Table = React.forwardRef<
   React.HTMLAttributes<HTMLTableElement> & { containerClassName?: string }
 >(({ className, containerClassName, ...props }, ref) => (
   <div
+    tabIndex={0}
     className={cn(
       "relative w-full overflow-auto custom-scrollbar",
       containerClassName,

@@ -1,0 +1,82 @@
+{
+  "files": [
+    "src/components/layout/WorkspaceShell.tsx",
+    "src/components/layout/page-patterns.tsx",
+    "src/components/ui/dialog.tsx",
+    "src/components/ui/alert-dialog.tsx",
+    "src/components/ui/dropdown-menu.tsx",
+    "src/components/ui/popover.tsx",
+    "src/components/ui/form-input.tsx",
+    "src/components/ui/surface.tsx",
+    "src/components/ui/field.tsx",
+    "src/components/ui/app-toaster.tsx",
+    "src/components/ui/portal-host.tsx",
+    "src/components/ui/presentation-theme-boundary.tsx",
+    "src/components/saved-decks/SavedDeckEmptyState.tsx",
+    "src/components/saved-decks/DocumentRow.tsx",
+    "src/components/saved-decks/SavedItemNoteCard.tsx",
+    "src/components/saved-decks/SavedDecksView.tsx",
+    "src/components/saved-decks/TagChip.tsx",
+    "src/components/dashboard/DataRoomCard.tsx",
+    "src/components/dashboard/DashboardView.tsx",
+    "src/components/dashboard/WelcomeBanner.tsx",
+    "src/components/dashboard/AnalyticsDashboard.tsx",
+    "src/components/dashboard/AnalyticsModal.tsx",
+    "src/components/dashboard/ActiveDecksTable.tsx",
+    "src/components/notifications/NotificationBell.tsx",
+    "src/components/dashboard/manage-deck/ManageDeckSections.tsx",
+    "src/components/dashboard/MascotSettingsModal.tsx",
+    "src/components/data-room/DataRoomFolderModal.tsx",
+    "src/components/data-room/shared/ColorSwatchPicker.tsx",
+    "src/components/shared/TagManagementDialog.tsx",
+    "src/components/ui/DashboardCard.tsx",
+    "src/contexts/ThemeContext.tsx",
+    "src/pages/Home.tsx",
+    "src/pages/ContentPage.tsx",
+    "src/pages/DataRoomsPage.tsx",
+    "src/pages/SavedLibrary.tsx",
+    "src/pages/ManageDeck.tsx",
+    "src/pages/Login.tsx",
+    "src/pages/Signup.tsx",
+    "src/pages/ForgotPassword.tsx",
+    "src/pages/ResetPassword.tsx",
+    "src/pages/Profile.tsx",
+    "src/pages/DataRoomDetail.tsx",
+    "src/pages/Feedback.tsx",
+    "src/pages/AdminDashboard.tsx",
+    "src/pages/AdminNotifications.tsx",
+    "src/stories/WorkspaceScreens.stories.tsx",
+    "src/App.tsx",
+    "src/utils/accessibleColor.ts"
+  ],
+  "directories": [
+    "src/components/layout",
+    "src/components/profile",
+    "src/components/saved-decks",
+    "src/components/ui",
+    "src/contexts",
+    "src/stories"
+  ],
+  "exceptions": {
+    "src/contexts/ThemeContext.tsx": [
+      { "literal": "rgb(", "reason": "Browser theme-color metadata is assembled from the resolved semantic canvas token." }
+    ],
+    "src/utils/accessibleColor.ts": [
+      { "literal": "#10834f", "reason": "Documented fallback inside the persisted-color adapter." },
+      { "literal": "#071e17", "reason": "Accessible foreground output produced by the color adapter." },
+      { "literal": "#ffffff", "reason": "Accessible foreground output produced by the color adapter." }
+    ],
+    "src/components/saved-decks/ManageTagsModal.tsx": [
+      { "literal": "#8affab", "reason": "Persisted user-selectable tag palette value routed through the accessible color adapter at render time." },
+      { "literal": "#54e98a", "reason": "Persisted user-selectable tag palette value routed through the accessible color adapter at render time." },
+      { "literal": "#3b82f6", "reason": "Persisted user-selectable tag palette value routed through the accessible color adapter at render time." },
+      { "literal": "#a855f7", "reason": "Persisted user-selectable tag palette value routed through the accessible color adapter at render time." },
+      { "literal": "#f97316", "reason": "Persisted user-selectable tag palette value routed through the accessible color adapter at render time." },
+      { "literal": "#ef4444", "reason": "Persisted user-selectable tag palette value routed through the accessible color adapter at render time." },
+      { "literal": "#ec4899", "reason": "Persisted user-selectable tag palette value routed through the accessible color adapter at render time." },
+      { "literal": "#eab308", "reason": "Persisted user-selectable tag palette value routed through the accessible color adapter at render time." },
+      { "literal": "#06b6d4", "reason": "Persisted user-selectable tag palette value routed through the accessible color adapter at render time." },
+      { "literal": "#666666", "reason": "Persisted user-selectable tag palette value routed through the accessible color adapter at render time." }
+    ]
+  }
+}

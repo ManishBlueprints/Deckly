@@ -5,14 +5,19 @@ import { extractPdfLinkHotspots } from "../utils/pdfLinks";
 
 export interface ProcessedPdfAsset {
   blob: Blob;
+  width: number;
+  height: number;
   links: PdfLinkHotspot[];
 }
 
 export interface ProcessPdfToImagesOptions {
   scale?: number;
   quality?: number;
+  maxPages?: number;
   onProgress?: (current: number, total: number) => void;
 }
+
+export const MAX_DECK_PAGES = 500;
 
 // Keep the worker setup in one place so all deck-processing flows use the same runtime.
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -24,15 +29,20 @@ export async function processPdfToImages(
   const {
     scale = 2,
     quality = 1,
+    maxPages,
     onProgress,
   } = options;
 
   const arrayBuffer = await pdfFile.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const numPages = pdf.numPages;
   const imageAssets: ProcessedPdfAsset[] = [];
 
   try {
+    const numPages = pdf.numPages;
+    if (maxPages !== undefined && numPages > maxPages) {
+      throw new Error(`Viewable documents are limited to ${maxPages} pages.`);
+    }
+
     for (let i = 1; i <= numPages; i++) {
       const page = await pdf.getPage(i);
 
@@ -68,7 +78,12 @@ export async function processPdfToImages(
           throw new Error(`Failed to generate blob for page ${i}`);
         }
 
-        imageAssets.push({ blob, links });
+        imageAssets.push({
+          blob,
+          width: viewport.width,
+          height: viewport.height,
+          links,
+        });
         onProgress?.(i, numPages);
       } finally {
         await page.cleanup();

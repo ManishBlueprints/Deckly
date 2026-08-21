@@ -2,10 +2,10 @@ import posthog from "posthog-js";
 import { withRetry } from "../utils/resilience.ts";
 import { supabase } from "./supabase.ts";
 import { assertDeckOwnership } from "./deckService.shared.ts";
-import { Deck, DeckPageStats, DeckLinkStats } from "../types";
-import { getTierConfig } from "../constants/tiers.ts";
+import { Deck, DeckPageStats, DeckLinkStats, DeckDownloadAnalytics, DataRoomDownloadAnalytics } from "../types";
 import type { AiScopeType } from "./aiScopeResolutionBuilder.ts";
 import { posthogConfig } from "./posthogConfig.ts";
+import { productAnalytics, sanitizeAnalyticsProperties } from "./productAnalytics.ts";
 
 // Note: posthog.init is handled globally in main.tsx via PostHogProvider
 const posthogKey = posthogConfig.apiKey;
@@ -103,20 +103,28 @@ type AiSummaryTelemetryMetadata = {
 
 const captureEvent = (event: string, properties: Record<string, unknown>) => {
   if (!posthogKey) return;
-  posthog.capture(event, properties);
+  posthog.capture(event, sanitizeAnalyticsProperties(properties));
 };
 
 export const analyticsService = {
   // Track when someone views a deck
   trackDeckView(deck: Deck, metadata: Record<string, unknown> = {}) {
-    captureEvent("deck_viewed", {
-      ...metadata,
+    const roomId = typeof metadata.data_room_id === "string" ? metadata.data_room_id : undefined;
+    productAnalytics.capture("deck_viewed", {
+      workspace_id: deck.user_id,
+      source_surface: roomId ? "room_viewer" : "deck_viewer",
       deck_id: deck.id,
-      deck_slug: deck.slug,
-      deck_title: deck.title,
-      owner_id: deck.user_id,
-      deck_link_id: deck.deck_link_id || null,
+      link_id: deck.deck_link_id || undefined,
+      room_id: roomId,
     });
+    if (metadata.email_captured) {
+      productAnalytics.capture("email_captured", {
+        workspace_id: deck.user_id,
+        source_surface: roomId ? "room_viewer" : "deck_viewer",
+        deck_id: deck.id,
+        room_id: roomId,
+      });
+    }
   },
 
   // Track page navigation in PDF
@@ -260,7 +268,7 @@ export const analyticsService = {
   // Get stats for a specific deck (Management view)
   async getDeckStats(
     deckId: string,
-    isPro: boolean = false,
+    _isPro: boolean = false,
     providedUserId?: string,
   ): Promise<DeckPageStats[]> {
     let userId = providedUserId;
@@ -273,105 +281,17 @@ export const analyticsService = {
       userId = session.user.id;
     }
 
-    const tier = getTierConfig(isPro);
-
     return withRetry(async () => {
-      const cutoffDate = new Date(
-        Date.now() - tier.days * 24 * 60 * 60 * 1000,
-      ).toISOString();
-
       const { data, error } = await supabase
-        .from("deck_stats")
-        .select("*")
-        .eq("deck_id", deckId)
-        .eq("user_id", userId)
-        .gt("updated_at", cutoffDate)
-        .order("page_number", { ascending: true });
+        .rpc("get_entitled_deck_page_stats", { p_deck_id: deckId });
 
       if (error) throw error;
-      
-      // Aggregate by page_number to handle multiple contexts (Data Rooms vs Direct)
-      const aggregated = ((data as unknown as DeckPageStats[]) || []).reduce((acc: Record<number, DeckPageStats>, curr: DeckPageStats) => {
-        const page = curr.page_number;
-        if (!acc[page]) {
-          acc[page] = {
-            page_number: page,
-            total_views: 0,
-            total_time_seconds: 0
-          };
-        }
-        acc[page].total_views += (curr.total_views || 0);
-        acc[page].total_time_seconds += (curr.total_time_seconds || 0);
-        return acc;
-      }, {} as Record<number, DeckPageStats>);
-
-      return (Object.values(aggregated) as DeckPageStats[]).sort((a, b) => a.page_number - b.page_number);
+      return ((data as unknown as DeckPageStats[]) || []).map((row) => ({
+        page_number: row.page_number,
+        total_views: Number(row.total_views || 0),
+        total_time_seconds: Number(row.total_time_seconds || 0),
+      }));
     });
-  },
-
-  // Get top performing decks based on total views
-  async getTopPerformingDecks(userId: string, limit: number = 3) {
-    // 1. Get time stats from deck_stats
-    const { data: statsData, error: statsError } = await supabase
-      .from("deck_stats")
-      .select("deck_id, total_time_seconds, decks(title, updated_at, created_at)")
-      .eq("user_id", userId);
-
-    if (statsError) throw statsError;
-
-    // Aggregate time by deck_id and collect titles
-    const deckInfo: Record<string, { title: string; time: number; updated_at?: string; created_at?: string }> = {};
-    for (const row of statsData as unknown as { deck_id: string; total_time_seconds: number; decks: { title: string; updated_at: string; created_at: string } | null }[]) {
-      const id = row.deck_id;
-      if (!deckInfo[id]) {
-        deckInfo[id] = { 
-          title: row.decks?.title || "Untitled", 
-          time: 0,
-          updated_at: row.decks?.updated_at,
-          created_at: row.decks?.created_at,
-        };
-      }
-      deckInfo[id].time += row.total_time_seconds;
-    }
-
-    const deckIds = Object.keys(deckInfo);
-    if (deckIds.length === 0) {
-      return [];
-    }
-
-    // 2. Get unique visitors per deck from deck_page_views
-    const { data: viewData } = await supabase
-      .from("deck_page_views")
-      .select("deck_id, visitor_id")
-      .in("deck_id", deckIds);
-
-    const visitorsByDeck = new Map<string, Set<string>>();
-    for (const row of viewData || []) {
-      if (!visitorsByDeck.has(row.deck_id)) {
-        visitorsByDeck.set(row.deck_id, new Set());
-      }
-      visitorsByDeck.get(row.deck_id)!.add(row.visitor_id);
-    }
-
-    // 3. Merge and sort
-    const result = deckIds
-      .map((id) => {
-        const views = visitorsByDeck.get(id)?.size || 0;
-        const time = deckInfo[id].time;
-        return {
-          id,
-          title: deckInfo[id].title,
-          views,
-          time,
-          avgSession: views > 0 ? time / views : 0,
-          updated_at: deckInfo[id].updated_at,
-          created_at: deckInfo[id].created_at,
-        };
-      })
-      .sort((a, b) => b.views - a.views)
-      .slice(0, limit);
-
-    return result;
   },
 
   // Get daily metrics for the last 7 days (optionally filtered by deck)
@@ -648,6 +568,52 @@ export const analyticsService = {
 
     if (error) throw error;
     return (data as unknown as DeckLinkStats[]) || [];
+  },
+
+  async getDeckDownloadAnalytics(deckId: string, ownerUserId: string): Promise<DeckDownloadAnalytics> {
+    await assertDeckOwnership(deckId, ownerUserId);
+    const { data, error } = await supabase.rpc("get_deck_download_analytics", {
+      p_deck_id: deckId,
+      p_limit: 100,
+    });
+    if (error) throw error;
+    const analytics = data && typeof data === "object" && !Array.isArray(data)
+      ? (data as Partial<DeckDownloadAnalytics>)
+      : {};
+
+    return {
+      total_downloads: analytics.total_downloads ?? 0,
+      unique_downloaders: analytics.unique_downloaders ?? 0,
+      direct_link_downloads: analytics.direct_link_downloads ?? 0,
+      data_room_downloads: analytics.data_room_downloads ?? 0,
+      links: Array.isArray(analytics.links) ? analytics.links : [],
+      data_rooms: Array.isArray(analytics.data_rooms) ? analytics.data_rooms : [],
+      downloaders: Array.isArray(analytics.downloaders) ? analytics.downloaders : [],
+      downloaders_truncated: analytics.downloaders_truncated,
+    };
+  },
+
+  async getDataRoomDownloadAnalytics(
+    roomId: string,
+    options: { limit?: number; offset?: number } = {},
+  ): Promise<DataRoomDownloadAnalytics> {
+    const { data, error } = await supabase.rpc("get_data_room_download_analytics", {
+      p_data_room_id: roomId,
+      p_limit: options.limit ?? 100,
+      p_offset: options.offset ?? 0,
+    });
+    if (error) throw error;
+    const analytics = data && typeof data === "object" && !Array.isArray(data)
+      ? (data as Partial<DataRoomDownloadAnalytics>)
+      : {};
+
+    return {
+      total_downloads: analytics.total_downloads ?? 0,
+      unique_downloaders: analytics.unique_downloaders ?? 0,
+      documents: Array.isArray(analytics.documents) ? analytics.documents : [],
+      downloaders: Array.isArray(analytics.downloaders) ? analytics.downloaders : [],
+      downloaders_truncated: analytics.downloaders_truncated,
+    };
   },
 
   // Get aggregated location stats for a deck

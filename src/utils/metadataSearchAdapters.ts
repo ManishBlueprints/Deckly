@@ -100,12 +100,14 @@ export function filterDataRoomDocuments(
 export function filterSavedDeckRows(
   decks: SavedDeckOrganized[],
   filter: MetadataSearchFilterState,
-  selectedFolderId: string | "uncategorized",
+  selectedFolderId: string | "uncategorized" | "all",
   selectedTagId: string | null,
 ) : SavedDeckSearchResult[] {
   return decks.reduce<SavedDeckSearchResult[]>((results, deck) => {
     const matchesFolder =
-      selectedFolderId === "uncategorized"
+      selectedFolderId === "all"
+        ? true
+        : selectedFolderId === "uncategorized"
         ? deck.folder_id === null
         : deck.folder_id === selectedFolderId;
     const matchesTag =
@@ -130,12 +132,14 @@ export function filterSavedDeckRows(
 export function filterSavedRoomRows(
   rooms: SavedDataRoomOrganized[],
   filter: MetadataSearchFilterState,
-  selectedFolderId: string | "uncategorized",
+  selectedFolderId: string | "uncategorized" | "all",
   selectedTagId: string | null = null,
 ) : SavedRoomSearchResult[] {
   return rooms.reduce<SavedRoomSearchResult[]>((results, room) => {
     const matchesFolder =
-      selectedFolderId === "uncategorized"
+      selectedFolderId === "all"
+        ? true
+        : selectedFolderId === "uncategorized"
         ? room.folder_id === null
         : room.folder_id === selectedFolderId;
     const matchesTag = selectedTagId === null;

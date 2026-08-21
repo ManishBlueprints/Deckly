@@ -6,12 +6,14 @@ import {
   Navigate,
   useParams,
 } from "react-router-dom";
-import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { AppToaster } from "./components/ui/app-toaster";
+import { PresentationThemeBoundary } from "./components/ui/presentation-theme-boundary";
+import { WorkspaceShell } from "./components/layout/WorkspaceShell";
 import { TourProvider } from "./contexts/TourContext";
 import { deckService } from "./services/deckService";
 import { getOnboardingStage } from "./utils/onboarding";
-import "./App.css";
 
 // Lazy loaded pages
 const Home = lazy(() => import("./pages/Home"));
@@ -31,17 +33,13 @@ const DataRoomDetail = lazy(() => import("./pages/DataRoomDetail"));
 const DataRoomViewer = lazy(() => import("./pages/DataRoomViewer"));
 const OwnerDataRoomPreview = lazy(() => import("./pages/OwnerDataRoomPreview"));
 const SavedLibrary = lazy(() => import("./pages/SavedLibrary"));
-const SavedDecks = lazy(() => import("./pages/SavedDecks"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const Feedback = lazy(() => import("./pages/Feedback"));
 const Profile = lazy(() => import("./pages/Profile"));
 
 const LoadingFallback = () => (
-  <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
-    <div className="w-12 h-12 mb-4 relative">
-      <div className="absolute inset-0 border-4 border-[#54e98a]/10 rounded-full"></div>
-      <div className="absolute inset-0 border-4 border-t-[#54e98a] rounded-full animate-spin"></div>
-    </div>
+  <div className="flex min-h-screen flex-col items-center justify-center bg-ui-canvas p-6 text-center text-ui-text">
+    <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-ui-primary/15 border-t-ui-primary" aria-label="Loading" />
   </div>
 );
 
@@ -52,18 +50,18 @@ const WorkspaceLoadError = ({
   message: string;
   onRetry: () => void;
 }) => (
-  <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
-    <div className="max-w-md w-full border border-white/10 bg-white/5 p-6 space-y-4">
-      <div className="w-12 h-12 mx-auto rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 font-bold">
+  <div className="flex min-h-screen flex-col items-center justify-center bg-ui-canvas p-6 text-center text-ui-text">
+    <div className="w-full max-w-md space-y-4 rounded-[var(--ui-radius-major)] border border-ui-border bg-ui-surface p-6 shadow-[var(--ui-shadow-surface)]">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-ui-destructive/25 bg-ui-destructive/10 font-bold text-ui-destructive">
         !
       </div>
       <div className="space-y-2">
-        <h2 className="text-lg font-bold text-white">We couldn’t load your workspace</h2>
-        <p className="text-sm text-slate-400">{message}</p>
+        <h2 className="text-lg font-bold text-ui-text">We couldn’t load your workspace</h2>
+        <p className="text-sm text-ui-muted">{message}</p>
       </div>
       <button
         onClick={onRetry}
-        className="px-6 py-2.5 bg-deckly-primary text-slate-950 text-sm font-bold hover:brightness-110 transition-all"
+        className="rounded-[var(--ui-radius-control)] bg-ui-primary px-6 py-2.5 text-sm font-bold text-ui-primary-text transition-all hover:brightness-105"
       >
         Retry
       </button>
@@ -136,19 +134,16 @@ const AppContent = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-deckly-background flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 mb-8 relative">
-          <div className="absolute inset-0 border-4 border-[#54e98a]/10 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-t-[#54e98a] rounded-full animate-spin"></div>
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-ui-canvas p-6 text-center text-ui-text">
+        <div className="mb-8 h-16 w-16 animate-spin rounded-full border-4 border-ui-primary/15 border-t-ui-primary" aria-label="Loading" />
 
-        <h2 className="text-xl font-bold text-white mb-2">
+        <h2 className="mb-2 text-xl font-bold text-ui-text">
           {initializationError === "connection_slow" || showSlowMessage
             ? "Waking up the Database..."
             : "Initializing Deckly..."}
         </h2>
 
-        <p className="text-slate-400 text-sm max-w-[280px] leading-relaxed mb-8">
+        <p className="mb-8 max-w-[280px] text-sm leading-relaxed text-ui-muted">
           {initializationError === "connection_slow" || showSlowMessage
             ? "Supabase free-tier projects take a few seconds to wake up after being idle. Thanks for your patience!"
             : "Gathering your pitch decks and insights."}
@@ -158,13 +153,13 @@ const AppContent = () => {
           <div className="flex flex-col gap-3">
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-2.5 bg-deckly-primary text-slate-950 rounded-xl text-sm font-bold hover:bg-opacity-90 transition-all active:scale-95"
+              className="rounded-[var(--ui-radius-control)] bg-ui-primary px-6 py-2.5 text-sm font-bold text-ui-primary-text transition-all hover:brightness-105 active:scale-95"
             >
               Refresh App
             </button>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">
-              Tip: Press <kbd className="bg-white/10 px-1 rounded">F12</kbd> or{" "}
-              <kbd className="bg-white/10 px-1 rounded">Cmd+Opt+I</kbd> to see
+            <p className="text-[10px] font-bold uppercase tracking-widest text-ui-muted">
+              Tip: Press <kbd className="rounded bg-ui-subtle px-1">F12</kbd> or{" "}
+              <kbd className="rounded bg-ui-subtle px-1">Cmd+Opt+I</kbd> to see
               diagnostic logs
             </p>
           </div>
@@ -206,7 +201,7 @@ const AppContent = () => {
     session ? (onboardingStage === "complete" ? element : onboardingRedirect) : <Navigate to="/login" replace />;
 
   return (
-    <div className="min-h-screen bg-deckly-background text-slate-200 selection:bg-deckly-primary/30 selection:text-deckly-primary">
+    <div className="min-h-screen bg-ui-canvas text-ui-text">
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route
@@ -223,7 +218,7 @@ const AppContent = () => {
           />
           <Route
             path="/preview/deck/:deckId"
-            element={requireSession(<OwnerDeckPreview />)}
+            element={requireSession(<PresentationThemeBoundary><OwnerDeckPreview /></PresentationThemeBoundary>)}
           />
           <Route
             path="/edit/:deckId"
@@ -243,7 +238,7 @@ const AppContent = () => {
           />
           <Route
             path="/preview/room/:roomId"
-            element={requireSession(<OwnerDataRoomPreview />)}
+            element={requireSession(<PresentationThemeBoundary><OwnerDataRoomPreview /></PresentationThemeBoundary>)}
           />
           <Route
             path="/rooms/:roomId/edit"
@@ -290,7 +285,7 @@ const AppContent = () => {
           />
           <Route
             path="/saved-decks"
-            element={requireSession(<SavedDecks />)}
+            element={requireSession(<Navigate to="/saved-library" replace />)}
           />
           <Route
             path="/feedback"
@@ -298,7 +293,7 @@ const AppContent = () => {
           />
           <Route
             path="/profile"
-            element={session ? <Profile /> : <Navigate to="/login" replace />}
+            element={session ? <WorkspaceShell title="Profile"><Profile /></WorkspaceShell> : <Navigate to="/login" replace />}
           />
           <Route
             path="/admin"
@@ -312,8 +307,8 @@ const AppContent = () => {
             path="/"
             element={requireSession(<Home />)}
           />
-          <Route path="/:handle/room/:slug" element={<DataRoomViewer />} />
-          <Route path="/:handle/:slug" element={<Viewer />} />
+          <Route path="/:handle/room/:slug" element={<PresentationThemeBoundary><DataRoomViewer /></PresentationThemeBoundary>} />
+          <Route path="/:handle/:slug" element={<PresentationThemeBoundary><Viewer /></PresentationThemeBoundary>} />
           {/* Legacy Redirect Fallback */}
           <Route path="/:slug" element={<LegacyRedirect />} />
         </Routes>
@@ -324,14 +319,16 @@ const AppContent = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <TourProvider>
-        <Router>
-          <AppContent />
-          <Toaster theme="dark" richColors />
-        </Router>
-      </TourProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <TourProvider>
+          <Router>
+            <AppContent />
+            <AppToaster />
+          </Router>
+        </TourProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

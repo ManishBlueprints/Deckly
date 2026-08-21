@@ -8,9 +8,9 @@ const cardVariants = cva(
     variants: {
       variant: {
         default: "border bg-card text-card-foreground shadow",
-        glass: "bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl",
-        solid: "bg-surface-card border border-white/5 shadow-xl",
-        outline: "bg-transparent border-2 border-white/10",
+        glass: "border border-ui-border bg-ui-surface/80 shadow-[var(--ui-shadow-surface)] backdrop-blur-xl",
+        solid: "border border-ui-border bg-ui-surface shadow-[var(--ui-shadow-surface)]",
+        outline: "border-2 border-ui-border bg-transparent",
       },
     },
     defaultVariants: {

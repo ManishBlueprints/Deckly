@@ -1,4 +1,4 @@
-import { DashboardLayout } from "../components/layout/DashboardLayout";
+import { WorkspaceShell } from "../components/layout/WorkspaceShell";
 import { AdminNotificationComposer } from "../components/notifications/AdminNotificationComposer";
 import { useAuth } from "../contexts/AuthContext";
 import { ShieldAlert, Loader2, AlertTriangle, Users } from "lucide-react";
@@ -26,17 +26,17 @@ function AdminDashboardPage() {
   // Display a centered loading state while checking the server-side admin status or initial auth
   if (isAuthLoading || isLoading) {
     return (
-      <DashboardLayout title="Admin Control Center">
+      <WorkspaceShell title="Admin Control Center">
         <div className="flex-1 flex flex-col items-center justify-center p-8 bg-surface border border-border mt-8 h-[70vh]">
           <Loader2 size={40} className="text-primary animate-spin mb-4" />
-          <h2 className="text-2xl font-bold text-white uppercase tracking-tighter mb-2">
+          <h2 className="mb-2 text-2xl font-bold uppercase tracking-tighter text-ui-text">
             Authenticating
           </h2>
           <p className="text-muted-foreground uppercase tracking-widest text-xs font-bold">
             Verifying secure session...
           </p>
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
@@ -45,32 +45,32 @@ function AdminDashboardPage() {
   if (isError) {
     console.error("[Admin Verification Failed]", error);
     return (
-      <DashboardLayout title="Admin Dashboard" showFab={false}>
+      <WorkspaceShell title="Admin Dashboard">
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-6">
-          <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
-            <AlertTriangle className="w-6 h-6 text-red-400" />
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-ui-destructive/20 bg-ui-destructive/10">
+            <AlertTriangle className="h-6 w-6 text-ui-destructive" />
           </div>
-          <h2 className="text-lg font-semibold text-white mb-2">
+          <h2 className="mb-2 text-lg font-semibold text-ui-text">
             Admin verification failed
           </h2>
-          <p className="text-sm text-slate-400 max-w-md mb-6">
+          <p className="mb-6 max-w-md text-sm text-ui-muted">
             We could not verify admin access right now. Please try again.
           </p>
           <button
             onClick={() => refetchAdmin()}
-            className="px-5 py-2.5 rounded-lg bg-deckly-primary text-slate-950 font-semibold hover:bg-deckly-primary/90 transition-colors"
+            className="rounded-lg bg-ui-primary px-5 py-2.5 font-semibold text-ui-primary-text transition-colors hover:brightness-95"
           >
             Retry Verification
           </button>
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   if (!isLoading && isAdmin === false) return <Navigate to="/" replace />;
 
   return (
-    <DashboardLayout title="Admin Dashboard" showFab={false}>
+    <WorkspaceShell title="Admin Dashboard">
       <div className="max-w-4xl mx-auto space-y-10 py-10">
         {/* Header */}
         <div className="border-b border-border pb-8">
@@ -79,7 +79,7 @@ function AdminDashboardPage() {
               <ShieldAlert size={24} className="text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-white uppercase">
+              <h1 className="text-3xl font-bold uppercase tracking-tight text-ui-text">
                 Admin Control{" "}
                 <span className="text-primary tracking-widest">Center</span>
               </h1>
@@ -105,7 +105,7 @@ function AdminDashboardPage() {
 
               <div className="flex items-baseline gap-2">
                 {isLoadingMetrics ? (
-                  <div className="h-10 w-24 bg-white/5 animate-pulse"></div>
+                  <div className="h-10 w-24 animate-pulse bg-ui-subtle"></div>
                 ) : isMetricsError ? (
                   <div className="flex items-center text-destructive text-sm gap-2">
                     <AlertTriangle size={14} />
@@ -117,7 +117,7 @@ function AdminDashboardPage() {
                     </button>
                   </div>
                 ) : (
-                  <h3 className="text-5xl font-bold text-white tracking-tighter">
+                  <h3 className="text-5xl font-bold tracking-tighter text-ui-text">
                     {totalUsers?.toLocaleString() || "0"}
                   </h3>
                 )}
@@ -135,7 +135,7 @@ function AdminDashboardPage() {
         <div className="space-y-6">
           <div className="flex items-center gap-3">
             <div className="h-[1px] flex-1 bg-border"></div>
-            <h2 className="text-sm font-bold text-white uppercase tracking-[0.3em] px-4">
+            <h2 className="px-4 text-sm font-bold uppercase tracking-[0.3em] text-ui-text">
               Broadcast System
             </h2>
             <div className="h-[1px] flex-1 bg-border"></div>
@@ -146,7 +146,7 @@ function AdminDashboardPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </WorkspaceShell>
   );
 }
 

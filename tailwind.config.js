@@ -7,6 +7,35 @@ export default {
   theme: {
     extend: {
       colors: {
+        ui: {
+          canvas: "rgb(var(--ui-canvas) / <alpha-value>)",
+          surface: "rgb(var(--ui-surface) / <alpha-value>)",
+          subtle: "rgb(var(--ui-surface-subtle) / <alpha-value>)",
+          elevated: "rgb(var(--ui-surface-elevated) / <alpha-value>)",
+          text: "rgb(var(--ui-text) / <alpha-value>)",
+          muted: "rgb(var(--ui-text-muted) / <alpha-value>)",
+          border: "rgb(var(--ui-border) / <alpha-value>)",
+          primary: "rgb(var(--ui-primary) / <alpha-value>)",
+          "primary-text": "rgb(var(--ui-primary-text) / <alpha-value>)",
+          info: "rgb(var(--ui-info) / <alpha-value>)",
+          destructive: "rgb(var(--ui-destructive) / <alpha-value>)",
+          warning: "rgb(var(--ui-warning) / <alpha-value>)",
+          scrim: "rgb(var(--ui-scrim) / <alpha-value>)",
+          mint: "rgb(var(--ui-mint) / <alpha-value>)",
+          disabled: "rgb(var(--ui-disabled) / <alpha-value>)",
+          focus: "rgb(var(--ui-focus) / <alpha-value>)",
+          selection: "rgb(var(--ui-selection) / <alpha-value>)",
+          chart: {
+            1: "rgb(var(--ui-chart-1) / <alpha-value>)",
+            2: "rgb(var(--ui-chart-2) / <alpha-value>)",
+            3: "rgb(var(--ui-chart-3) / <alpha-value>)",
+            4: "rgb(var(--ui-chart-4) / <alpha-value>)",
+            5: "rgb(var(--ui-chart-5) / <alpha-value>)",
+            6: "rgb(var(--ui-chart-6) / <alpha-value>)",
+            7: "rgb(var(--ui-chart-7) / <alpha-value>)",
+            8: "rgb(var(--ui-chart-8) / <alpha-value>)",
+          },
+        },
         deckly: {
           primary: "hsl(var(--brand-primary) / <alpha-value>)",
           secondary: "hsl(var(--brand-secondary) / <alpha-value>)",
@@ -71,8 +100,9 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Manrope", "sans-serif"],
-        headline: ["Manrope", "sans-serif"],
+        sans: ["Onest Variable", "Onest", "sans-serif"],
+        headline: ["Onest Variable", "Onest", "sans-serif"],
+        mono: ["Geist Mono Variable", "Geist Mono", "monospace"],
       },
       backdropBlur: {
         xs: "2px",
@@ -83,10 +113,15 @@ export default {
           "linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0))",
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-        card: "32px",
+        lg: "var(--ui-radius-surface, var(--radius))",
+        md: "var(--ui-radius-control, calc(var(--radius) - 2px))",
+        sm: "var(--ui-radius-compact, calc(var(--radius) - 4px))",
+        card: "var(--ui-radius-surface, 24px)",
+      },
+      boxShadow: {
+        control: "var(--ui-shadow-control)",
+        surface: "var(--ui-shadow-surface)",
+        overlay: "var(--ui-shadow-overlay)",
       },
     },
   },

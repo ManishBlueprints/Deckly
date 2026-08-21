@@ -9,6 +9,44 @@ function sanitizeStorageSlug(slug: string): string {
   return slug.replace(/[^a-z0-9-]/gi, "_");
 }
 
+async function deleteAssetsUnderPrefix(prefix: string): Promise<void> {
+  await withRetry(async () => {
+    const allFilesToDelete: string[] = [];
+    let continuationToken: string | null = null;
+
+    while (true) {
+      const { data, error } = await storageService.list(
+        "decks",
+        prefix,
+        { continuationToken },
+      );
+
+      if (error) {
+        if (!error.message?.toLowerCase().includes("not found")) {
+          throw error;
+        }
+        return;
+      }
+
+      allFilesToDelete.push(
+        ...((data?.items || [])
+          .map((item) => item.name)
+          .filter((name) => name.startsWith(prefix))),
+      );
+
+      continuationToken = data?.nextToken ?? null;
+      if (!continuationToken) break;
+    }
+
+    for (let i = 0; i < allFilesToDelete.length; i += 100) {
+      const { error } = await storageService.remove("decks", allFilesToDelete.slice(i, i + 100));
+      if (error && !error.message?.toLowerCase().includes("not found")) {
+        throw error;
+      }
+    }
+  });
+}
+
 export const deckStorageService = {
   async uploadDeckFile(
     file: File,
@@ -20,7 +58,7 @@ export const deckStorageService = {
       ? file.name.split(".").pop()?.toLowerCase() || "bin"
       : "bin";
     const safeSlug = sanitizeStorageSlug(slug);
-    const fileName = `${userId}/decks/${safeSlug}-${Date.now()}.${fileExt}`;
+    const fileName = `${userId}/uploads/decks/${safeSlug}-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await storageService.upload("decks", fileName, file);
 
@@ -37,6 +75,7 @@ export const deckStorageService = {
     imageBlobs: Blob[],
     onProgress?: (current: number, total: number) => void,
     version?: string,
+    onUploaded?: (imageUrl: string) => void,
   ): Promise<string[]> {
     const imageUrls: string[] = new Array(imageBlobs.length);
     const concurrencyLimit = 3;
@@ -51,6 +90,7 @@ export const deckStorageService = {
 
       let attempts = 0;
       const maxAttempts = 3;
+      let publicUrl = "";
 
       while (attempts < maxAttempts) {
         try {
@@ -61,19 +101,26 @@ export const deckStorageService = {
 
           if (error) throw error;
 
-          const publicUrl = storageService.getPublicUrl("decks", fileName);
-          imageUrls[index] = publicUrl;
-          uploadedCount++;
-
-          if (onProgress) {
-            onProgress(uploadedCount, imageBlobs.length);
-          }
-          return;
+          publicUrl = storageService.getPublicUrl("decks", fileName);
+          break;
         } catch (err) {
           attempts++;
           if (attempts === maxAttempts) throw err;
           await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
         }
+      }
+
+      imageUrls[index] = publicUrl;
+      uploadedCount++;
+      try {
+        onUploaded?.(publicUrl);
+      } catch (callbackError) {
+        console.error("Slide upload callback failed:", callbackError);
+      }
+      try {
+        onProgress?.(uploadedCount, imageBlobs.length);
+      } catch (callbackError) {
+        console.error("Slide upload progress callback failed:", callbackError);
       }
     };
 
@@ -107,52 +154,18 @@ export const deckStorageService = {
       }
     });
 
-    await withRetry(async () => {
-      const safeSlug = sanitizeStorageSlug(slug);
-      const prefix = `${userId}/deck-images/${safeSlug}/`;
-      const allFilesToDelete: string[] = [];
-      let continuationToken: string | null = null;
+    const safeSlug = sanitizeStorageSlug(slug);
+    await deleteAssetsUnderPrefix(`${userId}/deck-images/${safeSlug}/`);
+  },
 
-      while (true) {
-        const { data, error } = await storageService.list(
-          "decks",
-          prefix,
-          { continuationToken },
-        );
+  async deleteDeckWatermarkAssets(deckId: string, providedUserId?: string): Promise<void> {
+    const userId = await getRequiredDeckUserId(providedUserId);
+    await deleteAssetsUnderPrefix(`${userId}/watermarks/${deckId}/`);
+  },
 
-        if (error) {
-          if (!error.message?.toLowerCase().includes("not found")) {
-            throw error;
-          }
-          return;
-        }
-
-        allFilesToDelete.push(
-          ...((data?.items || [])
-            .map((item) => item.name)
-            .filter((name) => name.startsWith(prefix))),
-        );
-
-        continuationToken = data?.nextToken ?? null;
-        if (!continuationToken) {
-          break;
-        }
-      }
-
-      if (allFilesToDelete.length > 0) {
-        // supabase remove has a limit depending on the payload length, but usually accepts a lot. Let's chunk if necessary, or pass all.
-        // Doing simple chunks of 100
-        const chunkSize = 100;
-        for (let i = 0; i < allFilesToDelete.length; i += chunkSize) {
-          const chunk = allFilesToDelete.slice(i, i + chunkSize);
-          const { error: removeError } = await storageService.remove("decks", chunk);
-
-          if (removeError && !removeError.message?.toLowerCase().includes("not found")) {
-            throw removeError;
-          }
-        }
-      }
-    });
+  async deleteDeckRevisionAssets(deckId: string, providedUserId?: string): Promise<void> {
+    const userId = await getRequiredDeckUserId(providedUserId);
+    await deleteAssetsUnderPrefix(`${userId}/decks/${deckId}/`);
   },
 
   async deleteSlideImages(fileUrls: string[]): Promise<void> {
