@@ -15,7 +15,7 @@
     "check:ui-tokens": "node scripts/check-ui-tokens.mjs",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build",
-    "storybook:preview": "vite preview --outDir storybook-static --port 6006 --strictPort",
+    "storybook:preview": "vite preview --outDir storybook-static --host 127.0.0.1 --port 6006 --strictPort",
     "test:visual": "playwright test",
     "test:theme": "playwright test --config playwright.theme.config.ts",
     "preview": "vite preview",

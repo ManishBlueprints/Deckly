@@ -43,15 +43,20 @@ const interactionStories = [
     a11yContext: "[role='menu']",
     open: async (page: import("@playwright/test").Page) => {
       if ((page.viewportSize()?.width ?? 0) < 768) {
-        const mobileTrigger = page.getByRole("button", { name: "Open workspace and profile menu" });
+        const mobileTrigger = page.getByRole("button", {
+          name: "Open workspace and profile menu",
+        });
         await expect(mobileTrigger).toBeVisible();
         await mobileTrigger.click();
       } else {
-        const desktopTrigger = page.getByRole("button", { name: /Manish Kumar Founder plan/ });
+        const desktopTrigger = page.getByRole("button", {
+          name: /Manish Kumar Founder plan/,
+        });
         await expect(desktopTrigger).toBeVisible();
         await desktopTrigger.click();
       }
-      await expect(page.getByRole("menuitem", { name: "Workspace settings" })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: "Workspace settings" }))
+        .toBeVisible();
     },
   },
   {
@@ -68,11 +73,25 @@ const interactionStories = [
     story: "screens-workspace--content-populated",
     a11yContext: "[data-testid='deck-link-panel-deck-series-a']",
     open: async (page: import("@playwright/test").Page) => {
-      await page.getByRole("button", { name: "Expand links for Series A Narrative" }).click();
-      await expect(page.getByTestId("deck-link-panel-deck-series-a").locator(":visible").first()).toBeVisible();
+      await page.getByRole("button", {
+        name: "Expand links for Series A Narrative",
+      }).click();
+      await expect(
+        page.getByTestId("deck-link-panel-deck-series-a").locator(":visible")
+          .first(),
+      ).toBeVisible();
     },
   },
 ] as const;
+
+// Chromium's glyph rasterization differs slightly between Windows development
+// machines and the pinned Linux CI image. Keep desktop screenshots at the
+// global 1% budget; mobile's smaller canvas needs 2% to cover text-edge pixels
+// without tolerating structural layout changes.
+const mobileScreenshotOptions = {
+  fullPage: true,
+  maxDiffPixelRatio: 0.02,
+} as const;
 
 async function openStory(
   page: import("@playwright/test").Page,
@@ -82,23 +101,33 @@ async function openStory(
 ) {
   await page.clock.setFixedTime(new Date("2026-08-20T10:00:00+05:30"));
   await page.setViewportSize(viewport);
-  await page.goto(`/iframe.html?id=${story}&viewMode=story&globals=theme:${theme}`);
+  await page.goto(
+    `/iframe.html?id=${story}&viewMode=story&globals=theme:${theme}`,
+  );
   await page.waitForLoadState("networkidle");
   await page.addStyleTag({
-    content: "*, *::before, *::after { animation-duration: 0s !important; animation-delay: 0s !important; transition-duration: 0s !important; transition-delay: 0s !important; }",
+    content:
+      "*, *::before, *::after { animation-duration: 0s !important; animation-delay: 0s !important; transition-duration: 0s !important; transition-delay: 0s !important; }",
   });
   await injectAxe(page);
 }
 
-async function checkStoryA11y(page: import("@playwright/test").Page, context?: string) {
-  const options = { detailedReport: true, detailedReportOptions: { html: true } } as const;
+async function checkStoryA11y(
+  page: import("@playwright/test").Page,
+  context?: string,
+) {
+  const options = {
+    detailedReport: true,
+    detailedReportOptions: { html: true },
+  } as const;
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
       await checkA11y(page, context, options);
       return;
     } catch (error) {
-      const axeIsBusy = error instanceof Error && error.message.includes("Axe is already running");
+      const axeIsBusy = error instanceof Error &&
+        error.message.includes("Axe is already running");
       if (!axeIsBusy || attempt === 4) {
         throw error;
       }
@@ -113,29 +142,46 @@ for (const theme of ["light", "dark"] as const) {
     test(`${story} ${theme} desktop`, async ({ page }) => {
       await openStory(page, story, theme, { width: 1440, height: 1024 });
       await checkStoryA11y(page, storyA11yContexts[story]);
-      await expect(page).toHaveScreenshot(`${story}-${theme}-desktop.png`, { fullPage: true });
+      await expect(page).toHaveScreenshot(`${story}-${theme}-desktop.png`, {
+        fullPage: true,
+      });
     });
 
     test(`${story} ${theme} mobile`, async ({ page }) => {
       await openStory(page, story, theme, { width: 390, height: 844 });
       await checkStoryA11y(page, storyA11yContexts[story]);
-      await expect(page).toHaveScreenshot(`${story}-${theme}-mobile.png`, { fullPage: true });
+      await expect(page).toHaveScreenshot(
+        `${story}-${theme}-mobile.png`,
+        mobileScreenshotOptions,
+      );
     });
   }
 
   for (const interaction of interactionStories) {
     test(`${interaction.name} ${theme} desktop`, async ({ page }) => {
-      await openStory(page, interaction.story, theme, { width: 1440, height: 1024 });
+      await openStory(page, interaction.story, theme, {
+        width: 1440,
+        height: 1024,
+      });
       await interaction.open(page);
       await checkStoryA11y(page, interaction.a11yContext);
-      await expect(page).toHaveScreenshot(`${interaction.name}-${theme}-desktop.png`, { fullPage: true });
+      await expect(page).toHaveScreenshot(
+        `${interaction.name}-${theme}-desktop.png`,
+        { fullPage: true },
+      );
     });
 
     test(`${interaction.name} ${theme} mobile`, async ({ page }) => {
-      await openStory(page, interaction.story, theme, { width: 390, height: 844 });
+      await openStory(page, interaction.story, theme, {
+        width: 390,
+        height: 844,
+      });
       await interaction.open(page);
       await checkStoryA11y(page, interaction.a11yContext);
-      await expect(page).toHaveScreenshot(`${interaction.name}-${theme}-mobile.png`, { fullPage: true });
+      await expect(page).toHaveScreenshot(
+        `${interaction.name}-${theme}-mobile.png`,
+        mobileScreenshotOptions,
+      );
     });
   }
 }

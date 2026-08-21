@@ -6,7 +6,11 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const read = (relativePath: string) => readFileSync(path.resolve(__dirname, "../..", relativePath), "utf8");
+const read = (relativePath: string) =>
+  readFileSync(path.resolve(__dirname, "../..", relativePath), "utf8").replace(
+    /\r\n/g,
+    "\n",
+  );
 
 const migration = read("supabase/migrations/20260717000000_add_deck_watermarking.sql");
 const validationMigration = read("supabase/migrations/20260717000001_validate_deck_watermarking_constraints.sql");
