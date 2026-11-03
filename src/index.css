@@ -144,26 +144,38 @@
     --radius-xl: 0px;
   }
 
+  :root[data-theme="dark"],
   .dark {
+    --brand-primary: 152 61% 50%;
+    --brand-secondary: 150 8% 12%;
+    --brand-neutral: 150 8% 7%;
     --background: var(--brand-neutral);
-    --foreground: 0 0% 90%;
-    --muted: var(--brand-secondary);
-    --muted-foreground: 0 0% 60%;
-    --accent: var(--brand-secondary);
-    --accent-foreground: 0 0% 100%;
-    --popover: var(--surface-highest);
-    --popover-foreground: 0 0% 100%;
-    --border: 0 0% 100% / 0.05;
-    --input: var(--surface-low);
-    --card: var(--surface-low);
-    --card-foreground: 0 0% 100%;
+    --foreground: 150 8% 95%;
+    --muted: 150 8% 12%;
+    --muted-foreground: 150 5% 64%;
+    --accent: var(--brand-primary);
+    --accent-foreground: 150 54% 7%;
+    --popover: 150 8% 15%;
+    --popover-foreground: 150 8% 95%;
+    --border: 150 8% 23%;
+    --input: 150 8% 23%;
+    --card: 150 8% 10%;
+    --card-foreground: 150 8% 95%;
     --primary: var(--brand-primary);
-    --primary-foreground: 0 0% 0%;
-    --secondary: var(--brand-secondary);
-    --secondary-foreground: 0 0% 100%;
-    --destructive: 0 84% 40%;
+    --primary-foreground: 150 54% 7%;
+    --secondary: 150 8% 12%;
+    --secondary-foreground: 150 8% 95%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --ring: var(--brand-primary);
+    --surface-lowest: 150 8% 7%;
+    --surface-low: 150 8% 10%;
+    --surface-card: 150 8% 10%;
+    --surface-container: 150 8% 12%;
+    --surface-high: 150 8% 15%;
+    --surface-highest: 150 8% 15%;
+    --surface-bright: 150 7% 18%;
+    --bg-input: 150 8% 15%;
   }
 }
 
@@ -242,22 +254,22 @@
 }
 
 :root[data-theme="dark"] .ui-shell {
-  --background: 150 8% 8%;
-  --foreground: 140 10% 94%;
-  --card: 150 7% 11%;
-  --card-foreground: 140 10% 94%;
-  --popover: 150 7% 15%;
-  --popover-foreground: 140 10% 94%;
-  --surface-lowest: 150 8% 8%;
-  --surface-low: 150 7% 11%;
-  --surface-card: 150 7% 11%;
-  --surface-container: 150 8% 13%;
-  --surface-high: 150 7% 16%;
-  --surface-highest: 150 7% 16%;
-  --border: 150 8% 24%;
-  --primary: 151 60% 50%;
-  --primary-foreground: 150 55% 7%;
-  --muted-foreground: 150 6% 65%;
+  --background: 150 8% 7%;
+  --foreground: 150 8% 95%;
+  --card: 150 8% 10%;
+  --card-foreground: 150 8% 95%;
+  --popover: 150 8% 15%;
+  --popover-foreground: 150 8% 95%;
+  --surface-lowest: 150 8% 7%;
+  --surface-low: 150 8% 10%;
+  --surface-card: 150 8% 10%;
+  --surface-container: 150 8% 12%;
+  --surface-high: 150 8% 15%;
+  --surface-highest: 150 8% 15%;
+  --border: 150 8% 23%;
+  --primary: 152 61% 50%;
+  --primary-foreground: 150 54% 7%;
+  --muted-foreground: 150 5% 64%;
 }
 
 .ui-shell .text-white,
