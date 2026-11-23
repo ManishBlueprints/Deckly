@@ -63,12 +63,12 @@ export function DataRoomSidebar({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onToggleSidebar}
-            className="fixed inset-0 z-[var(--ui-layer-viewer)] bg-black/45 backdrop-blur-sm"
+            className="fixed inset-0 z-[calc(var(--ui-layer-viewer)-2)] bg-black/45 backdrop-blur-sm"
           />
         )}
       </AnimatePresence>
 
-      <div className="fixed inset-x-0 bottom-2 z-50 flex justify-center px-2 sm:px-4">
+      <div className="fixed inset-x-0 bottom-2 z-[calc(var(--ui-layer-viewer)-1)] flex justify-center px-2 sm:px-4">
         <div className={`relative pointer-events-none w-full ${isMobile ? "" : "max-w-2xl"}`}>
           <div className="pointer-events-auto">
             <button
