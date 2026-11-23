@@ -68,7 +68,7 @@ export function DataRoomSidebar({
         )}
       </AnimatePresence>
 
-      <div className="fixed inset-x-0 bottom-2 z-50 flex justify-center px-2 sm:px-4">
+      <div className="fixed inset-x-0 bottom-2 z-[calc(var(--ui-layer-viewer)+1)] flex justify-center px-2 sm:px-4">
         <div className={`relative pointer-events-none w-full ${isMobile ? "" : "max-w-2xl"}`}>
           <div className="pointer-events-auto">
             <button
