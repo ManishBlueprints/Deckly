@@ -166,7 +166,7 @@
     --secondary: 150 8% 12%;
     --secondary-foreground: 150 8% 95%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 0 0% 0%;
     --ring: var(--brand-primary);
     --surface-lowest: 150 8% 7%;
     --surface-low: 150 8% 10%;
